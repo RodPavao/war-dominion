@@ -19,7 +19,7 @@ public sealed class WDMapVoteControllerTests
         });
 
         Assert.That(candidates, Has.Count.EqualTo(2));
-        Assert.That(candidates.Select(item => item.MapId).Distinct(), Has.Count.EqualTo(2));
+        Assert.That(candidates.Select(item => item.MapId).Distinct().Count(), Is.EqualTo(2));
     }
 
     [Test]
@@ -217,8 +217,8 @@ public sealed class WDMapVoteControllerTests
         Assert.That(setup.Participants, Has.Count.EqualTo(2));
         Assert.That(setup.Participants.Count(item => item.Kind == WDMatchParticipantKind.Local),
             Is.EqualTo(1));
-        Assert.That(setup.Participants.Select(item => item.TeamIndex).Distinct(),
-            Has.Count.EqualTo(2));
+        Assert.That(setup.Participants.Select(item => item.TeamIndex).Distinct().Count(),
+            Is.EqualTo(2));
         Assert.That(setup.RoundLimit, Is.EqualTo(10));
         Assert.That(setup.SuddenDeathEnabled, Is.True);
         Assert.That(setup.CardRuleId, Is.EqualTo("standard_deck"));
@@ -262,7 +262,7 @@ public sealed class WDMapVoteControllerTests
         Assert.That(setup.Participants, Has.Count.EqualTo(4));
         Assert.That(setup.Participants.Count(item => item.TeamIndex == 0), Is.EqualTo(2));
         Assert.That(setup.Participants.Count(item => item.TeamIndex == 1), Is.EqualTo(2));
-        Assert.That(setup.Participants.Select(item => item.SlotIndex).Distinct(), Has.Count.EqualTo(4));
+        Assert.That(setup.Participants.Select(item => item.SlotIndex).Distinct().Count(), Is.EqualTo(4));
     }
 
     [Test]

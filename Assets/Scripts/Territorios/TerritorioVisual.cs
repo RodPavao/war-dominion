@@ -131,11 +131,7 @@ public class TerritorioVisual : MonoBehaviour
 
         GarantirMaterialSemLuz();
 
-        corBase = !territorio.PossuiDono
-            ? Color.clear
-            : PaletaJogadores.ObterCorAtiva(territorio.dono);
-        if (territorio.PossuiDono)
-            corBase.a = 1f;
+        corBase = ObterCorBaseTerritorial();
 
         if (!selecionado)
         {
@@ -153,7 +149,7 @@ public class TerritorioVisual : MonoBehaviour
         GarantirMaterialSemLuz();
         selecionado = false;
         corBase = donoVisual == TerritorioClique.Dono.Neutro
-            ? Color.clear
+            ? PaletaJogadores.ObterCorNeutraAtiva()
             : PaletaJogadores.ObterCorAtiva(donoVisual);
         if (donoVisual != TerritorioClique.Dono.Neutro)
             corBase.a = 1f;
@@ -190,11 +186,7 @@ public class TerritorioVisual : MonoBehaviour
             territorio == null)
             return;
 
-        corBase = !territorio.PossuiDono
-            ? new Color(1f, 1f, 1f, 0.35f)
-            : PaletaJogadores.ObterCorAtiva(territorio.dono);
-        if (territorio.PossuiDono)
-            corBase.a = 1f;
+        corBase = Color.Lerp(ObterCorBaseTerritorial(), Color.white, 0.3f);
 
         selecionado = true;
     }
@@ -215,12 +207,20 @@ public class TerritorioVisual : MonoBehaviour
         if (sr == null || territorio == null)
             return;
 
-        corBase = !territorio.PossuiDono
-            ? Color.clear
-            : PaletaJogadores.ObterCorAtiva(territorio.dono);
-        if (territorio.PossuiDono)
-            corBase.a = 1f;
+        corBase = ObterCorBaseTerritorial();
         destaqueReforcoAtivo = true;
         fimDestaqueReforco = Time.unscaledTime + 1.5f;
+    }
+
+    private Color ObterCorBaseTerritorial()
+    {
+        if (territorio == null)
+            return Color.clear;
+        if (territorio.UsaOverlaySemDono)
+            return PaletaJogadores.ObterCorNeutraAtiva();
+
+        Color color = PaletaJogadores.ObterCorAtiva(territorio.dono);
+        color.a = 1f;
+        return color;
     }
 }

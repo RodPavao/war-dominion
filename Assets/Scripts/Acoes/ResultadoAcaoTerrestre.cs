@@ -8,6 +8,7 @@ public class ResultadoAcaoTerrestre
     {
         Cancelada,
         Ataque,
+        OcupacaoVazio,
         MovimentoProprio,
         MovimentoAliado
     }

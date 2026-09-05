@@ -8,8 +8,8 @@ public static class WarDominionUIEditor
     // 01. ALTERNÂNCIA DE VALIDAÇÃO HUD NOVO / HUD LEGADO
     // ============================================================
 
-    private const string MenuNovo = "War Dominion/UI/Teste/Usar HUD Novo";
-    private const string MenuLegado = "War Dominion/UI/Teste/Usar HUD Legado";
+    private const string MenuNovo = "War Dominion/Ferramentas de Desenvolvimento/UI/Usar HUD Novo";
+    private const string MenuLegado = "War Dominion/Ferramentas de Desenvolvimento/UI/Usar HUD Legado";
 
     [MenuItem(MenuNovo)]
     private static void UsarHUDNovo() => DefinirModo(true);

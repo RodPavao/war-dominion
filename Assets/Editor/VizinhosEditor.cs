@@ -21,7 +21,7 @@ public sealed class VizinhosEditor : EditorWindow
     private TipoConexaoMapa tipoNovaConexao = TipoConexaoMapa.Terrestre;
     private Vector2 scroll;
 
-    [MenuItem("War Dominion/Configuração de Mapas/Editor de Vizinhanças")]
+    [MenuItem("War Dominion/Ferramentas de Desenvolvimento/Mapas/Editor de Vizinhanças")]
     private static void Abrir()
     {
         VizinhosEditor janela = GetWindow<VizinhosEditor>("Vizinhanças");

@@ -3,7 +3,7 @@ using UnityEditor;
 
 public static class MontadorTerritoriosEditor
 {
-    [MenuItem("War Dominion/Montar Territorios Definitivos")]
+    [MenuItem("War Dominion/Ferramentas de Desenvolvimento/Mapas/Montar Territórios Definitivos")]
     public static void MontarTerritoriosDefinitivos()
     {
         const string pastaSprites =

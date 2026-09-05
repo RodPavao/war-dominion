@@ -42,9 +42,9 @@ public static class PeloponesoEditor
     // ============================================================
     // 04. MENUS DE GERAÇÃO E VALIDAÇÃO
     // ============================================================
-    [MenuItem("War Dominion/Configuração de Mapas/Gerar ou Atualizar/Peloponeso")]
+    [MenuItem("War Dominion/Ferramentas de Desenvolvimento/Mapas/Gerar ou Atualizar/Peloponeso")]
     public static void Generate(){ValidateSources();AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);ConfigureImports();var map=GenerateDefinition();UpdateCatalog(map);GenerateScene(map);AssetDatabase.SaveAssets();AssetDatabase.Refresh();Validate();Debug.Log($"[Mapa] Peloponeso gerado: 82 territórios, 4 regiões e {Connections().Count} conexões.");}
-    [MenuItem("War Dominion/Configuração de Mapas/Validar/Peloponeso")]
+    [MenuItem("War Dominion/Ferramentas de Desenvolvimento/Mapas/Validar/Peloponeso")]
     public static void Validate(){var map=AssetDatabase.LoadAssetAtPath<DefinicaoMapa>(DefinitionPath);if(map==null)throw new InvalidOperationException("Peloponeso.asset ausente.");var issues=ValidadorDefinicaoMapa.Validar(map);if(issues.Count>0)throw new InvalidOperationException(string.Join(" | ",issues));if(map.Territorios.Count!=82||map.Regioes.Count!=4)throw new InvalidOperationException("Peloponeso deve possuir 82 territórios e 4 regiões.");ValidateScene();Debug.Log($"[Mapa] Peloponeso validado: 82/4/{map.Conexoes.Count}.");}
 
     // ============================================================

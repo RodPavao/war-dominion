@@ -45,6 +45,40 @@ public sealed class WDInitialTerritorySelectionSessionTests
         Assert.That(session.SubmitIntent("p1", "t1"), Is.False);
     }
 
+    [Test]
+    public void PendingSelectionCanBeCancelledWithoutSubmittingIntent()
+    {
+        var session = Session(40);
+        Assert.That(session.SelectPending("p1", "t1"), Is.True);
+        Assert.That(session.CancelPending("p1"), Is.True);
+        Assert.That(session.GetPending("p1"), Is.Empty);
+        Assert.That(session.ReadyToResolve, Is.False);
+        Assert.That(session.IsAvailable("t1"), Is.True);
+    }
+
+    [Test]
+    public void PendingSelectionCanBeReplacedBeforeConfirmation()
+    {
+        var session = Session(41);
+        Assert.That(session.SelectPending("p1", "t1"), Is.True);
+        Assert.That(session.SelectPending("p1", "t3"), Is.True);
+        Assert.That(session.GetPending("p1"), Is.EqualTo("t3"));
+        Assert.That(session.ConfirmPending("p1"), Is.True);
+        Assert.That(session.ResolveStage(), Is.Null);
+    }
+
+    [Test]
+    public void ConfirmedPendingSelectionUsesNormalResolutionPipeline()
+    {
+        var session = Session(42);
+        Assert.That(session.SelectPending("p1", "t1"), Is.True);
+        Assert.That(session.ConfirmPending("p1"), Is.True);
+        Assert.That(session.SubmitIntent("p2", "t2"), Is.True);
+        WDInitialTerritoryStageResult result = session.ResolveStage();
+        Assert.That(result.Assignments[0].TerritoryId, Is.EqualTo("t1"));
+        Assert.That(session.IsAvailable("t1"), Is.False);
+    }
+
     // ============================================================
     // 02. CONFLITO, PRIORIDADE E FALLBACK
     // ============================================================
@@ -92,6 +126,61 @@ public sealed class WDInitialTerritorySelectionSessionTests
         session.SubmitIntent("p1", "t1");
         session.SubmitIntent("p2", "t1");
         Assert.That(session.ResolveStage().Assignments[0].PlayerId, Is.EqualTo("p2"));
+    }
+
+    [Test]
+    public void ReversedPriorityMakesLocalPlayerReceiveFallback()
+    {
+        var session = new WDInitialTerritorySelectionSession(
+            81, new[] { "bot", "local" }, Territories());
+        session.SubmitIntent("local", "t1");
+        session.SubmitIntent("bot", "t1");
+
+        WDInitialTerritoryStageResult result = session.ResolveStage();
+
+        Assert.That(result.HadConflict, Is.True);
+        Assert.That(result.Assignments[0].PlayerId, Is.EqualTo("bot"));
+        Assert.That(result.Assignments[0].TerritoryId, Is.EqualTo("t1"));
+        Assert.That(result.Assignments[1].PlayerId, Is.EqualTo("local"));
+        Assert.That(result.Assignments[1].WasFallback, Is.True);
+        Assert.That(result.Assignments[1].TerritoryId, Is.Not.EqualTo("t1"));
+    }
+
+    [Test]
+    public void ProvidedRoundOrderCanGiveSecondNamedPlayerPriority()
+    {
+        var session = new WDInitialTerritorySelectionSession(
+            83, new[] { "p2", "p1" }, Territories());
+        session.SubmitIntent("p1", "t1");
+        session.SubmitIntent("p2", "t1");
+
+        WDInitialTerritoryStageResult result = session.ResolveStage();
+
+        Assert.That(result.HadConflict, Is.True);
+        Assert.That(result.Assignments[0].PlayerId, Is.EqualTo("p2"));
+        Assert.That(result.Assignments[0].TerritoryId, Is.EqualTo("t1"));
+        Assert.That(result.Assignments[1].PlayerId, Is.EqualTo("p1"));
+        Assert.That(result.Assignments[1].WasFallback, Is.True);
+        Assert.That(session.GetAssignments("p1"), Has.Count.EqualTo(1));
+        Assert.That(session.GetAssignments("p2"), Has.Count.EqualTo(1));
+    }
+
+    [Test]
+    public void ForcedConflictInBothStagesEndsWithTwoUniqueTerritoriesPerPlayer()
+    {
+        var session = Session(82);
+        Resolve(session, "t1", "t1");
+        string secondConflict = Territories().First(session.IsAvailable);
+        Resolve(session, secondConflict, secondConflict);
+
+        string[] allAssignments = session.GetAssignments("p1")
+            .Concat(session.GetAssignments("p2")).ToArray();
+        Assert.That(session.IsComplete, Is.True);
+        Assert.That(session.GetAssignments("p1"), Has.Count.EqualTo(2));
+        Assert.That(session.GetAssignments("p2"), Has.Count.EqualTo(2));
+        Assert.That(allAssignments.Distinct().Count(), Is.EqualTo(4));
+        Assert.That(session.IsAvailable("t1"), Is.False);
+        Assert.That(session.IsAvailable(secondConflict), Is.False);
     }
 
     // ============================================================

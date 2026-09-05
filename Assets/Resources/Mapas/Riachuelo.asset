@@ -21,6 +21,7 @@ MonoBehaviour:
   arteBase: {fileID: 21300000, guid: 6e22641b0342a464eb3cc732e765bb9a, type: 3}
   centroCamera: {x: 0, y: 0}
   tamanhoOrtografico: 11.75
+  deslocamentoEnquadramento: {x: 0, y: 0}
   territorios:
   - id: Pilcomayo
     nomeExibido: Pilcomayo
@@ -789,14 +790,6 @@ MonoBehaviour:
     destinoId: Pirane
     tipo: 0
     bidirecional: 1
-  - origemId: Federacion
-    destinoId: PalomeraIsland
-    tipo: 0
-    bidirecional: 1
-  - origemId: GeneralSanMartin
-    destinoId: PalomeraIsland
-    tipo: 0
-    bidirecional: 1
   - origemId: Concordia
     destinoId: SanLorenzo
     tipo: 0
@@ -805,16 +798,20 @@ MonoBehaviour:
     destinoId: PasoDeLosLibres
     tipo: 0
     bidirecional: 1
-  - origemId: CuruzuCuatia
-    destinoId: SanCristobal
+  - origemId: NueveDeJulio
+    destinoId: CuruzuCuatia
     tipo: 0
     bidirecional: 1
-  - origemId: MonteCaseros
-    destinoId: SantaFe
+  - origemId: SanCristobal
+    destinoId: MonteCaseros
     tipo: 0
     bidirecional: 1
-  - origemId: MonteCaseros
-    destinoId: Pirane
+  - origemId: PalomeraIsland
+    destinoId: Concordia
+    tipo: 0
+    bidirecional: 1
+  - origemId: PalomeraIsland
+    destinoId: OHiggins
     tipo: 0
     bidirecional: 1
   condicoesEstrategicas: []

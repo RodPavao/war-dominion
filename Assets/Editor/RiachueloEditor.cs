@@ -124,7 +124,7 @@ public static class RiachueloEditor
         P("MonteCaseros", "Pirane")
     };
 
-    [MenuItem("War Dominion/Configuração de Mapas/Gerar ou Atualizar/Batalha do Riachuelo")]
+    [MenuItem("War Dominion/Ferramentas de Desenvolvimento/Mapas/Gerar ou Atualizar/Batalha do Riachuelo")]
     public static void GerarOuAtualizar()
     {
         ValidarArquivosFonte();
@@ -159,7 +159,7 @@ public static class RiachueloEditor
         }
     }
 
-    [MenuItem("War Dominion/Configuração de Mapas/Validar/Batalha do Riachuelo")]
+    [MenuItem("War Dominion/Ferramentas de Desenvolvimento/Mapas/Validar/Batalha do Riachuelo")]
     public static void ValidarCompleto()
     {
         DefinicaoMapa mapa = AssetDatabase.LoadAssetAtPath<DefinicaoMapa>(DefinicaoPath);

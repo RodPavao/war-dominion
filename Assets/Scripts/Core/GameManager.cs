@@ -28,6 +28,12 @@ public class GameManager : MonoBehaviour
         !initialSelectionSession.IsComplete;
     public int EtapaSelecaoInicial => EmSelecaoInicial ? initialSelectionSession.Stage : 0;
     public string FeedbackSelecaoInicial { get; private set; } = string.Empty;
+    public string TerritorioProvisorioInicialId => initialSelectionSession != null
+        ? initialSelectionSession.GetPending(ObterIdJogadorLocal())
+        : string.Empty;
+    public bool PodeConfirmarTerritorioInicial =>
+        EmSelecaoInicial && !string.IsNullOrEmpty(TerritorioProvisorioInicialId);
+    public bool BloqueandoEntradaNoRoundUm => bloqueioInicioPartida && !EmSelecaoInicial;
 
     public TerritorioClique territorioSelecionado;
     public TerritorioClique territorioDestinoSelecionado;
@@ -406,17 +412,74 @@ public class GameManager : MonoBehaviour
         if (!territory.IsNeutral || !initialSelectionSession.IsAvailable(territory.idTerritorio))
             return;
         string localId = ObterIdJogadorLocal();
-        if (!initialSelectionSession.SubmitIntent(localId, territory.idTerritorio))
+        if (!initialSelectionSession.SelectPending(localId, territory.idTerritorio))
             return;
+
+        LimparDestaqueEscolhaInicial(territory.idTerritorio);
+        territory.DestacarSelecao();
+        FeedbackSelecaoInicial = $"SELEÇÃO PROVISÓRIA: {NomeTerritorioLegivel(territory.idTerritorio)}";
+        GetComponent<MatchUIPresenter>()?.SolicitarSnapshotAtual();
+    }
+
+    public void CancelarEscolhaInicialProvisoria()
+    {
+        if (!EmSelecaoInicial)
+            return;
+        string localId = ObterIdJogadorLocal();
+        string territoryId = initialSelectionSession.GetPending(localId);
+        if (!initialSelectionSession.CancelPending(localId))
+            return;
+        LimparDestaqueEscolhaInicial();
+        FeedbackSelecaoInicial = initialSelectionSession.Stage == 1
+            ? "ESCOLHA SEU PRIMEIRO TERRITÓRIO"
+            : "ESCOLHA SEU SEGUNDO TERRITÓRIO";
+        GetComponent<MatchUIPresenter>()?.SolicitarSnapshotAtual();
+    }
+
+    public void ConfirmarEscolhaInicialProvisoria()
+    {
+        if (!EmSelecaoInicial)
+            return;
+        string localId = ObterIdJogadorLocal();
+        string localChoice = initialSelectionSession.GetPending(localId);
+        if (!initialSelectionSession.ConfirmPending(localId))
+            return;
+
+        LimparDestaqueEscolhaInicial();
 
         string remoteId = string.Empty;
         foreach (WDMatchParticipant participant in MatchSetupAtual.Participants)
             if (participant.Kind != WDMatchParticipantKind.Local)
                 remoteId = participant.PlayerId;
-        string mockChoice = initialSelectionSession.PickMockIntent(territory.idTerritorio);
+
+        string mockChoice = initialSelectionSession.PickMockIntent(localChoice);
         initialSelectionSession.SubmitIntent(remoteId, mockChoice);
         WDInitialTerritoryStageResult result = initialSelectionSession.ResolveStage();
         AplicarResultadoEscolhaInicial(result);
+    }
+
+    private void LimparDestaqueEscolhaInicial(string preservarId = null)
+    {
+        foreach (TerritorioClique candidate in MapaAtivo.ObterTerritoriosOuCena())
+            if (candidate != null && candidate.idTerritorio != preservarId)
+                candidate.RemoverDestaqueSelecao();
+    }
+
+    private static string NomeTerritorioLegivel(string technicalId)
+    {
+        if (string.IsNullOrEmpty(technicalId))
+            return string.Empty;
+        var output = new System.Text.StringBuilder(technicalId.Length + 8);
+        for (int i = 0; i < technicalId.Length; i++)
+        {
+            char current = technicalId[i];
+            if (i > 0 && char.IsUpper(current) &&
+                (char.IsLower(technicalId[i - 1]) ||
+                 (i + 1 < technicalId.Length && char.IsLower(technicalId[i + 1]))))
+                output.Append(' ');
+            output.Append(current);
+        }
+        return output.ToString();
     }
 
     private void AplicarResultadoEscolhaInicial(WDInitialTerritoryStageResult result)
@@ -434,7 +497,7 @@ public class GameManager : MonoBehaviour
                     assignment.TerritoryId, out TerritorioClique territory))
                 continue;
             territory.DefinirDono((TerritorioClique.Dono)(participant.SlotIndex + 1));
-            territory.DefinirTropasIniciaisSemDistribuicao();
+            territory.DefinirTropas(1);
             territory.DestacarReforco();
             Debug.Log($"ABERTURA 1x1 | Etapa {result.Stage} | {assignment.PlayerId} recebeu " +
                 $"{assignment.TerritoryId}" + (assignment.WasFallback ? " por fallback." : "."));
@@ -442,6 +505,7 @@ public class GameManager : MonoBehaviour
 
         if (initialSelectionSession.IsComplete)
         {
+            LimparDestaqueEscolhaInicial();
             FeedbackSelecaoInicial = "TERRITÓRIOS INICIAIS DEFINIDOS";
             IniciarPartidaAposAnuncio();
         }

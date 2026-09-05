@@ -35,6 +35,7 @@ public sealed class WDInitialTerritorySelectionSession
     private readonly string[] players;
     private readonly HashSet<string> available;
     private readonly Dictionary<string, string> intents = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> pending = new(StringComparer.Ordinal);
     private readonly Dictionary<string, List<string>> assigned = new(StringComparer.Ordinal);
     private readonly Dictionary<int, WDInitialTerritoryStageResult> results = new();
     public int Stage { get; private set; } = 1;
@@ -65,7 +66,40 @@ public sealed class WDInitialTerritorySelectionSession
     }
 
     // ============================================================
-    // 02. CONFLITO E FALLBACK DETERMINÍSTICO
+    // 02. ESCOLHA PROVISÓRIA LOCAL, SEM REGISTRAR INTENÇÃO
+    // ============================================================
+
+    public bool SelectPending(string playerId, string territoryId)
+    {
+        if (IsComplete || intents.ContainsKey(playerId ?? string.Empty) ||
+            !assigned.ContainsKey(playerId ?? string.Empty) ||
+            !available.Contains(territoryId ?? string.Empty))
+            return false;
+
+        pending[playerId] = territoryId;
+        return true;
+    }
+
+    public bool CancelPending(string playerId) =>
+        pending.Remove(playerId ?? string.Empty);
+
+    public string GetPending(string playerId) =>
+        pending.TryGetValue(playerId ?? string.Empty, out string territoryId)
+            ? territoryId
+            : string.Empty;
+
+    public bool ConfirmPending(string playerId)
+    {
+        if (!pending.TryGetValue(playerId ?? string.Empty, out string territoryId) ||
+            !SubmitIntent(playerId, territoryId))
+            return false;
+
+        pending.Remove(playerId);
+        return true;
+    }
+
+    // ============================================================
+    // 03. CONFLITO E FALLBACK DETERMINÍSTICO
     // ============================================================
 
     public WDInitialTerritoryStageResult ResolveStage()
@@ -74,18 +108,22 @@ public sealed class WDInitialTerritorySelectionSession
             return existing;
         if (!ReadyToResolve)
             return null;
+
+        string firstPlayer = players[0];
+        string secondPlayer = players.First(player => player != firstPlayer);
         int resolvedStage = Stage;
-        string firstChoice = intents[players[0]];
-        string secondChoice = intents[players[1]];
+        string firstChoice = intents[firstPlayer];
+        string secondChoice = intents[secondPlayer];
         bool conflict = string.Equals(firstChoice, secondChoice, StringComparison.Ordinal);
         var assignments = new List<WDInitialTerritoryAssignment>(2);
-        Assign(players[0], firstChoice, false, assignments);
-        Assign(players[1], conflict || !available.Contains(secondChoice)
+        Assign(firstPlayer, firstChoice, false, assignments);
+        Assign(secondPlayer, conflict || !available.Contains(secondChoice)
             ? PickAvailable() : secondChoice, conflict, assignments);
         var result = new WDInitialTerritoryStageResult(
             resolvedStage, assignments.AsReadOnly(), conflict);
         results.Add(resolvedStage, result);
         intents.Clear();
+        pending.Clear();
         Stage++;
         return result;
     }

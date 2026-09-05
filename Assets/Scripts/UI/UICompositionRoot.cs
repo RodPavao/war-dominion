@@ -24,6 +24,7 @@ public sealed class UICompositionRoot : MonoBehaviour
     private ResolutionVisualStateCoordinator resolutionVisualStateCoordinator;
     private PreparedActionsOverlayController preparedActionsOverlay;
     private WarDominionMatchHUD matchHUD;
+    private WDInitialTerritorySelectionView initialTerritorySelectionView;
     private bool possuiFaseAnterior;
     private GameManager.FaseTurno faseAnterior;
     private string ultimoCicloResolucaoAnunciado = string.Empty;
@@ -153,7 +154,7 @@ public sealed class UICompositionRoot : MonoBehaviour
         CriarCamada("BottomActionBar", safeArea);
         RectTransform mapOverlayLayer = CriarCamada("MapOverlayLayer", raizRect);
         RectTransform notificationLayer = CriarCamada("NotificationLayer", raizRect);
-        CriarCamada("ModalLayer", raizRect);
+        RectTransform modalLayer = CriarCamada("ModalLayer", raizRect);
 
         RectTransform anuncioRect = CriarCamada("RoundAnnouncement", notificationLayer);
         roundAnnouncement = anuncioRect.gameObject.AddComponent<RoundAnnouncementView>();
@@ -186,6 +187,11 @@ public sealed class UICompositionRoot : MonoBehaviour
         RectTransform finalHUD = CriarCamada("FinalMatchHUD", safeArea);
         matchHUD = finalHUD.gameObject.AddComponent<WarDominionMatchHUD>();
         matchHUD.Build(tema, GetComponent<MatchUIPresenter>()?.Comandos);
+
+        RectTransform initialSelectionRect = CriarCamada("InitialTerritorySelection", modalLayer);
+        initialTerritorySelectionView =
+            initialSelectionRect.gameObject.AddComponent<WDInitialTerritorySelectionView>();
+        initialTerritorySelectionView.Build(tema, GetComponent<GameManager>());
         DefinirHUDNovoAtivo(PlayerPrefs.GetInt(ChaveHUDNovo, 1) == 1);
         AtualizarSafeArea(true);
     }

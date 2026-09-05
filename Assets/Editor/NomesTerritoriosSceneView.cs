@@ -6,8 +6,8 @@ using UnityEngine;
 [InitializeOnLoad]
 public static class NomesTerritoriosSceneView
 {
-    private const string MenuMostrar = "War Dominion/Visualização/Mostrar Nomes dos Territórios";
-    private const string MenuEditar = "War Dominion/Visualização/Editar Posições dos Nomes";
+    private const string MenuMostrar = "War Dominion/Ferramentas de Desenvolvimento/Visualização/Mostrar Nomes dos Territórios";
+    private const string MenuEditar = "War Dominion/Ferramentas de Desenvolvimento/Visualização/Editar Posições dos Nomes";
     private const string ChaveMostrar = "WarGame.Visualizacao.MostrarNomesTerritorios";
     private const string ChaveEditar = "WarGame.Visualizacao.EditarPosicoesNomesTerritorios";
     internal const int TamanhoFonteMinimo = 8;
@@ -430,7 +430,7 @@ public sealed class ConfiguradorNomesTerritoriosWindow : EditorWindow
     private static ConfiguradorNomesTerritoriosWindow instancia;
     private int indiceSelecionado;
 
-    [MenuItem("War Dominion/Visualização/Configurar Nomes dos Territórios")]
+    [MenuItem("War Dominion/Ferramentas de Desenvolvimento/Visualização/Configurar Nomes dos Territórios")]
     private static void Abrir()
     {
         instancia = GetWindow<ConfiguradorNomesTerritoriosWindow>("Nomes dos Territórios");

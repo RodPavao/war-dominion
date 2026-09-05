@@ -4,7 +4,7 @@ using UnityEngine.SceneManagement;
 
 public static class LimparScriptsAusentes
 {
-    [MenuItem("War Dominion/Manutencao/Limpar Scripts Ausentes")]
+    [MenuItem("War Dominion/Manutenção/Limpar Scripts Ausentes")]
     public static void Executar()
     {
         int removidos = 0;

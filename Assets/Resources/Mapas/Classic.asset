@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::DefinicaoMapa
   mapaId: classic
   nomeInterno: classic
-  nomeExibido: Classic
+  nomeExibido: "Mapa Cl\xE1ssico"
   descricao: "Mapa cl\xE1ssico migrado da cena WarGame sem altera\xE7\xE3o de layout."
   temaId: classic
   versao: 1
@@ -602,10 +602,6 @@ MonoBehaviour:
     tipo: 0
     bidirecional: 1
   - origemId: Algeria
-    destinoId: Italy
-    tipo: 0
-    bidirecional: 1
-  - origemId: Algeria
     destinoId: Spain
     tipo: 0
     bidirecional: 1
@@ -619,10 +615,6 @@ MonoBehaviour:
     bidirecional: 1
   - origemId: Arabia
     destinoId: India
-    tipo: 0
-    bidirecional: 1
-  - origemId: Arabia
-    destinoId: Italy
     tipo: 0
     bidirecional: 1
   - origemId: Arabia
@@ -735,10 +727,6 @@ MonoBehaviour:
     bidirecional: 1
   - origemId: Greenland
     destinoId: Iceland
-    tipo: 0
-    bidirecional: 1
-  - origemId: Greenland
-    destinoId: Ontario
     tipo: 0
     bidirecional: 1
   - origemId: Greenland

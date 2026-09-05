@@ -167,7 +167,7 @@ public static class PearlHarborEditor
     // 5. MENUS DE SELEÇÃO, GERAÇÃO E VALIDAÇÃO
     // ============================================================
 
-    [MenuItem("War Dominion/Configuração de Mapas/Gerar ou Atualizar/Pearl Harbor")]
+    [MenuItem("War Dominion/Ferramentas de Desenvolvimento/Mapas/Gerar ou Atualizar/Pearl Harbor")]
     public static void GerarOuAtualizar()
     {
         ValidarArquivosFonte();
@@ -182,7 +182,7 @@ public static class PearlHarborEditor
         Debug.Log("[Mapa] Carregado: Pearl Harbor | Territorios: 45 | Regioes: 5 | Definicao validada com sucesso.");
     }
 
-    [MenuItem("War Dominion/Configuração de Mapas/Validar/Pearl Harbor")]
+    [MenuItem("War Dominion/Ferramentas de Desenvolvimento/Mapas/Validar/Pearl Harbor")]
     public static void ValidarCompleto()
     {
         DefinicaoMapa mapa = AssetDatabase.LoadAssetAtPath<DefinicaoMapa>(DefinicaoPath);
@@ -686,8 +686,8 @@ public static class DiagnosticoMascarasPearlHarbor
 
     private const string CenaPearlHarbor = "Assets/Mapas/Pearl Harbor/PearlHarbor.unity";
     private const string DefinicaoPearlHarbor = "Assets/Resources/Mapas/PearlHarbor.asset";
-    private const string MenuDiagnostico = "War Dominion/Configuração de Mapas/Diagnóstico e Relatórios/Pearl Harbor/Mostrar Diagnóstico de Máscaras";
-    private const string MenuRelatorio = "War Dominion/Configuração de Mapas/Diagnóstico e Relatórios/Pearl Harbor/Relatório de Vizinhanças";
+    private const string MenuDiagnostico = "War Dominion/Ferramentas de Desenvolvimento/Mapas/Diagnóstico e Relatórios/Pearl Harbor/Mostrar Diagnóstico de Máscaras";
+    private const string MenuRelatorio = "War Dominion/Ferramentas de Desenvolvimento/Mapas/Diagnóstico e Relatórios/Pearl Harbor/Relatório de Vizinhanças";
     private const string ChaveSession = "WarGame.PearlHarbor.MostrarDiagnosticoMascaras";
 
     static DiagnosticoMascarasPearlHarbor()

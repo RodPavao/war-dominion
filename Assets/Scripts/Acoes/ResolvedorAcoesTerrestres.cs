@@ -81,7 +81,7 @@ public class ResolvedorAcoesTerrestres : MonoBehaviour
     // 3. REVALIDAÇÃO AUTORITATIVA E ADAPTAÇÃO
     // =====================================================
 
-    private ResultadoAcaoTerrestre ResolverOrdem(OrdemTerrestre ordem)
+    public ResultadoAcaoTerrestre ResolverOrdem(OrdemTerrestre ordem)
     {
         if (ordem == null || ordem.Origem == null || ordem.Destino == null)
             return Cancelar("Referências da ordem não estão disponíveis.");
@@ -106,6 +106,9 @@ public class ResolvedorAcoesTerrestres : MonoBehaviour
                 quantidadeEfetiva,
                 ResultadoAcaoTerrestre.TipoResultado.MovimentoProprio);
         }
+
+        if (ordem.Destino.IsEmpty)
+            return ResolverOcupacaoVazio(ordem, quantidadeEfetiva);
 
         if (EquipesJogadores.SaoAliados(
                 ordem.Jogador,
@@ -146,6 +149,34 @@ public class ResolvedorAcoesTerrestres : MonoBehaviour
     // =====================================================
     // 4. MOVIMENTO AMIGÁVEL E CANCELAMENTOS
     // =====================================================
+
+    private ResultadoAcaoTerrestre ResolverOcupacaoVazio(
+        OrdemTerrestre ordem,
+        int quantidade)
+    {
+        int tropasOrigemAntes = ordem.Origem.Tropas;
+        int tropasDestinoAntes = ordem.Destino.Tropas;
+
+        if (!ordem.Origem.RemoverTropas(quantidade))
+            return Cancelar("A origem não conseguiu manter a tropa mínima.");
+
+        ordem.Destino.DefinirDono(ordem.Jogador);
+        ordem.Destino.DefinirTropas(quantidade);
+
+        return new ResultadoAcaoTerrestre(
+            true,
+            ResultadoAcaoTerrestre.TipoResultado.OcupacaoVazio,
+            quantidade,
+            "Território vazio ocupado sem combate.",
+            null,
+            ordem,
+            tropasOrigemAntes,
+            ordem.Origem.Tropas,
+            tropasDestinoAntes,
+            ordem.Destino.Tropas,
+            TerritorioClique.Dono.Neutro,
+            ordem.Jogador);
+    }
 
     private ResultadoAcaoTerrestre ResolverMovimento(
         OrdemTerrestre ordem,

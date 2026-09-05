@@ -113,9 +113,22 @@ public class SistemaAcoesTerrestres : MonoBehaviour
         if (destino.dono == jogador)
             return "MOVIMENTO";
 
+        if (destino.IsEmpty)
+            return "OCUPAÇÃO";
+
         if (EquipesJogadores.SaoAliados(jogador, destino.dono))
             return "MOVIMENTO ALIADO";
 
         return "ATAQUE";
+    }
+
+    public static bool PodeOcuparVazio(
+        TerritorioClique origem,
+        TerritorioClique destino,
+        TerritorioClique.Dono jogador)
+    {
+        return origem != null && destino != null &&
+            origem.PossuiDono && origem.dono == jogador &&
+            origem.Tropas >= 2 && destino.IsEmpty;
     }
 }

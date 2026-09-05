@@ -22,11 +22,11 @@ public static class DefinicaoMapaClassicEditor
     private const string CenaRiachuelo = "Assets/Mapas/Batalha do Riachuelo/Riachuelo.unity";
     private const string CenaDarkWorld = "Assets/Mapas/Dark World/DarkWorld.unity";
     private const string CenaPeloponeso = "Assets/Mapas/Peloponeso/Peloponeso.unity";
-    private const string MenuSelecionarClassic = "War Dominion/Mapas/Clássico";
-    private const string MenuSelecionarPearlHarbor = "War Dominion/Mapas/Pearl Harbor";
-    private const string MenuSelecionarRiachuelo = "War Dominion/Mapas/Batalha do Riachuelo";
-    private const string MenuSelecionarDarkWorld = "War Dominion/Mapas/Dark World";
-    private const string MenuSelecionarPeloponeso = "War Dominion/Mapas/Peloponeso";
+    private const string MenuSelecionarClassic = "War Dominion/Ferramentas de Desenvolvimento/Mapas/Abrir/Clássico";
+    private const string MenuSelecionarPearlHarbor = "War Dominion/Ferramentas de Desenvolvimento/Mapas/Abrir/Pearl Harbor";
+    private const string MenuSelecionarRiachuelo = "War Dominion/Ferramentas de Desenvolvimento/Mapas/Abrir/Batalha do Riachuelo";
+    private const string MenuSelecionarDarkWorld = "War Dominion/Ferramentas de Desenvolvimento/Mapas/Abrir/Dark World";
+    private const string MenuSelecionarPeloponeso = "War Dominion/Ferramentas de Desenvolvimento/Mapas/Abrir/Peloponeso";
     private static readonly (string MapaId, string MenuPath)[] MenusDeMapas =
     {
         ("classic", MenuSelecionarClassic),
@@ -190,7 +190,7 @@ public static class DefinicaoMapaClassicEditor
         return null;
     }
 
-    [MenuItem("War Dominion/Configuração de Mapas/Gerar ou Atualizar/Clássico %#g")]
+    [MenuItem("War Dominion/Ferramentas de Desenvolvimento/Mapas/Gerar ou Atualizar/Clássico %#g")]
     public static void GerarOuAtualizarClassic()
     {
         if (SceneManager.GetActiveScene().path != Cena)
@@ -278,13 +278,13 @@ public static class DefinicaoMapaClassicEditor
         Debug.Log($"MAPA CLASSIC | Gerado com {territorios.Count} territórios, {regioesPorLegado.Count} regiões e {conexoes.Count} conexões.");
     }
 
-    [MenuItem("War Dominion/Configuração de Mapas/Validar/Clássico")]
+    [MenuItem("War Dominion/Ferramentas de Desenvolvimento/Mapas/Validar/Clássico")]
     public static void ValidarClassic()
     {
         Validar(AssetDatabase.LoadAssetAtPath<DefinicaoMapa>(CaminhoMapa));
     }
 
-    [MenuItem("War Dominion/Configuração de Mapas/Diagnóstico e Relatórios/Clássico/Preparar Controle de Região")]
+    [MenuItem("War Dominion/Ferramentas de Desenvolvimento/Mapas/Diagnóstico e Relatórios/Clássico/Preparar Controle de Região")]
     public static void PrepararControleDeRegiao()
     {
         if (!EditorApplication.isPlaying || MapaAtivo.Instance == null || GameManager.instance == null)

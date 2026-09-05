@@ -669,7 +669,32 @@ Nenhuma dessas opções deve ser iniciada apenas por estar registrada neste docu
 | Bots estratégicos e adaptativos | [FUTURO] | Aprendem apenas com informação observável e possuem limites balanceáveis. |
 | Dois slots externos de cartas | [FUTURO] | Uma troca por partida; elegibilidade inicial prevista para cartas comuns. |
 
-## 16. Manutenção deste documento
+## 16. Editor de Mapas interno
+
+### [PROVISÓRIO] V1 do Editor de Mapas
+
+O War Dominion possui uma janela Unity Editor própria e dockável para manutenção dos
+mapas atuais e criação de novas definições. A fonte autoritativa permanece formada por
+`DefinicaoMapa`, `CatalogoMapas`, sprites, máscaras, colliders e dados Unity existentes;
+não existe JSON paralelo governando o jogo.
+
+Os módulos da V1 são Mapa, Arte, Territórios, Regiões, Conexões, Contadores,
+Thumbnail e Validação. O viewport oferece zoom e pan apenas de trabalho, camadas
+independentes e inspeção de conexões/posições sem alterar o enquadramento real.
+
+- conexões são cadastradas e removidas bidirecionalmente, com Undo;
+- a arte principal pode ser substituída preservando os dados, sempre com aviso sobre
+  compatibilidade geométrica;
+- geometria automática reutiliza os geradores 1:1 existentes como pipeline assistido,
+  sem destruir máscaras silenciosamente;
+- thumbnail automático permanece assistido na V1 até existir referência autoritativa
+  própria em `DefinicaoMapa`;
+- o validador cobre identidade, arte, territórios, regiões, bônus, referências,
+  duplicações, bidirecionalidade, isolamento e posições de contadores;
+- a separação entre operações, validação e `EditorWindow` prepara reutilização futura
+  da lógica em um editor standalone, sem implementar o executável agora.
+
+## 17. Manutenção deste documento
 
 ### [DEFINITIVO] Regra de atualização
 

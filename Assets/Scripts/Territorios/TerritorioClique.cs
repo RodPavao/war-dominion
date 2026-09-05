@@ -58,6 +58,7 @@ public class TerritorioClique : MonoBehaviour
     public bool IsEmpty => estadoTerritorial == EstadoTerritorial.Vazio;
     public bool IsOccupied => estadoTerritorial == EstadoTerritorial.Ocupado;
     public bool PossuiDono => IsOccupied && dono != Dono.Neutro;
+    public bool UsaOverlaySemDono => IsNeutral || IsEmpty;
 
     // =====================================================
     // EXÉRCITO
@@ -81,9 +82,12 @@ public class TerritorioClique : MonoBehaviour
     private void Start()
     {
         // Migração segura dos dados legados serializados antes da existência
-        // do estado territorial explícito.
+        // do estado territorial explícito. Vazio só é preservado quando foi
+        // marcado explicitamente; ausência de dono nunca permanece Ocupado.
         if (dono != Dono.Neutro)
             estadoTerritorial = EstadoTerritorial.Ocupado;
+        else if (estadoTerritorial != EstadoTerritorial.Vazio)
+            estadoTerritorial = EstadoTerritorial.Neutro;
 
         territorioVisual =
             GetComponent<TerritorioVisual>();
@@ -222,6 +226,32 @@ public class TerritorioClique : MonoBehaviour
         return resultado;
     }
 
+    // =====================================================
+    // TRANSIÇÃO EXPLÍCITA PARA TERRITÓRIO VAZIO
+    // =====================================================
+
+    public bool RemoverTropasPermitindoEsvaziamento(
+        int quantidade)
+    {
+        if (territorioTropas == null)
+            territorioTropas = GetComponent<TerritorioTropas>();
+
+        if (!IsOccupied || territorioTropas == null ||
+            quantidade <= 0 || quantidade > Tropas)
+            return false;
+
+        int restantes = Tropas - quantidade;
+        if (restantes == 0)
+        {
+            DefinirVazio();
+            return true;
+        }
+
+        territorioTropas.DefinirQuantidade(restantes);
+        territorioContador?.Atualizar();
+        return true;
+    }
+
     public void DefinirTropas(
         int quantidade)
     {
@@ -236,14 +266,6 @@ public class TerritorioClique : MonoBehaviour
         territorioContador?.Atualizar();
     }
 
-    public void DefinirTropasIniciaisSemDistribuicao()
-    {
-        if (territorioTropas == null)
-            territorioTropas = GetComponent<TerritorioTropas>();
-        territorioTropas?.DefinirQuantidadeInicialSemTropas();
-        territorioContador?.Atualizar();
-    }
-
     // =====================================================
     // VIZINHANÇA
     // =====================================================
@@ -251,6 +273,9 @@ public class TerritorioClique : MonoBehaviour
     public bool EhVizinho(
         TerritorioClique outro)
     {
+        if (territorioFronteiras == null)
+            territorioFronteiras = GetComponent<TerritorioFronteiras>();
+
         if (territorioFronteiras == null)
             return false;
 
@@ -297,7 +322,7 @@ public class TerritorioClique : MonoBehaviour
         estadoTerritorial = EstadoTerritorial.Vazio;
         if (territorioTropas == null)
             territorioTropas = GetComponent<TerritorioTropas>();
-        territorioTropas?.DefinirQuantidadeInicialSemTropas();
+        territorioTropas?.DefinirQuantidadeZeroSemOcupante();
         AtualizarIdentidadeVisual();
     }
 

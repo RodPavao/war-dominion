@@ -14,6 +14,7 @@ public class ContadorTropas : MonoBehaviour
     private SpriteRenderer bordaExterna;
 
     private TextMeshPro numero;
+    private WDArmyCounterView novaVisualizacao;
 
     private Vector3 escalaOriginal;
     private Coroutine animacaoAtual;
@@ -100,6 +101,8 @@ public class ContadorTropas : MonoBehaviour
         CriarVisual();
 
         AplicarEscalaVisual();
+
+        GarantirNovaVisualizacao();
 
         escalaOriginal =
             transform.localScale;
@@ -476,6 +479,17 @@ public class ContadorTropas : MonoBehaviour
         int quantidade,
         TerritorioClique.Dono donoVisual)
     {
+        if (novaVisualizacao != null)
+        {
+            bool estadoSemDono = donoVisual == TerritorioClique.Dono.Neutro ||
+                (territorio != null && territorio.UsaOverlaySemDono);
+            Color corFaixa = estadoSemDono
+                ? PaletaJogadores.ObterCorNeutraAtiva()
+                : PaletaJogadores.ObterCorAtiva(donoVisual);
+            novaVisualizacao.Exibir(quantidade, corFaixa);
+            return;
+        }
+
         if (numero == null || borda == null)
             return;
 
@@ -495,9 +509,9 @@ public class ContadorTropas : MonoBehaviour
 
         CentralizarMalhaNumero();
 
-        borda.color = donoVisual == TerritorioClique.Dono.Neutro
-            ? Color.clear
-            : PaletaJogadores.ObterCorAtiva(donoVisual);
+        // O arco é vazado: a camada territorial/skin abaixo fornece a cor.
+        // O contador preserva somente moldura, fundo central, número e hitbox.
+        borda.color = Color.clear;
 
         if (bordaExterna != null)
         {
@@ -507,7 +521,29 @@ public class ContadorTropas : MonoBehaviour
     }
 
     // =====================================================
-    // 11. INPUT CENTRALIZADO
+    // 11. ADAPTADOR PARA A NOVA VISUALIZAÇÃO INDEPENDENTE
+    // =====================================================
+
+    private void GarantirNovaVisualizacao()
+    {
+        novaVisualizacao = GetComponent<WDArmyCounterView>();
+        if (novaVisualizacao == null)
+            novaVisualizacao = gameObject.AddComponent<WDArmyCounterView>();
+
+        novaVisualizacao.Configurar(territorio);
+
+        if (borda != null)
+            borda.enabled = false;
+        if (fundo != null)
+            fundo.enabled = false;
+        if (bordaExterna != null)
+            bordaExterna.enabled = false;
+        if (numero != null)
+            numero.enabled = false;
+    }
+
+    // =====================================================
+    // 12. INPUT CENTRALIZADO
     // =====================================================
     //
     // IMPORTANTE:

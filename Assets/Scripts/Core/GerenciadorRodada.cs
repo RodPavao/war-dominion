@@ -30,7 +30,8 @@ public class GerenciadorRodada : MonoBehaviour
     public ResultadoPartida ResultadoAtual { get; private set; }
 
     public const int TotalRoundsNormais = 10;
-    public const int TotalTropasIniciaisUmContraUm = 6;
+    public const int ReforcosIniciaisUmContraUm = 8;
+    public const int ReforcosMinimosUmContraUm = 6;
     private int LimiteRoundsNormais => gameManager != null
         ? gameManager.LimiteRoundsDaPartida
         : TotalRoundsNormais;
@@ -178,11 +179,24 @@ public class GerenciadorRodada : MonoBehaviour
         if (rodadaAtual == 1)
         {
             if (gameManager != null && gameManager.EhPartidaUmContraUm)
-                return TotalTropasIniciaisUmContraUm;
+                return ReforcosIniciaisUmContraUm;
             return 8;
         }
 
-        return CalcularReforcosRegulares(jogador, out _, out _);
+        int calculados = CalcularReforcosRegulares(jogador, out _, out _);
+        return AplicarPisoReforcosUmContraUm(
+            calculados,
+            gameManager != null && gameManager.EhPartidaUmContraUm);
+    }
+
+    public static int AplicarPisoReforcosUmContraUm(
+        int reforcosCalculados,
+        bool partidaUmContraUm)
+    {
+        int normalizados = Mathf.Max(0, reforcosCalculados);
+        return partidaUmContraUm
+            ? Mathf.Max(ReforcosMinimosUmContraUm, normalizados)
+            : normalizados;
     }
 
 

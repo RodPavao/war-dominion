@@ -24,7 +24,7 @@ public sealed class WarDominionHomeData : ScriptableObject
     [Header("Identidade")]
     [SerializeField] private string nickname = "PLAYER";
     [SerializeField] private string status = "Online";
-    [SerializeField] private Color playerColor = new Color(0.12f, 0.75f, 0.82f, 1f);
+    [SerializeField, Range(0, 9)] private int preferredColorIndex = 4;
     [SerializeField, Min(0)] private int notifications = 3;
     [SerializeField] private bool hasClan;
     [SerializeField] private string skinId = "default";
@@ -45,7 +45,8 @@ public sealed class WarDominionHomeData : ScriptableObject
 
     public string Nickname => nickname;
     public string Status => status;
-    public Color PlayerColor => playerColor;
+    public int PreferredColorIndex => preferredColorIndex;
+    public Color PlayerColor => WDPlayerPaletteConfig.GetGlobalColor(preferredColorIndex);
     public int Notifications => notifications;
     public bool HasClan => hasClan;
     public string SkinId => skinId;

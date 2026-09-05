@@ -30,18 +30,17 @@ public class TerritorioTropas : MonoBehaviour
     }
 
     public void Inicializar()
-{
-    quantidade =
-        Mathf.Max(
-            1,
-            quantidade
-        );
+    {
+        TerritorioClique territorio = GetComponent<TerritorioClique>();
+        quantidade = territorio != null && territorio.IsEmpty
+            ? 0
+            : Mathf.Max(1, quantidade);
 
     territorioContador =
         GetComponent<TerritorioContador>();
 
-    AtualizarContador();
-}
+        AtualizarContador();
+    }
 
     public void Adicionar()
 {
@@ -79,7 +78,7 @@ public class TerritorioTropas : MonoBehaviour
         AtualizarContador();
     }
 
-    public void DefinirQuantidadeInicialSemTropas()
+    internal void DefinirQuantidadeZeroSemOcupante()
     {
         quantidade = 0;
         AtualizarContador();

@@ -42,7 +42,7 @@ private Stack<bool[]> historico = new Stack<bool[]>();
     // ABRIR EXTRATOR
     // =========================================================
 
-    [MenuItem("War Dominion/Extrator Visual de Territorios")]
+    [MenuItem("War Dominion/Ferramentas de Desenvolvimento/Mapas/Extrator Visual de Territórios")]
     public static void Abrir()
     {
         GetWindow<GeradorTerritorios>(

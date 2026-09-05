@@ -14,13 +14,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::DefinicaoMapa
   mapaId: peloponeso
   nomeInterno: Peloponeso
-  nomeExibido: Peloponeso
+  nomeExibido: Guerra do Peloponeso
   descricao: "Mapa completo da Guerra do Peloponeso com 82 territ\xF3rios."
   temaId: peloponeso
   versao: 1
   arteBase: {fileID: 21300000, guid: 0306bcfaf8cad64468a7e54b6eb38f14, type: 3}
   centroCamera: {x: 0, y: 0}
   tamanhoOrtografico: 5.25
+  deslocamentoEnquadramento: {x: 0, y: 0}
   territorios:
   - id: Amyclae
     nomeExibido: Amyclae
@@ -1538,32 +1539,84 @@ MonoBehaviour:
     destinoId: Paros
     tipo: 0
     bidirecional: 1
-  - origemId: Aperanthos
-    destinoId: Tegea
-    tipo: 0
-    bidirecional: 1
-  - origemId: Heraklion
-    destinoId: Thalamae
-    tipo: 0
-    bidirecional: 1
   - origemId: Sikinos
     destinoId: Thorikos
-    tipo: 0
-    bidirecional: 1
-  - origemId: AndrosCity
-    destinoId: Kifisia
-    tipo: 0
-    bidirecional: 1
-  - origemId: Naousa
-    destinoId: Phyle
     tipo: 0
     bidirecional: 1
   - origemId: Anaphlystos
     destinoId: Delos
     tipo: 0
     bidirecional: 1
-  - origemId: Ierapetra
-    destinoId: Lamptrai
+  - origemId: Serifos
+    destinoId: Amyclae
+    tipo: 0
+    bidirecional: 1
+  - origemId: Kythnos
+    destinoId: Gythium
+    tipo: 0
+    bidirecional: 1
+  - origemId: Ormos
+    destinoId: Lefkes
+    tipo: 0
+    bidirecional: 1
+  - origemId: Filoti
+    destinoId: Syros
+    tipo: 0
+    bidirecional: 1
+  - origemId: Lefkes
+    destinoId: Sangri
+    tipo: 0
+    bidirecional: 1
+  - origemId: Lefkes
+    destinoId: Marpissa
+    tipo: 0
+    bidirecional: 1
+  - origemId: Ormos
+    destinoId: Marpissa
+    tipo: 0
+    bidirecional: 1
+  - origemId: Sikinos
+    destinoId: Naousa
+    tipo: 0
+    bidirecional: 1
+  - origemId: Chora
+    destinoId: Piraeus
+    tipo: 0
+    bidirecional: 1
+  - origemId: Naousa
+    destinoId: Rhamnous
+    tipo: 0
+    bidirecional: 1
+  - origemId: Lamptrai
+    destinoId: Chania
+    tipo: 0
+    bidirecional: 1
+  - origemId: HalaiAixonides
+    destinoId: Chania
+    tipo: 0
+    bidirecional: 1
+  - origemId: Las
+    destinoId: Knossos
+    tipo: 0
+    bidirecional: 1
+  - origemId: Alagonia
+    destinoId: Knossos
+    tipo: 0
+    bidirecional: 1
+  - origemId: Asine
+    destinoId: Aperanthos
+    tipo: 0
+    bidirecional: 1
+  - origemId: Aegiae
+    destinoId: Aperanthos
+    tipo: 0
+    bidirecional: 1
+  - origemId: Naousa
+    destinoId: Melanes
+    tipo: 0
+    bidirecional: 1
+  - origemId: Naousa
+    destinoId: Kifisia
     tipo: 0
     bidirecional: 1
   condicoesEstrategicas: []

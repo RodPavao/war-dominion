@@ -1,7 +1,28 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public class TerritorioContador : MonoBehaviour
 {
+    // =====================================================
+    // 1. ESCALA VISUAL GLOBAL E OVERRIDES FUTUROS
+    // =====================================================
+
+    private static readonly Vector3 escalaPadraoGlobal =
+        new Vector3(0.6719f, 0.7201f, 1.2150f);
+
+    private static readonly Dictionary<string, Vector3> overridesEscalaPorMapa =
+        new Dictionary<string, Vector3>
+        {
+            {
+                "pearl_harbor",
+                new Vector3(0.6078756f, 0.6184228f, 1.215004f)
+            },
+            {
+                "riachuelo",
+                new Vector3(1.609024f, 1.644019f, 2f)
+            }
+        };
+
     private ContadorTropas contadorTropas;
     private TerritorioClique territorio;
 
@@ -22,6 +43,8 @@ public class TerritorioContador : MonoBehaviour
 
         if (existente != null)
         {
+            AplicarEscalaDoContador(existente);
+
             contadorTropas =
                 existente.GetComponent<ContadorTropas>();
 
@@ -32,6 +55,24 @@ public class TerritorioContador : MonoBehaviour
         }
 
         CriarContador();
+    }
+
+    private static void AplicarEscalaDoContador(
+        Transform contador)
+    {
+        if (contador == null)
+            return;
+
+        DefinicaoMapa mapa = MapaAtivo.Instance != null
+            ? MapaAtivo.Instance.Definicao
+            : null;
+
+        Vector3 escala = escalaPadraoGlobal;
+        if (mapa != null &&
+            overridesEscalaPorMapa.TryGetValue(mapa.MapaId, out Vector3 overrideMapa))
+            escala = overrideMapa;
+
+        contador.localScale = escala;
     }
 
     private void CriarContador()
@@ -93,6 +134,8 @@ public class TerritorioContador : MonoBehaviour
                 escalaPadraoContador,
                 1f
             );
+
+        AplicarEscalaDoContador(obj.transform);
 
         contadorTropas =
             obj.AddComponent<ContadorTropas>();

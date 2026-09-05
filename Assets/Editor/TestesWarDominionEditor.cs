@@ -269,38 +269,23 @@ public static class TestesWarDominionEditor
     private static bool ValidarDesativarAutoenvio() => EmPlayCom<GameManager>();
 
     // ============================================================
-    // 02. ACESSO À PALETA EXISTENTE DA CENA ATIVA
+    // 02. ACESSO À PALETA GLOBAL DO PROJETO
     // ============================================================
 
     [MenuItem(Raiz + "Jogadores Simulados/Editar Cores dos Jogadores")]
     private static void EditarCoresDosJogadores()
     {
-        PaletaJogadores paleta = ObterPaletaDaCenaAtiva();
+        WDPlayerPaletteConfig paleta = WDPlayerPaletteConfig.LoadGlobal();
         if (paleta == null) return;
 
-        Selection.activeGameObject = paleta.gameObject;
-        EditorGUIUtility.PingObject(paleta.gameObject);
+        Selection.activeObject = paleta;
+        EditorGUIUtility.PingObject(paleta);
         EditorApplication.ExecuteMenuItem("Window/General/Inspector");
     }
 
     [MenuItem(Raiz + "Jogadores Simulados/Editar Cores dos Jogadores", true)]
     private static bool ValidarEditarCoresDosJogadores() =>
-        ObterPaletaDaCenaAtiva() != null;
-
-    private static PaletaJogadores ObterPaletaDaCenaAtiva()
-    {
-        UnityEngine.SceneManagement.Scene cena =
-            UnityEngine.SceneManagement.SceneManager.GetActiveScene();
-        if (!cena.IsValid() || !cena.isLoaded) return null;
-
-        foreach (GameObject raiz in cena.GetRootGameObjects())
-        {
-            PaletaJogadores paleta = raiz.GetComponentInChildren<PaletaJogadores>(true);
-            if (paleta != null) return paleta;
-        }
-
-        return null;
-    }
+        WDPlayerPaletteConfig.LoadGlobal() != null;
 
     private static bool EmPlayCom<T>() where T : UnityEngine.Object =>
         EditorApplication.isPlaying && UnityEngine.Object.FindAnyObjectByType<T>() != null;

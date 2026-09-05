@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier:
   nickname: PLAYER
   status: Online
-  playerColor: {r: 0.12, g: 0.75, b: 0.82, a: 1}
+  preferredColorIndex: 4
   notifications: 3
   hasClan: 0
   skinId: default

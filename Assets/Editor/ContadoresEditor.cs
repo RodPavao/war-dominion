@@ -7,7 +7,7 @@ public static class ContadoresEditor
     // GERAR CONTADORES PERMANENTES
     // =========================================================
 
-    [MenuItem("War Dominion/Gerar Contadores Permanentes")]
+    [MenuItem("War Dominion/Ferramentas de Desenvolvimento/Contadores/Gerar Contadores Permanentes")]
     public static void GerarContadoresPermanentes()
     {
         GameObject pai =
@@ -165,7 +165,7 @@ public static class ContadoresEditor
     // =========================================================
 
     [MenuItem(
-    "War Dominion/Contadores/Aplicar Tamanho Padrao"
+    "War Dominion/Ferramentas de Desenvolvimento/Contadores/Aplicar Tamanho Padrão"
 )]
 public static void AplicarTamanhoPadrao()
     {

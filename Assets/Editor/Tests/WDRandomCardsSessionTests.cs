@@ -15,7 +15,7 @@ public sealed class WDRandomCardsSessionTests
         WDRandomCardsRoundResult result = session.ProcessRound(1);
 
         Assert.That(result.DrawnCards, Has.Count.EqualTo(4));
-        Assert.That(result.DrawnCards.Distinct(), Has.Count.EqualTo(4));
+        Assert.That(result.DrawnCards.Distinct().Count(), Is.EqualTo(4));
         Assert.That(result.DrawnCards, Is.All.Matches<string>(id => id.StartsWith("basic")));
         Assert.That(session.GetHand("a"), Is.EqualTo(session.GetHand("b")));
     }
@@ -60,7 +60,7 @@ public sealed class WDRandomCardsSessionTests
     public void DrawnCards_DoNotRepeatAcrossRounds()
     {
         List<string> cards = DrawRounds(Session(13), 1, 8);
-        Assert.That(cards.Distinct(), Has.Count.EqualTo(cards.Count));
+        Assert.That(cards.Distinct().Count(), Is.EqualTo(cards.Count));
     }
 
     [Test]

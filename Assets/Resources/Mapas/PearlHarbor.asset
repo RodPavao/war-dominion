@@ -21,6 +21,7 @@ MonoBehaviour:
   arteBase: {fileID: 21300000, guid: 302937e338d81f04fbd3277e54f4a27f, type: 3}
   centroCamera: {x: 0, y: 0}
   tamanhoOrtografico: 4.5
+  deslocamentoEnquadramento: {x: 0, y: 0}
   territorios:
   - id: ReaganIsland
     nomeExibido: Reagan Island
@@ -880,10 +881,6 @@ MonoBehaviour:
     destinoId: RheinMain
     tipo: 0
     bidirecional: 1
-  - origemId: Hayes
-    destinoId: Otix
-    tipo: 0
-    bidirecional: 1
   - origemId: Charlotte
     destinoId: Incirlik
     tipo: 0
@@ -922,6 +919,14 @@ MonoBehaviour:
     bidirecional: 1
   - origemId: Nixon
     destinoId: TrumpIsland
+    tipo: 0
+    bidirecional: 1
+  - origemId: Fairchild
+    destinoId: Otix
+    tipo: 0
+    bidirecional: 1
+  - origemId: NGay
+    destinoId: ElAguacate
     tipo: 0
     bidirecional: 1
   condicoesEstrategicas: []
