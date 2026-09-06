@@ -3,6 +3,7 @@ using System;
 public enum ResolutionVisualEventType
 {
     Attack,
+    Movement,
     Reinforcement,
     Transfer,
     Card,
@@ -111,6 +112,26 @@ public sealed class ResolutionVisualEvent
             player, string.Empty, territoryId, amount,
             0, 0, before, after, false,
             player, player, string.Empty);
+    }
+
+    public static ResolutionVisualEvent Movement(
+        TerritorioClique.Dono player,
+        string originId,
+        string destinationId,
+        int amount,
+        int originBefore,
+        int originAfter,
+        int destinationBefore,
+        int destinationAfter,
+        TerritorioClique.Dono previousOwner,
+        TerritorioClique.Dono newOwner)
+    {
+        return new ResolutionVisualEvent(
+            ResolutionVisualEventType.Movement,
+            ResolutionVisualResult.Completed,
+            player, originId, destinationId, amount,
+            originBefore, originAfter, destinationBefore, destinationAfter,
+            false, previousOwner, newOwner, string.Empty);
     }
 
     public static ResolutionVisualEvent TerritoryHandoff(

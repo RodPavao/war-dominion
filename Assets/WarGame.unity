@@ -14780,7 +14780,7 @@ Transform:
   m_GameObject: {fileID: 569157663}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -3.37, y: 2.81, z: 0}
+  m_LocalPosition: {x: -3.39, y: 2.84, z: 0}
   m_LocalScale: {x: 0.9004408, y: 0.9004408, z: 1.215004}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -15674,52 +15674,18 @@ PolygonCollider2D:
   m_AutoTiling: 0
   m_Points:
     m_Paths:
-    - - {x: 4.915, y: -1.09}
-      - {x: 4.765, y: -1.0699999}
-      - {x: 4.6549997, y: -1.0699999}
-      - {x: 4.605, y: -1.0799999}
-      - {x: 4.595, y: -1.12}
-      - {x: 4.595, y: -1.22}
-      - {x: 4.7149997, y: -1.25}
-      - {x: 5.075, y: -1.3}
-      - {x: 5.165, y: -1.3}
-      - {x: 5.1749997, y: -1.29}
-      - {x: 5.1749997, y: -1.24}
-      - {x: 5.015, y: -1.14}
-    - - {x: 4.4249997, y: -0.55}
-      - {x: 4.4049997, y: -0.51}
+    - - {x: 3.7849998, y: -0.13}
       - {x: 4.2149997, y: -0.37}
-      - {x: 3.865, y: -0.13}
-      - {x: 3.7849998, y: -0.13}
-      - {x: 3.7849998, y: -0.19999999}
-      - {x: 3.845, y: -0.35}
-      - {x: 3.975, y: -0.52}
-      - {x: 4.085, y: -0.75}
-      - {x: 4.105, y: -0.84999996}
-      - {x: 4.205, y: -0.90999997}
-      - {x: 4.415, y: -1.16}
-      - {x: 4.4449997, y: -1.17}
-      - {x: 4.515, y: -1.17}
-      - {x: 4.615, y: -1.1}
-      - {x: 4.615, y: -1.02}
-      - {x: 4.585, y: -0.91999996}
-      - {x: 4.435, y: -0.7}
-    - - {x: 5.105, y: -0.19999999}
-      - {x: 5.205, y: -0.13}
-      - {x: 5.205, y: -0.049999997}
-      - {x: 5.185, y: 0.01}
-      - {x: 5.1349998, y: 0.01}
+      - {x: 4.43, y: -0.5}
+      - {x: 4.78, y: -0.4}
       - {x: 4.955, y: -0.12}
-      - {x: 4.7349997, y: -0.44}
-      - {x: 4.665, y: -0.45}
-      - {x: 4.585, y: -0.55}
-      - {x: 4.585, y: -0.77}
-      - {x: 4.615, y: -0.81}
-      - {x: 4.745, y: -0.90999997}
-      - {x: 5.085, y: -0.90999997}
-      - {x: 5.115, y: -0.79999995}
+      - {x: 5.1349998, y: 0.01}
+      - {x: 5.205, y: -0.049999997}
       - {x: 5.205, y: -0.61}
-      - {x: 5.205, y: -0.59999996}
+      - {x: 5.1749997, y: -1.3}
+      - {x: 4.7149997, y: -1.3}
+      - {x: 4.205, y: -0.90999997}
+      - {x: 3.845, y: -0.35}
   m_UseDelaunayMesh: 1
 --- !u!114 &607065178
 MonoBehaviour:
@@ -22427,7 +22393,7 @@ Transform:
   m_GameObject: {fileID: 889479802}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -2.5318964, y: 2.7903442, z: 0}
+  m_LocalPosition: {x: -2.62, y: 2.7903442, z: 0}
   m_LocalScale: {x: 0.9004408, y: 0.9004408, z: 1.215004}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -28896,6 +28862,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::LayoutPartida
   larguraPainelEsquerdo: 0.1
   larguraPainelDireito: 0.1
+  larguraMinimaHudPixels: 280
   zoomMapa: 1
 --- !u!1 &1115636086
 GameObject:
@@ -30300,7 +30267,7 @@ Transform:
   m_GameObject: {fileID: 1179491723}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 4.915, y: -0.55, z: 0}
+  m_LocalPosition: {x: 4.69, y: -0.71, z: 0}
   m_LocalScale: {x: 0.9004408, y: 0.9004408, z: 1.215004}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -35439,14 +35406,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b6fbe8469e4275c49a833601f20d7108, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameManager
-  modoTesteCliquesTodosTerritorios: 0
   territorioSelecionado: {fileID: 0}
   territorioDestinoSelecionado: {fileID: 0}
   jogadorLocal: 1
   faseAtual: 1
+  estadoPreparacao: 0
   modoAcao: 0
+  territorioTransferenciaSelecionado: {fileID: 0}
+  feedbackTransferencia: 
   reforcosDisponiveis: 8
-  quantidadeAtaqueSelecionada: 3
+  quantidadeAcaoSelecionada: 1
   duracaoPreparacao: 90
 --- !u!4 &1325349520
 Transform:
@@ -35948,7 +35917,7 @@ Transform:
   m_GameObject: {fileID: 1352662867}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.38166663, y: 1.8438, z: 0}
+  m_LocalPosition: {x: -0.37, y: 1.7, z: 0}
   m_LocalScale: {x: 0.9004408, y: 0.9004408, z: 1.215004}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -46462,7 +46431,7 @@ Transform:
   m_GameObject: {fileID: 1747528471}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.60822576, y: 1.7567743, z: 0}
+  m_LocalPosition: {x: 0.59, y: 1.94, z: 0}
   m_LocalScale: {x: 0.9004408, y: 0.9004408, z: 1.215004}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -46573,21 +46542,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a8a765491b091624dac953698b0cdfae, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PaletaJogadores
-  coresDisponiveis:
-  - {r: 0.21944453, g: 0.5649544, b: 0.97735846, a: 0}
-  - {r: 0.86380935, g: 0.49411765, b: 0.89411765, a: 0}
-  - {r: 0.8867924, g: 0.21568628, b: 0.2124955, a: 0}
-  - {r: 0.5396226, g: 0.49176925, b: 0.49176925, a: 0}
-  - {r: 0.047774613, g: 0.39215687, b: 0.040818773, a: 0}
-  - {r: 0.93962264, g: 0.8552428, b: 0.12587398, a: 0}
-  - {r: 0.735849, g: 0.3131153, b: 0.0485937, a: 0}
-  - {r: 0.3764706, g: 0.12664294, b: 0.12664294, a: 0}
-  - {r: 0.62352943, g: 0.44789016, b: 0.15294118, a: 0}
-  - {r: 0.4509804, g: 0.04913491, b: 0.35686275, a: 0}
-  skinJogador1: 9
-  skinJogador2: 1
-  skinJogador3: 2
-  skinJogador4: 4
 --- !u!4 &1747570011
 Transform:
   m_ObjectHideFlags: 0

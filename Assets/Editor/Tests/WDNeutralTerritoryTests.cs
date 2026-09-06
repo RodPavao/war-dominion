@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using NUnit.Framework;
@@ -327,6 +328,50 @@ public sealed class WDNeutralTerritoryTests
             calculated, false), Is.EqualTo(calculated));
     }
 
+    [Test]
+    public void TwoVsTwoUsesIndividualTerritoryFormulaWithoutFloor()
+    {
+        Assert.That(GerenciadorRodada.CalcularReforcosPorModo(
+            19, 0, false, 2), Is.EqualTo(9));
+        Assert.That(GerenciadorRodada.CalcularReforcosPorModo(
+            10, 0, false, 2), Is.EqualTo(5));
+    }
+
+    [Test]
+    public void FfaUsesSameTerritoryFormulaWithoutOneVsOneFloor()
+    {
+        Assert.That(GerenciadorRodada.CalcularReforcosPorModo(
+            9, 0, false, 2), Is.EqualTo(4));
+    }
+
+    [Test]
+    public void OneVsOneRegularRoundPreservesMinimumSix()
+    {
+        Assert.That(GerenciadorRodada.CalcularReforcosPorModo(
+            2, 0, true, 2), Is.EqualTo(6));
+    }
+
+    [Test]
+    public void OneVsOneRoundOneProvidesEightReinforcements()
+    {
+        Assert.That(GerenciadorRodada.CalcularReforcosPorModo(
+            2, 0, true, 1), Is.EqualTo(8));
+    }
+
+    [Test]
+    public void TwoVsTwoRoundOneProvidesEightReinforcementsPerPlayer()
+    {
+        Assert.That(GerenciadorRodada.CalcularReforcosPorModo(
+            10, 0, false, 1), Is.EqualTo(8));
+    }
+
+    [Test]
+    public void FfaRoundOneProvidesEightReinforcementsPerPlayer()
+    {
+        Assert.That(GerenciadorRodada.CalcularReforcosPorModo(
+            9, 0, false, 1), Is.EqualTo(8));
+    }
+
     // ============================================================
     // 04. CONTADOR INDEPENDENTE E ATUALIZAÇÃO NUMÉRICA
     // ============================================================
@@ -425,6 +470,121 @@ public sealed class WDNeutralTerritoryTests
         Object.DestroyImmediate(territory.gameObject);
     }
 
+    // ============================================================
+    // 06. MOVIMENTO ALIADO PREPARADO E RESOLVIDO EM DUAS FASES
+    // ============================================================
+
+    [Test]
+    public void AlliedMovementDoesNotMutateDuringPreparationAndKeepsOwnerOnResolution()
+    {
+        TerritorioClique origin = CreateInitializedTerritoryWithTroops();
+        TerritorioClique destination = CreateInitializedTerritoryWithTroops();
+        var systems = new GameObject("AlliedMovementSystems");
+        WDMatchSetupContext.Store(CreateTeamSetup());
+        try
+        {
+            origin.gameObject.AddComponent<TerritorioFronteiras>()
+                .Configurar(new[] { destination });
+            origin.DefinirDono(TerritorioClique.Dono.Jogador1);
+            origin.DefinirTropas(5);
+            destination.DefinirDono(TerritorioClique.Dono.Jogador3);
+            destination.DefinirTropas(2);
+
+            FilaAcoes queue = systems.AddComponent<FilaAcoes>();
+            SistemaAcoesTerrestres preparation = systems.AddComponent<SistemaAcoesTerrestres>();
+            preparation.Inicializar(queue);
+            Assert.That(preparation.Registrar(origin, destination, 3,
+                TerritorioClique.Dono.Jogador1), Is.True);
+            Assert.That(origin.Tropas, Is.EqualTo(5));
+            Assert.That(destination.Tropas, Is.EqualTo(2));
+
+            ResolvedorAcoesTerrestres resolver = systems.AddComponent<ResolvedorAcoesTerrestres>();
+            resolver.Inicializar(systems.AddComponent<ResolvedorCombate>());
+            ResultadoAcaoTerrestre result = resolver.ResolverOrdem(queue.Ordens[0]);
+            Assert.That(result.Tipo,
+                Is.EqualTo(ResultadoAcaoTerrestre.TipoResultado.MovimentoAliado));
+            Assert.That(result.QuantidadeEfetiva, Is.EqualTo(3));
+            Assert.That(result.TropasOrigemAntes, Is.EqualTo(5));
+            Assert.That(result.TropasDestinoAntes, Is.EqualTo(2));
+            Assert.That(destination.Tropas, Is.EqualTo(5));
+            Assert.That(destination.dono, Is.EqualTo(TerritorioClique.Dono.Jogador3));
+        }
+        finally
+        {
+            WDMatchSetupContext.Clear();
+            Object.DestroyImmediate(origin.gameObject);
+            Object.DestroyImmediate(destination.gameObject);
+            Object.DestroyImmediate(systems);
+        }
+    }
+
+    // ============================================================
+    // 07. TRANSFERÊNCIA POR IDENTIDADE EM ROUNDS SUCESSIVOS
+    // ============================================================
+
+    [Test]
+    public void TransferQueueResetsPerRoundAndDoesNotConflictWithPreparedAttacks()
+    {
+        var systems = new GameObject("TransferRoundSystems");
+        FilaTransferencias transfers = systems.AddComponent<FilaTransferencias>();
+        SistemaTransferencias transferSystem = systems.AddComponent<SistemaTransferencias>();
+        transferSystem.Inicializar(transfers);
+        FilaAcoes actions = systems.AddComponent<FilaAcoes>();
+        WDMatchSetupContext.Store(CreateTeamSetup());
+        var territories = new List<TerritorioClique>();
+        try
+        {
+            TerritorioClique.Dono[] authors =
+            {
+                TerritorioClique.Dono.Jogador1,
+                TerritorioClique.Dono.Jogador4,
+                TerritorioClique.Dono.Jogador3
+            };
+            TerritorioClique.Dono[] recipients =
+            {
+                TerritorioClique.Dono.Jogador3,
+                TerritorioClique.Dono.Jogador2,
+                TerritorioClique.Dono.Jogador1
+            };
+
+            for (int round = 0; round < authors.Length; round++)
+            {
+                TerritorioClique origin = CreateInitializedTerritoryWithTroops();
+                TerritorioClique destination = CreateInitializedTerritoryWithTroops();
+                TerritorioClique handoff = CreateInitializedTerritoryWithTroops();
+                territories.Add(origin);
+                territories.Add(destination);
+                territories.Add(handoff);
+                origin.DefinirDono(authors[round]);
+                origin.DefinirTropas(4);
+                destination.DefinirDono(recipients[round]);
+                destination.DefinirTropas(2);
+                handoff.DefinirDono(authors[round]);
+                handoff.DefinirTropas(1);
+
+                Assert.That(actions.Adicionar(new OrdemTerrestre(
+                    origin, destination, 1, authors[round], 1)), Is.True);
+                Assert.That(transferSystem.Registrar(
+                    handoff, authors[round], recipients[round], out string reason),
+                    Is.True, reason);
+                Assert.That(transfers.PossuiPara(authors[round]), Is.True);
+                Assert.That(transferSystem.Registrar(
+                    handoff, authors[round], recipients[round], out _), Is.False);
+
+                transfers.Limpar();
+                actions.Limpar();
+            }
+        }
+        finally
+        {
+            WDMatchSetupContext.Clear();
+            foreach (TerritorioClique territory in territories)
+                if (territory != null)
+                    Object.DestroyImmediate(territory.gameObject);
+            Object.DestroyImmediate(systems);
+        }
+    }
+
     private static TerritorioClique CreateTerritory()
     {
         var gameObject = new GameObject("NeutralTest");
@@ -439,7 +599,7 @@ public sealed class WDNeutralTerritoryTests
     }
 
     // ============================================================
-    // 06. INICIALIZAÇÃO EXPLÍCITA E SEGURA DOS FIXTURES EDITMODE
+    // 08. INICIALIZAÇÃO EXPLÍCITA E SEGURA DOS FIXTURES EDITMODE
     // ============================================================
 
     private static TerritorioClique CreateInitializedTerritoryWithTroops()
@@ -469,5 +629,18 @@ public sealed class WDNeutralTerritoryTests
             .GetField("estadoTerritorial",
                 BindingFlags.Instance | BindingFlags.NonPublic)
             .SetValue(territory, state);
+    }
+
+    private static WDMatchSetup CreateTeamSetup()
+    {
+        var participants = new List<WDMatchParticipant>
+        {
+            new("a1", "A1", 0, 0, Color.red, "", "", WDMatchParticipantKind.Local),
+            new("b1", "B1", 1, 1, Color.blue, "", "", WDMatchParticipantKind.Remote),
+            new("a2", "A2", 0, 2, Color.green, "", "", WDMatchParticipantKind.Remote),
+            new("b2", "B2", 1, 3, Color.yellow, "", "", WDMatchParticipantKind.Remote)
+        };
+        return new WDMatchSetup("2x2", "normal", "classic", "", "", 10, true, 1,
+            participants);
     }
 }

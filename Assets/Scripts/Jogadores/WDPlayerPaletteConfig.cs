@@ -12,8 +12,8 @@ public sealed class WDPlayerPaletteConfig : ScriptableObject
 
     public const string ResourcePath = "Config/WDPlayerPaletteConfig";
 
-    [Header("Cores oficiais dos jogadores")]
-    [SerializeField] private Color[] colors = new Color[10];
+    [Header("Cores oficiais dos jogadores (HEX RGB)")]
+    [SerializeField] private string[] colorHexCodes = System.Array.Empty<string>();
 
     [Header("Índice padrão por slot de jogador")]
     [SerializeField] private int[] defaultPlayerColorIndices =
@@ -25,22 +25,34 @@ public sealed class WDPlayerPaletteConfig : ScriptableObject
 
     private static WDPlayerPaletteConfig cached;
 
-    public IReadOnlyList<Color> Colors => colors;
+    public IReadOnlyList<Color> Colors
+    {
+        get
+        {
+            var result = new Color[colorHexCodes?.Length ?? 0];
+            for (int i = 0; i < result.Length; i++)
+                result[i] = ParseHexColor(colorHexCodes[i]);
+            return result;
+        }
+    }
     public Color OwnerlessTerritoryColor => ownerlessTerritoryColor;
 
     public Color GetColor(int colorIndex)
     {
-        if (colors == null || colors.Length == 0)
+        if (colorHexCodes == null || colorHexCodes.Length == 0)
             return Color.white;
 
-        Color color = colors[Mathf.Clamp(colorIndex, 0, colors.Length - 1)];
-        color.a = 1f;
-        return color;
+        return ParseHexColor(
+            colorHexCodes[Mathf.Clamp(colorIndex, 0, colorHexCodes.Length - 1)]);
     }
 
     public int GetDefaultColorIndex(TerritorioClique.Dono owner)
     {
-        int slotIndex = (int)owner - 1;
+        return GetDefaultColorIndexForSlot((int)owner - 1);
+    }
+
+    public int GetDefaultColorIndexForSlot(int slotIndex)
+    {
         if (slotIndex < 0 || defaultPlayerColorIndices == null ||
             slotIndex >= defaultPlayerColorIndices.Length)
             return 0;
@@ -67,6 +79,53 @@ public sealed class WDPlayerPaletteConfig : ScriptableObject
     {
         WDPlayerPaletteConfig config = LoadGlobal();
         return config != null ? config.GetColor(colorIndex) : Color.white;
+    }
+
+    public static Color GetGlobalDefaultColorForSlot(int slotIndex)
+    {
+        WDPlayerPaletteConfig config = LoadGlobal();
+        return config != null
+            ? config.GetColor(config.GetDefaultColorIndexForSlot(slotIndex))
+            : Color.white;
+    }
+
+    public static IReadOnlyList<Color> GetGlobalColors()
+    {
+        WDPlayerPaletteConfig config = LoadGlobal();
+        return config != null ? config.Colors : System.Array.Empty<Color>();
+    }
+
+    public static Color GetGlobalOwnerlessColor()
+    {
+        WDPlayerPaletteConfig config = LoadGlobal();
+        return config != null ? config.OwnerlessTerritoryColor : Color.white;
+    }
+
+    // ============================================================
+    // 03. CONVERSÃO EXATA, INDEPENDENTE DO COLOR SPACE DO PROJETO
+    // ============================================================
+
+    private static Color ParseHexColor(string hex)
+    {
+        string normalized = string.IsNullOrWhiteSpace(hex)
+            ? string.Empty
+            : hex.Trim().TrimStart('#');
+        if (normalized.Length == 6 &&
+            byte.TryParse(normalized.Substring(0, 2),
+                System.Globalization.NumberStyles.HexNumber,
+                System.Globalization.CultureInfo.InvariantCulture, out byte red) &&
+            byte.TryParse(normalized.Substring(2, 2),
+                System.Globalization.NumberStyles.HexNumber,
+                System.Globalization.CultureInfo.InvariantCulture, out byte green) &&
+            byte.TryParse(normalized.Substring(4, 2),
+                System.Globalization.NumberStyles.HexNumber,
+                System.Globalization.CultureInfo.InvariantCulture, out byte blue))
+        {
+            return (Color)new Color32(red, green, blue, 255);
+        }
+
+        Debug.LogError("Cor inválida na paleta global: '" + hex + "'.");
+        return Color.white;
     }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]

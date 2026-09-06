@@ -59,6 +59,16 @@ public sealed class WDMatchSetup
     public IReadOnlyList<WDMatchParticipant> Participants { get; }
     public bool IsOneVsOne => ModeId == "1x1" && Participants.Count == 2 &&
         Participants[0].TeamIndex != Participants[1].TeamIndex;
+    public bool RequiresInitialTerritorySelection => IsOneVsOne;
+    public bool IsTeamMatch => Participants.Count > 1 &&
+        Participants.GroupBy(participant => participant.TeamIndex)
+            .Any(team => team.Count() > 1);
+    public bool UsesSymmetricRandomCards =>
+        IsRandomCardsRule(CardRuleId);
+
+    public static bool IsRandomCardsRule(string cardRuleId) =>
+        cardRuleId == "symmetric_random_cards" ||
+        cardRuleId == "symmetric_team_random_cards";
 
     public WDMatchSetup(
         string modeId, string submodeId, string mapId, string scenePath,
@@ -89,6 +99,7 @@ public static class WDMatchColorResolver
         IList<WDMatchParticipant> participants,
         IReadOnlyList<Color> preferredAlternatives = null)
     {
+        preferredAlternatives ??= WDPlayerPaletteConfig.GetGlobalColors();
         var used = new List<Color>();
         for (int i = 0; i < participants.Count; i++)
         {
@@ -101,7 +112,8 @@ public static class WDMatchColorResolver
                 continue;
             }
 
-            selected = FindAlternative(participant.ProfileColor, used, preferredAlternatives, i);
+            selected = FindAlternative(
+                participant.ProfileColor, used, preferredAlternatives);
             participant.MatchColor = Opaque(selected);
             used.Add(participant.MatchColor);
         }
@@ -109,25 +121,16 @@ public static class WDMatchColorResolver
 
     private static Color FindAlternative(
         Color preferred, IReadOnlyList<Color> used,
-        IReadOnlyList<Color> alternatives, int participantIndex)
+        IReadOnlyList<Color> alternatives)
     {
         if (alternatives != null)
             foreach (Color candidate in alternatives)
                 if (IsDistinct(candidate, used))
                     return candidate;
 
-        Color.RGBToHSV(preferred, out float hue, out float saturation, out float value);
-        saturation = Mathf.Max(0.65f, saturation);
-        value = Mathf.Max(0.72f, value);
-        for (int step = 1; step <= 12; step++)
-        {
-            Color candidate = Color.HSVToRGB(
-                Mathf.Repeat(hue + (participantIndex + step) * 0.381966f, 1f),
-                saturation, value);
-            if (IsDistinct(candidate, used))
-                return candidate;
-        }
-        return Color.HSVToRGB(Mathf.Repeat(hue + 0.5f, 1f), 1f, 1f);
+        // A configuração global é a única fonte de alternativas. Se a paleta
+        // estiver esgotada, não inventa uma cor paralela fora do catálogo.
+        return preferred;
     }
 
     private static bool IsDistinct(Color candidate, IReadOnlyList<Color> used)
@@ -242,7 +245,9 @@ public static class WDMatchSetupFactory
         if (map == null) throw new ArgumentNullException(nameof(map));
         if (profile == null) throw new ArgumentNullException(nameof(profile));
 
-        bool usesProfileDeck = request.CardRuleId != "symmetric_random_cards";
+        bool usesRandomCards = WDMatchSetup.IsRandomCardsRule(
+            request.CardRuleId);
+        bool usesProfileDeck = !usesRandomCards;
         int deckIndex = request.MapSelectionPolicy == WDMapSelectionPolicy.Fixed
             ? profile.DefaultDeckIndex
             : selectedDeckIndex;
@@ -256,15 +261,21 @@ public static class WDMatchSetupFactory
 
         for (int i = 1; i < participantCount; i++)
         {
-            int team = request.GroupSize > 1 ? i / request.GroupSize : i;
+            int teamCount = request.GroupSize > 1
+                ? Mathf.Max(1, participantCount / request.GroupSize)
+                : participantCount;
+            int team = request.GroupSize > 1 ? i % teamCount : i;
+            Color defaultColor =
+                WDPlayerPaletteConfig.GetGlobalDefaultColorForSlot(i);
             participants.Add(new WDMatchParticipant(
-                $"remote_{i}", string.Empty, team, i, profile.PlayerColor,
+                $"remote_{i}", string.Empty, team, i, defaultColor,
                 string.Empty, string.Empty, WDMatchParticipantKind.Remote));
         }
-        WDMatchColorResolver.Resolve(participants);
+        WDMatchColorResolver.Resolve(
+            participants, WDPlayerPaletteConfig.GetGlobalColors());
         int setupSeed = deterministicSeed != 0
             ? deterministicSeed
-            : request.CardRuleId == "symmetric_random_cards"
+            : usesRandomCards
                 ? UnityEngine.Random.Range(1, int.MaxValue)
                 : 0;
 

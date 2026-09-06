@@ -24,7 +24,7 @@ public sealed class WarDominionHomeData : ScriptableObject
     [Header("Identidade")]
     [SerializeField] private string nickname = "PLAYER";
     [SerializeField] private string status = "Online";
-    [SerializeField, Range(0, 9)] private int preferredColorIndex = 4;
+    [SerializeField, Min(0)] private int preferredColorIndex = 4;
     [SerializeField, Min(0)] private int notifications = 3;
     [SerializeField] private bool hasClan;
     [SerializeField] private string skinId = "default";

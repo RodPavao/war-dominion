@@ -16,6 +16,7 @@ public interface IMatchUICommands
     bool RemoverAcao(int posicaoNaFila);
     bool RemoverDistribuicaoReforco(int distribuicaoId);
     void SelecionarDestinatarioTransferencia(TerritorioClique.Dono jogador);
+    void ConfirmarTransferencia();
     void RemoverTransferencia();
     void CancelarSelecaoTransferencia();
     void EnviarAcoes();
@@ -78,6 +79,7 @@ public sealed class MatchUICommands : IMatchUICommands
 
     public void SelecionarDestinatarioTransferencia(TerritorioClique.Dono jogador) =>
         gameManager?.TentarPrepararTransferenciaPara(jogador);
+    public void ConfirmarTransferencia() => gameManager?.ConfirmarTransferenciaPreparada();
 
     public void RemoverTransferencia() => gameManager?.RemoverTransferencia();
     public void CancelarSelecaoTransferencia() =>

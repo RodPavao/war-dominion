@@ -263,6 +263,36 @@ public sealed class WDMapVoteControllerTests
         Assert.That(setup.Participants.Count(item => item.TeamIndex == 0), Is.EqualTo(2));
         Assert.That(setup.Participants.Count(item => item.TeamIndex == 1), Is.EqualTo(2));
         Assert.That(setup.Participants.Select(item => item.SlotIndex).Distinct().Count(), Is.EqualTo(4));
+        Assert.That(setup.IsTeamMatch, Is.True);
+        Assert.That(setup.RequiresInitialTerritorySelection, Is.False);
+    }
+
+    [Test]
+    public void MatchSetup_TeamRandomCardsUsesSymmetricRuleWithoutProfileDecks()
+    {
+        WarDominionMatchFlowConfig config = LoadFlowConfig();
+        WDMatchModeDefinition mode = config.Modes.Single(item => item.Id == "2x2");
+        WDMatchSubmodeDefinition submode = mode.Submodes.Single(item => item.Id == "random_cards");
+        WDMatchSetup setup = WDMatchSetupFactory.Create(
+            new WDMatchmakingRequest(mode, submode, "random_teammate"),
+            LoadMap("Classic"), LoadProfile(), 0, 144);
+
+        Assert.That(setup.UsesSymmetricRandomCards, Is.True);
+        Assert.That(setup.RequiresInitialTerritorySelection, Is.False);
+        Assert.That(setup.Participants.All(participant =>
+            string.IsNullOrEmpty(participant.DeckId)), Is.True);
+        Assert.That(setup.DeterministicSeed, Is.EqualTo(144));
+    }
+
+    [Test]
+    public void TeamRandomCardsRuleDoesNotRequireProfileDeckSelection()
+    {
+        Assert.That(WDMatchSetup.IsRandomCardsRule(
+            "symmetric_team_random_cards"), Is.True);
+        Assert.That(WDMatchSetup.IsRandomCardsRule(
+            "symmetric_random_cards"), Is.True);
+        Assert.That(WDMatchSetup.IsRandomCardsRule(
+            "standard_deck"), Is.False);
     }
 
     [Test]
@@ -281,6 +311,82 @@ public sealed class WDMapVoteControllerTests
         Assert.That(participants[1].ProfileColor, Is.EqualTo(preferred));
         Assert.That(participants[0].MatchColor, Is.Not.EqualTo(participants[1].MatchColor));
     }
+
+    // ============================================================
+    // 05. PALETA GLOBAL INDEPENDENTE DE MAPA, MODO E EQUIPE
+    // ============================================================
+
+    [Test]
+    public void MatchSetupFactoryUsesSameGlobalPaletteAcrossOfficialMaps()
+    {
+        WarDominionMatchFlowConfig config = LoadFlowConfig();
+        WDMatchModeDefinition mode = config.Modes.Single(item => item.Id == "2x2");
+        WDMatchSubmodeDefinition submode =
+            mode.Submodes.Single(item => item.Id == "normal");
+        var request = new WDMatchmakingRequest(mode, submode, "random_teammate");
+
+        WDMatchSetup classic = WDMatchSetupFactory.Create(
+            request, LoadMap("Classic"), LoadProfile(), 0, 51);
+        WDMatchSetup riachuelo = WDMatchSetupFactory.Create(
+            request, LoadMap("Riachuelo"), LoadProfile(), 0, 51);
+
+        Assert.That(classic.Participants.Select(item => item.MatchColor),
+            Is.EqualTo(riachuelo.Participants.Select(item => item.MatchColor)));
+        IReadOnlyList<UnityEngine.Color> global =
+            WDPlayerPaletteConfig.GetGlobalColors();
+        Assert.That(classic.Participants.All(participant =>
+            global.Any(color => ApproximatelyRgb(color, participant.MatchColor))),
+            Is.True);
+    }
+
+    [Test]
+    public void ColorResolutionDoesNotChangePlayerOrTeamIdentity()
+    {
+        UnityEngine.Color duplicated =
+            WDPlayerPaletteConfig.GetGlobalColor(0);
+        var participants = new List<WDMatchParticipant>
+        {
+            new("player_a", "A", 7, 0, duplicated, "", "",
+                WDMatchParticipantKind.Local),
+            new("player_b", "B", 3, 1, duplicated, "", "",
+                WDMatchParticipantKind.Remote)
+        };
+
+        WDMatchColorResolver.Resolve(participants);
+
+        Assert.That(participants[0].PlayerId, Is.EqualTo("player_a"));
+        Assert.That(participants[1].PlayerId, Is.EqualTo("player_b"));
+        Assert.That(participants[0].TeamIndex, Is.EqualTo(7));
+        Assert.That(participants[1].TeamIndex, Is.EqualTo(3));
+        Assert.That(participants[0].MatchColor,
+            Is.Not.EqualTo(participants[1].MatchColor));
+    }
+
+    [Test]
+    public void ColorResolverWithoutExplicitAlternativesUsesGlobalConfiguration()
+    {
+        UnityEngine.Color duplicated =
+            WDPlayerPaletteConfig.GetGlobalColor(0);
+        var participants = new List<WDMatchParticipant>
+        {
+            new("a", "A", 0, 0, duplicated, "", "",
+                WDMatchParticipantKind.Local),
+            new("b", "B", 1, 1, duplicated, "", "",
+                WDMatchParticipantKind.Remote)
+        };
+
+        WDMatchColorResolver.Resolve(participants);
+
+        Assert.That(WDPlayerPaletteConfig.GetGlobalColors().Any(color =>
+            ApproximatelyRgb(color, participants[1].MatchColor)), Is.True);
+    }
+
+    private static bool ApproximatelyRgb(
+        UnityEngine.Color first,
+        UnityEngine.Color second) =>
+        UnityEngine.Mathf.Approximately(first.r, second.r) &&
+        UnityEngine.Mathf.Approximately(first.g, second.g) &&
+        UnityEngine.Mathf.Approximately(first.b, second.b);
 
     private static WarDominionMatchFlowConfig LoadFlowConfig() =>
         UnityEngine.Resources.Load<WarDominionMatchFlowConfig>(

@@ -16,6 +16,10 @@ public class LayoutPartida : MonoBehaviour
     [Range(0.05f, 0.20f)]
     public float larguraPainelDireito = 0.10f;
 
+    [Tooltip("Reserva mínima de cada painel lateral em pixels de referência.")]
+    [Range(240f, 340f)]
+    [SerializeField] private float larguraMinimaHudPixels = 280f;
+
 
     [Header("Mapa")]
 
@@ -133,7 +137,7 @@ public class LayoutPartida : MonoBehaviour
             : 1f;
 
         float larguraMinimaHUD = Screen.width > 0
-            ? Mathf.Clamp((300f * escalaCanvas) / Screen.width, 0.06f, 0.20f)
+            ? Mathf.Clamp((larguraMinimaHudPixels * escalaCanvas) / Screen.width, 0.06f, 0.20f)
             : 0.15f;
 
         larguraEsquerdaEfetiva =

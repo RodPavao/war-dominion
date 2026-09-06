@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
+using UnityEngine;
 
 public sealed class WDInitialTerritorySelectionSessionTests
 {
@@ -215,6 +216,89 @@ public sealed class WDInitialTerritorySelectionSessionTests
         Assert.That(session.SubmitIntent("p1", "t5"), Is.False);
     }
 
+    // ============================================================
+    // 04. ORDEM E IDENTIDADE DOS MODOS POR EQUIPE
+    // ============================================================
+
+    [TestCase(1, TerritorioClique.Dono.Jogador1, TerritorioClique.Dono.Jogador2,
+        TerritorioClique.Dono.Jogador3, TerritorioClique.Dono.Jogador4)]
+    [TestCase(2, TerritorioClique.Dono.Jogador4, TerritorioClique.Dono.Jogador1,
+        TerritorioClique.Dono.Jogador2, TerritorioClique.Dono.Jogador3)]
+    [TestCase(3, TerritorioClique.Dono.Jogador3, TerritorioClique.Dono.Jogador4,
+        TerritorioClique.Dono.Jogador1, TerritorioClique.Dono.Jogador2)]
+    public void TeamRoundOrderInterleavesAndRotates(
+        int round, TerritorioClique.Dono first, TerritorioClique.Dono second,
+        TerritorioClique.Dono third, TerritorioClique.Dono fourth)
+    {
+        IReadOnlyList<TerritorioClique.Dono> result =
+            GerenciadorRodada.ConstruirPrioridadeJogadores(
+                new[]
+                {
+                    TerritorioClique.Dono.Jogador1,
+                    TerritorioClique.Dono.Jogador2,
+                    TerritorioClique.Dono.Jogador3,
+                    TerritorioClique.Dono.Jogador4
+                }, TeamSetup(), round);
+        Assert.That(result, Is.EqualTo(new[] { first, second, third, fourth }));
+    }
+
+    [Test]
+    public void TeamIdentityRecognizesAlliesAndEnemiesIndependentlyFromColor()
+    {
+        WDMatchSetupContext.Store(TeamSetup());
+        try
+        {
+            Assert.That(EquipesJogadores.SaoAliados(
+                TerritorioClique.Dono.Jogador1, TerritorioClique.Dono.Jogador3), Is.True);
+            Assert.That(EquipesJogadores.SaoInimigos(
+                TerritorioClique.Dono.Jogador1, TerritorioClique.Dono.Jogador2), Is.True);
+            Assert.That(EquipesJogadores.ObterEquipe(TerritorioClique.Dono.Jogador1),
+                Is.EqualTo(EquipesJogadores.Equipe.Vanguard));
+            Assert.That(EquipesJogadores.ObterEquipe(TerritorioClique.Dono.Jogador2),
+                Is.EqualTo(EquipesJogadores.Equipe.Sentinel));
+        }
+        finally
+        {
+            WDMatchSetupContext.Clear();
+        }
+    }
+
+    [Test]
+    public void AttackVisualEventUsesCommittedAmountInsteadOfOriginTotal()
+    {
+        ResolutionVisualEvent visual = ResolutionVisualEvent.Attack(
+            TerritorioClique.Dono.Jogador1, "origin", "target", 4,
+            10, 6, 3, 0, true,
+            TerritorioClique.Dono.Jogador3, TerritorioClique.Dono.Jogador1);
+        Assert.That(visual.Amount, Is.EqualTo(4));
+        Assert.That(visual.OriginBefore, Is.EqualTo(10));
+        Assert.That(AttackResolutionPresenter.ObterQuantidadeAnimada(visual), Is.EqualTo(4));
+    }
+
+    [Test]
+    public void AnimatedCounterRepresentationIsDetachedAndShowsOnlyCommittedAmount()
+    {
+        var source = new GameObject("CounterSource");
+        source.transform.localScale = new Vector3(0.67f, 0.72f, 1.21f);
+        GameObject copy = null;
+        try
+        {
+            copy = AttackResolutionPresenter.CriarRepresentacaoAnimada(
+                source.transform, 4, TerritorioClique.Dono.Jogador1);
+            WDArmyCounterView view = copy.GetComponent<WDArmyCounterView>();
+            Assert.That(view, Is.Not.Null);
+            Assert.That(view.Territorio, Is.Null);
+            Assert.That(view.QuantidadeExibida, Is.EqualTo(4));
+            Assert.That(copy.GetComponent<ContadorTropas>(), Is.Null);
+        }
+        finally
+        {
+            if (copy != null)
+                Object.DestroyImmediate(copy);
+            Object.DestroyImmediate(source);
+        }
+    }
+
     private static WDInitialTerritorySelectionSession Session(int seed) =>
         new(seed, new[] { "p1", "p2" }, Territories());
 
@@ -228,4 +312,19 @@ public sealed class WDInitialTerritorySelectionSessionTests
         Assert.That(session.SubmitIntent("p2", second), Is.True);
         return session.ResolveStage();
     }
+
+    private static WDMatchSetup TeamSetup()
+    {
+        var participants = new List<WDMatchParticipant>
+        {
+            Participant("a1", 0, 0), Participant("b1", 1, 1),
+            Participant("a2", 0, 2), Participant("b2", 1, 3)
+        };
+        return new WDMatchSetup("2x2", "normal", "classic", string.Empty,
+            string.Empty, 10, true, 1, participants);
+    }
+
+    private static WDMatchParticipant Participant(string id, int team, int slot) =>
+        new(id, id, team, slot, Color.white, string.Empty, string.Empty,
+            WDMatchParticipantKind.Remote);
 }

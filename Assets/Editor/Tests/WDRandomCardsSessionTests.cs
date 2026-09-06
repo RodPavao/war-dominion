@@ -119,6 +119,22 @@ public sealed class WDRandomCardsSessionTests
         Assert.That(session.GetHand("b")[0], Is.EqualTo(card));
     }
 
+    [Test]
+    public void FourPlayersKeepIndependentHandsWithTheSameCommonDraw()
+    {
+        var session = new WDRandomCardsSession(
+            118, Pool(), new[] { "a1", "a2", "b1", "b2" });
+        session.ProcessRound(1);
+        Assert.That(session.GetHand("a1"), Is.EqualTo(session.GetHand("b2")));
+
+        string firstCard = session.GetHand("a1")[0];
+        Assert.That(session.Consume("a2", 0), Is.True);
+        Assert.That(session.GetHand("a2")[0], Is.Empty);
+        Assert.That(session.GetHand("a1")[0], Is.EqualTo(firstCard));
+        Assert.That(session.GetHand("b1")[0], Is.EqualTo(firstCard));
+        Assert.That(session.GetHand("b2")[0], Is.EqualTo(firstCard));
+    }
+
     // ============================================================
     // 03. IDEMPOTÊNCIA E ESGOTAMENTO SEGURO
     // ============================================================

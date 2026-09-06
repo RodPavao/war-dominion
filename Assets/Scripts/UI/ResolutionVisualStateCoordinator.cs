@@ -33,7 +33,8 @@ public sealed class ResolutionVisualStateCoordinator : MonoBehaviour,
                 continue;
             }
 
-            if (visualEvent.Type == ResolutionVisualEventType.Attack)
+            if (visualEvent.Type == ResolutionVisualEventType.Attack ||
+                visualEvent.Type == ResolutionVisualEventType.Movement)
             {
                 ApplyInitialIfFirst(
                     visualEvent.OriginTerritoryId,

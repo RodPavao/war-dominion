@@ -19,7 +19,8 @@ public sealed class WarDominionMatchHUD : MonoBehaviour
     private TextMeshProUGUI energyText, troopsText, timerText, roundText, phaseText, attackAmountText;
     private RectTransform playersContent, actionsContent, actionsDrawer, actionsDismissLayer, attackBar, popupLayer;
     private TextMeshProUGUI socialEmojiToast;
-    private WDUIPremiumButton transferButton, finishRoundButton, decreaseAttackButton, increaseAttackButton, sendAttackButton;
+    private WDUIPremiumButton transferButton, confirmTransferButton, finishRoundButton,
+        decreaseAttackButton, increaseAttackButton, sendAttackButton;
     private WDUIPremiumButton socialEmojiFilterButton;
     private readonly List<WDUIPremiumButton> deckButtons = new List<WDUIPremiumButton>();
     private bool actionsOpen;
@@ -85,8 +86,11 @@ public sealed class WarDominionMatchHUD : MonoBehaviour
         }
         transferButton = CreateCompactControl(rail, "TransferControl", "< >  TRANSFERIR",
             new Vector2(16f, -570f), ToggleTransfer);
+        confirmTransferButton = CreateCompactControl(rail, "ConfirmTransferControl",
+            "CONFIRMAR TRANSFERÊNCIA", new Vector2(16f, -626f),
+            () => commands?.ConfirmarTransferencia());
         CreateCompactControl(rail, "ActionsControl", "=  AÇÕES",
-            new Vector2(16f, -626f), ToggleActionsDrawer);
+            new Vector2(16f, -682f), ToggleActionsDrawer);
     }
 
     private void BuildRightRail(RectTransform rail)
@@ -132,6 +136,11 @@ public sealed class WarDominionMatchHUD : MonoBehaviour
         transferButton.SetInteractable(state.PodeEditarPreparacao && state.TransferenciaDisponivel && !state.TransferenciaUsada);
         transferButton.SetSelected(state.EmModoTransferencia);
         transferButton.SetLabel(state.EmModoTransferencia ? "X  CANCELAR TRANSFERIR" : "< >  TRANSFERIR");
+        bool canConfirmTransfer = state.EmModoTransferencia &&
+            !string.IsNullOrEmpty(state.TerritorioTransferenciaId) &&
+            !state.TransferenciaUsada;
+        confirmTransferButton.gameObject.SetActive(canConfirmTransfer);
+        confirmTransferButton.SetInteractable(canConfirmTransfer);
         finishRoundButton.SetInteractable(
             state.AcoesEnviadas
                 ? state.PodeCancelarEnvio
@@ -308,14 +317,19 @@ public sealed class WarDominionMatchHUD : MonoBehaviour
             RectTransform markerRect = marker.rectTransform;
             markerRect.anchorMin = new Vector2(0f, 0f); markerRect.anchorMax = new Vector2(0f, 1f);
             markerRect.sizeDelta = new Vector2(7f, 0f); markerRect.anchoredPosition = new Vector2(3.5f, 0f);
+            float nameY = state.UsaEquipes ? -28f : -12f;
+            if (state.UsaEquipes)
+            {
+                TextMeshProUGUI team = CreateText(item, "Team", theme.TypeMicro,
+                    theme.TextoSecundario, new Vector2(18f, -7f), new Vector2(230f, 18f));
+                team.text = player.Equipe.ToString().ToUpperInvariant();
+            }
             TextMeshProUGUI name = CreateText(item, "Name", theme.TypeBody, theme.TextoPrincipal,
-                new Vector2(18f, -12f), new Vector2(230f, 24f));
+                new Vector2(18f, nameY), new Vector2(230f, 24f));
             name.text = player.Nome + (player.EhJogadorLocal ? "  VOCÊ" : string.Empty);
             TextMeshProUGUI meta = CreateText(item, "Meta", theme.TypeMicro, theme.TextoSecundario,
                 new Vector2(18f, -46f), new Vector2(230f, 20f));
-            meta.text = state.UsaEquipes
-                ? $"{player.Equipe}  |  {player.TerritoriosControlados} TERR."
-                : $"{player.TerritoriosControlados} TERRITÓRIOS";
+            meta.text = $"{player.TerritoriosControlados} TERRITÓRIOS";
             if (player.EhJogadorLocal ||
                 state.UsaEquipes && EquipesJogadores.SaoAliados(state.JogadorLocal, player.Jogador))
             {

@@ -17,13 +17,14 @@ public class GameManager : MonoBehaviour
     public bool MorteSubitaHabilitada =>
         MatchSetupAtual == null || MatchSetupAtual.SuddenDeathEnabled;
     public bool UsaRandomCards =>
-        MatchSetupAtual != null &&
-        MatchSetupAtual.CardRuleId == "symmetric_random_cards";
+        MatchSetupAtual != null && MatchSetupAtual.UsesSymmetricRandomCards;
     public IReadOnlyList<string> CartasRandomJogadorLocal =>
         randomCardsSession != null
             ? randomCardsSession.GetHand(ObterIdJogadorLocal())
             : System.Array.Empty<string>();
     public bool EhPartidaUmContraUm => MatchSetupAtual != null && MatchSetupAtual.IsOneVsOne;
+    public bool RequerSelecaoTerritorialInicial => MatchSetupAtual != null &&
+        MatchSetupAtual.RequiresInitialTerritorySelection;
     public bool EmSelecaoInicial => initialSelectionSession != null &&
         !initialSelectionSession.IsComplete;
     public int EtapaSelecaoInicial => EmSelecaoInicial ? initialSelectionSession.Stage : 0;
@@ -62,6 +63,7 @@ public class GameManager : MonoBehaviour
     private WDInitialTerritorySelectionSession initialSelectionSession;
     private UICompositionRoot uiCompositionRoot;
     private bool bloqueioInicioPartida = true;
+    private readonly HashSet<TerritorioClique.Dono> jogadoresQueEnviaram = new();
 
     // =====================================================
     // 3. PREPARAÇÃO E MODOS
@@ -196,6 +198,10 @@ public class GameManager : MonoBehaviour
     public bool LimiteTransferenciaAtingido =>
         TransferenciaPreparada != null;
 
+    public bool PodeConfirmarTransferencia =>
+        EmModoTransferencia && territorioTransferenciaSelecionado != null &&
+        !LimiteTransferenciaAtingido;
+
     public bool TransferenciaDisponivelParaJogadorLocal =>
         ObterDestinatariosTransferencia().Count > 0;
 
@@ -215,6 +221,11 @@ public class GameManager : MonoBehaviour
             return false;
         }
     }
+
+    public IReadOnlyList<TerritorioClique.Dono> ObterPrioridadeJogadoresParaUI() =>
+        gerenciadorRodada != null
+            ? gerenciadorRodada.ObterPrioridadeJogadores()
+            : System.Array.Empty<TerritorioClique.Dono>();
 
     public bool PossuiPreparacaoParaEnviar =>
         QuantidadeOrdensPreparadas > 0 ||
@@ -373,22 +384,22 @@ public class GameManager : MonoBehaviour
         else
             AplicarParticipantesDoMatchSetupAoTabuleiro();
         InicializarRandomCards();
-        if (EhPartidaUmContraUm)
-            InicializarSelecaoTerritorialUmContraUm();
+        if (RequerSelecaoTerritorialInicial)
+            InicializarSelecaoTerritorial();
         else
             IniciarPartidaAposAnuncio();
     }
 
     // =====================================================
-    // 10. ABERTURA TERRITORIAL 1x1 E ANÚNCIO DO ROUND 1
+    // 10. ABERTURA TERRITORIAL MULTIPARTICIPANTE E ANÚNCIO DO ROUND 1
     // =====================================================
 
-    private void InicializarSelecaoTerritorialUmContraUm()
+    private void InicializarSelecaoTerritorial()
     {
         gerenciadorRodada.PrepararPrioridadeRoundUm();
         IReadOnlyList<TerritorioClique.Dono> priority =
             gerenciadorRodada.ObterPrioridadeJogadores();
-        var playerIds = new List<string>(2);
+        var playerIds = new List<string>(priority.Count);
         foreach (TerritorioClique.Dono owner in priority)
             if (WDMatchSetupContext.TryGetParticipant(owner, out WDMatchParticipant participant))
                 playerIds.Add(participant.PlayerId);
@@ -447,13 +458,15 @@ public class GameManager : MonoBehaviour
 
         LimparDestaqueEscolhaInicial();
 
-        string remoteId = string.Empty;
+        // Participantes simulados confirmam individualmente. A sessão resolve
+        // colisões na mesma ordem autoritativa usada pela rodada.
         foreach (WDMatchParticipant participant in MatchSetupAtual.Participants)
-            if (participant.Kind != WDMatchParticipantKind.Local)
-                remoteId = participant.PlayerId;
-
-        string mockChoice = initialSelectionSession.PickMockIntent(localChoice);
-        initialSelectionSession.SubmitIntent(remoteId, mockChoice);
+        {
+            if (participant.Kind == WDMatchParticipantKind.Local)
+                continue;
+            string mockChoice = initialSelectionSession.PickMockIntent(localChoice);
+            initialSelectionSession.SubmitIntent(participant.PlayerId, mockChoice);
+        }
         WDInitialTerritoryStageResult result = initialSelectionSession.ResolveStage();
         AplicarResultadoEscolhaInicial(result);
     }
@@ -499,7 +512,7 @@ public class GameManager : MonoBehaviour
             territory.DefinirDono((TerritorioClique.Dono)(participant.SlotIndex + 1));
             territory.DefinirTropas(1);
             territory.DestacarReforco();
-            Debug.Log($"ABERTURA 1x1 | Etapa {result.Stage} | {assignment.PlayerId} recebeu " +
+            Debug.Log($"ABERTURA | Etapa {result.Stage} | {assignment.PlayerId} recebeu " +
                 $"{assignment.TerritoryId}" + (assignment.WasFallback ? " por fallback." : "."));
         }
 
@@ -612,6 +625,8 @@ public class GameManager : MonoBehaviour
 
         territorioTransferenciaSelecionado = null;
         feedbackTransferencia = string.Empty;
+        filaTransferencias?.Limpar();
+        jogadoresQueEnviaram.Clear();
 
         EntregarRandomCardsDoRound();
 
@@ -807,8 +822,9 @@ public class GameManager : MonoBehaviour
 
         modoAcao = ModoAcao.Transferir;
         feedbackTransferencia =
-            "Selecione um território seu e depois seu aliado.";
+            "Selecione um território seu para transferir ao aliado.";
 
+        CancelarSelecaoTransferencia();
         CancelarSelecaoAtual();
     }
 
@@ -1149,12 +1165,29 @@ public class GameManager : MonoBehaviour
 
         if (destinatarios.Count == 1)
         {
-            TentarPrepararTransferenciaPara(destinatarios[0]);
+            feedbackTransferencia = "Território selecionado. Confirme a transferência.";
+            AtualizarHighlightsPreparacao();
             return;
         }
 
-        feedbackTransferencia = "Selecione o aliado que receberá o território.";
+        feedbackTransferencia = "Transferência indisponível: aliado único não encontrado.";
         AtualizarHighlightsPreparacao();
+    }
+
+    public void ConfirmarTransferenciaPreparada()
+    {
+        if (!PodeConfirmarTransferencia)
+            return;
+
+        IReadOnlyList<TerritorioClique.Dono> destinatarios =
+            ObterDestinatariosTransferencia();
+        if (destinatarios.Count != 1)
+        {
+            feedbackTransferencia = "Transferência indisponível: aliado único não encontrado.";
+            return;
+        }
+
+        TentarPrepararTransferenciaPara(destinatarios[0]);
     }
 
     public void TentarPrepararTransferenciaPara(
@@ -1271,6 +1304,7 @@ public class GameManager : MonoBehaviour
 
         estadoPreparacao =
             EstadoPreparacao.Enviado;
+        jogadoresQueEnviaram.Add(jogadorLocal);
 
         CancelarSelecaoTransferencia();
         CancelarSelecaoAtual();
@@ -1278,10 +1312,13 @@ public class GameManager : MonoBehaviour
 #if UNITY_EDITOR
         if (autoenviarJogadoresSimuladosEditor)
         {
+            foreach (TerritorioClique.Dono jogador in ObterParticipantesEsperados())
+                jogadoresQueEnviaram.Add(jogador);
             Debug.Log(
                 "TESTE LOCAL | Jogadores simulados considerados enviados; " +
                 "seguindo pelo fechamento real da preparação.");
-            FecharPreparacaoEIniciarResolucao();
+            if (TodosParticipantesEnviaram())
+                FecharPreparacaoEIniciarResolucao();
         }
 #endif
     }
@@ -1293,10 +1330,45 @@ public class GameManager : MonoBehaviour
 
         estadoPreparacao =
             EstadoPreparacao.Preparando;
+        jogadoresQueEnviaram.Remove(jogadorLocal);
     }
 
     // =====================================================
-    // 19. FECHAMENTO DA PREPARAÇÃO
+    // 19. SUBMISSÃO INDIVIDUAL DOS PARTICIPANTES
+    // =====================================================
+
+    private IReadOnlyList<TerritorioClique.Dono> ObterParticipantesEsperados()
+    {
+        var participantes = new List<TerritorioClique.Dono>();
+        WDMatchSetup setup = MatchSetupAtual;
+        if (setup == null)
+        {
+            participantes.Add(jogadorLocal);
+            return participantes;
+        }
+
+        foreach (WDMatchParticipant participant in setup.Participants)
+        {
+            int ownerValue = participant.SlotIndex + 1;
+            if (System.Enum.IsDefined(typeof(TerritorioClique.Dono), ownerValue))
+                participantes.Add((TerritorioClique.Dono)ownerValue);
+        }
+        return participantes;
+    }
+
+    private bool TodosParticipantesEnviaram()
+    {
+        IReadOnlyList<TerritorioClique.Dono> esperados = ObterParticipantesEsperados();
+        if (esperados.Count == 0)
+            return false;
+        foreach (TerritorioClique.Dono jogador in esperados)
+            if (!jogadoresQueEnviaram.Contains(jogador))
+                return false;
+        return true;
+    }
+
+    // =====================================================
+    // 20. FECHAMENTO DA PREPARAÇÃO
     // =====================================================
 
     public void FecharPreparacaoEIniciarResolucao()
@@ -1322,7 +1394,7 @@ public class GameManager : MonoBehaviour
     }
 
     // =====================================================
-    // 20. RESOLUÇÃO
+    // 21. RESOLUÇÃO
     // =====================================================
 
     public void ResolverRodadaAgora()
@@ -1361,7 +1433,7 @@ public class GameManager : MonoBehaviour
         eventosVisuais.AddRange(eventosReforcoPendentes);
         eventosVisuais.AddRange(
             CriarEventosVisuaisTransferencia(resultadosTransferencias));
-        eventosVisuais.AddRange(CriarEventosVisuaisAtaque(resultadosTerrestres));
+        eventosVisuais.AddRange(CriarEventosVisuaisAcoesTerrestres(resultadosTerrestres));
         eventosReforcoPendentes.Clear();
 
         ResolutionSequenceController controller =
@@ -1378,7 +1450,7 @@ public class GameManager : MonoBehaviour
         gerenciadorRodada.ConcluirResolucao();
     }
 
-    private static List<ResolutionVisualEvent> CriarEventosVisuaisAtaque(
+    private static List<ResolutionVisualEvent> CriarEventosVisuaisAcoesTerrestres(
         IReadOnlyList<ResultadoAcaoTerrestre> resultados)
     {
         var eventos = new List<ResolutionVisualEvent>();
@@ -1387,14 +1459,30 @@ public class GameManager : MonoBehaviour
 
         foreach (ResultadoAcaoTerrestre resultado in resultados)
         {
-            if (resultado == null || !resultado.Executada ||
-                resultado.Tipo != ResultadoAcaoTerrestre.TipoResultado.Ataque ||
-                resultado.Ordem == null || resultado.Combate == null)
+            if (resultado == null || !resultado.Executada || resultado.Ordem == null)
             {
                 continue;
             }
 
-            eventos.Add(ResolutionVisualEvent.Attack(
+            if (resultado.Tipo == ResultadoAcaoTerrestre.TipoResultado.Ataque &&
+                resultado.Combate != null)
+            {
+                eventos.Add(ResolutionVisualEvent.Attack(
+                    resultado.Ordem.Jogador,
+                    resultado.Ordem.IdOrigem,
+                    resultado.Ordem.IdDestino,
+                    resultado.QuantidadeEfetiva,
+                    resultado.TropasOrigemAntes,
+                    resultado.TropasOrigemDepois,
+                    resultado.TropasDestinoAntes,
+                    resultado.TropasDestinoDepois,
+                    resultado.Combate.Conquistou,
+                    resultado.DonoDestinoAntes,
+                    resultado.DonoDestinoDepois));
+                continue;
+            }
+
+            eventos.Add(ResolutionVisualEvent.Movement(
                 resultado.Ordem.Jogador,
                 resultado.Ordem.IdOrigem,
                 resultado.Ordem.IdDestino,
@@ -1403,7 +1491,6 @@ public class GameManager : MonoBehaviour
                 resultado.TropasOrigemDepois,
                 resultado.TropasDestinoAntes,
                 resultado.TropasDestinoDepois,
-                resultado.Combate.Conquistou,
                 resultado.DonoDestinoAntes,
                 resultado.DonoDestinoDepois));
         }

@@ -28,7 +28,7 @@ public sealed class WDInitialTerritoryStageResult
 public sealed class WDInitialTerritorySelectionSession
 {
     // ============================================================
-    // 01. INTENÇÕES E PRIORIDADE DO ROUND 1
+    // 01. INTENÇÕES E PRIORIDADE DA ABERTURA
     // ============================================================
 
     private readonly Random random;
@@ -46,9 +46,9 @@ public sealed class WDInitialTerritorySelectionSession
         IReadOnlyList<string> playersInRoundOrder, IEnumerable<string> territoryIds)
     {
         players = playersInRoundOrder?.Where(id => !string.IsNullOrWhiteSpace(id))
-            .Distinct(StringComparer.Ordinal).Take(2).ToArray() ?? Array.Empty<string>();
-        if (players.Length != 2)
-            throw new ArgumentException("A abertura 1x1 exige dois jogadores em ordem de prioridade.");
+            .Distinct(StringComparer.Ordinal).ToArray() ?? Array.Empty<string>();
+        if (players.Length < 2)
+            throw new ArgumentException("A abertura exige ao menos dois jogadores em ordem de prioridade.");
         random = new Random(seed);
         available = new HashSet<string>(territoryIds?.Where(id =>
             !string.IsNullOrWhiteSpace(id)) ?? Array.Empty<string>(), StringComparer.Ordinal);
@@ -109,16 +109,21 @@ public sealed class WDInitialTerritorySelectionSession
         if (!ReadyToResolve)
             return null;
 
-        string firstPlayer = players[0];
-        string secondPlayer = players.First(player => player != firstPlayer);
         int resolvedStage = Stage;
-        string firstChoice = intents[firstPlayer];
-        string secondChoice = intents[secondPlayer];
-        bool conflict = string.Equals(firstChoice, secondChoice, StringComparison.Ordinal);
-        var assignments = new List<WDInitialTerritoryAssignment>(2);
-        Assign(firstPlayer, firstChoice, false, assignments);
-        Assign(secondPlayer, conflict || !available.Contains(secondChoice)
-            ? PickAvailable() : secondChoice, conflict, assignments);
+        bool conflict = intents.Values
+            .GroupBy(id => id, StringComparer.Ordinal)
+            .Any(group => group.Count() > 1);
+        var assignments = new List<WDInitialTerritoryAssignment>(players.Length);
+
+        // A ordem recebida é autoritativa: o primeiro jogador que pediu um
+        // território disponível o recebe; colisões posteriores usam fallback.
+        foreach (string player in players)
+        {
+            string choice = intents[player];
+            bool needsFallback = !available.Contains(choice);
+            Assign(player, needsFallback ? PickAvailable() : choice,
+                needsFallback, assignments);
+        }
         var result = new WDInitialTerritoryStageResult(
             resolvedStage, assignments.AsReadOnly(), conflict);
         results.Add(resolvedStage, result);

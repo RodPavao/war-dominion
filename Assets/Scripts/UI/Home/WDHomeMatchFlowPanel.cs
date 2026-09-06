@@ -425,7 +425,7 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
         }
 
         bool usesProfileDeck = voteRequest == null ||
-            voteRequest.CardRuleId != "symmetric_random_cards";
+            !WDMatchSetup.IsRandomCardsRule(voteRequest.CardRuleId);
         for (int i = 0; usesProfileDeck && i < homeData.Decks.Count; i++)
         {
             int deckIndex = i;

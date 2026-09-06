@@ -8,9 +8,6 @@ public class PaletaJogadores : MonoBehaviour
 
     public static PaletaJogadores instance;
 
-    public static readonly Color CorTerritorioSemDonoPadrao =
-        new Color(0.95f, 0.91f, 0.78f, 0.92f);
-
     private void Awake()
     {
         instance = this;
@@ -18,11 +15,7 @@ public class PaletaJogadores : MonoBehaviour
 
     public Color ObterCor(TerritorioClique.Dono dono)
     {
-        WDPlayerPaletteConfig config = WDPlayerPaletteConfig.LoadGlobal();
-        if (config == null)
-            return Color.white;
-
-        return config.GetColor(config.GetDefaultColorIndex(dono));
+        return ObterCorAtiva(dono);
     }
 
     // ============================================================
@@ -36,18 +29,11 @@ public class PaletaJogadores : MonoBehaviour
                 out WDMatchParticipant participant))
             return participant.MatchColor;
 
-        WDPlayerPaletteConfig config = WDPlayerPaletteConfig.LoadGlobal();
-        if (config == null)
-            return Color.white;
-
-        return config.GetColor(config.GetDefaultColorIndex(dono));
+        return WDPlayerPaletteConfig.GetGlobalDefaultColorForSlot((int)dono - 1);
     }
 
     public static Color ObterCorNeutraAtiva()
     {
-        WDPlayerPaletteConfig config = WDPlayerPaletteConfig.LoadGlobal();
-        return config != null
-            ? config.OwnerlessTerritoryColor
-            : CorTerritorioSemDonoPadrao;
+        return WDPlayerPaletteConfig.GetGlobalOwnerlessColor();
     }
 }

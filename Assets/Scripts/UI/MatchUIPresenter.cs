@@ -188,7 +188,18 @@ public sealed class MatchUIPresenter : MonoBehaviour
         IReadOnlyList<TerritorioClique> territorios)
     {
         var resultado = new List<MatchUIPlayerState>(setup.Participants.Count);
-        foreach (WDMatchParticipant participant in setup.Participants)
+        var participants = new List<WDMatchParticipant>(setup.Participants);
+        IReadOnlyList<TerritorioClique.Dono> priority =
+            gameManager.ObterPrioridadeJogadoresParaUI();
+        participants.Sort((a, b) =>
+        {
+            int ownerA = ObterIndicePrioridade(
+                priority, (TerritorioClique.Dono)(a.SlotIndex + 1));
+            int ownerB = ObterIndicePrioridade(
+                priority, (TerritorioClique.Dono)(b.SlotIndex + 1));
+            return ownerA.CompareTo(ownerB);
+        });
+        foreach (WDMatchParticipant participant in participants)
         {
             int ownerValue = participant.SlotIndex + 1;
             if (!Enum.IsDefined(typeof(TerritorioClique.Dono), ownerValue))
@@ -205,7 +216,7 @@ public sealed class MatchUIPresenter : MonoBehaviour
                 ? participant.Nickname
                 : participant.Kind == WDMatchParticipantKind.Local
                     ? "Jogador"
-                    : "Adversário";
+                    : $"Jogador {participant.SlotIndex + 1}";
             resultado.Add(new MatchUIPlayerState(
                 owner,
                 EquipesJogadores.ObterEquipe(owner),
@@ -216,6 +227,16 @@ public sealed class MatchUIPresenter : MonoBehaviour
                 ObterEstadoRodadaJogador(owner)));
         }
         return resultado.ToArray();
+    }
+
+    private static int ObterIndicePrioridade(
+        IReadOnlyList<TerritorioClique.Dono> priority,
+        TerritorioClique.Dono owner)
+    {
+        for (int i = 0; i < priority.Count; i++)
+            if (priority[i] == owner)
+                return i;
+        return int.MaxValue;
     }
 
     private MatchUIPlayerRoundStatus ObterEstadoRodadaJogador(

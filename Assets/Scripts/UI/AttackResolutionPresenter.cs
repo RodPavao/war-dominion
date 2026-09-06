@@ -18,7 +18,8 @@ public sealed class AttackResolutionPresenter : MonoBehaviour,
     }
 
     public bool Supports(ResolutionVisualEventType type) =>
-        type == ResolutionVisualEventType.Attack;
+        type == ResolutionVisualEventType.Attack ||
+        type == ResolutionVisualEventType.Movement;
 
     // ============================================================
     // 02. COREOGRAFIA DO ATAQUE JÁ CALCULADO
@@ -51,7 +52,8 @@ public sealed class AttackResolutionPresenter : MonoBehaviour,
         route.Build(theme);
         route.SetColorAndAmount(playerColor, 0);
         route.SetPlanning(false);
-        GameObject attacker = CreateCounterCopy(origin, visualEvent.OriginBefore, visualEvent.Player);
+        GameObject attacker = CreateCounterCopy(
+            origin, ObterQuantidadeAnimada(visualEvent), visualEvent.Player);
         route.SetGeometry(originPosition, destinationPosition);
         Vector3 originWorld = GetCounterWorldPosition(origin);
         Vector3 destinationWorld = GetCounterWorldPosition(destination);
@@ -107,18 +109,39 @@ public sealed class AttackResolutionPresenter : MonoBehaviour,
         if (source == null)
             return new GameObject("AnimatedCounterCopy");
 
-        GameObject copy = Instantiate(source.gameObject);
-        copy.name = "AnimatedCounterCopy";
-        copy.transform.SetParent(null, true);
-        foreach (Collider2D collider in copy.GetComponentsInChildren<Collider2D>(true))
-            collider.enabled = false;
+        return CriarRepresentacaoAnimada(source.transform, amount, owner);
+    }
+
+    // ============================================================
+    // 06. REPRESENTAÇÃO DESVINCULADA DO ESTADO DA ORIGEM
+    // ============================================================
+
+    public static GameObject CriarRepresentacaoAnimada(
+        Transform sourceTransform,
+        int amount,
+        TerritorioClique.Dono owner)
+    {
+        var copy = new GameObject("AnimatedCounterCopy");
+        if (sourceTransform != null)
+        {
+            copy.transform.position = sourceTransform.position;
+            copy.transform.rotation = sourceTransform.rotation;
+            copy.transform.localScale = sourceTransform.lossyScale;
+        }
+
+        WDArmyCounterView view = copy.AddComponent<WDArmyCounterView>();
+        view.Configurar(null);
+        Color stripColor = owner == TerritorioClique.Dono.Neutro
+            ? PaletaJogadores.ObterCorNeutraAtiva()
+            : PaletaJogadores.ObterCorAtiva(owner);
+        view.Exibir(amount, stripColor);
         foreach (Renderer renderer in copy.GetComponentsInChildren<Renderer>(true))
             renderer.sortingOrder += 100;
-        ContadorTropas controller = copy.GetComponent<ContadorTropas>();
-        controller.AtualizarVisual(amount, owner);
-        controller.enabled = false;
         return copy;
     }
+
+    public static int ObterQuantidadeAnimada(ResolutionVisualEvent visualEvent) =>
+        visualEvent != null ? visualEvent.Amount : 0;
 
     private static Vector3 GetCounterWorldPosition(TerritorioClique territory)
     {

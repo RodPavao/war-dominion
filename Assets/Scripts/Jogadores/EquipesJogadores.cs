@@ -41,10 +41,10 @@ public static class EquipesJogadores
         switch (jogador)
         {
             case TerritorioClique.Dono.Jogador1:
-            case TerritorioClique.Dono.Jogador2:
+            case TerritorioClique.Dono.Jogador3:
                 return Equipe.Vanguard;
 
-            case TerritorioClique.Dono.Jogador3:
+            case TerritorioClique.Dono.Jogador2:
             case TerritorioClique.Dono.Jogador4:
                 return Equipe.Sentinel;
 
@@ -63,5 +63,38 @@ public static class EquipesJogadores
         return
             a != Equipe.Nenhuma &&
             a == b;
+    }
+
+    // =====================================================
+    // 2. CONSULTAS SEMÂNTICAS REUTILIZÁVEIS
+    // =====================================================
+
+    public static bool SaoInimigos(
+        TerritorioClique.Dono jogadorA,
+        TerritorioClique.Dono jogadorB)
+    {
+        if (jogadorA == TerritorioClique.Dono.Neutro ||
+            jogadorB == TerritorioClique.Dono.Neutro ||
+            jogadorA == jogadorB)
+            return false;
+
+        Equipe a = ObterEquipe(jogadorA);
+        Equipe b = ObterEquipe(jogadorB);
+        return a == Equipe.Nenhuma || b == Equipe.Nenhuma || a != b;
+    }
+
+    public static bool TerritorioPertenceAEquipe(
+        TerritorioClique territorio,
+        TerritorioClique.Dono jogador)
+    {
+        return territorio != null &&
+            (territorio.dono == jogador || SaoAliados(territorio.dono, jogador));
+    }
+
+    public static bool TerritorioPertenceAEquipeAdversaria(
+        TerritorioClique territorio,
+        TerritorioClique.Dono jogador)
+    {
+        return territorio != null && SaoInimigos(territorio.dono, jogador);
     }
 }

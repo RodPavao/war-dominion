@@ -30,7 +30,9 @@ public class GerenciadorRodada : MonoBehaviour
     public ResultadoPartida ResultadoAtual { get; private set; }
 
     public const int TotalRoundsNormais = 10;
-    public const int ReforcosIniciaisUmContraUm = 8;
+    public const int ReforcosIniciaisPorJogador = 8;
+    public const int ReforcosIniciaisUmContraUm =
+        ReforcosIniciaisPorJogador;
     public const int ReforcosMinimosUmContraUm = 6;
     private int LimiteRoundsNormais => gameManager != null
         ? gameManager.LimiteRoundsDaPartida
@@ -176,17 +178,31 @@ public class GerenciadorRodada : MonoBehaviour
     public int CalcularReforcos(
         TerritorioClique.Dono jogador)
     {
-        if (rodadaAtual == 1)
-        {
-            if (gameManager != null && gameManager.EhPartidaUmContraUm)
-                return ReforcosIniciaisUmContraUm;
-            return 8;
-        }
+        int calculados = CalcularReforcosRegulares(
+            jogador, out int baseTerritorial, out int bonusRegioes);
+        return CalcularReforcosPorModo(
+            baseTerritorial * 2,
+            bonusRegioes,
+            gameManager != null && gameManager.EhPartidaUmContraUm,
+            rodadaAtual);
+    }
 
-        int calculados = CalcularReforcosRegulares(jogador, out _, out _);
-        return AplicarPisoReforcosUmContraUm(
-            calculados,
-            gameManager != null && gameManager.EhPartidaUmContraUm);
+    // =====================================================
+    // 4. POLÍTICA CENTRAL DE REFORÇOS POR CATEGORIA DE MODO
+    // =====================================================
+
+    public static int CalcularReforcosPorModo(
+        int quantidadeTerritorios,
+        int bonusAplicaveis,
+        bool partidaUmContraUm,
+        int round)
+    {
+        if (Mathf.Max(1, round) == 1)
+            return ReforcosIniciaisPorJogador;
+
+        int calculados = Mathf.Max(0, quantidadeTerritorios) / 2 +
+            Mathf.Max(0, bonusAplicaveis);
+        return AplicarPisoReforcosUmContraUm(calculados, partidaUmContraUm);
     }
 
     public static int AplicarPisoReforcosUmContraUm(
@@ -228,7 +244,7 @@ public class GerenciadorRodada : MonoBehaviour
     }
 
     // =====================================================
-    // 4. PRIORIDADE DETERMINÍSTICA ENTRE JOGADORES
+    // 5. PRIORIDADE DETERMINÍSTICA ENTRE JOGADORES
     // =====================================================
 
     public IReadOnlyList<TerritorioClique.Dono> ObterPrioridadeJogadores()
@@ -266,7 +282,9 @@ public class GerenciadorRodada : MonoBehaviour
                 ativos.Add(territorio.dono);
         }
 
-        if (ativos.Count == 0 && gameManager != null && gameManager.MatchSetupAtual != null)
+        // O setup completa a lista mesmo quando a cena ainda contém donos
+        // serializados de uma configuração com menos participantes.
+        if (gameManager != null && gameManager.MatchSetupAtual != null)
         {
             foreach (WDMatchParticipant participant in gameManager.MatchSetupAtual.Participants)
             {
@@ -281,16 +299,10 @@ public class GerenciadorRodada : MonoBehaviour
         if (ativos.Count == 0)
             return;
 
-        List<TerritorioClique.Dono> baseOrdenada =
-            new List<TerritorioClique.Dono>(ativos);
-
-        int deslocamento = (rodadaAtual - 1) % baseOrdenada.Count;
-
-        for (int i = 0; i < baseOrdenada.Count; i++)
-        {
-            prioridadeJogadores.Add(
-                baseOrdenada[(i + deslocamento) % baseOrdenada.Count]);
-        }
+        prioridadeJogadores.AddRange(ConstruirPrioridadeJogadores(
+            new List<TerritorioClique.Dono>(ativos),
+            gameManager != null ? gameManager.MatchSetupAtual : null,
+            rodadaAtual));
 
         Debug.Log(
             "PRIORIDADE ROUND " + rodadaAtual + ": " +
@@ -298,7 +310,75 @@ public class GerenciadorRodada : MonoBehaviour
     }
 
     // =====================================================
-    // 5. PARTICIPANTES E DESCRIÇÃO DO RESULTADO
+    // 6. ORDEM INTERCALADA PARA MODOS POR EQUIPE
+    // =====================================================
+
+    public static IReadOnlyList<TerritorioClique.Dono> ConstruirPrioridadeJogadores(
+        IReadOnlyList<TerritorioClique.Dono> jogadores,
+        WDMatchSetup setup,
+        int round)
+    {
+        var baseOrdenada = new List<TerritorioClique.Dono>();
+        if (jogadores == null || jogadores.Count == 0)
+            return baseOrdenada;
+
+        bool usaEquipes = setup != null && setup.IsTeamMatch;
+        var jogadoresAtivos = new HashSet<TerritorioClique.Dono>(jogadores);
+        if (!usaEquipes)
+        {
+            baseOrdenada.AddRange(jogadores);
+            int deslocamentoNormal = (Mathf.Max(1, round) - 1) % baseOrdenada.Count;
+            return Rotacionar(baseOrdenada, deslocamentoNormal, false);
+        }
+
+        var porEquipe = new SortedDictionary<int, List<WDMatchParticipant>>();
+        foreach (WDMatchParticipant participant in setup.Participants)
+        {
+            if (!porEquipe.TryGetValue(participant.TeamIndex, out List<WDMatchParticipant> team))
+            {
+                team = new List<WDMatchParticipant>();
+                porEquipe.Add(participant.TeamIndex, team);
+            }
+            team.Add(participant);
+        }
+        foreach (List<WDMatchParticipant> team in porEquipe.Values)
+            team.Sort((a, b) => a.SlotIndex.CompareTo(b.SlotIndex));
+
+        int maiorEquipe = 0;
+        foreach (List<WDMatchParticipant> team in porEquipe.Values)
+            maiorEquipe = Mathf.Max(maiorEquipe, team.Count);
+        for (int member = 0; member < maiorEquipe; member++)
+            foreach (List<WDMatchParticipant> team in porEquipe.Values)
+                if (member < team.Count)
+                {
+                    TerritorioClique.Dono owner =
+                        (TerritorioClique.Dono)(team[member].SlotIndex + 1);
+                    if (jogadoresAtivos.Contains(owner))
+                        baseOrdenada.Add(owner);
+                }
+
+        int deslocamentoEquipe = (Mathf.Max(1, round) - 1) % baseOrdenada.Count;
+        return Rotacionar(baseOrdenada, deslocamentoEquipe, true);
+    }
+
+    private static IReadOnlyList<TerritorioClique.Dono> Rotacionar(
+        List<TerritorioClique.Dono> baseOrdenada,
+        int deslocamento,
+        bool paraDireita)
+    {
+        var resultado = new List<TerritorioClique.Dono>(baseOrdenada.Count);
+        for (int i = 0; i < baseOrdenada.Count; i++)
+        {
+            int indice = paraDireita
+                ? (i - deslocamento + baseOrdenada.Count) % baseOrdenada.Count
+                : (i + deslocamento) % baseOrdenada.Count;
+            resultado.Add(baseOrdenada[indice]);
+        }
+        return resultado;
+    }
+
+    // =====================================================
+    // 7. PARTICIPANTES E DESCRIÇÃO DO RESULTADO
     // =====================================================
 
     private void AtualizarJogadoresParticipantes()
@@ -319,7 +399,7 @@ public class GerenciadorRodada : MonoBehaviour
     }
 
     // =====================================================
-    // 6. CONTROLES DE TESTE NO INSPECTOR
+    // 8. CONTROLES DE TESTE NO INSPECTOR
     // =====================================================
 
     [ContextMenu("Iniciar Partida Teste")]

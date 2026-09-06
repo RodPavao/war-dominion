@@ -183,6 +183,10 @@ public class ResolvedorAcoesTerrestres : MonoBehaviour
         int quantidade,
         ResultadoAcaoTerrestre.TipoResultado tipo)
     {
+        int tropasOrigemAntes = ordem.Origem.Tropas;
+        int tropasDestinoAntes = ordem.Destino.Tropas;
+        TerritorioClique.Dono donoDestino = ordem.Destino.dono;
+
         if (!ordem.Origem.RemoverTropas(quantidade))
             return Cancelar("A origem não conseguiu manter a tropa mínima.");
 
@@ -201,7 +205,15 @@ public class ResolvedorAcoesTerrestres : MonoBehaviour
             true,
             tipo,
             quantidade,
-            descricao + " concluído.");
+            descricao + " concluído.",
+            null,
+            ordem,
+            tropasOrigemAntes,
+            ordem.Origem.Tropas,
+            tropasDestinoAntes,
+            ordem.Destino.Tropas,
+            donoDestino,
+            ordem.Destino.dono);
     }
 
     private ResultadoAcaoTerrestre Cancelar(string motivo)
