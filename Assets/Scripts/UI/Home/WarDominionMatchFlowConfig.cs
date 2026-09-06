@@ -196,6 +196,7 @@ public sealed class WDMatchModeDefinition
     [SerializeField] private string displayName;
     [SerializeField, TextArea] private string description;
     [SerializeField] private WDContentAvailability availability;
+    [SerializeField] private bool showInStandardPlaySelection = true;
     [SerializeField] private WDMatchFlowDestination destination;
     [SerializeField, Min(1)] private int groupSize = 1;
     [SerializeField, Min(0)] private int matchSize;
@@ -211,6 +212,7 @@ public sealed class WDMatchModeDefinition
     public string DisplayName => displayName;
     public string Description => description;
     public WDContentAvailability Availability => availability;
+    public bool ShowInStandardPlaySelection => showInStandardPlaySelection;
     public WDMatchFlowDestination Destination => destination;
     public int GroupSize => groupSize;
     public int MatchSize => matchSize;

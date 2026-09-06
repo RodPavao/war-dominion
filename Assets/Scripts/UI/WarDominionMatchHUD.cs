@@ -629,7 +629,7 @@ public sealed class WarDominionMatchHUD : MonoBehaviour
         float start = actionsDrawer.anchoredPosition.x;
         float target = opening ? 300f : -90f;
         float elapsed = 0f;
-        const float duration = 0.16f;
+        float duration = theme != null ? theme.ActionsDrawerDuration : 0.20f;
         while (elapsed < duration)
         {
             elapsed += Time.unscaledDeltaTime;

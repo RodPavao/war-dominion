@@ -17,6 +17,7 @@ MonoBehaviour:
     displayName: FFA
     description: Todos contra todos
     availability: 0
+    showInStandardPlaySelection: 1
     destination: 0
     groupSize: 1
     matchSize: 4
@@ -41,6 +42,7 @@ MonoBehaviour:
     displayName: 1x1
     description: "Duelo estrat\xE9gico"
     availability: 0
+    showInStandardPlaySelection: 1
     destination: 1
     groupSize: 1
     matchSize: 2
@@ -91,6 +93,7 @@ MonoBehaviour:
     displayName: 2x2
     description: "Estrat\xE9gia em equipes"
     availability: 0
+    showInStandardPlaySelection: 1
     destination: 1
     groupSize: 2
     matchSize: 4
@@ -141,6 +144,7 @@ MonoBehaviour:
     displayName: 3x3
     description: "Estrat\xE9gia com tr\xEAs jogadores por equipe"
     availability: 0
+    showInStandardPlaySelection: 1
     destination: 1
     groupSize: 3
     matchSize: 6
@@ -173,6 +177,7 @@ MonoBehaviour:
     displayName: BATTLE ROYALE
     description: "6 jogadores \xB7 5 rounds \xB7 Random Cards"
     availability: 1
+    showInStandardPlaySelection: 0
     destination: 0
     groupSize: 1
     matchSize: 6

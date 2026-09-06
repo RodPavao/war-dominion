@@ -294,7 +294,7 @@ Inicialmente `ComingSoon`:
 
 ### [DEFINITIVO] Acesso direto a JOGAR PARTIDA
 
-PLAY abre diretamente JOGAR PARTIDA e a seleção de FFA, 1x1, 2x2, 3x3 e Battle Royale. Não existe etapa intermediária com as opções JOGAR, MODOS e MAPAS.
+PLAY abre diretamente JOGAR PARTIDA e a seleção de FFA, 1x1, 2x2 e 3x3. Não existe etapa intermediária com as opções JOGAR, MODOS e MAPAS. Battle Royale não integra a seleção normal e será conteúdo futuro de Eventos/Torneios.
 
 ### [PROVISÓRIO] Fluxo JOGAR PARTIDA
 

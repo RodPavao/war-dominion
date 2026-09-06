@@ -101,3 +101,5 @@ MonoBehaviour:
   panelBorderWidth: 1
   buttonHeight: 42
   microAnimationDuration: 0.14
+  mapThumbnailInnerScale: 1.18
+  actionsDrawerDuration: 0.2

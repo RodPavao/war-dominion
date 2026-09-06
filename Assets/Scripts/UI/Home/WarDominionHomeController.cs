@@ -177,9 +177,21 @@ public sealed class WarDominionHomeController : MonoBehaviour
     private void BuildLeft(RectTransform parent)
     {
         BuildIdentity(parent);
-        CreateCard(parent, "M", "MISSÕES", "Objetivos e recompensas provisórias", "MISSÕES", MissionBody());
-        CreateCard(parent, "R", "RANKING", "Classificação competitiva", "RANKING", RankingBody());
-        CreateCard(parent, "E", "EVENTOS / TORNEIOS", $"{mockData.RegistrationState} · {mockData.Countdown}", "EVENTOS / TORNEIOS", EventBody(), 132f);
+
+        // O respiro flexível mantém o bloco secundário apoiado na base da coluna.
+        RectTransform breathingRoom = WDHomeUIFactory.Rect("LeftBreathingRoom", parent);
+        LayoutElement spacer = breathingRoom.gameObject.AddComponent<LayoutElement>();
+        spacer.minHeight = 40f;
+        spacer.flexibleHeight = 1f;
+
+        RectTransform lowerGroup = WDHomeUIFactory.Rect("LeftLowerGroup", parent);
+        LayoutElement lowerElement = lowerGroup.gameObject.AddComponent<LayoutElement>();
+        lowerElement.preferredHeight = 352f;
+        WDHomeUIFactory.VerticalLayout(
+            lowerGroup.gameObject, 14f, new RectOffset(0, 0, 0, 0));
+        CreateCard(lowerGroup, "M", "MISSÕES", "Objetivos e recompensas provisórias", "MISSÕES", MissionBody());
+        CreateCard(lowerGroup, "R", "RANKING", "Classificação competitiva", "RANKING", RankingBody());
+        CreateCard(lowerGroup, "E", "EVENTOS / TORNEIOS", $"{mockData.RegistrationState} · {mockData.Countdown}", "EVENTOS / TORNEIOS", EventBody(), 132f);
     }
 
     private void BuildIdentity(RectTransform parent)

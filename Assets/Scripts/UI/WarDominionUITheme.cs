@@ -163,6 +163,14 @@ public sealed class WarDominionUITheme : ScriptableObject
     [SerializeField, Min(24f)] private float buttonHeight = 42f;
     [SerializeField, Min(0.01f)] private float microAnimationDuration = 0.14f;
 
+    // ============================================================
+    // 09. AJUSTES ESTRUTURAIS CALIBRÁVEIS
+    // ============================================================
+
+    [Header("Fluxo e HUD")]
+    [SerializeField, Range(1f, 1.5f)] private float mapThumbnailInnerScale = 1.18f;
+    [SerializeField, Range(0.08f, 0.5f)] private float actionsDrawerDuration = 0.20f;
+
     public TMP_FontAsset FonteDisplay => fonteDisplay;
     public TMP_FontAsset FonteInterface => fonteInterface != null ? fonteInterface : fonteDisplay;
     public float TamanhoTitulo => tamanhoTitulo;
@@ -258,4 +266,6 @@ public sealed class WarDominionUITheme : ScriptableObject
     public float PanelBorderWidth => panelBorderWidth;
     public float ButtonHeight => buttonHeight;
     public float MicroAnimationDuration => microAnimationDuration;
+    public float MapThumbnailInnerScale => mapThumbnailInnerScale;
+    public float ActionsDrawerDuration => actionsDrawerDuration;
 }

@@ -40,6 +40,7 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
     private readonly Dictionary<string, string> mapNames = new(StringComparer.Ordinal);
     private readonly Dictionary<string, DefinicaoMapa> mapDefinitions = new(StringComparer.Ordinal);
     private RectTransform optionsRoot;
+    private HorizontalLayoutGroup optionsLayout;
     private TextMeshProUGUI titleLabel;
     private TextMeshProUGUI subtitleLabel;
     private TextMeshProUGUI feedbackLabel;
@@ -56,6 +57,7 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
     private WDPreMatchFlowController preMatchFlow;
     private WDMatchmakingRequest matchmakingRequest;
     private Action returnBeforeMatchmaking;
+    private bool useCompactCenteredOptions;
 
     private const float VoteDurationSeconds = 15f;
     private const string LocalPlayerId = "local_player";
@@ -107,12 +109,12 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
         optionsRoot.anchorMin = new Vector2(0.035f, 0.24f);
         optionsRoot.anchorMax = new Vector2(0.965f, 0.73f);
         optionsRoot.offsetMin = optionsRoot.offsetMax = Vector2.zero;
-        HorizontalLayoutGroup layout = optionsRoot.gameObject.AddComponent<HorizontalLayoutGroup>();
-        layout.spacing = 18f;
-        layout.childControlWidth = true;
-        layout.childControlHeight = true;
-        layout.childForceExpandWidth = true;
-        layout.childForceExpandHeight = true;
+        optionsLayout = optionsRoot.gameObject.AddComponent<HorizontalLayoutGroup>();
+        optionsLayout.spacing = 18f;
+        optionsLayout.childControlWidth = true;
+        optionsLayout.childControlHeight = true;
+        optionsLayout.childForceExpandWidth = true;
+        optionsLayout.childForceExpandHeight = true;
 
         feedbackLabel = WDHomeUIFactory.Text(
             "Feedback", panel, theme, string.Empty, theme.TypeBody,
@@ -192,7 +194,8 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
         var options = new List<Option>();
         foreach (WDMatchModeDefinition mode in config.Modes)
         {
-            if (mode == null || !WDContentAvailabilityRules.IsVisible(mode.Availability))
+            if (mode == null || !mode.ShowInStandardPlaySelection ||
+                !WDContentAvailabilityRules.IsVisible(mode.Availability))
                 continue;
             WDMatchModeDefinition captured = mode;
             options.Add(new Option(
@@ -202,7 +205,7 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
 
         ShowOptions(
             "JOGAR PARTIDA", "Selecione um modo de jogo", options,
-            null, string.Empty);
+            null, string.Empty, true);
     }
 
     private void SelectMode(WDMatchModeDefinition mode)
@@ -590,9 +593,14 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
 
     private void ShowOptions(
         string title, string subtitle, IReadOnlyList<Option> options,
-        Action onBack, string feedback)
+        Action onBack, string feedback, bool compactCentered = false)
     {
         ClearOptions();
+        useCompactCenteredOptions = compactCentered;
+        optionsLayout.childAlignment = compactCentered
+            ? TextAnchor.MiddleCenter
+            : TextAnchor.UpperLeft;
+        optionsLayout.childForceExpandWidth = !compactCentered;
         titleLabel.text = title;
         subtitleLabel.text = subtitle;
         subtitleLabel.rectTransform.anchorMin = new Vector2(0f, 0.75f);
@@ -608,6 +616,13 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
     private void BuildOption(Option option)
     {
         RectTransform rect = WDHomeUIFactory.Rect(option.Title.Replace(" ", string.Empty), optionsRoot);
+        if (useCompactCenteredOptions)
+        {
+            LayoutElement optionLayout = rect.gameObject.AddComponent<LayoutElement>();
+            optionLayout.minWidth = 210f;
+            optionLayout.preferredWidth = 260f;
+            optionLayout.flexibleWidth = 0f;
+        }
         Image image = rect.gameObject.AddComponent<Image>();
         image.color = option.Availability == WDContentAvailability.Available
             ? theme.SurfaceGlass
@@ -647,7 +662,14 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
             thumbnailRect.anchorMin = new Vector2(0.05f, 0.30f);
             thumbnailRect.anchorMax = new Vector2(0.95f, 0.94f);
             thumbnailRect.offsetMin = thumbnailRect.offsetMax = Vector2.zero;
-            Image thumbnail = thumbnailRect.gameObject.AddComponent<Image>();
+            thumbnailRect.gameObject.AddComponent<RectMask2D>();
+
+            RectTransform mapArt = WDHomeUIFactory.Rect("MapArt", thumbnailRect);
+            mapArt.anchorMin = Vector2.zero;
+            mapArt.anchorMax = Vector2.one;
+            mapArt.offsetMin = mapArt.offsetMax = Vector2.zero;
+            mapArt.localScale = Vector3.one * theme.MapThumbnailInnerScale;
+            Image thumbnail = mapArt.gameObject.AddComponent<Image>();
             thumbnail.sprite = option.Thumbnail;
             thumbnail.preserveAspect = true;
             thumbnail.raycastTarget = false;
