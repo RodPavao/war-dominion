@@ -263,6 +263,64 @@ public sealed class WDInitialTerritorySelectionSessionTests
         }
     }
 
+    [TestCase(1, TerritorioClique.Dono.Jogador1, TerritorioClique.Dono.Jogador2,
+        TerritorioClique.Dono.Jogador3, TerritorioClique.Dono.Jogador4,
+        TerritorioClique.Dono.Jogador5, TerritorioClique.Dono.Jogador6)]
+    [TestCase(2, TerritorioClique.Dono.Jogador6, TerritorioClique.Dono.Jogador1,
+        TerritorioClique.Dono.Jogador2, TerritorioClique.Dono.Jogador3,
+        TerritorioClique.Dono.Jogador4, TerritorioClique.Dono.Jogador5)]
+    [TestCase(3, TerritorioClique.Dono.Jogador5, TerritorioClique.Dono.Jogador6,
+        TerritorioClique.Dono.Jogador1, TerritorioClique.Dono.Jogador2,
+        TerritorioClique.Dono.Jogador3, TerritorioClique.Dono.Jogador4)]
+    public void ThreeVsThreeRoundOrderInterleavesAndRotates(
+        int round, TerritorioClique.Dono first, TerritorioClique.Dono second,
+        TerritorioClique.Dono third, TerritorioClique.Dono fourth,
+        TerritorioClique.Dono fifth, TerritorioClique.Dono sixth)
+    {
+        IReadOnlyList<TerritorioClique.Dono> result =
+            GerenciadorRodada.ConstruirPrioridadeJogadores(
+                new[]
+                {
+                    TerritorioClique.Dono.Jogador1,
+                    TerritorioClique.Dono.Jogador2,
+                    TerritorioClique.Dono.Jogador3,
+                    TerritorioClique.Dono.Jogador4,
+                    TerritorioClique.Dono.Jogador5,
+                    TerritorioClique.Dono.Jogador6
+                }, ThreeVsThreeSetup(), round);
+
+        Assert.That(result, Is.EqualTo(new[]
+        {
+            first, second, third, fourth, fifth, sixth
+        }));
+    }
+
+    [Test]
+    public void ThreeVsThreeFindsExactlyTwoAlliesWithoutChangingIdentity()
+    {
+        WDMatchSetup setup = ThreeVsThreeSetup();
+        IReadOnlyList<TerritorioClique.Dono> allies =
+            EquipesJogadores.ObterAliados(setup, TerritorioClique.Dono.Jogador1);
+
+        Assert.That(allies, Is.EqualTo(new[]
+        {
+            TerritorioClique.Dono.Jogador3,
+            TerritorioClique.Dono.Jogador5
+        }));
+        Assert.That(allies.Contains(TerritorioClique.Dono.Jogador1), Is.False);
+        Assert.That(allies.Contains(TerritorioClique.Dono.Jogador2), Is.False);
+        Assert.That(setup.Participants[0].PlayerId, Is.EqualTo("a1"));
+        Assert.That(setup.Participants[0].TeamIndex, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void TwoVsTwoStillFindsSingleAutomaticAlly()
+    {
+        Assert.That(EquipesJogadores.ObterAliados(
+            TeamSetup(), TerritorioClique.Dono.Jogador1),
+            Is.EqualTo(new[] { TerritorioClique.Dono.Jogador3 }));
+    }
+
     [Test]
     public void AttackVisualEventUsesCommittedAmountInsteadOfOriginTotal()
     {
@@ -322,6 +380,18 @@ public sealed class WDInitialTerritorySelectionSessionTests
         };
         return new WDMatchSetup("2x2", "normal", "classic", string.Empty,
             string.Empty, 10, true, 1, participants);
+    }
+
+    private static WDMatchSetup ThreeVsThreeSetup()
+    {
+        var participants = new List<WDMatchParticipant>
+        {
+            Participant("a1", 0, 0), Participant("b1", 1, 1),
+            Participant("a2", 0, 2), Participant("b2", 1, 3),
+            Participant("a3", 0, 4), Participant("b3", 1, 5)
+        };
+        return new WDMatchSetup("3x3", "normal", "classic", string.Empty,
+            "standard_deck", 10, true, 1, participants);
     }
 
     private static WDMatchParticipant Participant(string id, int team, int slot) =>

@@ -40,6 +40,8 @@ public sealed class MatchUIState : IEquatable<MatchUIState>
     public int QuantidadeAcaoSelecionada { get; }
     public string TipoAcaoEsperado { get; }
     public string FeedbackTransferencia { get; }
+    public IReadOnlyList<TerritorioClique.Dono> DestinatariosTransferencia { get; }
+    public TerritorioClique.Dono DestinatarioTransferenciaSelecionado { get; }
     public MatchUIFeedbackState FeedbackAtual { get; }
     public IReadOnlyList<MatchUIPlayerState> Jogadores { get; }
     public IReadOnlyList<MatchUITerritoryState> Territorios { get; }
@@ -82,6 +84,8 @@ public sealed class MatchUIState : IEquatable<MatchUIState>
         int quantidadeAcaoSelecionada,
         string tipoAcaoEsperado,
         string feedbackTransferencia,
+        TerritorioClique.Dono[] destinatariosTransferencia,
+        TerritorioClique.Dono destinatarioTransferenciaSelecionado,
         MatchUIFeedbackState feedbackAtual,
         MatchUIPlayerState[] jogadores,
         MatchUITerritoryState[] territorios,
@@ -124,6 +128,9 @@ public sealed class MatchUIState : IEquatable<MatchUIState>
         QuantidadeAcaoSelecionada = quantidadeAcaoSelecionada;
         TipoAcaoEsperado = tipoAcaoEsperado ?? string.Empty;
         FeedbackTransferencia = feedbackTransferencia ?? string.Empty;
+        DestinatariosTransferencia = Array.AsReadOnly(
+            destinatariosTransferencia ?? Array.Empty<TerritorioClique.Dono>());
+        DestinatarioTransferenciaSelecionado = destinatarioTransferenciaSelecionado;
         FeedbackAtual = feedbackAtual;
         Jogadores = Array.AsReadOnly(jogadores ?? Array.Empty<MatchUIPlayerState>());
         Territorios = Array.AsReadOnly(territorios ?? Array.Empty<MatchUITerritoryState>());

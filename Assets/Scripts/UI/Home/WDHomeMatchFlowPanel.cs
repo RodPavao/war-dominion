@@ -265,14 +265,18 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
 
     private void ShowTeamFormation()
     {
+        int companionCount = Mathf.Max(1, selectedMode.GroupSize - 1);
+        string companions = companionCount == 1
+            ? "um companheiro"
+            : $"{companionCount} companheiros";
         var options = new List<Option>
         {
-            new("COMPANHEIRO ALEATÓRIO", "Entrar com uma vaga aberta", WDContentAvailability.Enabled,
+            new("EQUIPE ALEATÓRIA", $"Completar o grupo com {companions}", WDContentAvailability.Enabled,
                 () => BeginMatchmaking(
                     new WDMatchmakingRequest(selectedMode, selectedSubmode, "random_teammate"),
                     ShowTeamFormation)),
-            new("COMPANHEIRO DE CLÃ", "Convite futuro ao clã inteiro", WDContentAvailability.Enabled, SelectClanTeammate),
-            new("JOGAR COM AMIGO", "Convite e aceite antes do matchmaking", WDContentAvailability.Enabled, ShowFriendInvite)
+            new("EQUIPE DO CLÃ", $"Preencher {companions} pelo clã", WDContentAvailability.Enabled, SelectClanTeammate),
+            new("JOGAR COM AMIGOS", $"Convidar {companions} antes do matchmaking", WDContentAvailability.Enabled, ShowFriendInvite)
         };
 
         ShowOptions(
@@ -291,8 +295,8 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
 
         ShowConfirmation(
             "CONVITE AO CLÃ",
-            "Convite provisório enviado ao clã. A primeira aceitação válida preencherá a vaga; aceitações posteriores receberão ‘Vaga já preenchida.’",
-            "SIMULAR ACEITE",
+            "Convite provisório enviado ao clã. Os aceites válidos preencherão as vagas disponíveis antes do matchmaking.",
+            "SIMULAR EQUIPE COMPLETA",
             () => BeginMatchmaking(
                 new WDMatchmakingRequest(selectedMode, selectedSubmode, "clan_teammate"),
                 ShowTeamFormation),
@@ -303,8 +307,8 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
     {
         ShowConfirmation(
             "CONVIDAR AMIGO",
-            "Fluxo provisório de convite. O grupo só entrará no matchmaking depois do aceite do amigo.",
-            "SIMULAR ACEITE",
+            "Fluxo provisório de convite. O grupo só entrará no matchmaking quando todas as vagas estiverem preenchidas.",
+            "SIMULAR EQUIPE COMPLETA",
             () => BeginMatchmaking(
                 new WDMatchmakingRequest(selectedMode, selectedSubmode, "friend_invite"),
                 ShowTeamFormation),
@@ -424,8 +428,8 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
                 () => ToggleLocalVote(mapId), GetMapThumbnail(mapId), isSelected));
         }
 
-        bool usesProfileDeck = voteRequest == null ||
-            !WDMatchSetup.IsRandomCardsRule(voteRequest.CardRuleId);
+        bool usesProfileDeck = voteRequest != null &&
+            voteRequest.DeckSelectionEnabled;
         for (int i = 0; usesProfileDeck && i < homeData.Decks.Count; i++)
         {
             int deckIndex = i;

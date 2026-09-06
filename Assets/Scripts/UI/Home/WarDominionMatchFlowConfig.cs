@@ -49,6 +49,7 @@ public sealed class WDMatchSubmodeDefinition
     [SerializeField] private WDContentAvailability availability;
     [SerializeField] private WDMatchFlowDestination destination;
     [SerializeField] private string cardRuleId;
+    [SerializeField] private bool deckSelectionEnabled;
     [SerializeField] private List<WDMapModeRule> eligibleMaps = new();
 
     public string Id => id;
@@ -57,6 +58,7 @@ public sealed class WDMatchSubmodeDefinition
     public WDContentAvailability Availability => availability;
     public WDMatchFlowDestination Destination => destination;
     public string CardRuleId => cardRuleId;
+    public bool DeckSelectionEnabled => deckSelectionEnabled;
     public IReadOnlyList<WDMapModeRule> EligibleMaps => eligibleMaps;
 }
 
@@ -106,6 +108,7 @@ public sealed class WDMatchmakingRequest
     public int MatchSize { get; }
     public string TeamFormation { get; }
     public string CardRuleId { get; }
+    public bool DeckSelectionEnabled { get; }
     public bool BotsAllowed { get; }
     public WDMapSelectionPolicy MapSelectionPolicy { get; }
     public string FixedMapId { get; }
@@ -123,6 +126,7 @@ public sealed class WDMatchmakingRequest
         MatchSize = mode?.MatchSize ?? 2;
         TeamFormation = teamFormation ?? string.Empty;
         CardRuleId = submode?.CardRuleId ?? "standard";
+        DeckSelectionEnabled = submode != null && submode.DeckSelectionEnabled;
         BotsAllowed = mode?.BotsAllowed ?? false;
         MapSelectionPolicy = mode?.MapSelectionPolicy ?? WDMapSelectionPolicy.Vote;
         FixedMapId = mode?.FixedMapId ?? string.Empty;

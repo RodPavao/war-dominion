@@ -88,6 +88,11 @@ public sealed class MatchUIPresenter : MonoBehaviour
         string transferenciaId = ObterId(gameManager.territorioTransferenciaSelecionado);
         MatchUIFeedbackState feedbackAtual = CriarFeedbackAtual();
         IReadOnlyList<string> hand = gameManager.CartasRandomJogadorLocal;
+        IReadOnlyList<TerritorioClique.Dono> transferRecipients =
+            gameManager.ObterDestinatariosTransferencia();
+        var transferRecipientArray = new TerritorioClique.Dono[transferRecipients.Count];
+        for (int i = 0; i < transferRecipients.Count; i++)
+            transferRecipientArray[i] = transferRecipients[i];
         string[] cards = new string[hand.Count];
         for (int i = 0; i < hand.Count; i++)
             cards[i] = hand[i];
@@ -132,6 +137,8 @@ public sealed class MatchUIPresenter : MonoBehaviour
             gameManager.quantidadeAcaoSelecionada,
             gameManager.TipoAcaoSelecionadaEsperado,
             gameManager.feedbackTransferencia,
+            transferRecipientArray,
+            gameManager.DestinatarioTransferenciaSelecionado,
             feedbackAtual,
             jogadores,
             estadosTerritorios,

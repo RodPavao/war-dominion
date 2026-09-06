@@ -372,6 +372,17 @@ public sealed class WDNeutralTerritoryTests
             9, 0, false, 1), Is.EqualTo(8));
     }
 
+    [Test]
+    public void ThreeVsThreeRoundOneAndRegularRoundsUseIndividualFormula()
+    {
+        Assert.That(GerenciadorRodada.CalcularReforcosPorModo(
+            7, 0, false, 1), Is.EqualTo(8));
+        Assert.That(GerenciadorRodada.CalcularReforcosPorModo(
+            10, 2, false, 2), Is.EqualTo(7));
+        Assert.That(GerenciadorRodada.CalcularReforcosPorModo(
+            9, 0, false, 2), Is.EqualTo(4));
+    }
+
     // ============================================================
     // 04. CONTADOR INDEPENDENTE E ATUALIZAÇÃO NUMÉRICA
     // ============================================================
@@ -585,6 +596,39 @@ public sealed class WDNeutralTerritoryTests
         }
     }
 
+    [Test]
+    public void ThreeVsThreeTransferPreservesTroopsAndUsesChosenAllyWithoutAdjacency()
+    {
+        var systems = new GameObject("ThreeVsThreeTransferSystems");
+        FilaTransferencias queue = systems.AddComponent<FilaTransferencias>();
+        SistemaTransferencias transferSystem = systems.AddComponent<SistemaTransferencias>();
+        ResolvedorTransferencias resolver = systems.AddComponent<ResolvedorTransferencias>();
+        transferSystem.Inicializar(queue);
+        TerritorioClique territory = CreateInitializedTerritoryWithTroops();
+        WDMatchSetupContext.Store(CreateThreeVsThreeSetup());
+        try
+        {
+            territory.DefinirDono(TerritorioClique.Dono.Jogador1);
+            territory.DefinirTropas(5);
+
+            Assert.That(transferSystem.Registrar(
+                territory, TerritorioClique.Dono.Jogador1,
+                TerritorioClique.Dono.Jogador5, out string reason), Is.True, reason);
+            List<ResultadoTransferencia> results = resolver.Resolver(
+                queue, new[] { TerritorioClique.Dono.Jogador1 });
+
+            Assert.That(results, Has.Count.EqualTo(1));
+            Assert.That(territory.dono, Is.EqualTo(TerritorioClique.Dono.Jogador5));
+            Assert.That(territory.Tropas, Is.EqualTo(5));
+        }
+        finally
+        {
+            WDMatchSetupContext.Clear();
+            Object.DestroyImmediate(territory.gameObject);
+            Object.DestroyImmediate(systems);
+        }
+    }
+
     private static TerritorioClique CreateTerritory()
     {
         var gameObject = new GameObject("NeutralTest");
@@ -642,5 +686,20 @@ public sealed class WDNeutralTerritoryTests
         };
         return new WDMatchSetup("2x2", "normal", "classic", "", "", 10, true, 1,
             participants);
+    }
+
+    private static WDMatchSetup CreateThreeVsThreeSetup()
+    {
+        var participants = new List<WDMatchParticipant>
+        {
+            new("a1", "A1", 0, 0, Color.red, "", "", WDMatchParticipantKind.Local),
+            new("b1", "B1", 1, 1, Color.blue, "", "", WDMatchParticipantKind.Remote),
+            new("a2", "A2", 0, 2, Color.green, "", "", WDMatchParticipantKind.Remote),
+            new("b2", "B2", 1, 3, Color.yellow, "", "", WDMatchParticipantKind.Remote),
+            new("a3", "A3", 0, 4, Color.cyan, "", "", WDMatchParticipantKind.Remote),
+            new("b3", "B3", 1, 5, Color.magenta, "", "", WDMatchParticipantKind.Remote)
+        };
+        return new WDMatchSetup("3x3", "normal", "classic", "",
+            "standard_deck", 10, true, 1, participants);
     }
 }

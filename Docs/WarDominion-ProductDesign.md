@@ -285,11 +285,11 @@ Inicialmente habilitados:
 - 1x1 Random Cards;
 - 2x2 Normal;
 - 2x2 Random Cards.
+- 3x3 Normal.
 
 Inicialmente `ComingSoon`:
 
 - 1x1 Deckbuilder;
-- 3x3;
 - Battle Royale.
 
 ### [DEFINITIVO] Acesso direto a JOGAR PARTIDA
@@ -322,6 +322,14 @@ O convite ao clã será oferecido ao clã inteiro. Se o jogador não pertencer a
 
 O fluxo com amigo exige aceite antes de entrar no matchmaking. Duplas formadas por mecanismos diferentes compartilham o mesmo matchmaking.
 
+### [DEFINITIVO] Formação, ordem e transferência 3x3
+
+O 3x3 está disponível somente no submodo Normal nesta fase. Cada partida possui seis participantes individuais: J1/J3/J5 formam Vanguard e J2/J4/J6 formam Sentinel. A ordem inicial é intercalada e a cada round sofre rotação circular para a direita, levando o último participante anterior ao início.
+
+Cada território continua pertencendo a um jogador individual. Movimento de tropas para qualquer aliado preserva o proprietário do destino. Transferência entrega o controle integral do território e preserva suas tropas: com um aliado, como no 2x2, o destinatário é automático; com dois ou mais aliados, como no 3x3, o jogador escolhe explicitamente o destinatário antes da confirmação.
+
+O 3x3 Normal participa da votação de mapas e utiliza deck padrão, sem Random Cards ou Deckbuilder. Battle Royale permanece bloqueado.
+
 ### [DEFINITIVO] Ordem pré-partida e privacidade dos adversários
 
 Para todos os modos, quando cada etapa for aplicável, a ordem é: modo/submodo → formação de equipe e confirmação de parceiro(s) → matchmaking com contador crescente → adversário(s) encontrado(s) → votação de mapa → partida. A conclusão da formação de equipe inicia automaticamente o matchmaking, sem comando manual para procurar adversários. O cancelamento é permitido somente durante a procura e fica bloqueado assim que os adversários são encontrados.
@@ -334,9 +342,8 @@ Para todos os modos, quando cada etapa for aplicável, a ordem é: modo/submodo 
 - O ingresso na fila pode ser cancelado somente enquanto adversários ainda estão sendo procurados. Depois da confirmação do encontro, o cancelamento deixa de estar disponível.
 - Encontrar adversários avança automaticamente para a próxima etapa aplicável, sem tela de confirmação ou botão para continuar. O fluxo pré-partida deve minimizar cliques redundantes.
 
-### [FUTURO] 3x3 e Battle Royale
+### [FUTURO] Battle Royale
 
-- 3x3 seguirá o modelo de formação do 2x2, adaptado para três jogadores por equipe.
 - Battle Royale terá seis jogadores, cinco rounds e modelo Deckbuilder.
 
 ### [DEFINITIVO] Elegibilidade e peso dos mapas
@@ -664,7 +671,6 @@ Nenhuma dessas opções deve ser iniciada apenas por estar registrada neste docu
 | Remaster profundo do Classic | [FUTURO] | Pode exigir nova geometria se fronteiras mudarem. |
 | Remaster ou reconstrução do Dark World | [FUTURO] | Direção A ou B ainda será escolhida. |
 | 1x1 Deckbuilder | [FUTURO] | Quatro escolhas em pares formam decks de oito cartas. |
-| 3x3 | [FUTURO] | Formação baseada no 2x2, adaptada para três jogadores por equipe. |
 | Battle Royale | [FUTURO] | Seis jogadores, cinco rounds e Deckbuilder. |
 | Bots estratégicos e adaptativos | [FUTURO] | Aprendem apenas com informação observável e possuem limites balanceáveis. |
 | Dois slots externos de cartas | [FUTURO] | Uma troca por partida; elegibilidade inicial prevista para cartas comuns. |

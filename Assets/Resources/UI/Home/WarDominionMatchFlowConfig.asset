@@ -57,6 +57,7 @@ MonoBehaviour:
       availability: 0
       destination: 0
       cardRuleId: standard_deck
+      deckSelectionEnabled: 1
       eligibleMaps:
       - mapId: classic
         votingWeight: 1
@@ -68,6 +69,7 @@ MonoBehaviour:
       availability: 0
       destination: 0
       cardRuleId: symmetric_random_cards
+      deckSelectionEnabled: 0
       eligibleMaps:
       - mapId: classic
         votingWeight: 1
@@ -79,6 +81,7 @@ MonoBehaviour:
       availability: 1
       destination: 0
       cardRuleId: paired_deckbuilder
+      deckSelectionEnabled: 0
       eligibleMaps:
       - mapId: classic
         votingWeight: 1
@@ -104,6 +107,7 @@ MonoBehaviour:
       availability: 0
       destination: 2
       cardRuleId: standard_deck
+      deckSelectionEnabled: 1
       eligibleMaps:
       - mapId: classic
         votingWeight: 2
@@ -121,6 +125,7 @@ MonoBehaviour:
       availability: 0
       destination: 2
       cardRuleId: symmetric_team_random_cards
+      deckSelectionEnabled: 0
       eligibleMaps:
       - mapId: classic
         votingWeight: 2
@@ -134,8 +139,8 @@ MonoBehaviour:
         votingWeight: 1
   - id: 3x3
     displayName: 3x3
-    description: Formação futura para três jogadores por equipe
-    availability: 1
+    description: Estratégia com três jogadores por equipe
+    availability: 0
     destination: 1
     groupSize: 3
     matchSize: 6
@@ -145,7 +150,25 @@ MonoBehaviour:
     roundLimit: 10
     suddenDeathEnabled: 1
     eligibleMaps: []
-    submodes: []
+    submodes:
+    - id: normal
+      displayName: NORMAL
+      description: Cada jogador utiliza seu deck padrão
+      availability: 0
+      destination: 2
+      cardRuleId: standard_deck
+      deckSelectionEnabled: 0
+      eligibleMaps:
+      - mapId: classic
+        votingWeight: 2
+      - mapId: pearl_harbor
+        votingWeight: 1
+      - mapId: riachuelo
+        votingWeight: 1
+      - mapId: dark_world
+        votingWeight: 1
+      - mapId: peloponeso
+        votingWeight: 1
   - id: battle_royale
     displayName: BATTLE ROYALE
     description: 6 jogadores · 5 rounds · Deckbuilder

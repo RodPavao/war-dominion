@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public class GameManager : MonoBehaviour
@@ -99,6 +100,10 @@ public class GameManager : MonoBehaviour
         ModoAcao.Nenhum;
 
     public TerritorioClique territorioTransferenciaSelecionado;
+    private TerritorioClique.Dono destinatarioTransferenciaSelecionado =
+        TerritorioClique.Dono.Neutro;
+    public TerritorioClique.Dono DestinatarioTransferenciaSelecionado =>
+        destinatarioTransferenciaSelecionado;
     public string feedbackTransferencia = string.Empty;
 
     // =====================================================
@@ -1160,6 +1165,7 @@ public class GameManager : MonoBehaviour
         }
 
         territorioTransferenciaSelecionado = territorio;
+        destinatarioTransferenciaSelecionado = TerritorioClique.Dono.Neutro;
         IReadOnlyList<TerritorioClique.Dono> destinatarios =
             ObterDestinatariosTransferencia();
 
@@ -1170,7 +1176,14 @@ public class GameManager : MonoBehaviour
             return;
         }
 
-        feedbackTransferencia = "Transferência indisponível: aliado único não encontrado.";
+        if (destinatarios.Count > 1)
+        {
+            feedbackTransferencia = "Território selecionado. Escolha o aliado destinatário.";
+            AtualizarHighlightsPreparacao();
+            return;
+        }
+
+        feedbackTransferencia = "Transferência indisponível: nenhum aliado encontrado.";
         AtualizarHighlightsPreparacao();
     }
 
@@ -1181,16 +1194,44 @@ public class GameManager : MonoBehaviour
 
         IReadOnlyList<TerritorioClique.Dono> destinatarios =
             ObterDestinatariosTransferencia();
-        if (destinatarios.Count != 1)
+        if (destinatarios.Count == 0)
         {
-            feedbackTransferencia = "Transferência indisponível: aliado único não encontrado.";
+            feedbackTransferencia = "Transferência indisponível: nenhum aliado encontrado.";
             return;
         }
 
-        TentarPrepararTransferenciaPara(destinatarios[0]);
+        if (destinatarios.Count > 1 &&
+            !destinatarios.Contains(destinatarioTransferenciaSelecionado))
+        {
+            feedbackTransferencia = "Escolha um aliado antes de confirmar a transferência.";
+            return;
+        }
+
+        TentarPrepararTransferenciaPara(
+            destinatarios.Count == 1
+                ? destinatarios[0]
+                : destinatarioTransferenciaSelecionado);
     }
 
-    public void TentarPrepararTransferenciaPara(
+    public void SelecionarDestinatarioTransferencia(
+        TerritorioClique.Dono jogador)
+    {
+        if (!EmModoTransferencia || territorioTransferenciaSelecionado == null)
+            return;
+
+        IReadOnlyList<TerritorioClique.Dono> destinatarios =
+            ObterDestinatariosTransferencia();
+        if (!destinatarios.Contains(jogador))
+        {
+            feedbackTransferencia = "Selecione um aliado válido.";
+            return;
+        }
+
+        destinatarioTransferenciaSelecionado = jogador;
+        feedbackTransferencia = $"Destinatário: {jogador}. Confirme a transferência.";
+    }
+
+    private void TentarPrepararTransferenciaPara(
         TerritorioClique.Dono jogador)
     {
         if (!EmModoTransferencia || sistemaTransferencias == null)
@@ -1214,6 +1255,7 @@ public class GameManager : MonoBehaviour
             return;
 
         territorioTransferenciaSelecionado = null;
+        destinatarioTransferenciaSelecionado = TerritorioClique.Dono.Neutro;
         modoAcao = ModoAcao.AcaoTerrestre;
         AtualizarHighlightsPreparacao();
     }
@@ -1236,29 +1278,8 @@ public class GameManager : MonoBehaviour
 
         if (setup != null)
         {
-            WDMatchParticipant local = null;
-            foreach (WDMatchParticipant participante in setup.Participants)
-            {
-                if (participante.Kind == WDMatchParticipantKind.Local)
-                {
-                    local = participante;
-                    break;
-                }
-            }
-
-            if (local == null)
-                return destinatarios;
-
-            foreach (WDMatchParticipant participante in setup.Participants)
-            {
-                if (participante == local || participante.TeamIndex != local.TeamIndex)
-                    continue;
-
-                int valorDono = participante.SlotIndex + 1;
-                if (System.Enum.IsDefined(typeof(TerritorioClique.Dono), valorDono))
-                    destinatarios.Add((TerritorioClique.Dono)valorDono);
-            }
-
+            destinatarios.AddRange(
+                EquipesJogadores.ObterAliados(setup, jogadorLocal));
             return destinatarios;
         }
 
@@ -1289,6 +1310,7 @@ public class GameManager : MonoBehaviour
     public void CancelarSelecaoTransferencia()
     {
         territorioTransferenciaSelecionado = null;
+        destinatarioTransferenciaSelecionado = TerritorioClique.Dono.Neutro;
         AtualizarHighlightsPreparacao();
     }
 

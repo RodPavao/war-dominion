@@ -1146,7 +1146,7 @@ public class HUDPreparacao : MonoBehaviour
                 botao,
                 GUILayout.Height(Altura(24))))
         {
-            gm.TentarPrepararTransferenciaPara(jogador);
+            gm.SelecionarDestinatarioTransferencia(jogador);
         }
 
         GUILayout.EndHorizontal();

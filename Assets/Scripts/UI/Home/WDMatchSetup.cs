@@ -248,7 +248,8 @@ public static class WDMatchSetupFactory
         bool usesRandomCards = WDMatchSetup.IsRandomCardsRule(
             request.CardRuleId);
         bool usesProfileDeck = !usesRandomCards;
-        int deckIndex = request.MapSelectionPolicy == WDMapSelectionPolicy.Fixed
+        int deckIndex = request.MapSelectionPolicy == WDMapSelectionPolicy.Fixed ||
+            !request.DeckSelectionEnabled
             ? profile.DefaultDeckIndex
             : selectedDeckIndex;
         WDDeckProfile deck = profile.GetDeck(deckIndex);

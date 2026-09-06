@@ -78,7 +78,7 @@ public sealed class MatchUICommands : IMatchUICommands
         gameManager != null && gameManager.DesfazerDistribuicaoReforco(distribuicaoId);
 
     public void SelecionarDestinatarioTransferencia(TerritorioClique.Dono jogador) =>
-        gameManager?.TentarPrepararTransferenciaPara(jogador);
+        gameManager?.SelecionarDestinatarioTransferencia(jogador);
     public void ConfirmarTransferencia() => gameManager?.ConfirmarTransferenciaPreparada();
 
     public void RemoverTransferencia() => gameManager?.RemoverTransferencia();

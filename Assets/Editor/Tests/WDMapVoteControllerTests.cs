@@ -268,6 +268,48 @@ public sealed class WDMapVoteControllerTests
     }
 
     [Test]
+    public void MatchSetup_ThreeVsThreeCreatesSixAlternatingParticipants()
+    {
+        WarDominionMatchFlowConfig config = LoadFlowConfig();
+        WDMatchModeDefinition mode = config.Modes.Single(item => item.Id == "3x3");
+        WDMatchSubmodeDefinition submode =
+            mode.Submodes.Single(item => item.Id == "normal");
+        WDMatchSetup setup = WDMatchSetupFactory.Create(
+            new WDMatchmakingRequest(mode, submode, "random_teammate"),
+            LoadMap("Classic"), LoadProfile(), 0);
+
+        Assert.That(mode.Availability, Is.EqualTo(WDContentAvailability.Enabled));
+        Assert.That(setup.Participants, Has.Count.EqualTo(6));
+        Assert.That(setup.Participants.Select(item => item.TeamIndex),
+            Is.EqualTo(new[] { 0, 1, 0, 1, 0, 1 }));
+        Assert.That(setup.Participants.Select(item => item.SlotIndex),
+            Is.EqualTo(new[] { 0, 1, 2, 3, 4, 5 }));
+        Assert.That(setup.Participants.Select(item => item.MatchColor).Distinct().Count(),
+            Is.EqualTo(6));
+        Assert.That(setup.RequiresInitialTerritorySelection, Is.False);
+        Assert.That(setup.UsesSymmetricRandomCards, Is.False);
+        Assert.That(setup.Participants.Single(item =>
+            item.Kind == WDMatchParticipantKind.Local).DeckId, Is.Not.Empty);
+        Assert.That(setup.Participants.Where(item =>
+            item.Kind == WDMatchParticipantKind.Remote).All(item =>
+                string.IsNullOrEmpty(item.DeckId)), Is.True);
+    }
+
+    [Test]
+    public void ThreeVsThreeNormalUsesVotingAndDoesNotOfferRandomCards()
+    {
+        WDMatchModeDefinition mode = LoadFlowConfig().Modes.Single(
+            item => item.Id == "3x3");
+
+        Assert.That(mode.MapSelectionPolicy, Is.EqualTo(WDMapSelectionPolicy.Vote));
+        Assert.That(mode.Submodes.Select(item => item.Id),
+            Is.EqualTo(new[] { "normal" }));
+        Assert.That(mode.Submodes[0].CardRuleId, Is.EqualTo("standard_deck"));
+        Assert.That(mode.Submodes[0].DeckSelectionEnabled, Is.False);
+        Assert.That(mode.Submodes[0].EligibleMaps, Is.Not.Empty);
+    }
+
+    [Test]
     public void MatchSetup_TeamRandomCardsUsesSymmetricRuleWithoutProfileDecks()
     {
         WarDominionMatchFlowConfig config = LoadFlowConfig();

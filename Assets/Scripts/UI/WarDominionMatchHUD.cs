@@ -88,7 +88,7 @@ public sealed class WarDominionMatchHUD : MonoBehaviour
             new Vector2(16f, -570f), ToggleTransfer);
         confirmTransferButton = CreateCompactControl(rail, "ConfirmTransferControl",
             "CONFIRMAR TRANSFERÊNCIA", new Vector2(16f, -626f),
-            () => commands?.ConfirmarTransferencia());
+            ConfirmTransferRecipient);
         CreateCompactControl(rail, "ActionsControl", "=  AÇÕES",
             new Vector2(16f, -682f), ToggleActionsDrawer);
     }
@@ -141,6 +141,11 @@ public sealed class WarDominionMatchHUD : MonoBehaviour
             !state.TransferenciaUsada;
         confirmTransferButton.gameObject.SetActive(canConfirmTransfer);
         confirmTransferButton.SetInteractable(canConfirmTransfer);
+        confirmTransferButton.SetLabel(
+            state.DestinatariosTransferencia.Count > 1 &&
+            state.DestinatarioTransferenciaSelecionado == TerritorioClique.Dono.Neutro
+                ? "ESCOLHER ALIADO"
+                : "CONFIRMAR TRANSFERÊNCIA");
         finishRoundButton.SetInteractable(
             state.AcoesEnviadas
                 ? state.PodeCancelarEnvio
@@ -309,7 +314,8 @@ public sealed class WarDominionMatchHUD : MonoBehaviour
         foreach (MatchUIPlayerState player in state.Jogadores)
         {
             RectTransform item = WDUIFactory.Rect("Player_" + player.Jogador, playersContent);
-            item.gameObject.AddComponent<LayoutElement>().preferredHeight = 82f;
+            bool compact = state.Jogadores.Count > 4;
+            item.gameObject.AddComponent<LayoutElement>().preferredHeight = compact ? 64f : 82f;
             Image background = item.gameObject.AddComponent<Image>();
             background.color = new Color(0.02f, 0.02f, 0.025f, 0.96f);
             Image marker = WDUIFactory.Rect("Color", item).gameObject.AddComponent<Image>();
@@ -317,18 +323,18 @@ public sealed class WarDominionMatchHUD : MonoBehaviour
             RectTransform markerRect = marker.rectTransform;
             markerRect.anchorMin = new Vector2(0f, 0f); markerRect.anchorMax = new Vector2(0f, 1f);
             markerRect.sizeDelta = new Vector2(7f, 0f); markerRect.anchoredPosition = new Vector2(3.5f, 0f);
-            float nameY = state.UsaEquipes ? -28f : -12f;
+            float nameY = state.UsaEquipes ? (compact ? -22f : -28f) : -12f;
             if (state.UsaEquipes)
             {
                 TextMeshProUGUI team = CreateText(item, "Team", theme.TypeMicro,
-                    theme.TextoSecundario, new Vector2(18f, -7f), new Vector2(230f, 18f));
+                    theme.TextoSecundario, new Vector2(18f, compact ? -3f : -7f), new Vector2(230f, 18f));
                 team.text = player.Equipe.ToString().ToUpperInvariant();
             }
             TextMeshProUGUI name = CreateText(item, "Name", theme.TypeBody, theme.TextoPrincipal,
                 new Vector2(18f, nameY), new Vector2(230f, 24f));
             name.text = player.Nome + (player.EhJogadorLocal ? "  VOCÊ" : string.Empty);
             TextMeshProUGUI meta = CreateText(item, "Meta", theme.TypeMicro, theme.TextoSecundario,
-                new Vector2(18f, -46f), new Vector2(230f, 20f));
+                new Vector2(18f, compact ? -39f : -46f), new Vector2(230f, 20f));
             meta.text = $"{player.TerritoriosControlados} TERRITÓRIOS";
             if (player.EhJogadorLocal ||
                 state.UsaEquipes && EquipesJogadores.SaoAliados(state.JogadorLocal, player.Jogador))
@@ -369,6 +375,95 @@ public sealed class WarDominionMatchHUD : MonoBehaviour
         "Envio social local provisório.", "ENVIAR  :) ", SendLocalTestEmoji);
     private void ShowTacticalPopup() => ShowPopup("COMUNICAÇÃO TÁTICA",
         "Selecione um comando local provisório.", "ATACAR   DEFENDER   TRANSFERIR", ClosePopup);
+
+    // ============================================================
+    // 08. SELEÇÃO REUTILIZÁVEL DO DESTINATÁRIO DA TRANSFERÊNCIA
+    // ============================================================
+
+    private void ConfirmTransferRecipient()
+    {
+        if (state == null || state.DestinatariosTransferencia.Count == 0)
+            return;
+
+        if (state.DestinatariosTransferencia.Count == 1)
+        {
+            commands?.ConfirmarTransferencia();
+            return;
+        }
+
+        if (state.DestinatarioTransferenciaSelecionado !=
+            TerritorioClique.Dono.Neutro)
+        {
+            commands?.ConfirmarTransferencia();
+            return;
+        }
+
+        ShowTransferRecipientPopup();
+    }
+
+    private void ShowTransferRecipientPopup()
+    {
+        ClearChildren(popupLayer);
+        popupLayer.gameObject.SetActive(true);
+        Image blocker = popupLayer.gameObject.GetComponent<Image>() ??
+            popupLayer.gameObject.AddComponent<Image>();
+        blocker.color = new Color(0f, 0f, 0f, 0.66f);
+        blocker.raycastTarget = true;
+
+        RectTransform panel = CreateNeutralPanel(
+            "TransferRecipientPopup", new Vector2(0.5f, 0.5f),
+            new Vector2(0.5f, 0.5f), Vector2.zero,
+            new Vector2(620f, 420f), popupLayer);
+        CreateText(panel, "Title", theme.TypeTitle, theme.TextoPrincipal,
+            new Vector2(24f, -24f), new Vector2(520f, 42f)).text =
+            "TRANSFERIR PARA QUAL ALIADO?";
+        CreateMiniButton(panel, "X", new Vector2(-54f, -20f),
+            theme.Danger, ClosePopup);
+
+        RectTransform options = WDUIFactory.Rect("Recipients", panel);
+        options.anchorMin = new Vector2(0.08f, 0.14f);
+        options.anchorMax = new Vector2(0.92f, 0.72f);
+        options.offsetMin = options.offsetMax = Vector2.zero;
+        VerticalLayoutGroup layout = options.gameObject.AddComponent<VerticalLayoutGroup>();
+        layout.spacing = 12f;
+        layout.childControlHeight = true;
+        layout.childForceExpandHeight = false;
+
+        foreach (TerritorioClique.Dono recipient in state.DestinatariosTransferencia)
+        {
+            bool found = TryFindPlayer(recipient, out MatchUIPlayerState player);
+            string label = found
+                ? $"{player.Nome}  |  {player.Equipe}"
+                : recipient.ToString();
+            TerritorioClique.Dono captured = recipient;
+            WDUIPremiumButton button = CreateButton(options, label, () =>
+            {
+                commands?.SelecionarDestinatarioTransferencia(captured);
+                ClosePopup();
+            });
+            button.GetComponent<LayoutElement>().preferredHeight = 64f;
+            if (found)
+                button.SetPersistentColors(
+                    Color.Lerp(player.Cor, Color.black, 0.45f),
+                    Color.Lerp(player.Cor, Color.white, 0.12f));
+        }
+    }
+
+    private bool TryFindPlayer(
+        TerritorioClique.Dono owner,
+        out MatchUIPlayerState result)
+    {
+        if (state != null)
+            foreach (MatchUIPlayerState player in state.Jogadores)
+                if (player.Jogador == owner)
+                {
+                    result = player;
+                    return true;
+                }
+
+        result = default;
+        return false;
+    }
 
     private void ShowMatchInfo()
     {
