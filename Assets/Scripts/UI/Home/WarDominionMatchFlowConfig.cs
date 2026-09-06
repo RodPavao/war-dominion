@@ -4,9 +4,25 @@ using UnityEngine;
 
 public enum WDContentAvailability
 {
-    Enabled,
+    Available,
     ComingSoon,
-    Disabled
+    Hidden
+}
+
+public enum WDMapCompatibilityPolicy
+{
+    All,
+    AllowList,
+    DenyList
+}
+
+public static class WDContentAvailabilityRules
+{
+    public static bool IsAvailable(WDContentAvailability availability) =>
+        availability == WDContentAvailability.Available;
+
+    public static bool IsVisible(WDContentAvailability availability) =>
+        availability != WDContentAvailability.Hidden;
 }
 
 public enum WDMatchFlowDestination
@@ -37,6 +53,117 @@ public sealed class WDMapModeRule
     {
         mapId = newMapId;
         votingWeight = newVotingWeight;
+    }
+}
+
+[Serializable]
+public sealed class WDMapAvailabilityDefinition
+{
+    [SerializeField] private string mapId;
+    [SerializeField] private bool enabled = true;
+
+    public string MapId => mapId;
+    public bool Enabled => enabled;
+
+    public WDMapAvailabilityDefinition(string mapId, bool enabled)
+    {
+        this.mapId = mapId ?? string.Empty;
+        this.enabled = enabled;
+    }
+}
+
+[Serializable]
+public sealed class WDModeMapCompatibilityDefinition
+{
+    [SerializeField] private string modeId;
+    [SerializeField] private WDMapCompatibilityPolicy policy;
+    [SerializeField] private List<string> mapIds = new();
+
+    public string ModeId => modeId;
+    public WDMapCompatibilityPolicy Policy => policy;
+    public IReadOnlyList<string> MapIds => mapIds;
+
+    public WDModeMapCompatibilityDefinition(
+        string modeId,
+        WDMapCompatibilityPolicy policy,
+        IEnumerable<string> mapIds)
+    {
+        this.modeId = modeId ?? string.Empty;
+        this.policy = policy;
+        this.mapIds = mapIds != null ? new List<string>(mapIds) : new List<string>();
+    }
+}
+
+public sealed class WDContentPolicyService
+{
+    // ============================================================
+    // 01. POLÍTICA CENTRAL COM FALLBACK COMPATÍVEL
+    // ============================================================
+
+    private readonly IReadOnlyList<WDMapAvailabilityDefinition> maps;
+    private readonly IReadOnlyList<WDModeMapCompatibilityDefinition> rules;
+
+    public WDContentPolicyService(
+        IReadOnlyList<WDMapAvailabilityDefinition> maps,
+        IReadOnlyList<WDModeMapCompatibilityDefinition> rules)
+    {
+        this.maps = maps ?? Array.Empty<WDMapAvailabilityDefinition>();
+        this.rules = rules ?? Array.Empty<WDModeMapCompatibilityDefinition>();
+    }
+
+    public bool IsMapEnabled(string mapId)
+    {
+        foreach (WDMapAvailabilityDefinition map in maps)
+            if (map != null && string.Equals(map.MapId, mapId, StringComparison.Ordinal))
+                return map.Enabled;
+
+        // Mapas ainda não cadastrados preservam o comportamento legado.
+        return true;
+    }
+
+    public bool IsMapAllowedForMode(string modeId, string mapId)
+    {
+        if (string.IsNullOrWhiteSpace(mapId) || !IsMapEnabled(mapId))
+            return false;
+
+        WDModeMapCompatibilityDefinition rule = null;
+        foreach (WDModeMapCompatibilityDefinition candidate in rules)
+            if (candidate != null &&
+                string.Equals(candidate.ModeId, modeId, StringComparison.Ordinal))
+            {
+                rule = candidate;
+                break;
+            }
+
+        if (rule == null || rule.Policy == WDMapCompatibilityPolicy.All)
+            return true;
+
+        bool listed = false;
+        foreach (string candidate in rule.MapIds)
+            if (string.Equals(candidate, mapId, StringComparison.Ordinal))
+            {
+                listed = true;
+                break;
+            }
+
+        return rule.Policy == WDMapCompatibilityPolicy.AllowList
+            ? listed
+            : !listed;
+    }
+
+    public IReadOnlyList<WDMapModeRule> GetEligibleMaps(
+        string modeId,
+        IReadOnlyList<WDMapModeRule> candidates)
+    {
+        var eligible = new List<WDMapModeRule>();
+        if (candidates == null)
+            return eligible;
+
+        foreach (WDMapModeRule candidate in candidates)
+            if (candidate != null &&
+                IsMapAllowedForMode(modeId, candidate.MapId))
+                eligible.Add(candidate);
+        return eligible;
     }
 }
 
@@ -148,6 +275,22 @@ public sealed class WarDominionMatchFlowConfig : ScriptableObject
     // ============================================================
 
     [SerializeField] private List<WDMatchModeDefinition> modes = new();
+    [SerializeField] private List<WDMapAvailabilityDefinition> maps = new();
+    [SerializeField] private List<WDModeMapCompatibilityDefinition> mapCompatibility = new();
 
     public IReadOnlyList<WDMatchModeDefinition> Modes => modes;
+    public IReadOnlyList<WDMapAvailabilityDefinition> Maps => maps;
+    public IReadOnlyList<WDModeMapCompatibilityDefinition> MapCompatibility =>
+        mapCompatibility;
+
+    public WDContentPolicyService CreatePolicyService() =>
+        new WDContentPolicyService(maps, mapCompatibility);
+
+    public bool IsMapAllowedForMode(string modeId, string mapId) =>
+        CreatePolicyService().IsMapAllowedForMode(modeId, mapId);
+
+    public IReadOnlyList<WDMapModeRule> GetEligibleMaps(
+        string modeId,
+        IReadOnlyList<WDMapModeRule> candidates) =>
+        CreatePolicyService().GetEligibleMaps(modeId, candidates);
 }

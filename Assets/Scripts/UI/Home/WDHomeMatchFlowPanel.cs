@@ -192,7 +192,7 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
         var options = new List<Option>();
         foreach (WDMatchModeDefinition mode in config.Modes)
         {
-            if (mode == null || mode.Availability == WDContentAvailability.Disabled)
+            if (mode == null || !WDContentAvailabilityRules.IsVisible(mode.Availability))
                 continue;
             WDMatchModeDefinition captured = mode;
             options.Add(new Option(
@@ -207,7 +207,7 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
 
     private void SelectMode(WDMatchModeDefinition mode)
     {
-        if (mode.Availability != WDContentAvailability.Enabled)
+        if (!WDContentAvailabilityRules.IsAvailable(mode.Availability))
             return;
 
         selectedMode = mode;
@@ -232,7 +232,7 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
         var options = new List<Option>();
         foreach (WDMatchSubmodeDefinition submode in selectedMode.Submodes)
         {
-            if (submode == null || submode.Availability == WDContentAvailability.Disabled)
+            if (submode == null || !WDContentAvailabilityRules.IsVisible(submode.Availability))
                 continue;
             WDMatchSubmodeDefinition captured = submode;
             options.Add(new Option(
@@ -247,7 +247,7 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
 
     private void SelectSubmode(WDMatchSubmodeDefinition submode)
     {
-        if (submode.Availability != WDContentAvailability.Enabled)
+        if (!WDContentAvailabilityRules.IsAvailable(submode.Availability))
             return;
 
         selectedSubmode = submode;
@@ -271,12 +271,12 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
             : $"{companionCount} companheiros";
         var options = new List<Option>
         {
-            new("EQUIPE ALEATÓRIA", $"Completar o grupo com {companions}", WDContentAvailability.Enabled,
+            new("EQUIPE ALEATÓRIA", $"Completar o grupo com {companions}", WDContentAvailability.Available,
                 () => BeginMatchmaking(
                     new WDMatchmakingRequest(selectedMode, selectedSubmode, "random_teammate"),
                     ShowTeamFormation)),
-            new("EQUIPE DO CLÃ", $"Preencher {companions} pelo clã", WDContentAvailability.Enabled, SelectClanTeammate),
-            new("JOGAR COM AMIGOS", $"Convidar {companions} antes do matchmaking", WDContentAvailability.Enabled, ShowFriendInvite)
+            new("EQUIPE DO CLÃ", $"Preencher {companions} pelo clã", WDContentAvailability.Available, SelectClanTeammate),
+            new("JOGAR COM AMIGOS", $"Convidar {companions} antes do matchmaking", WDContentAvailability.Available, ShowFriendInvite)
         };
 
         ShowOptions(
@@ -331,7 +331,7 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
         {
             new($"SIMULAR {target.ToUpperInvariant()} ENCONTRADO(A)",
                 "Transição local provisória para validar o fluxo",
-                WDContentAvailability.Enabled, MarkOpponentFound)
+                WDContentAvailability.Available, MarkOpponentFound)
         };
         ShowOptions(
             $"PROCURANDO {target.ToUpperInvariant()}...",
@@ -367,6 +367,14 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
 
         if (request.MapSelectionPolicy == WDMapSelectionPolicy.Fixed)
         {
+            if (!config.IsMapAllowedForMode(request.ModeId, request.FixedMapId))
+            {
+                ShowStatus(
+                    "MAPA INDISPONÍVEL",
+                    "O mapa configurado para este modo está desabilitado ou incompatível.",
+                    returnBeforeMatchmaking);
+                return;
+            }
             ShowFixedMapResult(request);
             return;
         }
@@ -393,7 +401,8 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
     private void BeginVoting(WDMatchmakingRequest request, Action onBack)
     {
         mapVote = new WDMapVoteController();
-        mapVote.SelectCandidates(request.EligibleMaps);
+        mapVote.SelectCandidates(config.GetEligibleMaps(
+            request.ModeId, request.EligibleMaps));
         voteRequest = request;
         returnAfterVoting = onBack;
         selectedDeckIndex = homeData.DefaultDeckIndex;
@@ -424,7 +433,7 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
             options.Add(new Option(
                 GetMapName(mapId),
                 $"Peso {candidate.Weight:0.##}{selected}",
-                WDContentAvailability.Enabled,
+                WDContentAvailability.Available,
                 () => ToggleLocalVote(mapId), GetMapThumbnail(mapId), isSelected));
         }
 
@@ -438,7 +447,7 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
             options.Add(new Option(
                 deck.DisplayName,
                 isSelected ? "DECK SELECIONADO" : "Usar nesta partida",
-                WDContentAvailability.Enabled,
+                WDContentAvailability.Available,
                 () => SelectDeck(deckIndex), null, isSelected));
         }
 
@@ -531,7 +540,7 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
     {
         var options = new List<Option>
         {
-            new(actionLabel, string.Empty, WDContentAvailability.Enabled, action)
+            new(actionLabel, string.Empty, WDContentAvailability.Available, action)
         };
         ShowOptions(title, body, options, onBack, string.Empty);
     }
@@ -600,18 +609,18 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
     {
         RectTransform rect = WDHomeUIFactory.Rect(option.Title.Replace(" ", string.Empty), optionsRoot);
         Image image = rect.gameObject.AddComponent<Image>();
-        image.color = option.Availability == WDContentAvailability.Enabled
+        image.color = option.Availability == WDContentAvailability.Available
             ? theme.SurfaceGlass
             : Color.Lerp(theme.SurfaceGlass, theme.Disabled, 0.62f);
         Outline outline = rect.gameObject.AddComponent<Outline>();
-        outline.effectColor = option.Availability == WDContentAvailability.Enabled
+        outline.effectColor = option.Availability == WDContentAvailability.Available
             ? option.Selected ? theme.Acento : theme.BorderNeutral
             : theme.Disabled;
         outline.effectDistance = option.Selected ? new Vector2(3f, -3f) : new Vector2(1f, -1f);
 
         Button button = rect.gameObject.AddComponent<Button>();
         button.transition = Selectable.Transition.ColorTint;
-        button.interactable = option.Availability == WDContentAvailability.Enabled;
+        button.interactable = option.Availability == WDContentAvailability.Available;
         if (button.interactable && option.Action != null)
             button.onClick.AddListener(option.Action);
 

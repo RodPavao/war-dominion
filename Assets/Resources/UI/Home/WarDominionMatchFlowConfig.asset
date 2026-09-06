@@ -24,7 +24,7 @@ MonoBehaviour:
     mapSelectionPolicy: 1
     fixedMapId: classic
     roundLimit: 10
-    suddenDeathEnabled: 0
+    suddenDeathEnabled: 1
     eligibleMaps:
     - mapId: classic
       votingWeight: 1
@@ -39,12 +39,12 @@ MonoBehaviour:
     submodes: []
   - id: 1x1
     displayName: 1x1
-    description: Duelo estratégico
+    description: "Duelo estrat\xE9gico"
     availability: 0
     destination: 1
     groupSize: 1
     matchSize: 2
-    botsAllowed: 1
+    botsAllowed: 0
     mapSelectionPolicy: 0
     fixedMapId:
     roundLimit: 10
@@ -53,7 +53,7 @@ MonoBehaviour:
     submodes:
     - id: normal
       displayName: NORMAL
-      description: Cada jogador utiliza seu deck padrão
+      description: "Cada jogador utiliza seu deck padr\xE3o"
       availability: 0
       destination: 0
       cardRuleId: standard_deck
@@ -65,7 +65,7 @@ MonoBehaviour:
         votingWeight: 1
     - id: random_cards
       displayName: RANDOM CARDS
-      description: Cartas aleatórias simétricas entre os lados
+      description: "Cartas aleat\xF3rias sim\xE9tricas entre os lados"
       availability: 0
       destination: 0
       cardRuleId: symmetric_random_cards
@@ -89,7 +89,7 @@ MonoBehaviour:
         votingWeight: 1
   - id: 2x2
     displayName: 2x2
-    description: Estratégia em equipes
+    description: "Estrat\xE9gia em equipes"
     availability: 0
     destination: 1
     groupSize: 2
@@ -103,7 +103,7 @@ MonoBehaviour:
     submodes:
     - id: normal
       displayName: NORMAL
-      description: Cada jogador utiliza seu deck padrão
+      description: "Cada jogador utiliza seu deck padr\xE3o"
       availability: 0
       destination: 2
       cardRuleId: standard_deck
@@ -121,7 +121,7 @@ MonoBehaviour:
         votingWeight: 1
     - id: random_cards
       displayName: RANDOM CARDS
-      description: Distribuição aleatória simétrica entre equipes
+      description: "Distribui\xE7\xE3o aleat\xF3ria sim\xE9trica entre equipes"
       availability: 0
       destination: 2
       cardRuleId: symmetric_team_random_cards
@@ -139,7 +139,7 @@ MonoBehaviour:
         votingWeight: 1
   - id: 3x3
     displayName: 3x3
-    description: Estratégia com três jogadores por equipe
+    description: "Estrat\xE9gia com tr\xEAs jogadores por equipe"
     availability: 0
     destination: 1
     groupSize: 3
@@ -153,7 +153,7 @@ MonoBehaviour:
     submodes:
     - id: normal
       displayName: NORMAL
-      description: Cada jogador utiliza seu deck padrão
+      description: "Cada jogador utiliza seu deck padr\xE3o"
       availability: 0
       destination: 2
       cardRuleId: standard_deck
@@ -171,15 +171,56 @@ MonoBehaviour:
         votingWeight: 1
   - id: battle_royale
     displayName: BATTLE ROYALE
-    description: 6 jogadores · 5 rounds · Deckbuilder
+    description: "6 jogadores \xB7 5 rounds \xB7 Random Cards"
     availability: 1
     destination: 0
     groupSize: 1
     matchSize: 6
     botsAllowed: 1
-    mapSelectionPolicy: 0
+    mapSelectionPolicy: 1
     fixedMapId:
     roundLimit: 5
     suddenDeathEnabled: 1
     eligibleMaps: []
     submodes: []
+  maps:
+  - mapId: classic
+    enabled: 1
+  - mapId: pearl_harbor
+    enabled: 1
+  - mapId: riachuelo
+    enabled: 1
+  - mapId: dark_world
+    enabled: 1
+  - mapId: peloponeso
+    enabled: 1
+  mapCompatibility:
+  - modeId: ffa
+    policy: 1
+    mapIds:
+    - classic
+  - modeId: 1x1
+    policy: 1
+    mapIds:
+    - classic
+    - riachuelo
+  - modeId: 2x2
+    policy: 1
+    mapIds:
+    - classic
+    - pearl_harbor
+    - riachuelo
+    - dark_world
+    - peloponeso
+  - modeId: 3x3
+    policy: 1
+    mapIds:
+    - classic
+    - pearl_harbor
+    - riachuelo
+    - dark_world
+    - peloponeso
+  - modeId: battle_royale
+    policy: 1
+    mapIds:
+    - 1

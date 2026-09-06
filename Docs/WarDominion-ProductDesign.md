@@ -621,7 +621,10 @@ Nenhuma dessas opções deve ser iniciada apenas por estar registrada neste docu
 | Tornar PLAY protagonista da Home | [DEFINITIVO] | Progressão competitiva e recursos sociais se organizam ao redor desse foco. |
 | Preservar fundo visível e composição não preenchida na Home | [DEFINITIVO] | Cards variam de escala conforme importância; PLAY não deve se tornar um retângulo simples gigantesco. |
 | Abrir JOGAR PARTIDA diretamente por PLAY | [DEFINITIVO] | Não existe etapa intermediária com JOGAR, MODOS e MAPAS. |
-| Administrar disponibilidade de modos por configuração | [DEFINITIVO] | Enabled, ComingSoon e Disabled não dependem de mudanças na UI. |
+| Administrar disponibilidade de modos por configuração | [DEFINITIVO] | Available, ComingSoon e Hidden não dependem de mudanças na UI nem removem a implementação funcional. |
+| Administrar disponibilidade global de mapas | [DEFINITIVO] | Um mapa desabilitado permanece no projeto, mas não entra em seleção ou votação. |
+| Centralizar compatibilidade modo × mapa | [DEFINITIVO] | Cada modo usa política All, Allow List ou Deny List, sempre combinada com a disponibilidade global do mapa. |
+| Separar idioma de fuso horário | [DEFINITIVO] | O idioma da interface e o identificador de timezone são preferências independentes e persistíveis. |
 | Usar matchmaking futuro unificado e parametrizado | [DEFINITIVO] | Modos não recebem arquiteturas de matchmaking independentes. |
 | Configurar elegibilidade e peso de mapas explicitamente | [DEFINITIVO] | Quantidade de territórios não é critério codificado pela UI. |
 | Votar em mapas por 15 segundos | [DEFINITIVO] | Até dois candidatos elegíveis, abstenção válida e desempate somente entre empatados. |
@@ -647,6 +650,7 @@ Nenhuma dessas opções deve ser iniciada apenas por estar registrada neste docu
 | Dimensionamento dos cards da Home na Passada 1 | [PROVISÓRIO] | Valida arquitetura e fluxo, não a composição visual definitiva. |
 | Fluxos locais de seleção e matchmaking | [PROVISÓRIO] | Validam navegação; não executam rede, servidor, cartas ou matchmaking. |
 | Votação local de mapas | [PROVISÓRIO] | Executa seleção, voto, contagem e resultado sem sincronização multiplayer. |
+| Administração local de conteúdo e preferências regionais | [PROVISÓRIO] | Modos, mapas, compatibilidade, idioma e timezone são configurados localmente; backend futuro poderá fornecer os mesmos contratos. |
 
 ### Decisões pendentes
 
@@ -674,8 +678,39 @@ Nenhuma dessas opções deve ser iniciada apenas por estar registrada neste docu
 | Battle Royale | [FUTURO] | Seis jogadores, cinco rounds e Deckbuilder. |
 | Bots estratégicos e adaptativos | [FUTURO] | Aprendem apenas com informação observável e possuem limites balanceáveis. |
 | Dois slots externos de cartas | [FUTURO] | Uma troca por partida; elegibilidade inicial prevista para cartas comuns. |
+| Localização integral da interface | [FUTURO] | Idiomas planejados: português, inglês, espanhol e italiano; a arquitetura também aceita alemão sem acoplar idioma ao fuso horário. |
 
-## 16. Editor de Mapas interno
+## 16. Configuração de conteúdo e preferências regionais
+
+### [DEFINITIVO] Disponibilidade administrativa
+
+Modos e submodos possuem estado configurável `Available`, `ComingSoon` ou `Hidden`.
+`ComingSoon` mantém a implementação funcional disponível internamente, mas impede o
+acesso público; `Hidden` também omite a opção da interface. Mapas possuem habilitação
+global independente. Desabilitar conteúdo não apaga cenas, assets ou gameplay.
+
+### [DEFINITIVO] Compatibilidade modo × mapa
+
+A elegibilidade final de um mapa combina sua habilitação global com a política do modo:
+`All`, `AllowList` ou `DenyList`. A decisão é centralizada e data-driven; a UI e a
+votação não devem introduzir condições específicas por ID. As listas locais atuais
+preservam o comportamento funcional existente. No futuro, um backend poderá fornecer
+os mesmos dados sem mudar o contrato consumido pelos fluxos.
+
+### [DEFINITIVO] Idioma e timezone independentes
+
+Idioma de interface e timezone são preferências distintas. A fundação contempla
+português, inglês, espanhol e italiano e já aceita alemão. O timezone usa identificador
+de zona da plataforma, com detecção automática local e suporte a seleção manual futura,
+em vez de armazenar apenas um deslocamento fixo como `UTC-3`. Eventos guardam um
+instante absoluto e são convertidos centralmente para o timezone do jogador.
+
+Nesta fase, defaults e preferências permanecem locais e configuráveis. Uma futura tela
+de Configurações chamará os serviços existentes para alterar idioma, escolher timezone
+automático ou manual e converter horários, sem misturar as duas escolhas. Traduções,
+tela de Configurações e integração com backend não fazem parte desta fundação.
+
+## 17. Editor de Mapas interno
 
 ### [PROVISÓRIO] V1 do Editor de Mapas
 
@@ -700,7 +735,7 @@ independentes e inspeção de conexões/posições sem alterar o enquadramento r
 - a separação entre operações, validação e `EditorWindow` prepara reutilização futura
   da lógica em um editor standalone, sem implementar o executável agora.
 
-## 17. Manutenção deste documento
+## 18. Manutenção deste documento
 
 ### [DEFINITIVO] Regra de atualização
 

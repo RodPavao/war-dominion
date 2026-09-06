@@ -278,7 +278,7 @@ public sealed class WDMapVoteControllerTests
             new WDMatchmakingRequest(mode, submode, "random_teammate"),
             LoadMap("Classic"), LoadProfile(), 0);
 
-        Assert.That(mode.Availability, Is.EqualTo(WDContentAvailability.Enabled));
+        Assert.That(mode.Availability, Is.EqualTo(WDContentAvailability.Available));
         Assert.That(setup.Participants, Has.Count.EqualTo(6));
         Assert.That(setup.Participants.Select(item => item.TeamIndex),
             Is.EqualTo(new[] { 0, 1, 0, 1, 0, 1 }));
