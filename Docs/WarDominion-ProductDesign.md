@@ -457,7 +457,64 @@ O estado local atual utiliza um repositório substituível por conta/backend. No
 
 A modalidade futura **Deckbuilder** é completamente distinta dos slots de decks salvos: ela construirá dinamicamente um deck antes do Round 1 e não foi implementada nesta fase.
 
-## 9. HUD de partida
+## 9. Economia, VIP, administração e segurança
+
+### [DEFINITIVO] Recursos econômicos
+
+- **Moedas** são um recurso global da conta. Servem futuramente para upgrades em conjunto com os Tokens próprios de cada arma e podem vir de vitórias, missões, recompensa diária, baús, eventos e anúncios recompensados voluntários. Pacotes de Moedas poderão ser adquiridos com Esmeraldas. Fontes, quantidades, preços e limites permanecem configuráveis e ainda não estão balanceados.
+- **Tokens** pertencem sempre a uma arma específica; não existe saldo universal de Tokens. Podem continuar acumulando quando a arma atingir o nível máximo e poderão participar futuramente de doações de clã. Não converter, descartar ou redistribuir Tokens automaticamente sem nova decisão de produto.
+- **Esmeraldas** são o recurso premium. Poderão ser adquiridas com dinheiro real e obtidas em pequenas quantidades por recompensas limitadas. Usos futuros incluem pacotes de Moedas, alteração de nickname, personalização e entrada em eventos. Valores e preços ainda não estão definidos.
+
+A interface não determina saldo, preço, recompensa ou elegibilidade. A autoridade futura desses dados será o backend, com operações transacionais e auditáveis.
+
+### [DEFINITIVO] Recompensas, retenção e limites
+
+- Baús podem conter Moedas, Tokens específicos por arma e, ocasionalmente, pequena quantidade de Esmeraldas. Não incluem skins nem avatares nesta definição. Oportunidades normais e VIP, cooldowns, limites e uma abertura extra opcional por anúncio recompensado devem ser configuráveis e impedir farm infinito.
+- A recompensa diária usa um ciclo de sete dias consecutivos. Dias comuns podem entregar Moedas e Tokens; completar o sétimo dia pode entregar Esmeraldas. Perder um dia reinicia o ciclo. Um bônus VIP futuro pode existir, mas precisa ser moderado e configurável.
+- Missões não exigem vencer a partida. Concedem badge permanente e podem conceder Moedas ou Tokens.
+- Torneios podem premiar Moedas, Tokens ou Esmeraldas aos três primeiros colocados. Benefícios adicionais do campeão permanecem futuros.
+- Anúncios são sempre recompensados e voluntários. Não há autorização atual para anúncios obrigatórios ou intersticiais.
+- Ofertas rotativas ou diárias devem ser data-driven, mas permanecem inativas até uma implementação própria.
+
+### [DEFINITIVO] VIP sem pay-to-win
+
+O VIP é planejado para períodos de três, seis e doze meses, com preços ainda indefinidos. Seus benefícios incluem cinco decks persistentes em vez de dois, peso de voto 2, oportunidades moderadas de baús/recompensas, cosméticos, reações, molduras e conveniências relacionadas a anúncios.
+
+VIP pode acelerar progressão, mas nunca eleva o teto competitivo: não concede tropas, ataques, força superior no mesmo nível nem conteúdo de poder exclusivo no nível máximo. A expiração não apaga decks ou progresso. A administração futura poderá conceder ou remover VIP, inclusive permanente, sem depender de compra.
+
+### [DEFINITIVO] Administração e separação de responsabilidades
+
+O menu do Unity é ferramenta de desenvolvimento para configurações globais de produto. Dados vivos de contas não serão administrados pelo cliente público nem por comandos secretos nele embutidos. Um futuro painel administrativo autenticado no backend poderá:
+
+- conceder ou remover VIP, inclusive permanente;
+- corrigir recursos e troféus;
+- suspender ou banir contas;
+- excluir ou anonimizar dados conforme as regras aplicáveis;
+- administrar jogadores, clãs, torneios, denúncias e recompensas futuras.
+
+Operações sensíveis exigem autenticação, papéis/permissões, motivo, horário, estado anterior e posterior e registro de auditoria. O painel deve operar sobre serviços autoritativos, não editar diretamente dados locais do cliente.
+
+### [FUTURO] Analytics operacional
+
+O painel administrativo poderá apresentar histórico, gráficos, percentuais, filtros e drill-down de jogadores e clãs. Esses dados virão de eventos e transações server-side; totais calculados apenas pelo cliente não são fonte confiável.
+
+### [DEFINITIVO] Autoridade e proteção contra abuso
+
+- Economia, progresso, inventário, decks visíveis, timers e entitlement VIP serão autoritativos no servidor.
+- Doações futuras de Tokens terão cooldown, vínculo de conta, transações atômicas e idempotentes.
+- Recompensas de partidas exigirão validação de identidade, resultado e telemetria, com detecção de repetição e conluio.
+- Desconexão não pode congelar ou reiniciar timers autoritativos.
+- VIP terá estados explícitos, como pendente, ativo, expirado e cancelado, com reconciliação de compra.
+- Ações futuras de armas usarão identificador único, rejeição de replay, contadores de uso determinísticos e trilha de auditoria.
+- **Idempotência é regra transversal:** repetir a mesma requisição não pode duplicar compra, recompensa, upgrade, doação ou efeito de gameplay.
+
+### [PROVISÓRIO] Persistência local e configuração de desenvolvimento
+
+`IWDArmoryRepository` já separa o domínio do mecanismo de persistência. `WDPlayerPrefsArmoryRepository` é apenas o adaptador local de desenvolvimento e deverá ser substituído por uma implementação de conta/backend sem acoplar a UI ao armazenamento.
+
+O catálogo real de Armas e Progressão pode ser editado em **War Dominion > Configurações do Jogo > Armas e Progressão**, que abre o mesmo `WDArmoryCatalogConfig.asset` consumido pelo runtime. Não existe ferramenta vazia para economia ou administração ao vivo: novos acessos só devem aparecer quando houver configuração ou serviço real para editar.
+
+## 10. HUD de partida
 
 ### [DEFINITIVO] Estrutura desejada
 
@@ -487,7 +544,7 @@ Permanecem funcionais, reutilizáveis e ainda não aprovados visualmente como re
 
 A infraestrutura funcional desses elementos pode ser preservada enquanto a apresentação é substituída ou refinada no passe premium.
 
-## 10. Preparação e Resolução
+## 11. Preparação e Resolução
 
 ### [DEFINITIVO] Separação semântica
 
@@ -528,7 +585,7 @@ A Resolução deve ser mais intensa e pode empregar, quando adequado:
 
 A camada visual nunca decide gameplay. `GameManager` e os resultados lógicos são a autoridade. Presenters e sequências exibem estados e consequências já determinados, podendo usar estado visual temporário sem substituir o estado autoritativo.
 
-## 11. Transferência territorial
+## 12. Transferência territorial
 
 ### [DEFINITIVO] Regra funcional
 
@@ -555,7 +612,7 @@ Ela deve comunicar passagem amigável de controle no próprio território:
 - tropas preservadas conforme o resultado lógico;
 - reação discreta do contador.
 
-## 12. Mapas oficiais e vizinhanças
+## 13. Mapas oficiais e vizinhanças
 
 ### [DEFINITIVO] Mapas oficiais
 
@@ -575,7 +632,7 @@ Os mapas oficiais atuais são:
 - Territórios sem fronteira terrestre compartilhada exigem ponte, linha, caminho ou conector explícito definido pelo mapa.
 - Toda conexão deve ser bidirecional.
 
-## 13. Arte oficial, gabaritos e geometria
+## 14. Arte oficial, gabaritos e geometria
 
 ### [DEFINITIVO] Autoridades por camada
 
@@ -597,7 +654,7 @@ Quando o trabalho for exclusivamente visual, devem ser preservados:
 
 Uma atualização visual não deve exigir máscaras ou colliders novos se a geometria oficial não mudou.
 
-## 14. Remaster futuro de mapas
+## 15. Remaster futuro de mapas
 
 ### [FUTURO] Classic
 
@@ -621,7 +678,7 @@ O Dark World poderá seguir uma de duas direções, a decidir futuramente:
 
 Nenhuma dessas opções deve ser iniciada apenas por estar registrada neste documento.
 
-## 15. Tabela de decisões
+## 16. Tabela de decisões
 
 ### Decisões definitivas
 
@@ -646,6 +703,10 @@ Nenhuma dessas opções deve ser iniciada apenas por estar registrada neste docu
 | Identificar Guest com quatro dígitos sem presumir bot | [DEFINITIVO] | `GuestXXXX` também pode pertencer a jogador real. |
 | Adotar 10 ligas seguidas de Veteran | [DEFINITIVO] | Veteran tem progressão prática sem limite fechado. |
 | Rejeitar pay-to-win | [DEFINITIVO] | Monetização não concede vantagem competitiva comprável. |
+| Separar Moedas, Tokens por arma e Esmeraldas | [DEFINITIVO] | Recursos têm funções distintas; valores e balanceamento permanecem configuráveis. |
+| Manter VIP abaixo do teto competitivo | [DEFINITIVO] | Pode acelerar e oferecer conveniência/cosméticos, mas não concede poder máximo superior. |
+| Tornar backend autoritativo para economia e progressão | [DEFINITIVO] | Cliente local não valida saldos, recompensas, timers ou entitlement. |
+| Exigir idempotência e auditoria | [DEFINITIVO] | Repetições não duplicam operações e ações administrativas sensíveis registram antes/depois. |
 | Separar intenção de execução | [DEFINITIVO] | Preparação comunica plano; Resolução comunica consequência. |
 | Manter o resultado lógico como autoridade | [DEFINITIVO] | A apresentação visual não decide gameplay. |
 | Tratar transferência como passagem de controle | [DEFINITIVO] | Território inteiro passa ao aliado e preserva tropas. |
@@ -671,8 +732,8 @@ Nenhuma dessas opções deve ser iniciada apenas por estar registrada neste docu
 
 | DECISÃO | STATUS | OBSERVAÇÃO |
 |---|---|---|
-| Economia e moedas | [PARCIAL] | Moedas, Tokens por arma e Esmeraldas estão representados; fontes, valores finais e demais usos permanecem pendentes. |
-| Benefícios e limites de VIP | [PARCIAL] | VIP libera cinco decks em vez de dois; os demais benefícios permanecem pendentes. |
+| Valores e balanceamento da economia | [PARCIAL] | Fontes e usos estão definidos; quantidades, preços, cooldowns e limites ainda serão balanceados. |
+| Preços e intensidade dos benefícios VIP | [PARCIAL] | Durações e limites competitivos estão definidos; preços e magnitudes econômicas permanecem pendentes. |
 | Modelo da Store | [PENDENTE] | Não definido. |
 | Detalhes de monetização | [PENDENTE] | Devem respeitar a regra contra pay-to-win. |
 | Catálogo de missões | [PENDENTE] | Não definido. |
@@ -684,8 +745,9 @@ Nenhuma dessas opções deve ser iniciada apenas por estar registrada neste docu
 
 | DECISÃO | STATUS | OBSERVAÇÃO |
 |---|---|---|
-| VIP/premium, cosméticos e progressão justa | [FUTURO] | Modelos a detalhar sem vantagem competitiva comprável. |
-| Anúncios não intrusivos | [FUTURO] | Possibilidade, não implementação autorizada. |
+| Painel administrativo e analytics server-side | [FUTURO] | Administração de contas e métricas exige autenticação, papéis, auditoria e dados autoritativos. |
+| Cosméticos e progressão VIP | [FUTURO] | Detalhar conteúdo respeitando o mesmo teto competitivo para todos. |
+| Anúncios recompensados voluntários | [FUTURO] | Podem conceder benefício limitado; anúncios obrigatórios não estão autorizados. |
 | Outras receitas compatíveis | [FUTURO] | Exigem definição de produto. |
 | Remaster profundo do Classic | [FUTURO] | Pode exigir nova geometria se fronteiras mudarem. |
 | Remaster ou reconstrução do Dark World | [FUTURO] | Direção A ou B ainda será escolhida. |
@@ -695,7 +757,7 @@ Nenhuma dessas opções deve ser iniciada apenas por estar registrada neste docu
 | Integração das Armas de Apoio à partida | [FUTURO] | Dois slots adicionais, um uso independente por Apoio; efeitos concretos permanecem pendentes. |
 | Localização integral da interface | [FUTURO] | Idiomas planejados: português, inglês, espanhol e italiano; a arquitetura também aceita alemão sem acoplar idioma ao fuso horário. |
 
-## 16. Configuração de conteúdo e preferências regionais
+## 17. Configuração de conteúdo e preferências regionais
 
 ### [DEFINITIVO] Disponibilidade administrativa
 
@@ -725,7 +787,7 @@ de Configurações chamará os serviços existentes para alterar idioma, escolhe
 automático ou manual e converter horários, sem misturar as duas escolhas. Traduções,
 tela de Configurações e integração com backend não fazem parte desta fundação.
 
-## 17. Editor de Mapas interno
+## 18. Editor de Mapas interno
 
 ### [PROVISÓRIO] V1 do Editor de Mapas
 
@@ -750,7 +812,7 @@ independentes e inspeção de conexões/posições sem alterar o enquadramento r
 - a separação entre operações, validação e `EditorWindow` prepara reutilização futura
   da lógica em um editor standalone, sem implementar o executável agora.
 
-## 18. Manutenção deste documento
+## 19. Manutenção deste documento
 
 ### [DEFINITIVO] Regra de atualização
 
