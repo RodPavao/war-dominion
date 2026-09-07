@@ -1,0 +1,83 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 62a0719fdf2c454eaca46174a70a52c8, type: 3}
+  m_Name: WDArmoryCatalogConfig
+  m_EditorClassIdentifier:
+  categories:
+  - id: support
+    displayName: Apoio
+    supportEligible: 1
+  - id: tactical
+    displayName: Tática
+    supportEligible: 0
+  - id: strategic
+    displayName: Estratégica
+    supportEligible: 0
+  - id: special
+    displayName: Especial
+    supportEligible: 0
+  weapons:
+  - id: mock_field_support
+    displayName: Suporte de Campo (Mock)
+    categoryId: support
+    levels:
+    - {targetLevel: 2, requiredTokens: 10, coinCost: 100, futureLevelConfigId: mock_field_support_l2}
+    - {targetLevel: 3, requiredTokens: 20, coinCost: 200, futureLevelConfigId: mock_field_support_l3}
+    - {targetLevel: 4, requiredTokens: 35, coinCost: 350, futureLevelConfigId: mock_field_support_l4}
+    - {targetLevel: 5, requiredTokens: 55, coinCost: 550, futureLevelConfigId: mock_field_support_l5}
+    - {targetLevel: 6, requiredTokens: 80, coinCost: 800, futureLevelConfigId: mock_field_support_l6}
+  - id: mock_recon_support
+    displayName: Reconhecimento (Mock)
+    categoryId: support
+    levels:
+    - {targetLevel: 2, requiredTokens: 10, coinCost: 100, futureLevelConfigId: mock_recon_support_l2}
+    - {targetLevel: 3, requiredTokens: 20, coinCost: 200, futureLevelConfigId: mock_recon_support_l3}
+    - {targetLevel: 4, requiredTokens: 35, coinCost: 350, futureLevelConfigId: mock_recon_support_l4}
+    - {targetLevel: 5, requiredTokens: 55, coinCost: 550, futureLevelConfigId: mock_recon_support_l5}
+    - {targetLevel: 6, requiredTokens: 80, coinCost: 800, futureLevelConfigId: mock_recon_support_l6}
+  - id: mock_tactical_alpha
+    displayName: Recurso Tático Alfa (Mock)
+    categoryId: tactical
+    levels:
+    - {targetLevel: 2, requiredTokens: 10, coinCost: 2000, futureLevelConfigId: mock_tactical_alpha_l2}
+    - {targetLevel: 3, requiredTokens: 20, coinCost: 200, futureLevelConfigId: mock_tactical_alpha_l3}
+    - {targetLevel: 4, requiredTokens: 35, coinCost: 350, futureLevelConfigId: mock_tactical_alpha_l4}
+    - {targetLevel: 5, requiredTokens: 55, coinCost: 550, futureLevelConfigId: mock_tactical_alpha_l5}
+    - {targetLevel: 6, requiredTokens: 80, coinCost: 800, futureLevelConfigId: mock_tactical_alpha_l6}
+  - id: mock_strategic_beta
+    displayName: Recurso Estratégico Beta (Mock)
+    categoryId: strategic
+    levels:
+    - {targetLevel: 2, requiredTokens: 10, coinCost: 100, futureLevelConfigId: mock_strategic_beta_l2}
+    - {targetLevel: 3, requiredTokens: 20, coinCost: 200, futureLevelConfigId: mock_strategic_beta_l3}
+    - {targetLevel: 4, requiredTokens: 35, coinCost: 350, futureLevelConfigId: mock_strategic_beta_l4}
+    - {targetLevel: 5, requiredTokens: 55, coinCost: 550, futureLevelConfigId: mock_strategic_beta_l5}
+    - {targetLevel: 6, requiredTokens: 80, coinCost: 800, futureLevelConfigId: mock_strategic_beta_l6}
+  - id: mock_special_gamma
+    displayName: Recurso Especial Gama (Mock)
+    categoryId: special
+    levels:
+    - {targetLevel: 2, requiredTokens: 10, coinCost: 100, futureLevelConfigId: mock_special_gamma_l2}
+    - {targetLevel: 3, requiredTokens: 20, coinCost: 200, futureLevelConfigId: mock_special_gamma_l3}
+    - {targetLevel: 4, requiredTokens: 35, coinCost: 350, futureLevelConfigId: mock_special_gamma_l4}
+    - {targetLevel: 5, requiredTokens: 55, coinCost: 550, futureLevelConfigId: mock_special_gamma_l5}
+    - {targetLevel: 6, requiredTokens: 80, coinCost: 800, futureLevelConfigId: mock_special_gamma_l6}
+  - id: mock_locked_delta
+    displayName: Arma Não Obtida (Mock)
+    categoryId: tactical
+    levels:
+    - {targetLevel: 2, requiredTokens: 10, coinCost: 100, futureLevelConfigId: mock_locked_delta_l2}
+    - {targetLevel: 3, requiredTokens: 20, coinCost: 200, futureLevelConfigId: mock_locked_delta_l3}
+    - {targetLevel: 4, requiredTokens: 35, coinCost: 350, futureLevelConfigId: mock_locked_delta_l4}
+    - {targetLevel: 5, requiredTokens: 55, coinCost: 550, futureLevelConfigId: mock_locked_delta_l5}
+    - {targetLevel: 6, requiredTokens: 80, coinCost: 800, futureLevelConfigId: mock_locked_delta_l6}
+  vipEnabledForDevelopment: 0

@@ -234,18 +234,21 @@ public sealed class WDHomeModal : MonoBehaviour
     private RectTransform choiceRow;
     private WDUIPremiumButton[] choiceButtons;
     private UnityAction<int> choiceAction;
+    private UnityAction defaultCloseAction;
+    private UnityAction contextualCloseAction;
     private Coroutine transition;
 
     public bool IsOpen => gameObject.activeSelf;
 
     public void Build(WarDominionUITheme theme, UnityAction closeAction)
     {
+        defaultCloseAction = closeAction;
         Image blocker = gameObject.AddComponent<Image>();
         blocker.color = new Color(0f, 0f, 0f, 0.76f);
         blocker.raycastTarget = true;
         Button blockerButton = gameObject.AddComponent<Button>();
         blockerButton.transition = Selectable.Transition.None;
-        blockerButton.onClick.AddListener(closeAction);
+        blockerButton.onClick.AddListener(RequestClose);
 
         canvasGroup = gameObject.AddComponent<CanvasGroup>();
         panel = WDHomeUIFactory.Rect("Panel", transform);
@@ -286,7 +289,7 @@ public sealed class WDHomeModal : MonoBehaviour
         close.anchoredPosition = new Vector2(-22f, -22f);
         close.sizeDelta = new Vector2(52f, 52f);
         WDUIPremiumButton closeButton = close.gameObject.AddComponent<WDUIPremiumButton>();
-        closeButton.Build(theme, "X", closeAction);
+        closeButton.Build(theme, "X", RequestClose);
 
         choiceRow = WDHomeUIFactory.Rect("Choices", panel);
         choiceRow.anchorMin = new Vector2(0f, 0f);
@@ -319,14 +322,18 @@ public sealed class WDHomeModal : MonoBehaviour
         bodyLabel.text = body;
         choiceRow.gameObject.SetActive(false);
         choiceAction = null;
+        contextualCloseAction = null;
         BeginOpen();
     }
 
-    public void OpenChoices(string title, string body, string[] choices, UnityAction<int> action)
+    public void OpenChoices(
+        string title, string body, string[] choices, UnityAction<int> action,
+        UnityAction closeAction = null)
     {
         titleLabel.text = title;
         bodyLabel.text = body;
         choiceAction = action;
+        contextualCloseAction = closeAction;
         choiceRow.gameObject.SetActive(true);
         for (int i = 0; i < choiceButtons.Length; i++)
         {
@@ -335,6 +342,12 @@ public sealed class WDHomeModal : MonoBehaviour
             choiceButtons[i].gameObject.SetActive(!string.IsNullOrEmpty(label));
         }
         BeginOpen();
+    }
+
+    public void RequestClose()
+    {
+        UnityAction action = contextualCloseAction ?? defaultCloseAction;
+        action?.Invoke();
     }
 
     public void SetBody(string body)
@@ -353,6 +366,7 @@ public sealed class WDHomeModal : MonoBehaviour
     public void Close()
     {
         if (!gameObject.activeSelf) return;
+        contextualCloseAction = null;
         if (transition != null) StopCoroutine(transition);
         transition = StartCoroutine(Animate(false));
     }

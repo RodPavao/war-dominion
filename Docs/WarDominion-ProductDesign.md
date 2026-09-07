@@ -227,7 +227,7 @@ A hierarquia de escala desejada é:
 - Loja e VIP médios;
 - Missões e Ranking compactos;
 - Eventos/Torneios com destaque variável e contextual;
-- Cards e Clan menores e mais gráficos que na implementação provisória atual.
+- Armas e Clan menores e mais gráficos que na implementação provisória atual.
 
 A Home da Passada 1 valida arquitetura e fluxo. Seu dimensionamento visual atual não é aprovação do tamanho definitivo dos cards.
 
@@ -235,8 +235,8 @@ A Home da Passada 1 valida arquitetura e fluxo. Seu dimensionamento visual atual
 
 Permanecem pendentes:
 
-- economia e moedas;
-- detalhes de VIP;
+- fontes, balanceamento e demais usos da economia;
+- benefícios de VIP além dos cinco slots de deck;
 - modelo da Store;
 - detalhes de monetização;
 - catálogo de missões;
@@ -380,8 +380,9 @@ Ao concluir o pré-jogo, um único contrato independente da UI reúne modo, subm
 
 - Cor e skin são preferências do perfil usadas ao entrar na partida.
 - Conflitos de cor são resolvidos somente na cor efetiva daquela partida; a preferência salva no perfil nunca é alterada.
-- Cada perfil possui três slots de deck, cada um com oito slots principais, e exatamente um deck padrão.
-- Em modos com votação, os mesmos 15 segundos também permitem selecionar um dos três decks. A última seleção válida vale apenas para aquela partida e não altera o deck padrão.
+- Cada perfil possui cinco slots persistentes de deck. Dois ficam disponíveis sem VIP e os cinco ficam disponíveis com VIP; a expiração do VIP apenas bloqueia os slots 3–5, preservando integralmente nomes e composições.
+- Cada deck salvo possui oito Armas principais e duas Armas de Apoio adicionais. A escolha do deck para a partida continua separada das regras de Random Cards e da futura modalidade Deckbuilder.
+- Quando o fluxo pré-partida for integrado aos novos decks persistentes, modos com votação que usam deck do perfil poderão selecionar um deck habilitado nos mesmos 15 segundos. A última seleção válida valerá apenas para aquela partida e não alterará o deck padrão.
 - FFA não possui votação nem tela de troca de deck: utiliza Classic e o deck padrão automaticamente.
 - O limite normal é de 10 rounds. Empate ao final desse limite inicia morte súbita, exceto em modos cuja configuração a desabilita.
 - FFA não possui morte súbita.
@@ -434,13 +435,27 @@ Entre os sinais observáveis estão:
 
 O bot não pode trapacear. Só pode reagir a informações que um jogador legítimo também observaria, sem conhecer cartas ocultas, decisões ainda não reveladas, ações futuras ou estado privado do adversário. A adaptação deve possuir limites configuráveis para não tornar a IA artificialmente perfeita ou impossível de enfrentar.
 
-### [FUTURO] Cartas externas ao deck
+### [DEFINITIVO] Dois slots adicionais de Armas de Apoio
 
-Pode existir um sistema de dois slots externos ao deck. Durante uma partida, o jogador poderia usar uma única vez uma das duas cartas externas, trocando-a por uma carta do deck.
+O conceito anterior de duas cartas externas foi refinado para duas Armas de Apoio adicionais às oito Armas principais. Cada Apoio pode ser usado no máximo uma vez por partida, de forma independente. Não existe troca automática por uma carta principal e a elegibilidade depende de categoria funcional configurada, não de raridade.
 
-Inicialmente, seriam consideradas elegíveis apenas cartas comuns. Um sistema futuro de raridades/grupos poderá incluir cartas comuns, especiais, lendárias e outras categorias futuras.
+A integração dos efeitos concretos dos Apoios com a partida permanece futura. O sorteio de Random Cards e o fluxo da modalidade Deckbuilder continuam sistemas separados.
 
-O sistema completo de cartas, o sorteio real de Random Cards, o fluxo real de Deckbuilder e os dois slots externos de cartas de uso único permanecem futuros e não fazem parte do Match Setup funcional desta passada.
+### [DEFINITIVO] Armamentos, decks salvos e Armas de Apoio
+
+A seção **ARMAS** da Home reúne a coleção e exatamente cinco decks persistentes do jogador. Contas sem VIP utilizam os decks 1 e 2; contas VIP utilizam os cinco. Os decks bloqueados continuam visíveis e não aceitam edição. Expirar o VIP nunca apaga as composições dos decks 3–5, que voltam a ficar disponíveis se o benefício for reativado.
+
+Cada deck possui exatamente oito slots de Armas principais e dois slots adicionais de **Armas de Apoio**. Uma arma não pode se repetir em nenhum dos dez slots do mesmo deck. Os dois Apoios precisam ser diferentes e somente categorias explicitamente configuradas como elegíveis podem ocupar esses slots. O modelo de partida reserva a cada Apoio no máximo um uso independente por partida; usar um não consome o outro. Os efeitos concretos e sua integração ao gameplay permanecem pendentes.
+
+As categorias são classificações funcionais extensíveis — inicialmente Apoio, Tática, Estratégica e Especial — e não representam raridade, força ou qualidade. A arquitetura não depende dessa lista inicial e elegibilidade para Apoio é configuração da categoria.
+
+Cada arma possui exatamente seis níveis, sendo o nível 6 o máximo. A progressão é configurável por arma e por nível, sem pressupor dano, duração, chance ou qualquer atributo comum. Upgrades representam Tokens próprios da progressão da arma e custo em Moedas; ambos precisam estar disponíveis e são consumidos conforme a configuração. **Esmeraldas** é o nome definitivo da moeda premium, mas não substitui Tokens ou Moedas e não possui compra real ou vantagem competitiva nesta fase.
+
+A coleção distingue arma não obtida, progresso parcial de Tokens, Tokens completos com Moedas insuficientes, upgrade disponível e nível máximo. Os dados atuais de catálogo são poucos mocks explicitamente identificados, apenas para validar fluxo, persistência e apresentação. As 25 armas, seus efeitos, obtenção, custos e balanceamento dos seis níveis permanecem pendentes.
+
+O estado local atual utiliza um repositório substituível por conta/backend. Nomes e composições dos cinco decks, inventário, níveis, Tokens, Moedas, Esmeraldas e estado VIP são persistidos sem acoplar a interface ao armazenamento. O visual desta seção é **[PROVISÓRIO]** até o Premium Polish.
+
+A modalidade futura **Deckbuilder** é completamente distinta dos slots de decks salvos: ela construirá dinamicamente um deck antes do Round 1 e não foi implementada nesta fase.
 
 ## 9. HUD de partida
 
@@ -656,8 +671,8 @@ Nenhuma dessas opções deve ser iniciada apenas por estar registrada neste docu
 
 | DECISÃO | STATUS | OBSERVAÇÃO |
 |---|---|---|
-| Economia e moedas | [PENDENTE] | Não definida. |
-| Benefícios e limites de VIP | [PENDENTE] | Não definidos. |
+| Economia e moedas | [PARCIAL] | Moedas, Tokens por arma e Esmeraldas estão representados; fontes, valores finais e demais usos permanecem pendentes. |
+| Benefícios e limites de VIP | [PARCIAL] | VIP libera cinco decks em vez de dois; os demais benefícios permanecem pendentes. |
 | Modelo da Store | [PENDENTE] | Não definido. |
 | Detalhes de monetização | [PENDENTE] | Devem respeitar a regra contra pay-to-win. |
 | Catálogo de missões | [PENDENTE] | Não definido. |
@@ -677,7 +692,7 @@ Nenhuma dessas opções deve ser iniciada apenas por estar registrada neste docu
 | 1x1 Deckbuilder | [FUTURO] | Quatro escolhas em pares formam decks de oito cartas. |
 | Battle Royale | [FUTURO] | Seis jogadores, cinco rounds e Deckbuilder. |
 | Bots estratégicos e adaptativos | [FUTURO] | Aprendem apenas com informação observável e possuem limites balanceáveis. |
-| Dois slots externos de cartas | [FUTURO] | Uma troca por partida; elegibilidade inicial prevista para cartas comuns. |
+| Integração das Armas de Apoio à partida | [FUTURO] | Dois slots adicionais, um uso independente por Apoio; efeitos concretos permanecem pendentes. |
 | Localização integral da interface | [FUTURO] | Idiomas planejados: português, inglês, espanhol e italiano; a arquitetura também aceita alemão sem acoplar idioma ao fuso horário. |
 
 ## 16. Configuração de conteúdo e preferências regionais

@@ -18,6 +18,7 @@ public sealed class WarDominionHomeController : MonoBehaviour
 
     private WDHomeModal modal;
     private WDHomeMatchFlowPanel matchFlowPanel;
+    private WDHomeArmoryPanel armoryPanel;
     private RectTransform safeArea;
     private GameObject homeUIRoot;
     private EventSystem homeEventSystem;
@@ -49,10 +50,12 @@ public sealed class WarDominionHomeController : MonoBehaviour
         if (Keyboard.current?.escapeKey.wasPressedThisFrame != true)
             return;
 
-        if (matchFlowPanel != null && matchFlowPanel.IsOpen)
+        if (modal != null && modal.IsOpen)
+            modal.RequestClose();
+        else if (armoryPanel != null && armoryPanel.IsOpen)
+            armoryPanel.HandleEscape();
+        else if (matchFlowPanel != null && matchFlowPanel.IsOpen)
             matchFlowPanel.HandleEscape();
-        else if (modal != null && modal.IsOpen)
-            modal.Close();
     }
 
     // ============================================================
@@ -104,6 +107,15 @@ public sealed class WarDominionHomeController : MonoBehaviour
         WDHomeUIFactory.Stretch(matchFlowLayer);
         matchFlowPanel = matchFlowLayer.gameObject.AddComponent<WDHomeMatchFlowPanel>();
         matchFlowPanel.Build(theme, matchConfig, mockData);
+
+        WDArmoryCatalogConfig armoryCatalog =
+            Resources.Load<WDArmoryCatalogConfig>("UI/Home/WDArmoryCatalogConfig");
+        RectTransform armoryLayer = WDHomeUIFactory.Rect("ArmoryLayer", root.transform);
+        WDHomeUIFactory.Stretch(armoryLayer);
+        armoryPanel = armoryLayer.gameObject.AddComponent<WDHomeArmoryPanel>();
+        armoryPanel.Build(
+            theme, armoryCatalog, new WDPlayerPrefsArmoryRepository(),
+            OpenLockedDeckPopup);
     }
 
     private void AddAmbientAccents(Transform parent)
@@ -279,7 +291,10 @@ public sealed class WarDominionHomeController : MonoBehaviour
         lowerLayout.childControlHeight = true;
         lowerLayout.childForceExpandWidth = true;
         lowerLayout.childForceExpandHeight = true;
-        CreateCard(lower, "C", "CARDS", "Coleção e loadouts", "CARDS", CardsBody(), 140f);
+        RectTransform armoryRect = WDHomeUIFactory.Rect("ArmoryCard", lower);
+        armoryRect.gameObject.AddComponent<WDHomeCard>().Build(
+            theme, "A", "ARMAS", "Decks, coleção e progressão",
+            OpenArmory, 140f);
         CreateCard(lower, "C", "CLAN", "Comunidade competitiva", "CLAN", ClanBody(), 140f);
     }
 
@@ -327,10 +342,46 @@ public sealed class WarDominionHomeController : MonoBehaviour
     // 04. NAVEGAÇÃO MODAL E CONTEÚDO MOCK
     // ============================================================
 
-    private void OpenModal(string title, string body) => modal.Open(title, body);
+    private void OpenModal(string title, string body)
+    {
+        modal.transform.SetAsLastSibling();
+        modal.Open(title, body);
+    }
     private void CloseModal() => modal.Close();
 
     private void OpenMatchFlow() => matchFlowPanel.Open();
+
+    private void OpenArmory() => armoryPanel.Open();
+
+    private void OpenLockedDeckPopup()
+    {
+        modal.transform.SetAsLastSibling();
+        modal.OpenChoices(
+            "RECURSO VIP",
+            "Este deck exige VIP. A composição permanece preservada mesmo quando o benefício não está ativo.",
+            new[] { "ACESSAR LOJA / VIP" },
+            choice =>
+            {
+                if (choice == 0)
+                    OpenStoreVipDestination();
+            },
+            CloseArmoryVipModal);
+    }
+
+    private void CloseArmoryVipModal()
+    {
+        armoryPanel.CloseVipRequirementModal();
+        modal.Close();
+    }
+
+    private void OpenStoreVipDestination()
+    {
+        armoryPanel.NavigateToStoreVip();
+        modal.Close();
+        OpenModal(
+            "LOJA / VIP",
+            "Destino funcional provisório da subseção VIP da Loja. Assinatura, pagamento e benefícios adicionais ainda não foram implementados.");
+    }
 
     private string ProfileBody() =>
         $"{mockData.Nickname}\nStatus: {mockData.Status}\nLiga: {mockData.League}\nTroféus: {mockData.Trophies}\n\n" +
@@ -339,7 +390,6 @@ public sealed class WarDominionHomeController : MonoBehaviour
     private string MissionBody() => "Objetivos e recompensas demonstrativos.\n\nO catálogo definitivo de missões permanece pendente.";
     private string RankingBody() => $"Posição competitiva provisória.\nLiga atual: {mockData.League}\n\nThresholds e matchmaking não foram definidos.";
     private string EventBody() => $"PRÓXIMO: {mockData.NextEvent}\n{mockData.RegistrationState}\nCountdown: {mockData.Countdown}\n\nAGORA: {mockData.LiveEvent}";
-    private string CardsBody() => "Fundação para coleção, inspeção e seleção de cards.\n\nConteúdo e regras não são definidos nesta etapa.";
     private string ClanBody() => "Fundação para identidade, membros e atividades do Clan.";
     private string FriendsBody() => "Lista de amigos, presença, convites e ações sociais — dados mock nesta etapa.";
     private string ChatBody() => "Painel contextual de chat.\n\nBackend e persistência não fazem parte desta etapa.";

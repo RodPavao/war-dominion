@@ -167,7 +167,7 @@ public sealed class WDMapVoteControllerTests
     // ============================================================
 
     [Test]
-    public void MatchSetup_FfaUsesClassicDefaultDeckAndNoSuddenDeath()
+    public void MatchSetup_FfaUsesClassicDefaultDeckAndSuddenDeath()
     {
         WarDominionMatchFlowConfig config = LoadFlowConfig();
         WarDominionHomeData profile = LoadProfile();
@@ -181,7 +181,7 @@ public sealed class WDMapVoteControllerTests
         Assert.That(setup.Participants[0].DeckId,
             Is.EqualTo(profile.GetDeck(profile.DefaultDeckIndex).Id));
         Assert.That(setup.RoundLimit, Is.EqualTo(10));
-        Assert.That(setup.SuddenDeathEnabled, Is.False);
+        Assert.That(setup.SuddenDeathEnabled, Is.True);
     }
 
     [Test]
