@@ -814,6 +814,12 @@ Total: 25 armas, distribuídas em 8/6/6/5.
 
 As 25 armas das categorias Apoio, Tática, Estratégica e Especial estão implementadas no domínio V1 e registradas no pipeline modular. A integração ampla com GameManager, Preparation, HUD e Play Mode permanece reservada para etapa própria.
 
+### [DEFINITIVO] Primeira ponte read-only com a partida
+
+A integração das armas começa por um adaptador exclusivamente de consulta entre o estado real da partida e o Weapon Domain. GameManager, Match Setup, GerenciadorRodada, TerritorioClique e a definição canônica do mapa permanecem autoritativos; o domínio de armas não mantém uma segunda cópia concorrente da partida. Escritas, Energy, cooldown, programação e execução de armas continuam fora desta etapa e exigirão portas explícitas próprias.
+
+Identidades técnicas estáveis de jogador, território e mapa permanecem separadas de nomes e textos user-facing. A localização global continua sendo requisito futuro, e nenhum texto traduzido ou apresentado na interface deve ser usado como identidade de domínio.
+
 ### [DEFINITIVO] Ordem global de resolução das armas — V2
 
 #### Fase 0 — Início do round
