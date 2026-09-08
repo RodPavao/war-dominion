@@ -297,6 +297,7 @@ MonoBehaviour:
     categoryId: support
     maximumLevel: 4
     energyCost: 5
+    cooldownRounds: 3
     behaviorType: 1
     resolutionPhase: 60
     costTiming: 0
@@ -310,6 +311,7 @@ MonoBehaviour:
     categoryId: support
     maximumLevel: 4
     energyCost: 10
+    cooldownRounds: 3
     behaviorType: 1
     resolutionPhase: 60
     costTiming: 0

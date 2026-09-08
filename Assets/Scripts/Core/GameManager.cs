@@ -28,6 +28,8 @@ public class GameManager : MonoBehaviour
     public IWDGameWeaponMutationPort WeaponMutationPort => weaponMutationPort;
     public WDWeaponInstallationRegistry WeaponInstallationRegistry =>
         weaponInstallationRegistry;
+    public WDWeaponExecutionCoordinator WeaponExecutionCoordinator =>
+        weaponExecutionCoordinator;
     public IReadOnlyList<WDWeaponAction> AcoesArmasCongeladas =>
         acoesArmasCongeladas;
     public bool EhPartidaUmContraUm => MatchSetupAtual != null && MatchSetupAtual.IsOneVsOne;
@@ -72,6 +74,7 @@ public class GameManager : MonoBehaviour
     private WDWeaponPreparationService weaponPreparation;
     private IWDGameWeaponMutationPort weaponMutationPort;
     private WDWeaponInstallationRegistry weaponInstallationRegistry;
+    private WDWeaponExecutionCoordinator weaponExecutionCoordinator;
     private IReadOnlyList<WDWeaponAction> acoesArmasCongeladas =
         System.Array.Empty<WDWeaponAction>();
     private WDInitialTerritorySelectionSession initialSelectionSession;
@@ -649,6 +652,7 @@ public class GameManager : MonoBehaviour
 
         EntregarRandomCardsDoRound();
         AtualizarWeaponRuntimeParaRound();
+        weaponExecutionCoordinator?.ProcessEnergyPlantPayments(RodadaAtual);
         weaponPreparation?.BeginRound(RodadaAtual);
         acoesArmasCongeladas = System.Array.Empty<WDWeaponAction>();
 
@@ -747,6 +751,9 @@ public class GameManager : MonoBehaviour
         weaponMutationPort = new WDGameWeaponMutationPort(
             new WDUnityGameWeaponMutableStateSource(this), weaponRuntime,
             catalog, weaponInstallationRegistry);
+        weaponExecutionCoordinator = new WDWeaponExecutionCoordinator(
+            new WDGameWeaponContext(this), weaponRuntime, weaponMutationPort,
+            weaponInstallationRegistry, catalog);
     }
 
     private void AtualizarWeaponRuntimeParaRound()
@@ -1563,6 +1570,8 @@ public class GameManager : MonoBehaviour
             resolvedorTransferencias.Resolver(
             filaTransferencias,
             gerenciadorRodada.ObterPrioridadeJogadores());
+
+        weaponExecutionCoordinator?.ExecuteFrozenActions(acoesArmasCongeladas);
 
         List<ResultadoAcaoTerrestre> resultadosTerrestres =
             resolvedorAcoesTerrestres.Resolver(

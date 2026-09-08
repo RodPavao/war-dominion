@@ -854,6 +854,27 @@ Energy, cooldown e usos são alterados exclusivamente no `WDWeaponMatchRuntime`.
 
 Os handlers das 25 armas e o `WDWeaponResolutionPipeline` continuam desligados da partida. As ações congeladas da Preparação não são executadas nesta etapa.
 
+### Etapa 7D.2 — primeiro lote executando no estado real
+
+A integração incremental ativa somente quatro armas: Reforços na Fase 5 e Bunker,
+Flak Tower e Central de Energia na Fase 6. O `WDWeaponExecutionCoordinator` recebe as
+ações congeladas, revalida disponibilidade e alvo no contexto vivo, aplica o efeito
+pela mutation port e somente então compromete Energy, cooldown e uso. Repetir o mesmo
+`ActionId` não duplica efeito nem custo. As outras 21 armas permanecem adiadas, sem
+execução e sem cobrança; o `WDWeaponResolutionPipeline` global continua desligado.
+
+Reforços adiciona diretamente ao território real próprio ou aliado a quantidade
+canônica do nível. Bunker registra barreira persistente e Flak registra nível, chance
+derivada e três rounds de duração no `WDWeaponInstallationRegistry`. Nesta etapa elas
+não possuem representação visual final; absorção de dano e interceptação ainda não
+estão conectadas ao gameplay.
+
+A Central universal pode ser instalada no Round 1 com custo zero, registra cooldown e
+uso e mantém três pagamentos. A Fase 0 paga ao proprietário atual nos três rounds
+seguintes à instalação, nunca no round da instalação e nunca mais de uma vez no mesmo
+round. O pagamento altera a Energy real do `WDWeaponMatchRuntime`; captura e abandono
+continuam representáveis pelo registro autoritativo, sem fluxo artificial nesta etapa.
+
 ### [DEFINITIVO] Ordem global de resolução das armas — V2
 
 #### Fase 0 — Início do round
