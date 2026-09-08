@@ -13,10 +13,12 @@ public sealed class WDArmoryCatalogConfig : ScriptableObject
 
     [SerializeField] private List<WDWeaponCategoryDefinition> categories = new();
     [SerializeField] private List<WDWeaponDefinition> weapons = new();
+    [SerializeField] private List<WDWeaponProgressionProfile> progressionProfiles = new();
     [SerializeField] private bool vipEnabledForDevelopment;
 
     public IReadOnlyList<WDWeaponCategoryDefinition> Categories => categories;
     public IReadOnlyList<WDWeaponDefinition> Weapons => weapons;
+    public IReadOnlyList<WDWeaponProgressionProfile> ProgressionProfiles => progressionProfiles;
     public bool VipEnabledForDevelopment => vipEnabledForDevelopment;
 
     public WDWeaponDefinition FindWeapon(string weaponId) =>
@@ -31,6 +33,18 @@ public sealed class WDArmoryCatalogConfig : ScriptableObject
         return category != null && category.SupportEligible;
     }
 
+    public WDWeaponLevelDefinition FindUpgrade(
+        WDWeaponDefinition weapon, int targetLevel)
+    {
+        if (weapon == null || targetLevel < 2 || targetLevel > weapon.MaximumLevel)
+            return null;
+
+        WDWeaponProgressionProfile profile = progressionProfiles?.FirstOrDefault(
+            item => item != null && item.MaximumLevel == weapon.MaximumLevel);
+        WDWeaponLevelDefinition standard = profile?.GetUpgradeToLevel(targetLevel);
+        return standard ?? weapon.GetUpgradeToLevel(targetLevel);
+    }
+
     public void Configure(
         IEnumerable<WDWeaponCategoryDefinition> newCategories,
         IEnumerable<WDWeaponDefinition> newWeapons,
@@ -39,5 +53,12 @@ public sealed class WDArmoryCatalogConfig : ScriptableObject
         categories = newCategories?.ToList() ?? new List<WDWeaponCategoryDefinition>();
         weapons = newWeapons?.ToList() ?? new List<WDWeaponDefinition>();
         vipEnabledForDevelopment = developmentVip;
+    }
+
+    public void ConfigureProgressionProfiles(
+        IEnumerable<WDWeaponProgressionProfile> profiles)
+    {
+        progressionProfiles = profiles?.ToList() ??
+            new List<WDWeaponProgressionProfile>();
     }
 }

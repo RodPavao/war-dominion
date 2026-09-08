@@ -451,6 +451,23 @@ As categorias são classificações funcionais extensíveis — inicialmente Apo
 
 Cada arma possui de um a seis níveis, conforme sua mecânica. Não criar níveis artificiais apenas para alcançar seis. A progressão é configurável por arma e por nível, sem pressupor dano, duração, chance ou qualquer atributo comum. Upgrades representam Tokens próprios da progressão da arma e custo em Moedas; ambos precisam estar disponíveis e são consumidos conforme a configuração. **Esmeraldas** é o nome definitivo da moeda premium, mas não substitui Tokens ou Moedas e não possui compra real ou vantagem competitiva nesta fase.
 
+### [DEFINITIVO] Progressão V1 e Energy
+
+As armas V1 possuem um, quatro ou seis níveis conforme sua definição. Arma de nível único já é obtida no máximo e não possui upgrade. Energy e cooldown são invariáveis por nível.
+
+| CURVA | UPGRADE | TOKENS ESPECÍFICOS | MOEDAS |
+|---|---|---:|---:|
+| 6 níveis | N1 → N2 | 100 | 500 |
+| 6 níveis | N2 → N3 | 500 | 2.500 |
+| 6 níveis | N3 → N4 | 1.000 | 10.000 |
+| 6 níveis | N4 → N5 | 5.000 | 25.000 |
+| 6 níveis | N5 → N6 | 10.000 | 50.000 |
+| 4 níveis | N1 → N2 | 500 | 2.500 |
+| 4 níveis | N2 → N3 | 1.000 | 10.000 |
+| 4 níveis | N3 → N4 | 10.000 | 50.000 |
+
+Tokens continuam específicos por arma e podem acumular após o nível máximo. Todos os jogadores começam a partida com zero Energy. Valores V1 atualizados: Sniper 15, Central de Energia 0, Transporte Aéreo 5, Flak Tower 5, Bunker 10 e Propaganda de Guerra 25 Energy.
+
 A coleção distingue arma não obtida, progresso parcial de Tokens, Tokens completos com Moedas insuficientes, upgrade disponível e nível máximo. Os dados atuais de catálogo são poucos mocks explicitamente identificados, apenas para validar fluxo, persistência e apresentação. O catálogo nominal possui 25 armas; efeitos, obtenção, custos e balanceamento ainda não revisados permanecem pendentes.
 
 O estado local atual utiliza um repositório substituível por conta/backend. Nomes e composições dos cinco decks, inventário, níveis, Tokens, Moedas, Esmeraldas e estado VIP são persistidos sem acoplar a interface ao armazenamento. O visual desta seção é **[PROVISÓRIO]** até o Premium Polish.
@@ -557,12 +574,12 @@ Drone é uma arma própria do War Dominion.
 
 ### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Central de Energia
 
-- Energia: 10; quatro níveis; cooldown especial de cinco rounds; máximo de duas ativações/instalações por jogador em cada partida.
+- Energia: 0; quatro níveis; cooldown especial de cinco rounds; máximo de duas ativações/instalações por jogador em cada partida.
 - Produção por round durante três rounds: N1 +5, N2 +10, N3 +15 e N4 +20 de Energia.
 - É uma instalação territorial. Sua força econômica elevada é intencional e não deve ser reduzida automaticamente por parecer uma escolha muito forte.
 - Se o território for conquistado, a instalação é capturada e o novo proprietário recebe as parcelas restantes. A duração não reinicia; o conquistador não paga Energia, não consome ativação da própria arma e não altera seu cooldown.
 - A instalação em funcionamento pertence ao território e ao proprietário atual, enquanto a ativação original continua atribuída a quem a utilizou.
-- Uma Central recém-instalada começa a produzir somente no round seguinte.
+- Pode ser instalada no Round 1, sem produção retroativa. Uma Central recém-instalada começa a produzir somente no round seguinte; portanto a primeira instalação do Round 1 produz pela primeira vez no início do Round 2.
 
 ### [DEFINITIVO — DIREÇÃO, DETALHES PENDENTES] Bomba Atômica
 
@@ -641,7 +658,7 @@ Pode detonar no alvo central programado mesmo que esse território tenha sido ze
 
 ### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Torre Antiaérea / Flak Tower
 
-- Energia: 0; duração: três rounds; instalação secreta com quatro níveis.
+- Energia: 5; duração: três rounds; instalação secreta com quatro níveis.
 - Chance de interceptação: N1 50%, N2 65%, N3 80% e N4 90%.
 - Protege o território onde está instalada e territórios próprios ou aliados diretamente vizinhos.
 - A matriz final poderá incluir Ataque Aéreo, Drone, Bomba Atômica, Bomba de Longo Alcance, Bomba Química, Kamikaze e Paraquedistas entre as ações interceptáveis.
@@ -651,7 +668,7 @@ Pode detonar no alvo central programado mesmo que esse território tenha sido ze
 
 ### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Bunker
 
-- Energia: 5; quatro níveis; barreira separada das tropas: N1 2, N2 3, N3 4 e N4 5.
+- Energia: 10; quatro níveis; barreira separada das tropas: N1 2, N2 3, N3 4 e N4 5.
 - Funciona como HP de barreira: o dano primeiro reduz a barreira e somente o excedente, após ela chegar a zero, alcança as tropas. Exemplo: barreira 5 contra dano 7 absorve 5, destrói o Bunker e deixa 2 de dano para a guarnição.
 - Esta lógica se aplica a Ataque Aéreo, Artilharia, Foguetes, Bomba de Longo Alcance, Bomba Atômica no território central, Kamikaze, forças terrestres e Paraquedistas em ataque.
 - Na Bomba Atômica, a barreira protege apenas o território central conforme o dano aplicável; não impede por si só a detonação nem o dano colateral aos vizinhos.
@@ -870,17 +887,21 @@ O servidor consolida proprietários, capturas, instalações, minas, durações,
 
 ### [PENDENTE] Especificação de implementação e balanceamento
 
-As regras documentais não autorizam ainda a implementação completa das armas. Antes disso, deve-se transformar a matriz consolidada em especificação técnica, verificar as interações das 25 armas e revisar comparativamente Energia, cooldowns, níveis, duração, usos e força relativa. Custos padrão de progressão em Tokens específicos e Moedas continuam sendo definidos separadamente.
+As regras documentais não autorizam ainda a implementação completa das armas. Antes disso, deve-se transformar a matriz consolidada em especificação técnica, verificar as interações das 25 armas e revisar comparativamente Energia, cooldowns, níveis, duração, usos e força relativa. As curvas padrão de progressão em Tokens específicos e Moedas já estão definidas; exceções futuras exigem decisão explícita.
 
 ### [STATUS EM 08/09/2026] Revisão das armas
 
 - Catálogo nominal: 25 armas.
 - A revisão conceitual inicial das 25 armas foi concluída.
-- Nenhuma implementação runtime deve ser inferida destas decisões documentais.
+- Nenhuma mecânica específica das armas deve ser inferida além da infraestrutura compartilhada autorizada.
 - Custos de Energia ainda passarão por revisão comparativa global.
 - Ordem global V2 está definida como regra de resolução.
 - A Matriz de Interações V2 registra as regras de produto atuais; sua especificação técnica exaustiva ainda deve ser produzida antes da implementação.
-- Tokens e Moedas necessários à progressão serão definidos separadamente pelo proprietário, com valores padrão.
+- Curvas padrão de Tokens específicos e Moedas estão definidas para armas de 1, 4 e 6 níveis.
+
+### [FUTURO] Backlog de armas além do catálogo V1
+
+O núcleo deve aceitar novas armas sem presumir que o catálogo permanecerá limitado a 25. Backlog apenas documental/configuracional, sem implementação autorizada nesta etapa: Tropas de Resistência, Barricada, Roubo de Movimento, Espião, Muralha, Emboscada, Bloqueio de Fronteira, Contraespionagem, Isca / Decoy, Interferência de Comunicações e Contra-Ataque.
 
 ## 9. Economia, VIP, administração e segurança
 

@@ -56,6 +56,26 @@ public sealed class WDWeaponLevelDefinition
 }
 
 [Serializable]
+public sealed class WDWeaponProgressionProfile
+{
+    [SerializeField, Range(1, WDWeaponDefinition.MaxLevel)] private int maximumLevel = 1;
+    [SerializeField] private List<WDWeaponLevelDefinition> upgrades = new();
+
+    public int MaximumLevel => Mathf.Clamp(maximumLevel, 1, WDWeaponDefinition.MaxLevel);
+    public IReadOnlyList<WDWeaponLevelDefinition> Upgrades => upgrades;
+
+    public WDWeaponProgressionProfile(
+        int maximumLevel, IEnumerable<WDWeaponLevelDefinition> upgrades)
+    {
+        this.maximumLevel = Mathf.Clamp(maximumLevel, 1, WDWeaponDefinition.MaxLevel);
+        this.upgrades = upgrades?.ToList() ?? new List<WDWeaponLevelDefinition>();
+    }
+
+    public WDWeaponLevelDefinition GetUpgradeToLevel(int targetLevel) =>
+        upgrades?.FirstOrDefault(item => item != null && item.TargetLevel == targetLevel);
+}
+
+[Serializable]
 public sealed class WDWeaponDefinition
 {
     public const int MaxLevel = 6;
@@ -63,12 +83,50 @@ public sealed class WDWeaponDefinition
     [SerializeField] private string id;
     [SerializeField] private string displayName;
     [SerializeField] private string categoryId;
+    [SerializeField, Range(1, MaxLevel)] private int maximumLevel = MaxLevel;
+    [SerializeField, Min(0)] private int energyCost;
+    [SerializeField, Min(0)] private int cooldownRounds;
+    [SerializeField, Min(0)] private int useLimit;
+    [SerializeField] private WDWeaponBehaviorType behaviorType;
+    [SerializeField] private WDWeaponResolutionPhase resolutionPhase;
+    [SerializeField] private WDWeaponCostTiming costTiming;
+    [SerializeField] private bool requiresOriginTerritory;
+    [SerializeField] private bool requiresTargetTerritory;
+    [SerializeField] private bool requiresTargetPlayer;
+    [SerializeField] private bool canTargetEmptyTerritory;
+    [SerializeField] private bool installation;
+    [SerializeField, Min(0)] private int range;
+    [SerializeField, Min(0)] private int durationRounds;
+    [SerializeField, Min(0)] private int charges;
+    [SerializeField, TextArea] private string description;
+    [SerializeField] private string iconKey;
     [SerializeField] private List<WDWeaponLevelDefinition> levels = new();
 
     public string Id => id ?? string.Empty;
     public string DisplayName => displayName ?? string.Empty;
     public string CategoryId => categoryId ?? string.Empty;
+    public int MaximumLevel => maximumLevel > 0
+        ? Mathf.Clamp(maximumLevel, 1, MaxLevel)
+        : InferMaximumLevel(levels);
+    public int EnergyCost => Mathf.Max(0, energyCost);
+    public int CooldownRounds => Mathf.Max(0, cooldownRounds);
+    public int UseLimit => Mathf.Max(0, useLimit);
+    public WDWeaponBehaviorType BehaviorType => behaviorType;
+    public WDWeaponResolutionPhase ResolutionPhase => resolutionPhase;
+    public WDWeaponCostTiming CostTiming => costTiming;
+    public bool RequiresOriginTerritory => requiresOriginTerritory;
+    public bool RequiresTargetTerritory => requiresTargetTerritory;
+    public bool RequiresTargetPlayer => requiresTargetPlayer;
+    public bool CanTargetEmptyTerritory => canTargetEmptyTerritory;
+    public bool IsInstallation => installation;
+    public int Range => Mathf.Max(0, range);
+    public int DurationRounds => Mathf.Max(0, durationRounds);
+    public int Charges => Mathf.Max(0, charges);
+    public string Description => description ?? string.Empty;
+    public string IconKey => iconKey ?? string.Empty;
     public IReadOnlyList<WDWeaponLevelDefinition> Levels => levels;
+    public bool HasSupportedLevelCount =>
+        MaximumLevel == 1 || MaximumLevel == 4 || MaximumLevel == 6;
 
     public WDWeaponDefinition(
         string id, string displayName, string categoryId,
@@ -78,10 +136,50 @@ public sealed class WDWeaponDefinition
         this.displayName = displayName;
         this.categoryId = categoryId;
         this.levels = levels?.ToList() ?? new List<WDWeaponLevelDefinition>();
+        maximumLevel = InferMaximumLevel(this.levels);
+    }
+
+    public void ConfigureRuntime(
+        int maxLevel, int energy, int cooldown, int maxUses,
+        WDWeaponBehaviorType behavior, WDWeaponResolutionPhase phase,
+        WDWeaponCostTiming timing = WDWeaponCostTiming.OnExecution,
+        bool needsOrigin = false, bool needsTerritoryTarget = false,
+        bool needsPlayerTarget = false, bool targetsEmpty = false,
+        bool isInstallation = false, int maxRange = 0,
+        int duration = 0, int initialCharges = 0,
+        string uiDescription = "", string uiIconKey = "")
+    {
+        if (maxLevel != 1 && maxLevel != 4 && maxLevel != 6)
+            throw new ArgumentOutOfRangeException(
+                nameof(maxLevel), "Armas V1 aceitam 1, 4 ou 6 níveis.");
+        maximumLevel = Mathf.Clamp(maxLevel, 1, MaxLevel);
+        energyCost = Mathf.Max(0, energy);
+        cooldownRounds = Mathf.Max(0, cooldown);
+        useLimit = Mathf.Max(0, maxUses);
+        behaviorType = behavior;
+        resolutionPhase = phase;
+        costTiming = timing;
+        requiresOriginTerritory = needsOrigin;
+        requiresTargetTerritory = needsTerritoryTarget;
+        requiresTargetPlayer = needsPlayerTarget;
+        canTargetEmptyTerritory = targetsEmpty;
+        installation = isInstallation;
+        range = Mathf.Max(0, maxRange);
+        durationRounds = Mathf.Max(0, duration);
+        charges = Mathf.Max(0, initialCharges);
+        description = uiDescription;
+        iconKey = uiIconKey;
     }
 
     public WDWeaponLevelDefinition GetUpgradeToLevel(int targetLevel) =>
         levels?.FirstOrDefault(item => item != null && item.TargetLevel == targetLevel);
+
+    private static int InferMaximumLevel(IEnumerable<WDWeaponLevelDefinition> upgrades)
+    {
+        int inferred = upgrades?.Where(item => item != null)
+            .Select(item => item.TargetLevel).DefaultIfEmpty(1).Max() ?? 1;
+        return Mathf.Clamp(inferred, 1, MaxLevel);
+    }
 }
 
 [Serializable]
@@ -113,7 +211,8 @@ public sealed class WDWeaponProgress
     }
 
     public void SpendTokens(int amount) => tokens = Mathf.Max(0, tokens - Mathf.Max(0, amount));
-    public void AdvanceLevel() => level = Mathf.Min(WDWeaponDefinition.MaxLevel, level + 1);
+    public void AdvanceLevel(int maximumLevel = WDWeaponDefinition.MaxLevel) =>
+        level = Mathf.Min(Mathf.Clamp(maximumLevel, 1, WDWeaponDefinition.MaxLevel), level + 1);
 }
 
 [Serializable]
@@ -376,12 +475,13 @@ public sealed class WDArmoryService
 
     public WDWeaponCollectionState GetCollectionState(string weaponId)
     {
+        WDWeaponDefinition weapon = catalog.FindWeapon(weaponId);
         WDWeaponProgress progress = profile.GetProgress(weaponId);
         if (progress == null || !progress.Obtained)
             return WDWeaponCollectionState.NotObtained;
-        if (progress.Level >= WDWeaponDefinition.MaxLevel)
+        if (weapon != null && progress.Level >= weapon.MaximumLevel)
             return WDWeaponCollectionState.MaxLevel;
-        WDWeaponLevelDefinition next = catalog.FindWeapon(weaponId)?.GetUpgradeToLevel(progress.Level + 1);
+        WDWeaponLevelDefinition next = catalog.FindUpgrade(weapon, progress.Level + 1);
         if (next == null || progress.Tokens < next.RequiredTokens)
             return WDWeaponCollectionState.CollectingTokens;
         return profile.Coins < next.CoinCost
@@ -397,9 +497,9 @@ public sealed class WDArmoryService
             return WDArmoryEditResult.UnknownWeapon;
         if (progress == null || !progress.Obtained)
             return WDArmoryEditResult.WeaponNotObtained;
-        if (progress.Level >= WDWeaponDefinition.MaxLevel)
+        if (progress.Level >= weapon.MaximumLevel)
             return WDArmoryEditResult.AlreadyMaxLevel;
-        WDWeaponLevelDefinition next = weapon.GetUpgradeToLevel(progress.Level + 1);
+        WDWeaponLevelDefinition next = catalog.FindUpgrade(weapon, progress.Level + 1);
         if (next == null)
             return WDArmoryEditResult.MissingLevelConfiguration;
         if (progress.Tokens < next.RequiredTokens)
@@ -409,7 +509,7 @@ public sealed class WDArmoryService
 
         profile.SpendCoins(next.CoinCost);
         progress.SpendTokens(next.RequiredTokens);
-        progress.AdvanceLevel();
+        progress.AdvanceLevel(weapon.MaximumLevel);
         return WDArmoryEditResult.Success;
     }
 

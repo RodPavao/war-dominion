@@ -80,4 +80,19 @@ MonoBehaviour:
     - {targetLevel: 4, requiredTokens: 35, coinCost: 350, futureLevelConfigId: mock_locked_delta_l4}
     - {targetLevel: 5, requiredTokens: 55, coinCost: 550, futureLevelConfigId: mock_locked_delta_l5}
     - {targetLevel: 6, requiredTokens: 80, coinCost: 800, futureLevelConfigId: mock_locked_delta_l6}
+  progressionProfiles:
+  - maximumLevel: 1
+    upgrades: []
+  - maximumLevel: 4
+    upgrades:
+    - {targetLevel: 2, requiredTokens: 500, coinCost: 2500, futureLevelConfigId: standard_4_l2}
+    - {targetLevel: 3, requiredTokens: 1000, coinCost: 10000, futureLevelConfigId: standard_4_l3}
+    - {targetLevel: 4, requiredTokens: 10000, coinCost: 50000, futureLevelConfigId: standard_4_l4}
+  - maximumLevel: 6
+    upgrades:
+    - {targetLevel: 2, requiredTokens: 100, coinCost: 500, futureLevelConfigId: standard_6_l2}
+    - {targetLevel: 3, requiredTokens: 500, coinCost: 2500, futureLevelConfigId: standard_6_l3}
+    - {targetLevel: 4, requiredTokens: 1000, coinCost: 10000, futureLevelConfigId: standard_6_l4}
+    - {targetLevel: 5, requiredTokens: 5000, coinCost: 25000, futureLevelConfigId: standard_6_l5}
+    - {targetLevel: 6, requiredTokens: 10000, coinCost: 50000, futureLevelConfigId: standard_6_l6}
   vipEnabledForDevelopment: 0
