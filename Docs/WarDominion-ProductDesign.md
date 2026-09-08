@@ -468,7 +468,7 @@ As armas V1 possuem um, quatro ou seis níveis conforme sua definição. Arma de
 
 Tokens continuam específicos por arma e podem acumular após o nível máximo. Todos os jogadores começam a partida com zero Energy. Valores V1 atualizados: Sniper 15, Central de Energia 0, Transporte Aéreo 5, Flak Tower 5, Bunker 10 e Propaganda de Guerra 25 Energy.
 
-A coleção distingue arma não obtida, progresso parcial de Tokens, Tokens completos com Moedas insuficientes, upgrade disponível e nível máximo. Os dados atuais de catálogo são poucos mocks explicitamente identificados, apenas para validar fluxo, persistência e apresentação. O catálogo nominal possui 25 armas; efeitos, obtenção, custos e balanceamento ainda não revisados permanecem pendentes.
+A coleção distingue arma não obtida, progresso parcial de Tokens, Tokens completos com Moedas insuficientes, upgrade disponível e nível máximo. O catálogo data-driven já contém as definições oficiais implementadas das categorias Apoio e Tática, preservando mocks explicitamente identificados necessários aos testes de fluxo, persistência e apresentação. O catálogo nominal possui 25 armas e permanece extensível; efeitos das demais categorias, obtenção e balanceamento ainda não implementados permanecem pendentes.
 
 O estado local atual utiliza um repositório substituível por conta/backend. Nomes e composições dos cinco decks, inventário, níveis, Tokens, Moedas, Esmeraldas e estado VIP são persistidos sem acoplar a interface ao armazenamento. O visual desta seção é **[PROVISÓRIO]** até o Premium Polish.
 
@@ -520,7 +520,7 @@ Armas de dano não conquistam território. A conquista ocorre somente por movime
 - O dano atravessa primeiro a barreira do Bunker; somente o excedente alcança as tropas.
 - Não conquista território.
 
-### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Campo Minado
+### [DEFINITIVO — IMPLEMENTADO NO DOMÍNIO V1] Campo Minado
 
 - Energia: 15; uso: 1.
 - É instalado secretamente em território próprio e permanece oculto de adversários e espectadores.
@@ -549,7 +549,7 @@ Armas de dano não conquistam território. A conquista ocorre somente por movime
 - Quantidade por nível: N1 3, N2 4, N3 5, N4 6, N5 7, N6 8.
 - Sabotagem não afeta esta arma. Infiltrado não bloqueia o recebimento das tropas por não se tratar de arma fixa no território infiltrado.
 
-### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Blitzkrieg
+### [DEFINITIVO — IMPLEMENTADO NO DOMÍNIO V1] Blitzkrieg
 
 - Energia atual: 15; uso: 1.
 - O custo permanece provisório até a revisão comparativa global de Energia.
@@ -598,7 +598,7 @@ Pode detonar no alvo central programado mesmo que esse território tenha sido ze
 - Se o destino já possuir instalação do mesmo tipo, a ação é bloqueada com informação apropriada; tropas e instalação não se movem nem são perdidas. Instalações diferentes podem coexistir no território, salvo futura exceção explícita.
 - Flak não intercepta, Paz não bloqueia e Infiltrado não interfere: Transporte Aéreo é uma ação logística própria ou aliada, não uma ação hostil nem uma instalação fixa atuando no território infiltrado.
 
-### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Kamikaze
+### [DEFINITIVO — IMPLEMENTADO NO DOMÍNIO V1] Kamikaze
 
 - Energia: 25; cooldown geral previsto: três rounds.
 - Dano: N1 2, N2 3, N3 4, N4 5, N5 6 e N6 7.
@@ -718,7 +718,7 @@ Ao ocupar posteriormente um território Vazio com Artilharia, Foguetes ou Centra
 - Cooldown geral previsto: três rounds. Flak pode interceptar e Paz pode impedir. Ignora completamente o Bunker, causando as baixas diretamente nas tropas sem reduzir a barreira. Infiltrado não interfere por não se tratar de arma fixa no território infiltrado.
 - Não conquista território.
 
-### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Paraquedistas
+### [DEFINITIVO — IMPLEMENTADO NO DOMÍNIO V1] Paraquedistas
 
 - Energia: 25; quatro níveis: N1 2, N2 3, N3 4 e N4 5 paraquedistas.
 - Pode atuar em qualquer lugar do mapa para atacar território inimigo ou reforçar território próprio/aliado.
@@ -810,6 +810,8 @@ Categoria organiza identidade e comportamento; não representa raridade nem nece
 - **Especial — 5:** Drone, Bomba Atômica, Propaganda de Guerra, Bomba Química e Infiltrado.
 
 Total: 25 armas, distribuídas em 8/6/6/5.
+
+As seis armas da categoria Tática estão implementadas no domínio V1 e registradas no pipeline modular. Infiltrado permanece na categoria Especial e não integra esta etapa.
 
 ### [DEFINITIVO] Ordem global de resolução das armas — V2
 

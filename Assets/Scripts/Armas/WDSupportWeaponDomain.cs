@@ -28,6 +28,7 @@ public sealed class WDWeaponTerritoryState
     public string OwnerPlayerId { get; private set; }
     public int Troops { get; private set; }
     public WDWeaponTerritoryStateKind State { get; private set; }
+    public bool IsImmobilized { get; private set; }
     public IReadOnlyCollection<string> Neighbours => neighbours;
     public IReadOnlyList<WDWeaponInstallationState> Installations => installations;
 
@@ -41,6 +42,8 @@ public sealed class WDWeaponTerritoryState
     }
 
     public void AddNeighbour(string id) { if (!string.IsNullOrWhiteSpace(id)) neighbours.Add(id); }
+    public void Immobilize() => IsImmobilized = true;
+    public void ClearImmobilization() => IsImmobilized = false;
     public void AddTroops(int amount) => Troops = Math.Max(0, Troops + Math.Max(0, amount));
     public int RemoveTroops(int amount)
     {
@@ -176,7 +179,10 @@ public static class WDSupportWeaponInteractionService
         WDWeaponAction action, WDWeaponTerritoryState target)
     {
         WDWeaponInstallationState flak = SelectCoveringFlak(context, target);
-        return flak != null && context.Random.NextUnit(action.ActionId + ":" + flak.InstallationId) <
+        if (flak == null || flak.OwnerPlayerId == action.AuthorPlayerId ||
+            context.AreAllied(flak.OwnerPlayerId, action.AuthorPlayerId))
+            return false;
+        return context.Random.NextUnit(action.ActionId + ":" + flak.InstallationId) <
             WDSupportWeaponTables.FlakChance(flak.Level);
     }
 
