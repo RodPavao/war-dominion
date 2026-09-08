@@ -21,6 +21,8 @@ public sealed class WDPlayerPrefsArmoryRepository : IWDArmoryRepository
             profile = JsonUtility.FromJson<WDArmoryProfile>(PlayerPrefs.GetString(StorageKey));
         profile ??= CreateDevelopmentProfile(catalog);
         profile.Normalize();
+        if (profile.RemoveLegacyCardPlaceholders() && PlayerPrefs.HasKey(StorageKey))
+            Save(profile);
         return profile;
     }
 

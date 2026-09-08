@@ -22,12 +22,14 @@ public sealed class WDMatchParticipant
     public Color MatchColor { get; internal set; }
     public string SkinId { get; }
     public string DeckId { get; }
+    public WDMatchWeaponLoadoutSnapshot WeaponLoadout { get; }
     public WDMatchParticipantKind Kind { get; }
 
     public WDMatchParticipant(
         string playerId, string nickname, int teamIndex, int slotIndex,
         Color profileColor, string skinId, string deckId,
-        WDMatchParticipantKind kind)
+        WDMatchParticipantKind kind,
+        WDMatchWeaponLoadoutSnapshot weaponLoadout = null)
     {
         PlayerId = playerId ?? string.Empty;
         Nickname = nickname ?? string.Empty;
@@ -38,6 +40,7 @@ public sealed class WDMatchParticipant
         SkinId = skinId ?? string.Empty;
         DeckId = deckId ?? string.Empty;
         Kind = kind;
+        WeaponLoadout = weaponLoadout;
     }
 }
 
@@ -239,7 +242,9 @@ public static class WDMatchSetupFactory
     public static WDMatchSetup Create(
         WDMatchmakingRequest request, DefinicaoMapa map,
         WarDominionHomeData profile, int selectedDeckIndex,
-        int deterministicSeed = 0)
+        int deterministicSeed = 0,
+        WDArmoryCatalogConfig armoryCatalog = null,
+        WDArmoryProfile armoryProfile = null)
     {
         if (request == null) throw new ArgumentNullException(nameof(request));
         if (map == null) throw new ArgumentNullException(nameof(map));
@@ -256,9 +261,11 @@ public static class WDMatchSetupFactory
         string deckId = usesProfileDeck ? deck.Id : string.Empty;
         int participantCount = Mathf.Max(1, request.MatchSize);
         var participants = new List<WDMatchParticipant>(participantCount);
+        WDMatchWeaponLoadoutSnapshot localLoadout = CreateWeaponSnapshot(
+            usesRandomCards, deckId, deckIndex, armoryCatalog, armoryProfile);
         participants.Add(new WDMatchParticipant(
             "local_player", profile.Nickname, 0, 0, profile.PlayerColor,
-            profile.SkinId, deckId, WDMatchParticipantKind.Local));
+            profile.SkinId, deckId, WDMatchParticipantKind.Local, localLoadout));
 
         for (int i = 1; i < participantCount; i++)
         {
@@ -268,9 +275,11 @@ public static class WDMatchSetupFactory
             int team = request.GroupSize > 1 ? i % teamCount : i;
             Color defaultColor =
                 WDPlayerPaletteConfig.GetGlobalDefaultColorForSlot(i);
+            WDMatchWeaponLoadoutSnapshot remoteLoadout = CreateWeaponSnapshot(
+                usesRandomCards, deckId, deckIndex, armoryCatalog, armoryProfile);
             participants.Add(new WDMatchParticipant(
                 $"remote_{i}", string.Empty, team, i, defaultColor,
-                string.Empty, string.Empty, WDMatchParticipantKind.Remote));
+                string.Empty, deckId, WDMatchParticipantKind.Remote, remoteLoadout));
         }
         WDMatchColorResolver.Resolve(
             participants, WDPlayerPaletteConfig.GetGlobalColors());
@@ -286,6 +295,14 @@ public static class WDMatchSetupFactory
             request.RoundLimit, request.SuddenDeathEnabled,
             setupSeed, participants);
     }
+
+    private static WDMatchWeaponLoadoutSnapshot CreateWeaponSnapshot(
+        bool usesRandomCards, string deckId, int deckIndex,
+        WDArmoryCatalogConfig catalog, WDArmoryProfile profile) =>
+        usesRandomCards
+            ? WDMatchWeaponSnapshotFactory.CreateRandomCards(catalog, profile)
+            : WDMatchWeaponSnapshotFactory.CreateNormal(
+                deckId, deckIndex, catalog, profile);
 
     private static string GetMetadata(DefinicaoMapa map, string key)
     {

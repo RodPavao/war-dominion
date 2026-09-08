@@ -37,6 +37,8 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
     private WarDominionUITheme theme;
     private WarDominionMatchFlowConfig config;
     private WarDominionHomeData homeData;
+    private WDArmoryCatalogConfig armoryCatalog;
+    private IWDArmoryRepository armoryRepository;
     private readonly Dictionary<string, string> mapNames = new(StringComparer.Ordinal);
     private readonly Dictionary<string, DefinicaoMapa> mapDefinitions = new(StringComparer.Ordinal);
     private RectTransform optionsRoot;
@@ -66,11 +68,14 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
 
     public void Build(
         WarDominionUITheme newTheme, WarDominionMatchFlowConfig newConfig,
-        WarDominionHomeData newHomeData)
+        WarDominionHomeData newHomeData, WDArmoryCatalogConfig newArmoryCatalog,
+        IWDArmoryRepository newArmoryRepository)
     {
         theme = newTheme;
         config = newConfig;
         homeData = newHomeData;
+        armoryCatalog = newArmoryCatalog;
+        armoryRepository = newArmoryRepository;
         LoadMapNames();
 
         Image blocker = gameObject.AddComponent<Image>();
@@ -510,8 +515,10 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
             return;
         }
 
+        WDArmoryProfile armoryProfile = armoryRepository?.Load(armoryCatalog);
         WDMatchSetup setup = WDMatchSetupFactory.Create(
-            request, map, homeData, selectedDeckIndex);
+            request, map, homeData, selectedDeckIndex, 0,
+            armoryCatalog, armoryProfile);
         WDMatchSetupContext.Store(setup);
         GetComponentInParent<WarDominionHomeController>()?
             .PrepareForSceneTransition();

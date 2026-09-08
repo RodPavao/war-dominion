@@ -262,6 +262,29 @@ public sealed class WDSavedWeaponDeck
     public bool Contains(string weaponId) => !string.IsNullOrEmpty(weaponId) &&
         (mainWeaponIds.Contains(weaponId) || supportWeaponIds.Contains(weaponId));
 
+    public bool RemoveLegacyCardPlaceholders()
+    {
+        bool changed = RemoveLegacyCardPlaceholders(mainWeaponIds);
+        return RemoveLegacyCardPlaceholders(supportWeaponIds) || changed;
+    }
+
+    private static bool RemoveLegacyCardPlaceholders(string[] weaponIds)
+    {
+        bool changed = false;
+        if (weaponIds == null)
+            return false;
+        for (int i = 0; i < weaponIds.Length; i++)
+        {
+            string id = weaponIds[i];
+            if (id == null || id.Length != 7 || !id.StartsWith("card_", StringComparison.Ordinal) ||
+                !int.TryParse(id.Substring(5), out int number) || number < 1 || number > 24)
+                continue;
+            weaponIds[i] = string.Empty;
+            changed = true;
+        }
+        return changed;
+    }
+
     private static bool IsMainSlot(int slot) => slot >= 0 && slot < MainSlotCount;
     private static bool IsSupportSlot(int slot) => slot >= 0 && slot < SupportSlotCount;
 }
@@ -320,6 +343,15 @@ public sealed class WDArmoryProfile
     {
         if (progress != null && GetProgress(progress.WeaponId) == null)
             weaponProgress.Add(progress);
+    }
+
+    public bool RemoveLegacyCardPlaceholders()
+    {
+        bool changed = false;
+        foreach (WDSavedWeaponDeck deck in decks)
+            if (deck != null && deck.RemoveLegacyCardPlaceholders())
+                changed = true;
+        return changed;
     }
 
     public void SetVip(bool value) => vip = value;

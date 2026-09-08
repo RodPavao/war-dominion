@@ -726,7 +726,7 @@ public class GameManager : MonoBehaviour
             catalog,
             playerIds,
             new WDMatchSetupWeaponLoadoutSource(setup, ObterCartasRandom),
-            new WDUnavailableWeaponLevelSource());
+            new WDMatchSetupWeaponLevelSource(setup));
         weaponRuntime.RefreshLoadouts();
     }
 

@@ -27,7 +27,7 @@ public sealed class WDCardPoolEntry
 public sealed class WDRandomCardsConfig : ScriptableObject
 {
     // ============================================================
-    // 01. CATÁLOGO PROVISÓRIO E DATA-DRIVEN
+    // 01. POOL CANÔNICO E DATA-DRIVEN DO RANDOM CARDS
     // ============================================================
 
     [SerializeField] private List<WDCardPoolEntry> cards = new();

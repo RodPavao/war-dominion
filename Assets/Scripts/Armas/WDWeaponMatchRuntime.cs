@@ -56,7 +56,7 @@ public sealed class WDMatchSetupWeaponLoadoutSource : IWDMatchWeaponLoadoutSourc
     private readonly Func<string, IReadOnlyList<string>> randomHandProvider;
 
     // ============================================================
-    // 01. RANDOM CARDS REAL E LACUNA EXPLÍCITA DO DECK NORMAL
+    // 01. LOADOUT NORMAL, MÃO RANDOM E CENTRAL UNIVERSAL
     // ============================================================
 
     public WDMatchSetupWeaponLoadoutSource(
@@ -74,11 +74,48 @@ public sealed class WDMatchSetupWeaponLoadoutSource : IWDMatchWeaponLoadoutSourc
         if (setup == null || setup.Participants.All(player => player.PlayerId != playerId))
             return false;
 
-        if (!setup.UsesSymmetricRandomCards)
+        WDMatchParticipant participant = setup.Participants.First(
+            player => player.PlayerId == playerId);
+        WDMatchWeaponLoadoutSnapshot snapshot = participant.WeaponLoadout;
+        if (snapshot == null)
+            return setup.UsesSymmetricRandomCards && TryLegacyRandomHand(
+                playerId, out weaponIds);
+        if (snapshot.Status == WDMatchWeaponSnapshotStatus.SourceUnavailable)
             return false;
 
+        if (!setup.UsesSymmetricRandomCards)
+        {
+            weaponIds = snapshot.GetNormalWeaponIds();
+            return true;
+        }
+
+        weaponIds = (randomHandProvider?.Invoke(playerId) ?? Array.Empty<string>())
+            .Concat(snapshot.GetUniversalWeaponIds())
+            .Distinct(StringComparer.Ordinal).ToArray();
+        return true;
+    }
+
+    private bool TryLegacyRandomHand(
+        string playerId, out IReadOnlyList<string> weaponIds)
+    {
         weaponIds = randomHandProvider?.Invoke(playerId) ?? Array.Empty<string>();
         return true;
+    }
+}
+
+public sealed class WDMatchSetupWeaponLevelSource : IWDWeaponLevelSource
+{
+    private readonly WDMatchSetup setup;
+
+    public WDMatchSetupWeaponLevelSource(WDMatchSetup setup) => this.setup = setup;
+
+    public bool TryGetLevel(string playerId, string weaponId, out int level)
+    {
+        level = 0;
+        WDMatchParticipant participant = setup?.Participants.FirstOrDefault(
+            item => item.PlayerId == playerId);
+        return participant?.WeaponLoadout != null &&
+            participant.WeaponLoadout.TryGetLevel(weaponId, out level);
     }
 }
 

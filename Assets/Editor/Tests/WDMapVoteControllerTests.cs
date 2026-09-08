@@ -292,7 +292,7 @@ public sealed class WDMapVoteControllerTests
             item.Kind == WDMatchParticipantKind.Local).DeckId, Is.Not.Empty);
         Assert.That(setup.Participants.Where(item =>
             item.Kind == WDMatchParticipantKind.Remote).All(item =>
-                string.IsNullOrEmpty(item.DeckId)), Is.True);
+                item.DeckId == setup.Participants[0].DeckId), Is.True);
     }
 
     [Test]

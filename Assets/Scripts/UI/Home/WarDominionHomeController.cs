@@ -103,18 +103,20 @@ public sealed class WarDominionHomeController : MonoBehaviour
 
         WarDominionMatchFlowConfig matchConfig =
             Resources.Load<WarDominionMatchFlowConfig>("UI/Home/WarDominionMatchFlowConfig");
+        WDArmoryCatalogConfig armoryCatalog =
+            Resources.Load<WDArmoryCatalogConfig>("UI/Home/WDArmoryCatalogConfig");
+        var armoryRepository = new WDPlayerPrefsArmoryRepository();
         RectTransform matchFlowLayer = WDHomeUIFactory.Rect("MatchFlowLayer", root.transform);
         WDHomeUIFactory.Stretch(matchFlowLayer);
         matchFlowPanel = matchFlowLayer.gameObject.AddComponent<WDHomeMatchFlowPanel>();
-        matchFlowPanel.Build(theme, matchConfig, mockData);
+        matchFlowPanel.Build(
+            theme, matchConfig, mockData, armoryCatalog, armoryRepository);
 
-        WDArmoryCatalogConfig armoryCatalog =
-            Resources.Load<WDArmoryCatalogConfig>("UI/Home/WDArmoryCatalogConfig");
         RectTransform armoryLayer = WDHomeUIFactory.Rect("ArmoryLayer", root.transform);
         WDHomeUIFactory.Stretch(armoryLayer);
         armoryPanel = armoryLayer.gameObject.AddComponent<WDHomeArmoryPanel>();
         armoryPanel.Build(
-            theme, armoryCatalog, new WDPlayerPrefsArmoryRepository(),
+            theme, armoryCatalog, armoryRepository,
             OpenLockedDeckPopup);
     }
 

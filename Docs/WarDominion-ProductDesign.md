@@ -824,7 +824,17 @@ Identidades técnicas estáveis de jogador, território e mapa permanecem separa
 
 Progressão permanente da conta, loadout disponível na partida e estado runtime são camadas distintas. Energy e cooldown pertencem somente à sessão e nunca são gravados como progressão. Todo jogador inicia com zero Energy; disponibilidade é consultada por códigos técnicos estruturados, que futuramente serão convertidos em mensagens pelo sistema global de localização.
 
-O ciclo real de rounds avança cooldown uma única vez por round. A consulta runtime não executa armas nem altera territórios. A composição autoritativa dos decks Normais e o vínculo dos IDs provisórios de Random Cards com os IDs canônicos das armas ainda precisam ser transportados até o Match Setup antes que essas armas possam ser disponibilizadas, sem fallback silencioso de nível ou conteúdo.
+O ciclo real de rounds avança cooldown uma única vez por round. A consulta runtime não executa armas nem altera territórios. A composição autoritativa dos decks Normais e os níveis efetivos são capturados em snapshots por participante; Random Cards usa diretamente os IDs canônicos e níveis capturados, sem fallback silencioso fora das regras temporárias explicitamente aprovadas.
+
+### Identidade e loadout da partida — decisão definitiva
+
+A Central de Energia é uma arma-base universal: integra o catálogo oficial de 25 armas, não ocupa os oito slots principais nem os dois slots de Apoio do deck Normal e não participa do sorteio Random Cards. Seu custo zero permite uso desde o Round 1, mas sua produção começa somente no Round 2. Quando possuída, usa o nível permanente capturado; quando ainda não possuída, recebe N1 temporário apenas naquela partida, sem alterar a progressão.
+
+O Random Cards utiliza diretamente `WeaponId` canônico. Seu pool efetivo contém as 24 armas oficiais exceto `energy_plant`. Os antigos `card_01` a `card_24` eram placeholders derivados dos três decks mock de oito cards, não possuíam correspondência semântica e deixam de ser identidade funcional. Saves locais que ainda os contenham têm esses slots limpos, sem conversão inventada.
+
+O pool BASIC do Round 1 contém exatamente `air_strike`, `reinforcements`, `minefield`, `blitzkrieg`, `transfer_nullifier`, `sniper`, `air_transport` e `bunker`. A quantidade inicial, a sequência comum determinística, as entregas posteriores e a capacidade da mão permanecem inalteradas.
+
+No Random Cards, uma arma possuída usa o nível permanente capturado no início da partida; uma arma não possuída usa N1 temporário. No modo Normal não existe esse fallback: cada participante recebe um snapshot imutável próprio com `DeckId`, oito armas principais, dois Apoios, IDs canônicos e níveis provenientes de `WDWeaponProgress`. Dados ausentes, bloqueados ou corrompidos produzem estado técnico explícito. Mudanças posteriores no perfil não alteram o snapshot da partida.
 
 ### [DEFINITIVO] Ordem global de resolução das armas — V2
 
