@@ -24,6 +24,9 @@ public class GameManager : MonoBehaviour
             ? randomCardsSession.GetHand(ObterIdJogadorLocal())
             : System.Array.Empty<string>();
     public WDWeaponMatchRuntime WeaponRuntime => weaponRuntime;
+    public WDWeaponPreparationService WeaponPreparation => weaponPreparation;
+    public IReadOnlyList<WDWeaponAction> AcoesArmasCongeladas =>
+        acoesArmasCongeladas;
     public bool EhPartidaUmContraUm => MatchSetupAtual != null && MatchSetupAtual.IsOneVsOne;
     public bool RequerSelecaoTerritorialInicial => MatchSetupAtual != null &&
         MatchSetupAtual.RequiresInitialTerritorySelection;
@@ -63,6 +66,9 @@ public class GameManager : MonoBehaviour
         new HistoricoReforcos();
     private WDRandomCardsSession randomCardsSession;
     private WDWeaponMatchRuntime weaponRuntime;
+    private WDWeaponPreparationService weaponPreparation;
+    private IReadOnlyList<WDWeaponAction> acoesArmasCongeladas =
+        System.Array.Empty<WDWeaponAction>();
     private WDInitialTerritorySelectionSession initialSelectionSession;
     private UICompositionRoot uiCompositionRoot;
     private bool bloqueioInicioPartida = true;
@@ -638,6 +644,8 @@ public class GameManager : MonoBehaviour
 
         EntregarRandomCardsDoRound();
         AtualizarWeaponRuntimeParaRound();
+        weaponPreparation?.BeginRound(RodadaAtual);
+        acoesArmasCongeladas = System.Array.Empty<WDWeaponAction>();
 
         CancelarSelecaoAtual();
 
@@ -728,6 +736,8 @@ public class GameManager : MonoBehaviour
             new WDMatchSetupWeaponLoadoutSource(setup, ObterCartasRandom),
             new WDMatchSetupWeaponLevelSource(setup));
         weaponRuntime.RefreshLoadouts();
+        weaponPreparation = new WDWeaponPreparationService(
+            weaponRuntime, new WDGameWeaponContext(this), catalog);
     }
 
     private void AtualizarWeaponRuntimeParaRound()
@@ -749,6 +759,49 @@ public class GameManager : MonoBehaviour
         weaponRuntime != null
             ? weaponRuntime.GetAvailability(playerId, weaponId)
             : new WDWeaponAvailability(WDWeaponAvailabilityReason.PlayerNotFound);
+
+    // =====================================================
+    // 14. PROGRAMAÇÃO DE ARMAS SEM EXECUÇÃO
+    // =====================================================
+
+    public WDWeaponProgrammingResult ProgramarArma(
+        WDWeaponProgrammingRequest request)
+    {
+        if (!PodeEditarPreparacao || weaponPreparation == null)
+            return new WDWeaponProgrammingResult(
+                WDWeaponProgrammingReason.PreparationClosed, default);
+        return weaponPreparation.Program(request);
+    }
+
+    public WDWeaponProgrammingOption SelecionarArma(
+        string playerId, string weaponId) =>
+        PodeEditarPreparacao && weaponPreparation != null
+            ? weaponPreparation.SelectWeapon(playerId, weaponId)
+            : null;
+
+    public WDWeaponProgrammingResult CancelarAcaoArma(
+        string playerId, string actionId)
+    {
+        if (!PodeEditarPreparacao || weaponPreparation == null)
+            return new WDWeaponProgrammingResult(
+                WDWeaponProgrammingReason.PreparationClosed, default);
+        return weaponPreparation.Cancel(playerId, actionId);
+    }
+
+    public WDWeaponProgrammingResult ReprogramarArma(
+        string playerId, string actionId, WDWeaponProgrammingRequest replacement)
+    {
+        if (!PodeEditarPreparacao || weaponPreparation == null)
+            return new WDWeaponProgrammingResult(
+                WDWeaponProgrammingReason.PreparationClosed, default);
+        return weaponPreparation.Replace(playerId, actionId, replacement);
+    }
+
+    public IReadOnlyList<WDWeaponAction> ObterAcoesArmasProgramadas(
+        string playerId) =>
+        weaponPreparation != null
+            ? weaponPreparation.GetPlayerActions(playerId, RodadaAtual)
+            : System.Array.Empty<WDWeaponAction>();
 
     private string ObterIdJogadorLocal()
     {
@@ -1457,6 +1510,10 @@ public class GameManager : MonoBehaviour
 
         estadoPreparacao =
             EstadoPreparacao.Resolvendo;
+
+        acoesArmasCongeladas = weaponPreparation != null
+            ? weaponPreparation.FreezeRound()
+            : System.Array.Empty<WDWeaponAction>();
 
         eventosReforcoPendentes = CriarEventosVisuaisReforco(
             historicoReforcos.Distribuicoes);

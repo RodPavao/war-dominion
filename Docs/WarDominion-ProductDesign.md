@@ -836,6 +836,14 @@ O pool BASIC do Round 1 contém exatamente `air_strike`, `reinforcements`, `mine
 
 No Random Cards, uma arma possuída usa o nível permanente capturado no início da partida; uma arma não possuída usa N1 temporário. No modo Normal não existe esse fallback: cada participante recebe um snapshot imutável próprio com `DeckId`, oito armas principais, dois Apoios, IDs canônicos e níveis provenientes de `WDWeaponProgress`. Dados ausentes, bloqueados ou corrompidos produzem estado técnico explícito. Mudanças posteriores no perfil não alteram o snapshot da partida.
 
+### Etapa 7C — programação durante a Preparação
+
+A programação de armas é uma camada de intenção separada da execução. Durante a Preparação, o jogador escolhe uma arma disponível e fornece origem, alvo, instalação e parâmetros conforme um contrato técnico canônico. O serviço consulta o loadout/mão, nível, Energy, cooldown, usos e a visão read-only do tabuleiro, mas não chama handlers nem o pipeline de resolução.
+
+Criar, cancelar ou substituir uma intenção não debita Energy, não inicia cooldown, não consome carta e não altera tropas, proprietário ou instalações. O Drone apenas registra que necessita do fluxo especial futuro; reconhecimento e custo antecipado continuam pertencendo à integração de execução. Instalar Foguetes e disparar uma instalação existente são intenções distintas.
+
+Ao fechar a Preparação, as intenções daquele round são congeladas em uma coleção imutável e ordenadas por round, fase, ordem oficial do jogador, ordem de programação e `ActionId`. A futura etapa de execução deverá revalidar cada ação contra o estado autoritativo daquele momento, pois uma intenção válida na Preparação pode deixar de ser válida durante a resolução.
+
 ### [DEFINITIVO] Ordem global de resolução das armas — V2
 
 #### Fase 0 — Início do round
