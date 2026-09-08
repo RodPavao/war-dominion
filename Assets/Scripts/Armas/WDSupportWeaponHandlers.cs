@@ -212,12 +212,15 @@ public sealed class WDSupportInstallationMaintenanceHandler : IWDWeaponPhaseHand
     public string StableId => "support.installation-maintenance";
     public void Execute(IWDWeaponResolutionContext raw)
     {
-        if (raw is not IWDWeaponTerritoryEnumerable context) return;
+        if (raw is not IWDSupportWeaponContext support ||
+            raw is not IWDWeaponTerritoryEnumerable context) return;
         foreach (WDWeaponInstallationState installation in context.Territories
             .SelectMany(item => item.Installations)
             .Where(item => !item.IsDestroyed && item.WeaponId == WDSupportWeaponIds.FlakTower)
             .OrderBy(item => item.InstallationId, StringComparer.Ordinal))
         {
+            if (!installation.TryMarkAutomaticRound(support.CurrentRound))
+                continue;
             installation.ConsumeDuration();
             if (installation.DurationRemaining == 0) installation.Destroy();
         }

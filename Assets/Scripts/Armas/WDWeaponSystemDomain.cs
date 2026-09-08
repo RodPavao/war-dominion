@@ -209,6 +209,9 @@ public sealed class WDWeaponInstallationState
     public string WeaponId { get; }
     public string TerritoryId { get; private set; }
     public string OwnerPlayerId { get; private set; }
+    public string OriginalInstallerPlayerId { get; }
+    public int InstalledRound { get; }
+    public int LastAutomaticRound { get; private set; } = -1;
     public int Level { get; }
     public bool IsTransportable { get; }
     public int DurationRemaining { get; private set; }
@@ -222,12 +225,14 @@ public sealed class WDWeaponInstallationState
     public WDWeaponInstallationState(
         string installationId, string weaponId, string territoryId,
         string ownerPlayerId, int duration, int barrier, int charges, int payments,
-        int level = 1, bool isTransportable = false)
+        int level = 1, bool isTransportable = false, int installedRound = 0)
     {
         InstallationId = installationId ?? string.Empty;
         WeaponId = weaponId ?? string.Empty;
         TerritoryId = territoryId ?? string.Empty;
         OwnerPlayerId = ownerPlayerId ?? string.Empty;
+        OriginalInstallerPlayerId = OwnerPlayerId;
+        InstalledRound = Math.Max(0, installedRound);
         DurationRemaining = Math.Max(0, duration);
         BarrierRemaining = Math.Max(0, barrier);
         ChargesRemaining = Math.Max(0, charges);
@@ -246,6 +251,13 @@ public sealed class WDWeaponInstallationState
     public void ApplyBarrierDamage(int amount) =>
         BarrierRemaining = Math.Max(0, BarrierRemaining - Math.Max(0, amount));
     public void Destroy() => IsDestroyed = true;
+    public bool TryMarkAutomaticRound(int round)
+    {
+        if (round < 0 || LastAutomaticRound == round)
+            return false;
+        LastAutomaticRound = round;
+        return true;
+    }
 }
 
 public readonly struct WDWeaponRevalidationResult

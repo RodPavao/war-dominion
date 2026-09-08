@@ -20,6 +20,16 @@ public interface IWDWeaponActionHandler
         WDWeaponDefinition definition);
 }
 
+public interface IWDWeaponMultiPhaseHandler
+{
+    bool IsPhaseAllowed(WDWeaponResolutionPhase phase);
+}
+
+public interface IWDWeaponActionCostPolicy
+{
+    bool UsesActivationCost(WDWeaponAction action);
+}
+
 public interface IWDWeaponPhaseHandler
 {
     WDWeaponResolutionPhase Phase { get; }
@@ -174,18 +184,22 @@ public sealed class WDWeaponResolutionPipeline
             return Fail(action, "Definição, jogador ou resolver não disponível.");
         if (!WDWeaponActionValidator.HasRequiredReferences(action, definition))
             return Fail(action, "Referências obrigatórias da ação estão ausentes.");
-        if (action.Phase != definition.ResolutionPhase)
+        if (action.Phase != definition.ResolutionPhase &&
+            (handler is not IWDWeaponMultiPhaseHandler multiPhase ||
+             !multiPhase.IsPhaseAllowed(action.Phase)))
             return Fail(action, "Fase da ação diverge da definição da arma.");
         if (definition.CostTiming == WDWeaponCostTiming.OnProgramming &&
             !action.CostCommitted)
             return Fail(action, "Ação de custo antecipado não foi comprometida na programação.");
 
         WDWeaponRuntimeEntry runtimeEntry = player.GetWeapon(definition.Id);
+        bool usesActivationCost = handler is not IWDWeaponActionCostPolicy costPolicy ||
+            costPolicy.UsesActivationCost(action);
         if (runtimeEntry == null || !runtimeEntry.Available ||
-            (!action.CostCommitted && runtimeEntry.CooldownRemaining > 0) ||
-            (!action.CostCommitted && definition.UseLimit > 0 &&
+            (usesActivationCost && !action.CostCommitted && runtimeEntry.CooldownRemaining > 0) ||
+            (usesActivationCost && !action.CostCommitted && definition.UseLimit > 0 &&
              runtimeEntry.Uses >= definition.UseLimit) ||
-            (!action.CostCommitted && player.Energy < definition.EnergyCost))
+            (usesActivationCost && !action.CostCommitted && player.Energy < definition.EnergyCost))
             return Fail(action, "Arma indisponível, em cooldown, sem uso ou sem Energy.");
 
         WDWeaponRevalidationResult validation =
@@ -202,7 +216,7 @@ public sealed class WDWeaponResolutionPipeline
         action.MarkValidated();
         WDWeaponExecutionResult execution = handler.Execute(context, action, definition);
 
-        if (!action.CostCommitted)
+        if (usesActivationCost && !action.CostCommitted)
         {
             if (!WDWeaponActionScheduler.CommitCost(
                     definition, player, runtimeEntry))

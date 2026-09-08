@@ -468,7 +468,7 @@ As armas V1 possuem um, quatro ou seis níveis conforme sua definição. Arma de
 
 Tokens continuam específicos por arma e podem acumular após o nível máximo. Todos os jogadores começam a partida com zero Energy. Valores V1 atualizados: Sniper 15, Central de Energia 0, Transporte Aéreo 5, Flak Tower 5, Bunker 10 e Propaganda de Guerra 25 Energy.
 
-A coleção distingue arma não obtida, progresso parcial de Tokens, Tokens completos com Moedas insuficientes, upgrade disponível e nível máximo. O catálogo data-driven já contém as definições oficiais implementadas das categorias Apoio e Tática, preservando mocks explicitamente identificados necessários aos testes de fluxo, persistência e apresentação. O catálogo nominal possui 25 armas e permanece extensível; efeitos das demais categorias, obtenção e balanceamento ainda não implementados permanecem pendentes.
+A coleção distingue arma não obtida, progresso parcial de Tokens, Tokens completos com Moedas insuficientes, upgrade disponível e nível máximo. O catálogo data-driven já contém as definições oficiais implementadas das categorias Apoio, Tática e Estratégica, preservando mocks explicitamente identificados necessários aos testes de fluxo, persistência e apresentação. O catálogo nominal possui 25 armas e permanece extensível; efeitos das demais categorias, obtenção e balanceamento ainda não implementados permanecem pendentes.
 
 O estado local atual utiliza um repositório substituível por conta/backend. Nomes e composições dos cinco decks, inventário, níveis, Tokens, Moedas, Esmeraldas e estado VIP são persistidos sem acoplar a interface ao armazenamento. O visual desta seção é **[PROVISÓRIO]** até o Premium Polish.
 
@@ -531,7 +531,7 @@ Armas de dano não conquistam território. A conquista ocorre somente por movime
 - Se Paz impedir o ataque antes de ele ocorrer, a mina não é consumida.
 - Não é capturável e continua enterrado mesmo se o território ficar Vazio. Infiltrado pode desarmá-lo apenas durante o round corrente, sem removê-lo.
 
-### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Sabotagem
+### [DEFINITIVO — IMPLEMENTADO NO DOMÍNIO V1] Sabotagem
 
 - Energia: 20; uso: 1; alvo: um jogador adversário individual.
 - Afeta somente as tropas naturais de reforço daquele round: reforço derivado dos territórios e bônus de regiões.
@@ -572,7 +572,7 @@ Drone é uma arma própria do War Dominion.
 - Drone ignora Bunker: sua ação atinge diretamente as tropas e a barreira não absorve o dano.
 - Não conquista território.
 
-### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Central de Energia
+### [DEFINITIVO — IMPLEMENTADO NO DOMÍNIO V1] Central de Energia
 
 - Energia: 0; quatro níveis; cooldown especial de cinco rounds; máximo de duas ativações/instalações por jogador em cada partida.
 - Produção por round durante três rounds: N1 +5, N2 +10, N3 +15 e N4 +20 de Energia.
@@ -607,7 +607,7 @@ Pode detonar no alvo central programado mesmo que esse território tenha sido ze
 - Flak pode interceptar. Se isso ocorrer, a tropa Kamikaze continua perdida e o alvo não sofre dano.
 - Kamikaze reduz primeiro a barreira do Bunker e somente o dano excedente alcança as tropas. Paz poderá impedir a ação; Infiltrado não interfere por não se tratar de arma fixa no território infiltrado.
 
-### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Bomba de Longo Alcance
+### [DEFINITIVO — IMPLEMENTADO NO DOMÍNIO V1] Bomba de Longo Alcance
 
 - Energia: 25; cooldown geral previsto: três rounds.
 - Pode atingir qualquer território inimigo do mapa.
@@ -615,7 +615,7 @@ Pode detonar no alvo central programado mesmo que esse território tenha sido ze
 - Flak pode interceptar; o dano reduz primeiro a barreira do Bunker e somente o excedente alcança as tropas; não conquista território.
 - Paz poderá impedir a ação; Infiltrado não interfere por não se tratar de arma fixa no território infiltrado.
 
-### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Paz
+### [DEFINITIVO — IMPLEMENTADO NO DOMÍNIO V1] Paz
 
 - Energia: 15; nível único.
 - Durante a Preparação, jogadores podem programar Paz entre si porque as escolhas ainda não foram resolvidas.
@@ -627,22 +627,23 @@ Pode detonar no alvo central programado mesmo que esse território tenha sido ze
 - Propaganda de Guerra ignora Paz.
 - Transporte Aéreo não interage com Paz por ser ação logística própria ou aliada.
 
-### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Artilharia
+### [DEFINITIVO — IMPLEMENTADO NO DOMÍNIO V1] Artilharia
 
-- Energia: 30; instalação fixa territorial.
+- Energia: 30; cooldown da carta: três rounds; instalação fixa territorial.
+- O cooldown controla somente quando o jogador pode usar novamente a carta para criar outra instalação. A duração operacional da instalação já criada é independente e continua sendo consumida normalmente durante o cooldown.
 - N1: 1 dano por alvo, até 3 alvos, por 2 rounds.
 - N2: 2 danos por alvo, até 3 alvos, por 2 rounds.
 - N3: 2 danos por alvo, até 3 alvos, por 3 rounds.
 - N4: 3 danos por alvo, até 3 alvos, por 3 rounds.
-- É automática: a cada round operacional, o servidor identifica os territórios inimigos diretamente vizinhos, ordena-os da maior para a menor quantidade atual de tropas e seleciona até três. Empates usam critério determinístico comum; sem alvo válido, não há disparo naquele round.
+- É automática: a cada oportunidade operacional, o servidor identifica os territórios diretamente vizinhos que não sejam próprios nem aliados, incluindo territórios inimigos, Neutros e Vazios. Inimigos protegidos por Paz são excluídos; Paz não protege Neutros ou Vazios. Os candidatos são ordenados da maior para a menor quantidade atual de tropas e até três são selecionados. Empates usam ID estável.
 - O jogador não escolhe alvos a cada round. A seleção é recalculada em cada operação e pode repetir ou trocar completamente os alvos.
 - Pode operar no mesmo round em que é instalada. Resolve depois das demais armas ofensivas programadas e antes de Paraquedistas e ações terrestres, recalculando seus alvos no momento da execução com o estado já atualizado.
 - Múltiplas Artilharias resolvem sequencialmente. A ordem entre proprietários segue a ordem oficial dos jogadores; instalações do mesmo proprietário usam o ID estável do território de origem.
-- Infiltrado ou Sniper podem impedir sua operação no round. O round operacional é consumido mesmo quando não existir disparo válido.
+- Infiltrado ou Sniper podem impedir sua operação no round. Só uma operação efetivamente realizada consome a duração operacional da Artilharia; imobilização, ausência de alvos atacáveis ou Paz excluindo todos os alvos inimigos não reduzem as operações restantes.
 - Pode ser destruída por armas compatíveis, conforme as regras consolidadas.
 - Se o território for conquistado, é capturada e continua para o novo proprietário pelo tempo restante. A duração não reinicia e a captura não consome arma, Energia, ativação ou cooldown do conquistador.
 
-### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Foguetes
+### [DEFINITIVO — IMPLEMENTADO NO DOMÍNIO V1] Foguetes
 
 - Energia: 25; cooldown geral previsto: três rounds; instalação fixa territorial.
 - Cada instalação possui exatamente dois disparos. Dano por disparo: N1 2, N2 3, N3 4, N4 5, N5 6 e N6 7.

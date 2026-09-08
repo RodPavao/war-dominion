@@ -67,6 +67,10 @@ public sealed class WDWeaponTerritoryState
             if (installation.WeaponId == WDSupportWeaponIds.Bunker ||
                 installation.WeaponId == WDSupportWeaponIds.FlakTower)
                 installation.Destroy();
+            else if (installation.WeaponId == "energy_plant" ||
+                     installation.WeaponId == "artillery" ||
+                     installation.WeaponId == "rockets")
+                installation.Abandon();
     }
     public void Capture(string owner)
     {
