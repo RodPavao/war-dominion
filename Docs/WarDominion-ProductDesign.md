@@ -468,7 +468,7 @@ As armas V1 possuem um, quatro ou seis níveis conforme sua definição. Arma de
 
 Tokens continuam específicos por arma e podem acumular após o nível máximo. Todos os jogadores começam a partida com zero Energy. Valores V1 atualizados: Sniper 15, Central de Energia 0, Transporte Aéreo 5, Flak Tower 5, Bunker 10 e Propaganda de Guerra 25 Energy.
 
-A coleção distingue arma não obtida, progresso parcial de Tokens, Tokens completos com Moedas insuficientes, upgrade disponível e nível máximo. O catálogo data-driven já contém as definições oficiais implementadas das categorias Apoio, Tática e Estratégica, preservando mocks explicitamente identificados necessários aos testes de fluxo, persistência e apresentação. O catálogo nominal possui 25 armas e permanece extensível; efeitos das demais categorias, obtenção e balanceamento ainda não implementados permanecem pendentes.
+A coleção distingue arma não obtida, progresso parcial de Tokens, Tokens completos com Moedas insuficientes, upgrade disponível e nível máximo. O catálogo data-driven de runtime contém exclusivamente as 25 armas oficiais: 8 de Apoio, 6 Táticas, 6 Estratégicas e 5 Especiais. Mocks de desenvolvimento não pertencem ao catálogo carregado pela Home; cenários isolados de teste devem construir seus próprios fixtures em memória. As 25 armas estão implementadas no domínio V1, enquanto a integração ampla com a partida permanece reservada para etapa própria.
 
 O estado local atual utiliza um repositório substituível por conta/backend. Nomes e composições dos cinco decks, inventário, níveis, Tokens, Moedas, Esmeraldas e estado VIP são persistidos sem acoplar a interface ao armazenamento. O visual desta seção é **[PROVISÓRIO]** até o Premium Polish.
 
