@@ -558,7 +558,7 @@ Armas de dano não conquistam território. A conquista ocorre somente por movime
 - Possui somente quatro níveis.
 - Paz poderá interferir. Infiltrado não bloqueia Blitzkrieg em si, mas pode impedir um ataque terrestre quando ele se originar especificamente do território infiltrado.
 
-### [DEFINITIVO — MECÂNICA PRINCIPAL, NÃO IMPLEMENTADO] Drone
+### [DEFINITIVO — IMPLEMENTADO NO DOMÍNIO V1] Drone
 
 Drone é uma arma própria do War Dominion.
 
@@ -581,7 +581,7 @@ Drone é uma arma própria do War Dominion.
 - A instalação em funcionamento pertence ao território e ao proprietário atual, enquanto a ativação original continua atribuída a quem a utilizou.
 - Pode ser instalada no Round 1, sem produção retroativa. Uma Central recém-instalada começa a produzir somente no round seguinte; portanto a primeira instalação do Round 1 produz pela primeira vez no início do Round 2.
 
-### [DEFINITIVO — DIREÇÃO, DETALHES PENDENTES] Bomba Atômica
+### [DEFINITIVO — IMPLEMENTADO NO DOMÍNIO V1] Bomba Atômica
 
 A Bomba Atômica mantém deliberadamente grande potencial de dano. Seu efeito não deve ser reduzido automaticamente apenas por atingir vários territórios vizinhos: custo elevado de Energia e possibilidade de preparação e defesa estratégica integram o balanceamento. Os detalhes completos ainda serão consolidados na matriz correspondente.
 
@@ -702,7 +702,7 @@ Quando um território é efetivamente zerado:
 
 Ao ocupar posteriormente um território Vazio com Artilharia, Foguetes ou Central de Energia, o jogador passa a controlar a instalação sem reiniciá-la. Preservar exatamente rounds operacionais, disparos, pagamentos e demais recursos restantes. A captura não restaura recursos consumidos, não cobra Energia nem conta como ativação da arma do novo proprietário. Campo Minado é a exceção e nunca é capturado.
 
-### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Propaganda de Guerra
+### [DEFINITIVO — IMPLEMENTADO NO DOMÍNIO V1] Propaganda de Guerra
 
 - Energia: 25.
 - Limite por nível: N1 até 3, N2 até 4, N3 até 5, N4 até 6, N5 até 7 e N6 até 8 tropas. Uma única tropa acima do limite faz a arma falhar completamente.
@@ -711,7 +711,7 @@ Ao ocupar posteriormente um território Vazio com Artilharia, Foguetes ou Centra
 - Sniper obrigatoriamente resolve antes de Propaganda. Assim, um território com 9 tropas pode cair para 8 por Sniper e então se tornar elegível para Propaganda N6.
 - Reforços e distribuição de tropas ocorrem antes da verificação de seu limite e podem fazer a ação falhar.
 
-### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Bomba Química
+### [DEFINITIVO — IMPLEMENTADO NO DOMÍNIO V1] Bomba Química
 
 - Energia: 25; alvo: território inimigo diretamente vizinho.
 - Dano percentual: N1 25%, N2 30%, N3 35%, N4 40%, N5 45% e N6 50%.
@@ -746,7 +746,7 @@ Ao ocupar posteriormente um território Vazio com Artilharia, Foguetes ou Centra
 
 A coluna 6+ representa seis ou mais territórios perdidos. As tropas entram no pool de reforços do jogador. Sabotagem e Infiltrado não afetam Tropas Reservas. O servidor deriva as perdas efetivas do round anterior e não confia em informação fornecida pelo cliente.
 
-### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Infiltrado
+### [DEFINITIVO — IMPLEMENTADO NO DOMÍNIO V1] Infiltrado
 
 - Energia: 25; nível único; cooldown geral previsto: três rounds.
 - Seleciona um território adversário específico e sabota ações territoriais daquele local durante o round; não atua genericamente sobre tropas ou sobre o jogador.
@@ -812,7 +812,7 @@ Categoria organiza identidade e comportamento; não representa raridade nem nece
 
 Total: 25 armas, distribuídas em 8/6/6/5.
 
-As seis armas da categoria Tática estão implementadas no domínio V1 e registradas no pipeline modular. Infiltrado permanece na categoria Especial e não integra esta etapa.
+As 25 armas das categorias Apoio, Tática, Estratégica e Especial estão implementadas no domínio V1 e registradas no pipeline modular. A integração ampla com GameManager, Preparation, HUD e Play Mode permanece reservada para etapa própria.
 
 ### [DEFINITIVO] Ordem global de resolução das armas — V2
 

@@ -26,6 +26,68 @@ MonoBehaviour:
     displayName: Especial
     supportEligible: 0
   weapons:
+  - id: drone
+    displayName: Drone
+    categoryId: special
+    maximumLevel: 6
+    energyCost: 25
+    cooldownRounds: 3
+    behaviorType: 0
+    resolutionPhase: 90
+    costTiming: 1
+    iconKey: drone
+    levels: []
+  - id: atomic_bomb
+    displayName: Bomba Atômica
+    categoryId: special
+    maximumLevel: 6
+    energyCost: 40
+    cooldownRounds: 3
+    behaviorType: 0
+    resolutionPhase: 90
+    costTiming: 0
+    requiresTargetTerritory: 1
+    canTargetEmptyTerritory: 1
+    iconKey: atomic_bomb
+    levels: []
+  - id: war_propaganda
+    displayName: Propaganda de Guerra
+    categoryId: special
+    maximumLevel: 6
+    energyCost: 25
+    cooldownRounds: 3
+    behaviorType: 4
+    resolutionPhase: 80
+    costTiming: 0
+    requiresTargetTerritory: 1
+    iconKey: war_propaganda
+    levels: []
+  - id: chemical_bomb
+    displayName: Bomba Química
+    categoryId: special
+    maximumLevel: 6
+    energyCost: 25
+    cooldownRounds: 3
+    behaviorType: 0
+    resolutionPhase: 90
+    costTiming: 0
+    requiresOriginTerritory: 1
+    requiresTargetTerritory: 1
+    range: 1
+    iconKey: chemical_bomb
+    levels: []
+  - id: infiltrator
+    displayName: Infiltrado
+    categoryId: special
+    maximumLevel: 1
+    energyCost: 25
+    cooldownRounds: 3
+    behaviorType: 4
+    resolutionPhase: 40
+    costTiming: 0
+    requiresTargetTerritory: 1
+    iconKey: infiltrator
+    levels: []
   - id: sabotage
     displayName: Sabotagem
     categoryId: strategic

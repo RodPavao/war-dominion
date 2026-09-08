@@ -188,13 +188,12 @@ public sealed class WDWeaponResolutionPipeline
             (handler is not IWDWeaponMultiPhaseHandler multiPhase ||
              !multiPhase.IsPhaseAllowed(action.Phase)))
             return Fail(action, "Fase da ação diverge da definição da arma.");
-        if (definition.CostTiming == WDWeaponCostTiming.OnProgramming &&
-            !action.CostCommitted)
-            return Fail(action, "Ação de custo antecipado não foi comprometida na programação.");
-
         WDWeaponRuntimeEntry runtimeEntry = player.GetWeapon(definition.Id);
         bool usesActivationCost = handler is not IWDWeaponActionCostPolicy costPolicy ||
             costPolicy.UsesActivationCost(action);
+        if (usesActivationCost && definition.CostTiming == WDWeaponCostTiming.OnProgramming &&
+            !action.CostCommitted)
+            return Fail(action, "Ação de custo antecipado não foi comprometida na programação.");
         if (runtimeEntry == null || !runtimeEntry.Available ||
             (usesActivationCost && !action.CostCommitted && runtimeEntry.CooldownRemaining > 0) ||
             (usesActivationCost && !action.CostCommitted && definition.UseLimit > 0 &&

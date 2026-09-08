@@ -77,7 +77,13 @@ public sealed class WDWeaponTerritoryState
         OwnerPlayerId = owner ?? string.Empty;
         State = WDWeaponTerritoryStateKind.Occupied;
         foreach (WDWeaponInstallationState installation in installations.Where(item => !item.IsDestroyed))
-            if (installation.WeaponId != WDSupportWeaponIds.Minefield) installation.Capture(OwnerPlayerId);
+            if (installation.WeaponId != WDSupportWeaponIds.Minefield || installation.IsTemporarilyDisabled) installation.Capture(OwnerPlayerId);
+    }
+    public void MakeNeutral(int troops)
+    {
+        OwnerPlayerId = string.Empty;
+        Troops = Math.Max(1, troops);
+        State = WDWeaponTerritoryStateKind.Neutral;
     }
 }
 
@@ -202,7 +208,8 @@ public static class WDSupportWeaponInteractionService
             if (bunker.BarrierRemaining == 0) bunker.Destroy();
         }
         int casualties = target.RemoveTroops(remaining);
-        if (target.Troops == 0 && target.State == WDWeaponTerritoryStateKind.Occupied) target.MakeEmpty();
+        if (target.Troops == 0 && target.State != WDWeaponTerritoryStateKind.Empty)
+            target.MakeEmpty();
         return casualties;
     }
 
