@@ -468,7 +468,7 @@ A modalidade futura **Deckbuilder** é completamente distinta dos slots de decks
 7. Bomba Atômica
 8. Anulador de Transferência
 9. Sniper
-10. Produção Bélica
+10. Central de Energia
 11. Transporte Aéreo
 12. Kamikaze
 13. Bomba de Longo Alcance
@@ -499,8 +499,8 @@ Armas de dano não conquistam território. A conquista ocorre somente por movime
 - Alvo: território adversário vizinho.
 - Dano por nível: N1 2, N2 3, N3 4, N4 5, N5 6, N6 7.
 - Ocorre antes dos movimentos e ataques terrestres do jogador.
-- Flak pode interceptar; Paz pode impedir e qualquer interação territorial de Infiltrado será definida na matriz completa.
-- Bunker de qualquer nível protege completamente aquele território contra Ataque Aéreo, independentemente da quantidade de tropas.
+- Flak pode interceptar; Paz pode impedir. Infiltrado não interfere por não se tratar de arma fixa no território infiltrado.
+- O dano atravessa primeiro a barreira do Bunker; somente o excedente alcança as tropas.
 - Não conquista território.
 
 ### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Campo Minado
@@ -511,7 +511,8 @@ Armas de dano não conquistam território. A conquista ocorre somente por movime
 - É acionado pelo primeiro ataque terrestre ou uso aplicável de Paraquedistas naquele território.
 - Dano por nível: N1 2, N2 3, N3 4, N4 5, N5 6, N6 7.
 - Causa até o número de baixas possível; dano excedente é perdido e, após o acionamento, a mina é consumida.
-- Se Paz impedir o ataque antes de ele ocorrer, a mina não é consumida. Uma eventual interação territorial de Infiltrado será definida na matriz completa.
+- Se Paz impedir o ataque antes de ele ocorrer, a mina não é consumida.
+- Não é capturável e continua enterrado mesmo se o território ficar Vazio. Infiltrado pode desarmá-lo apenas durante o round corrente, sem removê-lo.
 
 ### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Sabotagem
 
@@ -520,7 +521,7 @@ Armas de dano não conquistam território. A conquista ocorre somente por movime
 - Não afeta Reforços, Tropas Reservas, Mercenários nem tropas previamente existentes.
 - Percentuais: N1 15%, N2 20%, N3 25%, N4 30%, N5 35%, N6 40%.
 - A quantidade sabotada é arredondada para baixo.
-- Infiltrado não deve ser presumido como bloqueio global de Sabotagem; a matriz completa consolidará essa ausência de interação.
+- Infiltrado não bloqueia Sabotagem, pois ela é uma ação global contra o jogador e não uma instalação fixa territorial.
 
 ### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Reforços
 
@@ -528,7 +529,7 @@ Armas de dano não conquistam território. A conquista ocorre somente por movime
 - Escolhe um único território próprio ou, em modo de equipe, um território aliado.
 - As tropas são adicionadas diretamente ao território escolhido.
 - Quantidade por nível: N1 3, N2 4, N3 5, N4 6, N5 7, N6 8.
-- Sabotagem não afeta esta arma. Infiltrado só poderá interferir quando o reforço for destinado especificamente ao território infiltrado, conforme a matriz completa.
+- Sabotagem não afeta esta arma. Infiltrado não bloqueia o recebimento das tropas por não se tratar de arma fixa no território infiltrado.
 
 ### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Blitzkrieg
 
@@ -537,7 +538,7 @@ Armas de dano não conquistam território. A conquista ocorre somente por movime
 - Concede ataques terrestres adicionais além do limite padrão de três: N1 +1, N2 +2, N3 +3 e N4 +4.
 - Os máximos correspondentes no round são 4, 5, 6 e 7 ataques terrestres.
 - Possui somente quatro níveis.
-- Paz poderá interferir; qualquer efeito de Infiltrado depende do território de origem envolvido e será definido na matriz completa.
+- Paz poderá interferir. Infiltrado não bloqueia Blitzkrieg em si, mas pode impedir um ataque terrestre quando ele se originar especificamente do território infiltrado.
 
 ### [DEFINITIVO — MECÂNICA PRINCIPAL, NÃO IMPLEMENTADO] Drone
 
@@ -549,10 +550,11 @@ Drone é uma arma própria do War Dominion.
 - Progressão: N1 1 reconhecimento e até 2 tropas de dano; N2 1 e até 3; N3 1 e até 4; N4 2 e até 3; N5 2 e até 4; N6 2 e até 5.
 - Após consumir os reconhecimentos permitidos, não pode testar outros territórios naquela ativação.
 - O disparo deve escolher um dos territórios reconhecidos. O jogador pode desistir, mas Energia e cooldown não retornam.
-- Flak ainda pode interceptar conforme sua chance; Paz pode impedir e qualquer interação territorial de Infiltrado será definida na matriz completa.
+- Flak ainda pode interceptar conforme sua chance; Paz pode impedir. Infiltrado não interfere por não se tratar de arma fixa no território infiltrado.
+- Drone ignora Bunker: sua ação atinge diretamente as tropas e a barreira não absorve o dano.
 - Não conquista território.
 
-### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Produção Bélica
+### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Central de Energia
 
 - Energia: 10; quatro níveis; cooldown especial de cinco rounds; máximo de duas ativações/instalações por jogador em cada partida.
 - Produção por round durante três rounds: N1 +5, N2 +10, N3 +15 e N4 +20 de Energia.
@@ -570,9 +572,10 @@ A Bomba Atômica mantém deliberadamente grande potencial de dano. Seu efeito n�
 - Capacidade: N1 5, N2 7, N3 10, N4 12, N5 15 e N6 18 tropas.
 - Transporta tropas de território próprio para outro território próprio ou aliado, em qualquer lugar do mapa.
 - Deve permanecer ao menos uma tropa na origem quando aplicável às regras normais de propriedade.
-- Pode transportar junto uma instalação fixa compatível existente na origem, como Artilharia, Foguetes, Produção Bélica, Bunker ou Flak Tower. Campo Minado não é transportável.
+- Pode transportar junto uma instalação fixa compatível existente na origem, como Artilharia, Foguetes, Central de Energia, Bunker ou Flak Tower. Campo Minado não é transportável.
 - A instalação mantém integralmente duração, disparos, barreira, produção e demais estados restantes.
 - Se o destino já possuir instalação do mesmo tipo, a ação é bloqueada com informação apropriada; tropas e instalação não se movem nem são perdidas. Instalações diferentes podem coexistir no território, salvo futura exceção explícita.
+- Flak não intercepta, Paz não bloqueia e Infiltrado não interfere: Transporte Aéreo é uma ação logística própria ou aliada, não uma ação hostil nem uma instalação fixa atuando no território infiltrado.
 
 ### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Kamikaze
 
@@ -581,15 +584,15 @@ A Bomba Atômica mantém deliberadamente grande potencial de dano. Seu efeito n�
 - A origem precisa possuir ao menos duas tropas. Uma delas é usada como Kamikaze e sacrificada.
 - Alcance de até três territórios/conexões; não conquista território.
 - Flak pode interceptar. Se isso ocorrer, a tropa Kamikaze continua perdida e o alvo não sofre dano.
-- Bunker protege completamente contra o dano Kamikaze. Paz e uma eventual interferência territorial de Infiltrado serão consolidadas na matriz.
+- Kamikaze reduz primeiro a barreira do Bunker e somente o dano excedente alcança as tropas. Paz poderá impedir a ação; Infiltrado não interfere por não se tratar de arma fixa no território infiltrado.
 
 ### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Bomba de Longo Alcance
 
 - Energia: 25; cooldown geral previsto: três rounds.
 - Pode atingir qualquer território inimigo do mapa.
 - Dano: N1 2, N2 3, N3 4, N4 5, N5 6 e N6 7.
-- Flak pode interceptar; Bunker protege completamente; não conquista território.
-- Paz e uma eventual interferência territorial de Infiltrado serão consolidadas na matriz.
+- Flak pode interceptar; o dano reduz primeiro a barreira do Bunker e somente o excedente alcança as tropas; não conquista território.
+- Paz poderá impedir a ação; Infiltrado não interfere por não se tratar de arma fixa no território infiltrado.
 
 ### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Paz
 
@@ -598,6 +601,10 @@ A Bomba Atômica mantém deliberadamente grande potencial de dano. Seu efeito n�
 - Na Resolução, é processada conforme a ordem de jogadores daquele round. Uma Paz válida estabelece a relação entre os dois jogadores e impede ações ofensivas posteriores entre eles conforme a matriz final; ambos continuam livres contra outros jogadores.
 - Em Paz recíproca, a primeira ação válida estabelece a relação. Quando a segunda chegar à resolução, será apresentada como anulada; seu jogador não perde Energia nem entra em cooldown.
 - Regra econômica geral: programar uma arma na Preparação não significa consumir Energia imediatamente. Em regra, o consumo ocorre quando a ação consegue ser executada. Exceções precisam ser explícitas, como o Drone, cujo reconhecimento já consome Energia e inicia cooldown.
+- Paz prevalece sobre Sabotagem e Infiltrado: ações preparadas contra o jogador protegido são anuladas.
+- Paz não impede Anulador de Transferência, que não é considerado hostilidade territorial abrangida por ela.
+- Propaganda de Guerra ignora Paz.
+- Transporte Aéreo não interage com Paz por ser ação logística própria ou aliada.
 
 ### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Artilharia
 
@@ -635,32 +642,51 @@ A Bomba Atômica mantém deliberadamente grande potencial de dano. Seu efeito n�
 ### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Bunker
 
 - Energia: 5; quatro níveis; barreira separada das tropas: N1 2, N2 3, N3 4 e N4 5.
-- Ataques que precisam atravessá-lo reduzem primeiro a barreira. Apenas o excesso aplicável depois de destruí-la alcança as tropas; o feedback futuro deve representar separadamente desgaste da barreira e guarnição.
+- Funciona como HP de barreira: o dano primeiro reduz a barreira e somente o excedente, após ela chegar a zero, alcança as tropas. Exemplo: barreira 5 contra dano 7 absorve 5, destrói o Bunker e deixa 2 de dano para a guarnição.
+- Esta lógica se aplica a Ataque Aéreo, Artilharia, Foguetes, Bomba de Longo Alcance, Bomba Atômica no território central, Bomba Química, Kamikaze, forças terrestres e Paraquedistas em ataque.
+- Na Bomba Atômica, a barreira protege apenas o território central conforme o dano aplicável; não impede por si só a detonação nem o dano colateral aos vizinhos.
 - Não pode haver dois Bunkers empilhados no mesmo território.
-- Protege totalmente contra Ataque Aéreo, Bomba de Longo Alcance, Kamikaze e Bomba Química.
-- Contra Bomba Atômica, protege o próprio território, mas não impede a detonação nem o dano colateral aos vizinhos.
-- Paraquedistas precisam atravessar ou destruir a barreira antes de enfrentar as tropas.
+- Drone ignora Bunker e atinge diretamente as tropas; Flak ainda pode interceptar Drone conforme sua regra própria.
+- Sniper ignora a barreira e mata diretamente uma tropa.
+- Propaganda de Guerra ignora completamente o Bunker.
+- Infiltrado desarma o Bunker apenas durante aquele round, sem reduzir a barreira nem destruí-lo. Se continuar existente, volta ao funcionamento normal posteriormente.
 - Se capturado sem ser destruído, passa ao novo proprietário com a barreira restante e sem regeneração automática.
-- Sniper ignora a barreira. Se eliminar a única tropa, o território fica Vazio e o Bunker é removido/destruído junto com a perda do domínio.
+- Se Sniper ou qualquer resultado aplicável eliminar a última tropa e tornar o território Vazio, o Bunker é destruído junto com a perda do domínio.
 
-### [PENDENTE] Campo Minado em território Vazio
+### [DEFINITIVO] Campo Minado em território Vazio
 
-Se um território possuir uma tropa e Campo Minado, e o Sniper eliminar essa tropa, o território passa a Vazio e a mina permanece enterrada. Ainda será definido quem poderá acionar posteriormente uma mina em território sem proprietário; não inferir esse comportamento antes da matriz global.
+Se um território chegar a zero tropas, passa a Vazio e o Campo Minado continua enterrado, independentemente do proprietário territorial anterior. A próxima força que tentar entrar sofre a mina, mesmo que pertença a um adversário, aliado do instalador ou ao próprio jogador que a instalou. Depois de o território ficar Vazio, a mina é perigo para qualquer força que entrar.
+
+Campo Minado nunca é capturado. Se estiver temporariamente desarmado por Infiltrado naquele round, a entrada não o aciona naquele round. Continua não sendo transportável por Transporte Aéreo.
+
+### [DEFINITIVO] Instalações em território Vazio e captura posterior
+
+Quando um território é efetivamente zerado:
+
+- Campo Minado permanece enterrado, nunca é capturado e segue a regra de atingir a próxima força que entrar;
+- Bunker é destruído;
+- Flak Tower é destruída. Em ação interceptável, ainda tenta interceptar antes do impacto; se falhar e o território for zerado, desaparece. Também desaparece se uma ação não interceptável, como Sniper, zerar o território;
+- Artilharia permanece fisicamente instalada e disponível para futura captura;
+- Foguetes permanecem instalados, preservam os disparos restantes e ficam disponíveis para futura captura;
+- Central de Energia permanece instalada, preserva pagamentos/rounds restantes e fica disponível para futura captura.
+
+Ao ocupar posteriormente um território Vazio com Artilharia, Foguetes ou Central de Energia, o jogador passa a controlar a instalação sem reiniciá-la. Preservar exatamente rounds operacionais, disparos, pagamentos e demais recursos restantes. A captura não restaura recursos consumidos, não cobra Energia nem conta como ativação da arma do novo proprietário. Campo Minado é a exceção e nunca é capturado.
 
 ### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Propaganda de Guerra
 
 - Energia: 25.
 - Limite por nível: N1 até 3, N2 até 4, N3 até 5, N4 até 6, N5 até 7 e N6 até 8 tropas. Uma única tropa acima do limite faz a arma falhar completamente.
 - Em caso de sucesso, o território perde o proprietário, torna-se Neutro e mantém metade das tropas anteriores, com divisão inteira para baixo: 8 → 4, 7 → 3, 5 → 2 e 3 → 1.
-- Ignora Bunker, Campo Minado, Flak e Paz. A interação com Infiltrado territorial permanece para a matriz.
+- Ignora Bunker, Campo Minado, Flak e Paz e não interage com Infiltrado.
 - Sniper obrigatoriamente resolve antes de Propaganda. Assim, um território com 9 tropas pode cair para 8 por Sniper e então se tornar elegível para Propaganda N6.
+- Reforços e distribuição de tropas ocorrem antes da verificação de seu limite e podem fazer a ação falhar.
 
 ### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Bomba Química
 
 - Energia: 25; alvo: território inimigo diretamente vizinho.
 - Dano percentual: N1 25%, N2 30%, N3 35%, N4 40%, N5 45% e N6 50%.
 - Arredondar baixas para cima, com mínimo de uma baixa quando a porcentagem positiva aplicada a um alvo válido produzir valor inferior a um. Exemplo: 7 × 50% = 3,5, portanto 4 baixas e 3 sobreviventes.
-- Bunker protege completamente; Flak pode interceptar; Paz pode impedir; uma eventual interação territorial de Infiltrado será definida na matriz.
+- Flak pode interceptar e Paz pode impedir. O dano reduz primeiro a barreira do Bunker, e somente o excedente alcança as tropas. Infiltrado não interfere por não se tratar de arma fixa no território infiltrado.
 - Não conquista território.
 
 ### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Paraquedistas
@@ -688,13 +714,15 @@ Se um território possuir uma tropa e Campo Minado, e o Sniper eliminar essa tro
 
 A coluna 6+ representa seis ou mais territórios perdidos. As tropas entram no pool de reforços do jogador. Sabotagem e Infiltrado não afetam Tropas Reservas. O servidor deriva as perdas efetivas do round anterior e não confia em informação fornecida pelo cliente.
 
-### [DEFINITIVO — DIREÇÃO, MATRIZ PENDENTE] Infiltrado
+### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Infiltrado
 
 - Energia: 25; nível único; cooldown geral previsto: três rounds.
-- Atua sobre um território/local específico e não bloqueia genericamente todas as ações de um jogador.
-- Pode interferir em ações ligadas ao território infiltrado, como ataque ou movimento originado dali; Artilharia, Foguetes ou Produção Bélica instalados ali; Transporte Aéreo originado dali; e Reforços, Paraquedistas ou parcela de Mercenários destinados ao local.
-- Não presumir interferência em ações globais sem localização territorial, como Paz, Sabotagem e Anulador de Transferência.
-- A matriz Infiltrado × 25 armas ainda será criada e validará cada interação territorial.
+- Seleciona um território adversário específico e sabota ações territoriais daquele local durante o round; não atua genericamente sobre tropas ou sobre o jogador.
+- Não mata nem reduz tropas, não impede sua defesa normal e não bloqueia o recebimento normal de tropas.
+- Pode impedir ataque terrestre e movimento terrestre originados do território infiltrado; impedir disparos de Artilharia e Foguetes instalados ali; e desarmar temporariamente Campo Minado e Bunker existentes no local.
+- Campo Minado e Bunker não são removidos, danificados ou consumidos pelo Infiltrado. Apenas ficam inativos durante o round e retornam ao funcionamento normal se continuarem existentes.
+- Não interfere com Propaganda de Guerra, Transporte Aéreo, Paz, Sabotagem, Anulador de Transferência ou outras armas globais/não fixas no território.
+- Paz prevalece: quando uma relação válida de Paz impedir a hostilidade entre os jogadores, o Infiltrado preparado contra o jogador protegido é anulado.
 
 ### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Recuperação de Tropas
 
@@ -711,7 +739,7 @@ A coluna 6+ representa seis ou mais territórios perdidos. As tropas entram no p
 - Progressão: N1 1/1/1, N2 2/1/1, N3 2/2/1, N4 2/2/2, N5 3/2/2 e N6 3/3/2.
 - As parcelas entram no pool de reforços do beneficiário e ocorrem automaticamente nos rounds seguintes após uma ativação válida.
 - Sabotagem não reduz Mercenários. Internamente, preservar a origem: reforço natural/regiões é sabotável; Mercenários não é.
-- Infiltrado não cancela Mercenários globalmente; só poderá interferir em uma parcela destinada ao território específico infiltrado, conforme a matriz final.
+- Infiltrado não cancela nem interfere com Mercenários, que não é uma instalação fixa territorial.
 
 ### [DEFINITIVO] Categorias funcionais das armas
 
@@ -719,7 +747,7 @@ Categoria organiza identidade e comportamento; não representa raridade nem nece
 
 - **Apoio — 8:** Ataque Aéreo, Reforços, Transporte Aéreo, Flak Tower, Bunker, Tropas Reservas, Recuperação de Tropas e Mercenários.
 - **Tática — 6:** Campo Minado, Blitzkrieg, Anulador de Transferência, Sniper, Kamikaze e Paraquedistas.
-- **Estratégica — 6:** Sabotagem, Produção Bélica, Bomba de Longo Alcance, Paz, Artilharia e Foguetes.
+- **Estratégica — 6:** Sabotagem, Central de Energia, Bomba de Longo Alcance, Paz, Artilharia e Foguetes.
 - **Especial — 5:** Drone, Bomba Atômica, Propaganda de Guerra, Bomba Química e Infiltrado.
 
 Total: 25 armas, distribuídas em 8/6/6/5.
@@ -752,14 +780,14 @@ O sistema completo de armas não deve ser implementado ainda. Próximas etapas:
 5. definir separadamente custos padrão de progressão em Tokens específicos e Moedas;
 6. somente então produzir a especificação de implementação.
 
-### [STATUS EM 07/09/2026] Revisão das armas
+### [STATUS EM 08/09/2026] Revisão das armas
 
 - Catálogo nominal: 25 armas.
 - A revisão conceitual inicial das 25 armas foi concluída.
 - Nenhuma implementação runtime deve ser inferida destas decisões documentais.
 - Custos de Energia ainda passarão por revisão comparativa global.
 - Ordem global permanece V1 estrutural e pendente.
-- A matriz completa de interações ainda não foi criada.
+- A primeira consolidação de interações foi registrada; a matriz completa das 25 armas ainda não foi consolidada.
 - Tokens e Moedas necessários à progressão serão definidos separadamente pelo proprietário, com valores padrão.
 
 ## 9. Economia, VIP, administração e segurança
