@@ -209,6 +209,8 @@ public sealed class WDWeaponInstallationState
     public string WeaponId { get; }
     public string TerritoryId { get; private set; }
     public string OwnerPlayerId { get; private set; }
+    public int Level { get; }
+    public bool IsTransportable { get; }
     public int DurationRemaining { get; private set; }
     public int BarrierRemaining { get; private set; }
     public int ChargesRemaining { get; private set; }
@@ -219,7 +221,8 @@ public sealed class WDWeaponInstallationState
 
     public WDWeaponInstallationState(
         string installationId, string weaponId, string territoryId,
-        string ownerPlayerId, int duration, int barrier, int charges, int payments)
+        string ownerPlayerId, int duration, int barrier, int charges, int payments,
+        int level = 1, bool isTransportable = false)
     {
         InstallationId = installationId ?? string.Empty;
         WeaponId = weaponId ?? string.Empty;
@@ -229,6 +232,8 @@ public sealed class WDWeaponInstallationState
         BarrierRemaining = Math.Max(0, barrier);
         ChargesRemaining = Math.Max(0, charges);
         PaymentsRemaining = Math.Max(0, payments);
+        Level = Math.Max(1, level);
+        IsTransportable = isTransportable;
     }
 
     public void SetTemporarilyDisabled(bool disabled) => IsTemporarilyDisabled = disabled;

@@ -510,7 +510,7 @@ Armas que causam dano podem reduzir um território até zero tropas. Quando o da
 
 Armas de dano não conquistam território. A conquista ocorre somente por movimento terrestre válido ou por **Paraquedistas**, quando sua mecânica própria de conquista for satisfeita.
 
-### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Ataque Aéreo
+### [DEFINITIVO — IMPLEMENTADO NO DOMÍNIO V1] Ataque Aéreo
 
 - Energia: 20; uso: 1; cooldown geral previsto: três rounds.
 - Alvo: território adversário vizinho.
@@ -541,7 +541,7 @@ Armas de dano não conquistam território. A conquista ocorre somente por movime
 - Infiltrado não bloqueia Sabotagem, pois ela é uma ação global contra o jogador e não uma instalação fixa territorial.
 - Se várias Sabotagens forem preparadas contra o mesmo jogador no mesmo round, prevalece apenas a primeira ação válida conforme a ordem oficial, independentemente do nível. As posteriores são anuladas sem consumo de Energia nem cooldown. Se uma anterior for invalidada por Paz, a próxima válida ainda pode funcionar.
 
-### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Reforços
+### [DEFINITIVO — IMPLEMENTADO NO DOMÍNIO V1] Reforços
 
 - Energia: 25; uso: 1; cooldown geral previsto: três rounds.
 - Escolhe um único território próprio ou, em modo de equipe, um território aliado.
@@ -587,13 +587,13 @@ A Bomba Atômica mantém deliberadamente grande potencial de dano. Seu efeito n�
 
 Pode detonar no alvo central programado mesmo que esse território tenha sido zerado anteriormente no mesmo round. A validade é definida pelo alvo central programado. Paz pode impedir o ataque ao próprio alvo central quando aplicável, mas não protege proprietários de territórios vizinhos contra o dano colateral depois de uma detonação válida.
 
-### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Transporte Aéreo
+### [DEFINITIVO — IMPLEMENTADO NO DOMÍNIO V1] Transporte Aéreo
 
 - Energia: 5; cooldown geral previsto: três rounds.
 - Capacidade: N1 5, N2 7, N3 10, N4 12, N5 15 e N6 18 tropas.
 - Transporta tropas de território próprio para outro território próprio ou aliado, em qualquer lugar do mapa.
 - Deve permanecer ao menos uma tropa na origem quando aplicável às regras normais de propriedade.
-- Pode transportar junto uma instalação fixa compatível existente na origem, como Artilharia, Foguetes, Central de Energia ou Flak Tower. Campo Minado e Bunker não são transportáveis.
+- Pode transportar junto uma instalação fixa compatível existente na origem, como Artilharia, Foguetes, Central de Energia ou Flak Tower. A Flak Tower transportada preserva exatamente sua duração restante; o transporte não reinicia essa duração. Campo Minado e Bunker não são transportáveis.
 - A instalação mantém integralmente duração, disparos, barreira, produção e demais estados restantes.
 - Se o destino já possuir instalação do mesmo tipo, a ação é bloqueada com informação apropriada; tropas e instalação não se movem nem são perdidas. Instalações diferentes podem coexistir no território, salvo futura exceção explícita.
 - Flak não intercepta, Paz não bloqueia e Infiltrado não interfere: Transporte Aéreo é uma ação logística própria ou aliada, não uma ação hostil nem uma instalação fixa atuando no território infiltrado.
@@ -656,7 +656,7 @@ Pode detonar no alvo central programado mesmo que esse território tenha sido ze
 - Um disparo lançado e interceptado por Flak consome o tiro. Se Paz, Infiltrado ou Sniper impedirem o lançamento antes que ocorra, o tiro não é consumido.
 - Resolve antes dos combates terrestres.
 
-### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Torre Antiaérea / Flak Tower
+### [DEFINITIVO — IMPLEMENTADO NO DOMÍNIO V1] Torre Antiaérea / Flak Tower
 
 - Energia: 5; duração: três rounds; instalação secreta com quatro níveis.
 - Chance de interceptação: N1 50%, N2 65%, N3 80% e N4 90%.
@@ -666,7 +666,7 @@ Pode detonar no alvo central programado mesmo que esse território tenha sido ze
 - Se a Flak que cobre o território central interceptar uma Bomba Atômica, a bomba é destruída antes da detonação e não produz dano central nem colateral.
 - Se o território da Flak ficar Vazio, inclusive por Sniper eliminando a última tropa, a instalação é destruída imediatamente. Uma arma posterior no mesmo round não encontra essa Flak; outras Flaks vizinhas ainda podem proteger o local se suas coberturas forem válidas.
 
-### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Bunker
+### [DEFINITIVO — IMPLEMENTADO NO DOMÍNIO V1] Bunker
 
 - Energia: 10; quatro níveis; barreira separada das tropas: N1 2, N2 3, N3 4 e N4 5.
 - Funciona como HP de barreira: o dano primeiro reduz a barreira e somente o excedente, após ela chegar a zero, alcança as tropas. Exemplo: barreira 5 contra dano 7 absorve 5, destrói o Bunker e deixa 2 de dano para a guarnição.
@@ -729,7 +729,7 @@ Ao ocupar posteriormente um território Vazio com Artilharia, Foguetes ou Centra
 - Resolve depois dos bombardeios e da Artilharia e antes das ações terrestres.
 - Se múltiplas operações chegarem ao mesmo território inicialmente Vazio, a primeira válida pela ordem oficial pode ocupá-lo. Uma chegada aliada posterior reforça o ocupante; uma chegada adversária disputa o território e precisa sobreviver/vencer para conquistá-lo. Campo Minado, Bunker, Flak e demais estados são reavaliados no momento de cada chegada.
 
-### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Tropas Reservas
+### [DEFINITIVO — IMPLEMENTADO NO DOMÍNIO V1] Tropas Reservas
 
 - Energia: 15; cooldown geral previsto: três rounds; mecanismo de comeback baseado em territórios perdidos no round anterior.
 - Com zero territórios perdidos, não há benefício e a arma não é elegível para produzir efeito.
@@ -755,7 +755,7 @@ A coluna 6+ representa seis ou mais territórios perdidos. As tropas entram no p
 - Não interfere com Propaganda de Guerra, Transporte Aéreo, Paz, Sabotagem, Anulador de Transferência ou outras armas globais/não fixas no território.
 - Paz prevalece: quando uma relação válida de Paz impedir a hostilidade entre os jogadores, o Infiltrado preparado contra o jogador protegido é anulado.
 
-### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Recuperação de Tropas
+### [DEFINITIVO — IMPLEMENTADO NO DOMÍNIO V1] Recuperação de Tropas
 
 - Energia: 15; recuperação máxima: N1 4, N2 5, N3 6, N4 7, N5 8 e N6 9.
 - Escolhe um território que pertencia ao jogador, foi atacado no round anterior, perdeu tropas e continuou sob domínio do mesmo jogador.
@@ -763,7 +763,7 @@ A coluna 6+ representa seis ou mais territórios perdidos. As tropas entram no p
 - Nunca ultrapassa as baixas efetivamente registradas ali. Exemplo: perdeu 3 com N6, recupera 3; perdeu 12 com N6, recupera 9.
 - O servidor registra as baixas reais por território.
 
-### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Mercenários
+### [DEFINITIVO — IMPLEMENTADO NO DOMÍNIO V1] Mercenários
 
 - Energia: 20; cooldown geral previsto: três rounds.
 - Beneficia somente o próprio jogador que ativou a carta; não permite escolher aliado.
