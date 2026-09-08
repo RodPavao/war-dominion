@@ -820,6 +820,12 @@ A integração das armas começa por um adaptador exclusivamente de consulta ent
 
 Identidades técnicas estáveis de jogador, território e mapa permanecem separadas de nomes e textos user-facing. A localização global continua sendo requisito futuro, e nenhum texto traduzido ou apresentado na interface deve ser usado como identidade de domínio.
 
+### [DEFINITIVO] Runtime de loadout, Energy e cooldown
+
+Progressão permanente da conta, loadout disponível na partida e estado runtime são camadas distintas. Energy e cooldown pertencem somente à sessão e nunca são gravados como progressão. Todo jogador inicia com zero Energy; disponibilidade é consultada por códigos técnicos estruturados, que futuramente serão convertidos em mensagens pelo sistema global de localização.
+
+O ciclo real de rounds avança cooldown uma única vez por round. A consulta runtime não executa armas nem altera territórios. A composição autoritativa dos decks Normais e o vínculo dos IDs provisórios de Random Cards com os IDs canônicos das armas ainda precisam ser transportados até o Match Setup antes que essas armas possam ser disponibilizadas, sem fallback silencioso de nível ou conteúdo.
+
 ### [DEFINITIVO] Ordem global de resolução das armas — V2
 
 #### Fase 0 — Início do round

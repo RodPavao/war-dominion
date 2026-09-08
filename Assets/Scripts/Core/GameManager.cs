@@ -23,6 +23,7 @@ public class GameManager : MonoBehaviour
         randomCardsSession != null
             ? randomCardsSession.GetHand(ObterIdJogadorLocal())
             : System.Array.Empty<string>();
+    public WDWeaponMatchRuntime WeaponRuntime => weaponRuntime;
     public bool EhPartidaUmContraUm => MatchSetupAtual != null && MatchSetupAtual.IsOneVsOne;
     public bool RequerSelecaoTerritorialInicial => MatchSetupAtual != null &&
         MatchSetupAtual.RequiresInitialTerritorySelection;
@@ -61,6 +62,7 @@ public class GameManager : MonoBehaviour
     private readonly HistoricoReforcos historicoReforcos =
         new HistoricoReforcos();
     private WDRandomCardsSession randomCardsSession;
+    private WDWeaponMatchRuntime weaponRuntime;
     private WDInitialTerritorySelectionSession initialSelectionSession;
     private UICompositionRoot uiCompositionRoot;
     private bool bloqueioInicioPartida = true;
@@ -389,6 +391,7 @@ public class GameManager : MonoBehaviour
         else
             AplicarParticipantesDoMatchSetupAoTabuleiro();
         InicializarRandomCards();
+        InicializarWeaponRuntime();
         if (RequerSelecaoTerritorialInicial)
             InicializarSelecaoTerritorial();
         else
@@ -634,6 +637,7 @@ public class GameManager : MonoBehaviour
         jogadoresQueEnviaram.Clear();
 
         EntregarRandomCardsDoRound();
+        AtualizarWeaponRuntimeParaRound();
 
         CancelarSelecaoAtual();
 
@@ -695,6 +699,56 @@ public class GameManager : MonoBehaviour
     public bool ConsumirCartaRandomJogadorLocal(int slotIndex) =>
         !bloqueioInicioPartida && !EmSelecaoInicial && randomCardsSession != null &&
         randomCardsSession.Consume(ObterIdJogadorLocal(), slotIndex);
+
+    // =====================================================
+    // 13. RUNTIME DE ENERGY, COOLDOWN E LOADOUT SEM EXECUÇÃO
+    // =====================================================
+
+    private void InicializarWeaponRuntime()
+    {
+        WDMatchSetup setup = MatchSetupAtual;
+        if (setup == null)
+            return;
+
+        WDArmoryCatalogConfig catalog =
+            Resources.Load<WDArmoryCatalogConfig>("UI/Home/WDArmoryCatalogConfig");
+        if (catalog == null)
+        {
+            Debug.LogError("Catálogo canônico de armas não encontrado.");
+            return;
+        }
+
+        var playerIds = new List<string>();
+        foreach (WDMatchParticipant participant in setup.Participants)
+            playerIds.Add(participant.PlayerId);
+
+        weaponRuntime = new WDWeaponMatchRuntime(
+            catalog,
+            playerIds,
+            new WDMatchSetupWeaponLoadoutSource(setup, ObterCartasRandom),
+            new WDUnavailableWeaponLevelSource());
+        weaponRuntime.RefreshLoadouts();
+    }
+
+    private void AtualizarWeaponRuntimeParaRound()
+    {
+        if (weaponRuntime == null)
+            return;
+
+        weaponRuntime.RefreshLoadouts();
+        weaponRuntime.AdvanceCooldownsForRound(RodadaAtual);
+    }
+
+    private IReadOnlyList<string> ObterCartasRandom(string playerId) =>
+        randomCardsSession != null
+            ? randomCardsSession.GetHand(playerId)
+            : System.Array.Empty<string>();
+
+    public WDWeaponAvailability ConsultarDisponibilidadeArma(
+        string playerId, string weaponId) =>
+        weaponRuntime != null
+            ? weaponRuntime.GetAvailability(playerId, weaponId)
+            : new WDWeaponAvailability(WDWeaponAvailabilityReason.PlayerNotFound);
 
     private string ObterIdJogadorLocal()
     {

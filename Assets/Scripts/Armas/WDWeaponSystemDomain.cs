@@ -157,10 +157,13 @@ public sealed class WDWeaponPlayerRuntimeState
     private readonly Dictionary<string, WDWeaponRuntimeEntry> weapons =
         new(StringComparer.Ordinal);
     private readonly List<WDWeaponAction> actions = new();
+    private int lastCooldownRound = -1;
 
     public string PlayerId { get; }
     public int Energy { get; private set; }
     public IReadOnlyList<WDWeaponAction> Actions => actions;
+    public IReadOnlyCollection<WDWeaponRuntimeEntry> Weapons => weapons.Values;
+    public int LastCooldownRound => lastCooldownRound;
 
     public WDWeaponPlayerRuntimeState(string playerId, int initialEnergy = 0)
     {
@@ -196,6 +199,25 @@ public sealed class WDWeaponPlayerRuntimeState
     {
         if (action != null && actions.All(item => item.ActionId != action.ActionId))
             actions.Add(action);
+    }
+
+    // ============================================================
+    // 03. AVANÇO ÚNICO E IDEMPOTENTE DE COOLDOWN POR ROUND
+    // ============================================================
+
+    public bool AdvanceCooldownsForRound(int round)
+    {
+        int normalizedRound = Math.Max(1, round);
+        if (normalizedRound <= lastCooldownRound)
+            return false;
+
+        if (lastCooldownRound >= 1)
+            for (int elapsed = lastCooldownRound; elapsed < normalizedRound; elapsed++)
+                foreach (WDWeaponRuntimeEntry weapon in weapons.Values)
+                    weapon.AdvanceRound();
+
+        lastCooldownRound = normalizedRound;
+        return true;
     }
 }
 
