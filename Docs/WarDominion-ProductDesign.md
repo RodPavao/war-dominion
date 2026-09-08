@@ -844,6 +844,16 @@ Criar, cancelar ou substituir uma intenção não debita Energy, não inicia coo
 
 Ao fechar a Preparação, as intenções daquele round são congeladas em uma coleção imutável e ordenadas por round, fase, ordem oficial do jogador, ordem de programação e `ActionId`. A futura etapa de execução deverá revalidar cada ação contra o estado autoritativo daquele momento, pois uma intenção válida na Preparação pode deixar de ser válida durante a resolução.
 
+### Etapa 7D.1 — porta autoritativa de mutação
+
+O estado real da partida permanece a única fonte de verdade para territórios. A porta `IWDGameWeaponMutationPort` valida comandos técnicos e aplica transições completas diretamente no território real; o `WDGameWeaponContext` continua read-only e reflete a alteração na consulta seguinte, sem cópia concorrente do tabuleiro.
+
+As transições territoriais garantem invariantes finais: Ocupado possui jogador canônico e pelo menos uma tropa; Neutro não possui dono e tem exatamente uma tropa; Vazio não possui dono e tem zero tropas. Dano que zera um território conclui a operação em Vazio. Transferência troca o proprietário do mesmo `TerritoryId` preservando as tropas e não depende de adjacência.
+
+Energy, cooldown e usos são alterados exclusivamente no `WDWeaponMatchRuntime`. Instalações usam um único `WDWeaponInstallationRegistry` runtime indexado por IDs canônicos e território, sem GameObjects visuais nem lista concorrente no `GameManager`. Cada mutação pode receber `MutationId`; um ID aplicado com sucesso não pode ser aplicado novamente. Operações validam todos os pré-requisitos antes de escrever, preparando comandos compostos futuros sem deixar estado parcial.
+
+Os handlers das 25 armas e o `WDWeaponResolutionPipeline` continuam desligados da partida. As ações congeladas da Preparação não são executadas nesta etapa.
+
 ### [DEFINITIVO] Ordem global de resolução das armas — V2
 
 #### Fase 0 — Início do round

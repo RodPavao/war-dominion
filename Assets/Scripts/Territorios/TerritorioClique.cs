@@ -326,6 +326,38 @@ public class TerritorioClique : MonoBehaviour
         AtualizarIdentidadeVisual();
     }
 
+    // =====================================================
+    // TRANSIÇÃO AUTORITATIVA ATÔMICA PARA ADAPTADORES
+    // =====================================================
+
+    public bool TentarAplicarEstadoAutoritativo(
+        Dono novoDono, int novasTropas, EstadoTerritorial novoEstado)
+    {
+        bool estadoValido = novoEstado switch
+        {
+            EstadoTerritorial.Ocupado => novoDono != Dono.Neutro && novasTropas >= 1,
+            EstadoTerritorial.Neutro => novoDono == Dono.Neutro && novasTropas == 1,
+            EstadoTerritorial.Vazio => novoDono == Dono.Neutro && novasTropas == 0,
+            _ => false
+        };
+        if (!estadoValido)
+            return false;
+
+        if (territorioTropas == null)
+            territorioTropas = GetComponent<TerritorioTropas>();
+        if (territorioTropas == null)
+            return false;
+
+        dono = novoDono;
+        estadoTerritorial = novoEstado;
+        if (novoEstado == EstadoTerritorial.Vazio)
+            territorioTropas.DefinirQuantidadeZeroSemOcupante();
+        else
+            territorioTropas.DefinirQuantidade(novasTropas);
+        AtualizarIdentidadeVisual();
+        return true;
+    }
+
     public void DestacarContinente(
         Color cor)
     {

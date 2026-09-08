@@ -25,6 +25,9 @@ public class GameManager : MonoBehaviour
             : System.Array.Empty<string>();
     public WDWeaponMatchRuntime WeaponRuntime => weaponRuntime;
     public WDWeaponPreparationService WeaponPreparation => weaponPreparation;
+    public IWDGameWeaponMutationPort WeaponMutationPort => weaponMutationPort;
+    public WDWeaponInstallationRegistry WeaponInstallationRegistry =>
+        weaponInstallationRegistry;
     public IReadOnlyList<WDWeaponAction> AcoesArmasCongeladas =>
         acoesArmasCongeladas;
     public bool EhPartidaUmContraUm => MatchSetupAtual != null && MatchSetupAtual.IsOneVsOne;
@@ -67,6 +70,8 @@ public class GameManager : MonoBehaviour
     private WDRandomCardsSession randomCardsSession;
     private WDWeaponMatchRuntime weaponRuntime;
     private WDWeaponPreparationService weaponPreparation;
+    private IWDGameWeaponMutationPort weaponMutationPort;
+    private WDWeaponInstallationRegistry weaponInstallationRegistry;
     private IReadOnlyList<WDWeaponAction> acoesArmasCongeladas =
         System.Array.Empty<WDWeaponAction>();
     private WDInitialTerritorySelectionSession initialSelectionSession;
@@ -738,6 +743,10 @@ public class GameManager : MonoBehaviour
         weaponRuntime.RefreshLoadouts();
         weaponPreparation = new WDWeaponPreparationService(
             weaponRuntime, new WDGameWeaponContext(this), catalog);
+        weaponInstallationRegistry = new WDWeaponInstallationRegistry();
+        weaponMutationPort = new WDGameWeaponMutationPort(
+            new WDUnityGameWeaponMutableStateSource(this), weaponRuntime,
+            catalog, weaponInstallationRegistry);
     }
 
     private void AtualizarWeaponRuntimeParaRound()
