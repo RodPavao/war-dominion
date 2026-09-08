@@ -522,6 +522,7 @@ Armas de dano não conquistam território. A conquista ocorre somente por movime
 - Percentuais: N1 15%, N2 20%, N3 25%, N4 30%, N5 35%, N6 40%.
 - A quantidade sabotada é arredondada para baixo.
 - Infiltrado não bloqueia Sabotagem, pois ela é uma ação global contra o jogador e não uma instalação fixa territorial.
+- Se várias Sabotagens forem preparadas contra o mesmo jogador no mesmo round, prevalece apenas a primeira ação válida conforme a ordem oficial, independentemente do nível. As posteriores são anuladas sem consumo de Energia nem cooldown. Se uma anterior for invalidada por Paz, a próxima válida ainda pode funcionar.
 
 ### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Reforços
 
@@ -561,10 +562,13 @@ Drone é uma arma própria do War Dominion.
 - É uma instalação territorial. Sua força econômica elevada é intencional e não deve ser reduzida automaticamente por parecer uma escolha muito forte.
 - Se o território for conquistado, a instalação é capturada e o novo proprietário recebe as parcelas restantes. A duração não reinicia; o conquistador não paga Energia, não consome ativação da própria arma e não altera seu cooldown.
 - A instalação em funcionamento pertence ao território e ao proprietário atual, enquanto a ativação original continua atribuída a quem a utilizou.
+- Uma Central recém-instalada começa a produzir somente no round seguinte.
 
 ### [DEFINITIVO — DIREÇÃO, DETALHES PENDENTES] Bomba Atômica
 
 A Bomba Atômica mantém deliberadamente grande potencial de dano. Seu efeito não deve ser reduzido automaticamente apenas por atingir vários territórios vizinhos: custo elevado de Energia e possibilidade de preparação e defesa estratégica integram o balanceamento. Os detalhes completos ainda serão consolidados na matriz correspondente.
+
+Pode detonar no alvo central programado mesmo que esse território tenha sido zerado anteriormente no mesmo round. A validade é definida pelo alvo central programado. Paz pode impedir o ataque ao próprio alvo central quando aplicável, mas não protege proprietários de territórios vizinhos contra o dano colateral depois de uma detonação válida.
 
 ### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Transporte Aéreo
 
@@ -572,7 +576,7 @@ A Bomba Atômica mantém deliberadamente grande potencial de dano. Seu efeito n�
 - Capacidade: N1 5, N2 7, N3 10, N4 12, N5 15 e N6 18 tropas.
 - Transporta tropas de território próprio para outro território próprio ou aliado, em qualquer lugar do mapa.
 - Deve permanecer ao menos uma tropa na origem quando aplicável às regras normais de propriedade.
-- Pode transportar junto uma instalação fixa compatível existente na origem, como Artilharia, Foguetes, Central de Energia, Bunker ou Flak Tower. Campo Minado não é transportável.
+- Pode transportar junto uma instalação fixa compatível existente na origem, como Artilharia, Foguetes, Central de Energia ou Flak Tower. Campo Minado e Bunker não são transportáveis.
 - A instalação mantém integralmente duração, disparos, barreira, produção e demais estados restantes.
 - Se o destino já possuir instalação do mesmo tipo, a ação é bloqueada com informação apropriada; tropas e instalação não se movem nem são perdidas. Instalações diferentes podem coexistir no território, salvo futura exceção explícita.
 - Flak não intercepta, Paz não bloqueia e Infiltrado não interfere: Transporte Aéreo é uma ação logística própria ou aliada, não uma ação hostil nem uma instalação fixa atuando no território infiltrado.
@@ -615,7 +619,10 @@ A Bomba Atômica mantém deliberadamente grande potencial de dano. Seu efeito n�
 - N4: 3 danos por alvo, até 3 alvos, por 3 rounds.
 - É automática: a cada round operacional, o servidor identifica os territórios inimigos diretamente vizinhos, ordena-os da maior para a menor quantidade atual de tropas e seleciona até três. Empates usam critério determinístico comum; sem alvo válido, não há disparo naquele round.
 - O jogador não escolhe alvos a cada round. A seleção é recalculada em cada operação e pode repetir ou trocar completamente os alvos.
-- Resolve antes dos combates terrestres e pode ser destruída por armas compatíveis, conforme a matriz futura.
+- Pode operar no mesmo round em que é instalada. Resolve depois das demais armas ofensivas programadas e antes de Paraquedistas e ações terrestres, recalculando seus alvos no momento da execução com o estado já atualizado.
+- Múltiplas Artilharias resolvem sequencialmente. A ordem entre proprietários segue a ordem oficial dos jogadores; instalações do mesmo proprietário usam o ID estável do território de origem.
+- Infiltrado ou Sniper podem impedir sua operação no round. O round operacional é consumido mesmo quando não existir disparo válido.
+- Pode ser destruída por armas compatíveis, conforme as regras consolidadas.
 - Se o território for conquistado, é capturada e continua para o novo proprietário pelo tempo restante. A duração não reinicia e a captura não consome arma, Energia, ativação ou cooldown do conquistador.
 
 ### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Foguetes
@@ -625,10 +632,12 @@ A Bomba Atômica mantém deliberadamente grande potencial de dano. Seu efeito n�
 - Não expira por rounds: permanece até consumir os dois disparos, ser destruída ou capturada.
 - Alcance de até três territórios/conexões a partir da instalação.
 - Não é automática. O jogador programa quando disparar e escolhe um alvo válido; pode instalar e guardar os disparos.
+- Pode disparar no mesmo round em que é instalada. A interação com o território da instalação permite escolher usar um disparo e selecionar o alvo válido.
 - No máximo uma nova instalação no round permitido pela arma. Podem coexistir instalações do mesmo jogador em territórios diferentes, mas nunca duas de Foguetes no mesmo território. Uma instalação antiga ainda ativa não impede outra quando a arma voltar a estar disponível.
 - A contagem é 2 → 1 → 0, quando a instalação é encerrada/removida.
 - Se capturada, o novo proprietário recebe exatamente os disparos restantes, sem pagar Energia nem consumir sua própria ativação/cooldown.
-- Resolve antes dos combates terrestres. Interações com Flak, Bunker e destruição serão fechadas na matriz.
+- Um disparo lançado e interceptado por Flak consome o tiro. Se Paz, Infiltrado ou Sniper impedirem o lançamento antes que ocorra, o tiro não é consumido.
+- Resolve antes dos combates terrestres.
 
 ### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Torre Antiaérea / Flak Tower
 
@@ -638,18 +647,21 @@ A Bomba Atômica mantém deliberadamente grande potencial de dano. Seu efeito n�
 - A matriz final poderá incluir Ataque Aéreo, Drone, Bomba Atômica, Bomba de Longo Alcance, Bomba Química, Kamikaze e Paraquedistas entre as ações interceptáveis.
 - Um território não pode conter duas Flaks. Se áreas de Flaks distintas se sobrepuserem, não somar probabilidades nem fazer múltiplas tentativas: usar somente a Flak de maior nível que cobre o alvo.
 - Se a Flak que cobre o território central interceptar uma Bomba Atômica, a bomba é destruída antes da detonação e não produz dano central nem colateral.
+- Se o território da Flak ficar Vazio, inclusive por Sniper eliminando a última tropa, a instalação é destruída imediatamente. Uma arma posterior no mesmo round não encontra essa Flak; outras Flaks vizinhas ainda podem proteger o local se suas coberturas forem válidas.
 
 ### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Bunker
 
 - Energia: 5; quatro níveis; barreira separada das tropas: N1 2, N2 3, N3 4 e N4 5.
 - Funciona como HP de barreira: o dano primeiro reduz a barreira e somente o excedente, após ela chegar a zero, alcança as tropas. Exemplo: barreira 5 contra dano 7 absorve 5, destrói o Bunker e deixa 2 de dano para a guarnição.
-- Esta lógica se aplica a Ataque Aéreo, Artilharia, Foguetes, Bomba de Longo Alcance, Bomba Atômica no território central, Bomba Química, Kamikaze, forças terrestres e Paraquedistas em ataque.
+- Esta lógica se aplica a Ataque Aéreo, Artilharia, Foguetes, Bomba de Longo Alcance, Bomba Atômica no território central, Kamikaze, forças terrestres e Paraquedistas em ataque.
 - Na Bomba Atômica, a barreira protege apenas o território central conforme o dano aplicável; não impede por si só a detonação nem o dano colateral aos vizinhos.
 - Não pode haver dois Bunkers empilhados no mesmo território.
 - Drone ignora Bunker e atinge diretamente as tropas; Flak ainda pode interceptar Drone conforme sua regra própria.
 - Sniper ignora a barreira e mata diretamente uma tropa.
 - Propaganda de Guerra ignora completamente o Bunker.
+- Bomba Química ignora completamente o Bunker, causa baixas diretamente nas tropas e não reduz a barreira.
 - Infiltrado desarma o Bunker apenas durante aquele round, sem reduzir a barreira nem destruí-lo. Se continuar existente, volta ao funcionamento normal posteriormente.
+- Bunker não pode ser transportado por Transporte Aéreo.
 - Se capturado sem ser destruído, passa ao novo proprietário com a barreira restante e sem regeneração automática.
 - Se Sniper ou qualquer resultado aplicável eliminar a última tropa e tornar o território Vazio, o Bunker é destruído junto com a perda do domínio.
 
@@ -686,7 +698,7 @@ Ao ocupar posteriormente um território Vazio com Artilharia, Foguetes ou Centra
 - Energia: 25; alvo: território inimigo diretamente vizinho.
 - Dano percentual: N1 25%, N2 30%, N3 35%, N4 40%, N5 45% e N6 50%.
 - Arredondar baixas para cima, com mínimo de uma baixa quando a porcentagem positiva aplicada a um alvo válido produzir valor inferior a um. Exemplo: 7 × 50% = 3,5, portanto 4 baixas e 3 sobreviventes.
-- Flak pode interceptar e Paz pode impedir. O dano reduz primeiro a barreira do Bunker, e somente o excedente alcança as tropas. Infiltrado não interfere por não se tratar de arma fixa no território infiltrado.
+- Cooldown geral previsto: três rounds. Flak pode interceptar e Paz pode impedir. Ignora completamente o Bunker, causando as baixas diretamente nas tropas sem reduzir a barreira. Infiltrado não interfere por não se tratar de arma fixa no território infiltrado.
 - Não conquista território.
 
 ### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Paraquedistas
@@ -697,6 +709,8 @@ Ao ocupar posteriormente um território Vazio com Artilharia, Foguetes ou Centra
 - No ataque, seguem lógica semelhante ao combate terrestre. Precisam atravessar/destruir Bunker; podem acionar Campo Minado; sobreviventes de uma conquista permanecem como tropas do conquistador.
 - Se Flak interceptar, nenhum paraquedista chega e a operação é perdida.
 - Quando usados como reforço, chegam antes de ataques terrestres programados dependentes daquele território. O combate usa as tropas efetivas após Sabotagem do reforço natural e a chegada dos Paraquedistas.
+- Resolve depois dos bombardeios e da Artilharia e antes das ações terrestres.
+- Se múltiplas operações chegarem ao mesmo território inicialmente Vazio, a primeira válida pela ordem oficial pode ocupá-lo. Uma chegada aliada posterior reforça o ocupante; uma chegada adversária disputa o território e precisa sobreviver/vencer para conquistá-lo. Campo Minado, Bunker, Flak e demais estados são reavaliados no momento de cada chegada.
 
 ### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Tropas Reservas
 
@@ -735,11 +749,39 @@ A coluna 6+ representa seis ou mais territórios perdidos. As tropas entram no p
 ### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Mercenários
 
 - Energia: 20; cooldown geral previsto: três rounds.
-- Escolhe na ativação o próprio jogador ou um aliado; o mesmo beneficiário recebe todas as parcelas durante três rounds.
+- Beneficia somente o próprio jogador que ativou a carta; não permite escolher aliado.
 - Progressão: N1 1/1/1, N2 2/1/1, N3 2/2/1, N4 2/2/2, N5 3/2/2 e N6 3/3/2.
-- As parcelas entram no pool de reforços do beneficiário e ocorrem automaticamente nos rounds seguintes após uma ativação válida.
+- A primeira parcela entra no pool de reforços do próprio jogador no round da ativação, antes da distribuição. As duas parcelas seguintes ocorrem automaticamente nos rounds posteriores.
 - Sabotagem não reduz Mercenários. Internamente, preservar a origem: reforço natural/regiões é sabotável; Mercenários não é.
 - Infiltrado não cancela nem interfere com Mercenários, que não é uma instalação fixa territorial.
+
+### [DEFINITIVO] Categoria única de ações terrestres
+
+Ataque terrestre e movimento terrestre não ofensivo pertencem à mesma categoria e ao mesmo limite. Próprio → próprio, próprio → aliado, próprio → inimigo e próprio → Vazio consomem, cada um, uma ação terrestre. Os dois últimos podem produzir respectivamente combate ou ocupação.
+
+O limite normal é de três ações terrestres por jogador/round. Blitzkrieg amplia o total para 4 no N1, 5 no N2, 6 no N3 e 7 no N4. Uma ação programada que se torne inválida devido a alterações anteriores da resolução não acontece, mas seu slot permanece consumido.
+
+### [DEFINITIVO] Transferência territorial na resolução
+
+Transferências entre aliados acontecem no início da resolução. Anulador de Transferência resolve antes delas e não é impedido por Paz. A transferência não exige adjacência, preserva todas as tropas existentes e mantém o limite já definido de uma transferência confirmada por jogador em cada round.
+
+### [DEFINITIVO] Ações programadas contra território que ficou Vazio
+
+Uma ação ofensiva programada não é cancelada apenas porque uma ação anterior zerou o território. Bombardeios podem continuar contra o alvo com zero tropas; podem produzir zero baixas, mas, quando efetivamente executados, mantêm os custos normais. A Bomba Atômica segue sua regra específica de validade pelo alvo central programado.
+
+### [DEFINITIVO] Matriz de interações V2 — concorrência e resolução sequencial
+
+As ações são resolvidas sequencialmente conforme a ordem oficial e critérios determinísticos. Cada ação revalida o estado relevante no momento de sua execução.
+
+- Múltiplas relações independentes de Paz podem coexistir. Em Paz recíproca, a primeira válida estabelece a relação e a segunda é anulada sem Energia/cooldown.
+- O primeiro Anulador válido contra um jogador prevalece; os posteriores contra o mesmo jogador são anulados sem Energia/cooldown.
+- A primeira Sabotagem válida contra um jogador prevalece independentemente do nível.
+- O primeiro Infiltrado válido no mesmo território prevalece; os posteriores são anulados sem Energia/cooldown.
+- Múltiplos Snipers válidos podem atingir sequencialmente o mesmo território, causando uma baixa cada enquanto houver alvo/tropas aplicáveis.
+- Múltiplas Propagandas podem ser tentadas em sequência. Falhar pelo limite de tropas não impede uma tentativa posterior de nível suficiente; após um sucesso alterar o estado, ações posteriores incompatíveis deixam de executar.
+- Múltiplas armas ofensivas podem atingir sequencialmente o mesmo território. O estado Vazio não cancela bombardeios já programados.
+
+Capturas usam o estado sequencial da resolução. Se um território trocar de proprietário várias vezes no mesmo round, cada conquista válida atualiza o controlador das instalações capturáveis. Ao final, o último proprietário válido mantém essas instalações com seus estados restantes, sem restaurar duração, tiros, pagamentos ou outros recursos consumidos.
 
 ### [DEFINITIVO] Categorias funcionais das armas
 
@@ -752,33 +794,83 @@ Categoria organiza identidade e comportamento; não representa raridade nem nece
 
 Total: 25 armas, distribuídas em 8/6/6/5.
 
-### [PENDENTE / V1 ESTRUTURAL] Ordem global de resolução das armas
+### [DEFINITIVO] Ordem global de resolução das armas — V2
 
-Esta ordem não é especificação final de implementação. Será revisada após a matriz completa de interações. Princípios já confirmados:
+#### Fase 0 — Início do round
 
-- Paz resolve cedo, antes das ações ofensivas que poderá impedir.
-- Infiltrado é territorial e estabelece a condição antes das ações ligadas ao local.
-- Sabotagem afeta apenas reforço natural baseado em territórios e bônus de regiões.
-- Mercenários, Tropas Reservas, Reforços, Recuperação de Tropas e Paraquedistas não são automaticamente reforço natural sabotável.
-- Sniper resolve obrigatoriamente antes de Propaganda de Guerra.
-- Paraquedistas usados como reforço resolvem antes de ataques terrestres dependentes daquelas tropas.
-- Artilharia e disparos de Foguetes programados para o round resolvem antes dos combates terrestres.
-- Artilharia é automática e seus alvos são escolhidos pelo servidor; Foguetes são programados pelo jogador durante a Preparação e executados pelo servidor na Resolução.
-- Alterações produzidas por armas anteriores integram o estado usado pelo combate terrestre.
-- Ao final, o servidor consolida tropas, proprietários, estados Neutro/Vazio, instalações, barreiras, minas, disparos, durações, Energia, cooldowns, territórios perdidos, baixas por território, parcelas futuras, vitória e dados do próximo round.
+- produção automática das Centrais de Energia já ativas;
+- parcelas automáticas pendentes de Mercenários;
+- carregamento dos dados necessários do round anterior.
 
-A direção macro continua sendo preparação secreta, diplomacia, interferência, economia/reforços, instalações/defesas, ações especiais, ataques, movimentos e consolidação final, sujeita à revisão completa.
+#### Fase 1 — Paz
 
-### [PENDENTE] Matriz e balanceamento antes da implementação
+#### Fase 2 — Anulador de Transferência
 
-O sistema completo de armas não deve ser implementado ainda. Próximas etapas:
+#### Fase 3 — Transferências de território
 
-1. criar a matriz das 25 armas, cobrindo alvo, origem territorial/global, Flak, Bunker, Paz, Infiltrado, Campo Minado, captura, destruição, ordem, consumo de Energia, cooldown e resultados de falha/anulação/interceptação;
-2. resolver todos os conflitos encontrados;
-3. consolidar a ordem global definitiva;
-4. revisar comparativamente Energia, cooldowns, níveis, duração, usos e força relativa;
-5. definir separadamente custos padrão de progressão em Tokens específicos e Moedas;
-6. somente então produzir a especificação de implementação.
+#### Fase 4 — Interferências
+
+- Sabotagem;
+- Infiltrado.
+
+#### Fase 5 — Reforços e distribuição
+
+- reforço natural por territórios e regiões, reduzido por Sabotagem quando aplicável;
+- Reforços;
+- Tropas Reservas;
+- Recuperação de Tropas;
+- Mercenários, incluindo a primeira parcela da ativação;
+- distribuição das tropas disponíveis.
+
+#### Fase 6 — Instalações e logística
+
+- Campo Minado;
+- Bunker;
+- Flak Tower;
+- Artilharia;
+- Foguetes;
+- Central de Energia;
+- Transporte Aéreo.
+
+Central recém-instalada produz somente a partir do round seguinte. Artilharia e Foguetes recém-instalados já podem operar no round atual conforme suas regras.
+
+#### Fase 7 — Sniper
+
+#### Fase 8 — Propaganda de Guerra
+
+#### Fase 9A — Armas ofensivas programadas
+
+- Ataque Aéreo;
+- Drone;
+- Bomba Atômica;
+- Bomba de Longo Alcance;
+- Bomba Química;
+- Kamikaze;
+- Foguetes.
+
+#### Fase 9B — Artilharia automática
+
+#### Fase 10 — Paraquedistas
+
+#### Fase 11 — Ações terrestres
+
+Movimentos para território próprio, aliado, inimigo ou Vazio pertencem ao mesmo limite de ações terrestres.
+
+#### Fase 12 — Consolidação
+
+O servidor consolida proprietários, capturas, instalações, minas, durações, tiros restantes, baixas, territórios perdidos, dados para Tropas Reservas e Recuperação, cooldowns, Energia, usos e o estado necessário ao próximo round.
+
+### [DEFINITIVO] Regras técnicas da resolução
+
+- O servidor/backend futuro é a autoridade final.
+- A ordem é determinística e cada ação revalida o estado no momento apropriado.
+- Toda ação possui ID único e tratamento idempotente.
+- O servidor não confia no cliente para Energia, cooldown, alvo, resultado, instalação, tropas ou propriedade.
+- Efeitos, custos, anulações, falhas, interceptações e alterações de estado são auditáveis.
+
+### [PENDENTE] Especificação de implementação e balanceamento
+
+As regras documentais não autorizam ainda a implementação completa das armas. Antes disso, deve-se transformar a matriz consolidada em especificação técnica, verificar as interações das 25 armas e revisar comparativamente Energia, cooldowns, níveis, duração, usos e força relativa. Custos padrão de progressão em Tokens específicos e Moedas continuam sendo definidos separadamente.
 
 ### [STATUS EM 08/09/2026] Revisão das armas
 
@@ -786,8 +878,8 @@ O sistema completo de armas não deve ser implementado ainda. Próximas etapas:
 - A revisão conceitual inicial das 25 armas foi concluída.
 - Nenhuma implementação runtime deve ser inferida destas decisões documentais.
 - Custos de Energia ainda passarão por revisão comparativa global.
-- Ordem global permanece V1 estrutural e pendente.
-- A primeira consolidação de interações foi registrada; a matriz completa das 25 armas ainda não foi consolidada.
+- Ordem global V2 está definida como regra de resolução.
+- A Matriz de Interações V2 registra as regras de produto atuais; sua especificação técnica exaustiva ainda deve ser produzida antes da implementação.
 - Tokens e Moedas necessários à progressão serão definidos separadamente pelo proprietário, com valores padrão.
 
 ## 9. Economia, VIP, administração e segurança
