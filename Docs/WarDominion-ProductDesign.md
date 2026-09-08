@@ -449,13 +449,153 @@ Cada deck possui exatamente oito slots de Armas principais e dois slots adiciona
 
 As categorias são classificações funcionais extensíveis — inicialmente Apoio, Tática, Estratégica e Especial — e não representam raridade, força ou qualidade. A arquitetura não depende dessa lista inicial e elegibilidade para Apoio é configuração da categoria.
 
-Cada arma possui exatamente seis níveis, sendo o nível 6 o máximo. A progressão é configurável por arma e por nível, sem pressupor dano, duração, chance ou qualquer atributo comum. Upgrades representam Tokens próprios da progressão da arma e custo em Moedas; ambos precisam estar disponíveis e são consumidos conforme a configuração. **Esmeraldas** é o nome definitivo da moeda premium, mas não substitui Tokens ou Moedas e não possui compra real ou vantagem competitiva nesta fase.
+Cada arma possui de um a seis níveis, conforme sua mecânica. Não criar níveis artificiais apenas para alcançar seis. A progressão é configurável por arma e por nível, sem pressupor dano, duração, chance ou qualquer atributo comum. Upgrades representam Tokens próprios da progressão da arma e custo em Moedas; ambos precisam estar disponíveis e são consumidos conforme a configuração. **Esmeraldas** é o nome definitivo da moeda premium, mas não substitui Tokens ou Moedas e não possui compra real ou vantagem competitiva nesta fase.
 
-A coleção distingue arma não obtida, progresso parcial de Tokens, Tokens completos com Moedas insuficientes, upgrade disponível e nível máximo. Os dados atuais de catálogo são poucos mocks explicitamente identificados, apenas para validar fluxo, persistência e apresentação. As 25 armas, seus efeitos, obtenção, custos e balanceamento dos seis níveis permanecem pendentes.
+A coleção distingue arma não obtida, progresso parcial de Tokens, Tokens completos com Moedas insuficientes, upgrade disponível e nível máximo. Os dados atuais de catálogo são poucos mocks explicitamente identificados, apenas para validar fluxo, persistência e apresentação. O catálogo nominal possui 25 armas; efeitos, obtenção, custos e balanceamento ainda não revisados permanecem pendentes.
 
 O estado local atual utiliza um repositório substituível por conta/backend. Nomes e composições dos cinco decks, inventário, níveis, Tokens, Moedas, Esmeraldas e estado VIP são persistidos sem acoplar a interface ao armazenamento. O visual desta seção é **[PROVISÓRIO]** até o Premium Polish.
 
 A modalidade futura **Deckbuilder** é completamente distinta dos slots de decks salvos: ela construirá dinamicamente um deck antes do Round 1 e não foi implementada nesta fase.
+
+### [DEFINITIVO] Catálogo nominal de 25 armas
+
+1. Ataque Aéreo
+2. Campo Minado
+3. Sabotagem
+4. Reforços
+5. Blitzkrieg
+6. Drone
+7. Bomba Atômica
+8. Anulador de Transferência
+9. Sniper
+10. Produção Bélica
+11. Transporte Aéreo
+12. Kamikaze
+13. Bomba de Longo Alcance
+14. Paz
+15. Artilharia
+16. Foguetes
+17. Torre Antiaérea / Flak Tower
+18. Bunker
+19. Propaganda de Guerra
+20. Bomba Química
+21. Paraquedistas
+22. Tropas Reservas
+23. Infiltrado
+24. Recuperação de Tropas
+25. Mercenários
+
+**Anulador** não é uma arma adicional: o nome correto é **Anulador de Transferência**. **Mercenários** é o nome oficial que substitui “Tropas Mercenárias”.
+
+### [DEFINITIVO] Regra global de dano e conquista
+
+Armas que causam dano podem reduzir um território até zero tropas. Quando o dano for maior ou igual à guarnição, o território passa ao estado **VAZIO**, perde o proprietário, permanece com zero tropas e usa a aparência neutra/bege definida para esse estado.
+
+Armas de dano não conquistam território. A conquista ocorre somente por movimento terrestre válido ou por **Paraquedistas**, quando sua mecânica própria de conquista for satisfeita.
+
+### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Ataque Aéreo
+
+- Energia: 20; uso: 1; cooldown geral previsto: três rounds.
+- Alvo: território adversário vizinho.
+- Dano por nível: N1 2, N2 3, N3 4, N4 5, N5 6, N6 7.
+- Ocorre antes dos movimentos e ataques terrestres do jogador.
+- Flak pode interceptar; Paz e Infiltrado podem impedir conforme a futura ordem global.
+- Bunker de qualquer nível protege completamente aquele território contra Ataque Aéreo, independentemente da quantidade de tropas.
+- Não conquista território.
+
+### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Campo Minado
+
+- Energia: 15; uso: 1.
+- É instalado secretamente em território próprio e permanece oculto de adversários e espectadores.
+- Permanece instalado por quantos rounds forem necessários até ser acionado; não expira simplesmente ao final do round.
+- É acionado pelo primeiro ataque terrestre ou uso aplicável de Paraquedistas naquele território.
+- Dano por nível: N1 2, N2 3, N3 4, N4 5, N5 6, N6 7.
+- Causa até o número de baixas possível; dano excedente é perdido e, após o acionamento, a mina é consumida.
+- Se Paz impedir o ataque antes de ele ocorrer, a mina não é consumida. Infiltrado poderá interferir conforme a futura ordem global.
+
+### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Sabotagem
+
+- Energia: 20; uso: 1; alvo: um jogador adversário individual.
+- Afeta somente as tropas naturais de reforço daquele round: reforço derivado dos territórios e bônus de regiões.
+- Não afeta Reforços, Tropas Reservas, Mercenários nem tropas previamente existentes.
+- Percentuais: N1 15%, N2 20%, N3 25%, N4 30%, N5 35%, N6 40%.
+- A quantidade sabotada é arredondada para baixo.
+- Infiltrado poderá anulá-la conforme a futura ordem global.
+
+### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Reforços
+
+- Energia: 25; uso: 1; cooldown geral previsto: três rounds.
+- Escolhe um único território próprio ou, em modo de equipe, um território aliado.
+- As tropas são adicionadas diretamente ao território escolhido.
+- Quantidade por nível: N1 3, N2 4, N3 5, N4 6, N5 7, N6 8.
+- Sabotagem não afeta esta arma. Infiltrado poderá impedi-la conforme a futura ordem global.
+
+### [DEFINITIVO — GAME DESIGN FECHADO, NÃO IMPLEMENTADO] Blitzkrieg
+
+- Energia atual: 15; uso: 1.
+- O custo permanece provisório até a revisão comparativa global de Energia.
+- Concede ataques terrestres adicionais além do limite padrão de três: N1 +1, N2 +2, N3 +3 e N4 +4.
+- Os máximos correspondentes no round são 4, 5, 6 e 7 ataques terrestres.
+- Possui somente quatro níveis.
+- Paz e Infiltrado poderão interferir conforme a futura ordem global.
+
+### [DEFINITIVO — MECÂNICA PRINCIPAL, NÃO IMPLEMENTADO] Drone
+
+Drone é uma arma própria do War Dominion.
+
+- Energia: 25; pode atuar em qualquer lugar do mapa.
+- A ativação já consome Energia e inicia cooldown, mesmo que o jogador desista posteriormente do disparo.
+- Possui reconhecimento de Torre Antiaérea/Flak Tower; o reconhecimento não pode ser usado gratuitamente para mapear defesas.
+- Progressão: N1 1 reconhecimento e até 2 tropas de dano; N2 1 e até 3; N3 1 e até 4; N4 2 e até 3; N5 2 e até 4; N6 2 e até 5.
+- Após consumir os reconhecimentos permitidos, não pode testar outros territórios naquela ativação.
+- O disparo deve escolher um dos territórios reconhecidos. O jogador pode desistir, mas Energia e cooldown não retornam.
+- Flak ainda pode interceptar conforme sua chance; Paz e Infiltrado também poderão interferir conforme a futura ordem global.
+- Não conquista território.
+
+### [DEFINITIVO — DECISÕES PARCIAIS, NÃO IMPLEMENTADO] Armas posteriores
+
+**Torre Antiaérea / Flak Tower** possui quatro níveis, com chances de interceptação N1 50%, N2 65%, N3 80% e N4 90%. Permanece uma defesa secreta até sua atuação ou revelação, conforme regras futuras.
+
+**Bomba Atômica** mantém deliberadamente grande potencial de dano. O efeito não deve ser reduzido apenas por atingir vários vizinhos; custo elevado de Energia e preparação/defesa estratégica integram seu balanceamento. Os detalhes completos permanecem para o bloco correspondente.
+
+Em **Propaganda de Guerra**, o número do nível indica a maior guarnição em que funciona: N1 até 3, N2 até 4, N3 até 5, N4 até 6, N5 até 7 e N6 até 8 tropas. Uma tropa acima do limite faz a arma falhar completamente. Os reforços do início do round já estarão distribuídos antes de sua resolução/animação e podem fazê-la falhar.
+
+**Recuperação de Tropas** recupera até a quantidade definida pelo nível, limitada às tropas efetivamente perdidas naquele território no round anterior. O território precisa ter sido atacado, sofrido baixas e permanecido sob posse do jogador. Nunca cria tropas que não tenham sido efetivamente perdidas.
+
+**Mercenários** dura três rounds. Progressão atual: N1 1/1/1, N2 2/1/1, N3 2/2/1, N4 2/2/2, N5 3/2/2 e N6 3/3/2. Na ativação escolhe um único beneficiário — o próprio jogador ou um aliado — que permanece o mesmo durante os três rounds. Sabotagem não afeta Mercenários.
+
+### [EM DESIGN] Tropas Reservas
+
+Tropas Reservas possui direção anti-massacre/comeback e deve responder às baixas ou aos ataques sofridos no round anterior. A referência analisada do WarTime usa perdas/ataques do round anterior para definir reforço emergencial, possui seis níveis e concede mais tropas conforme a intensidade elegível.
+
+A fórmula e a tabela exatas do War Dominion ainda serão desenhadas. A mecânica deve evitar exploração deliberada; Sabotagem não a afeta e Infiltrado não a anula. Não inferir fórmula até nova decisão.
+
+### [FUTURO] Ordem global de resolução das armas
+
+Depois da revisão das 25 armas, será definida uma única ordem global por fases, evitando uma teia de exceções arma a arma. Direção conceitual atual:
+
+1. preparação secreta;
+2. diplomacia;
+3. interferência;
+4. economia e reforços;
+5. instalações e defesas;
+6. ações especiais;
+7. ataques;
+8. movimentos;
+9. resolução final.
+
+A ordem definitiva somente será fechada após a revisão completa do catálogo.
+
+### [STATUS EM 07/09/2026] Revisão das armas
+
+- Catálogo: 25 armas.
+- Armas 1–5: revisão de game design concluída, ainda sem implementação runtime.
+- Drone: mecânica principal definida antecipadamente.
+- Algumas decisões das armas posteriores estão registradas, mas as restantes ainda exigem revisão detalhada.
+- Nenhuma implementação runtime deve ser inferida destas decisões documentais.
+- Custos de Energia ainda passarão por revisão comparativa global.
+- Tokens e Moedas necessários à progressão serão definidos separadamente pelo proprietário, com valores padrão.
+- Próximo bloco planejado, armas 6–10: Drone, Bomba Atômica, Anulador de Transferência, Sniper e Produção Bélica.
 
 ## 9. Economia, VIP, administração e segurança
 
