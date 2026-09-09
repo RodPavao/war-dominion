@@ -875,6 +875,27 @@ seguintes à instalação, nunca no round da instalação e nunca mais de uma ve
 round. O pagamento altera a Energy real do `WDWeaponMatchRuntime`; captura e abandono
 continuam representáveis pelo registro autoritativo, sem fluxo artificial nesta etapa.
 
+### Etapa 7D.3 — lifecycle e primeiro lote ofensivo real
+
+A integração real passa a abranger 10 das 25 armas: Reforços, Bunker, Flak Tower,
+Central de Energia, Ataque Aéreo, Bomba de Longo Alcance, Bomba Química, Kamikaze,
+Foguetes e Artilharia. As outras 15 permanecem `Deferred`, sem efeito ou custo, e o
+`WDWeaponResolutionPipeline` global continua desligado.
+
+O lifecycle autoritativo remove Bunker e Flak quando o território vira Vazio e abandona
+Central, Foguetes e Artilharia, preservando seus recursos restantes. Captura sem passar
+por Vazio transfere a propriedade das instalações sem restaurar HP, duração, tiros,
+operações ou pagamentos. A Flak protege seu território e vizinhos próprios/aliados por
+exatamente três rounds de existência, escolhe uma única cobertura por maior nível e ID
+estável e usa resolução aleatória determinística.
+
+O dano real usa a mutation port: Bunker absorve dano convencional antes das tropas,
+Bomba Química ignora sua barreira, e tropa zerada produz território Vazio sem conquista.
+Kamikaze sacrifica a tropa no lançamento mesmo quando interceptado. Foguetes guarda dois
+disparos e cobra a instalação, não cada tiro. Artilharia escolhe automaticamente até três
+vizinhos atacáveis por tropas decrescentes e ID, consumindo operação somente quando há
+disparo. Instalações continuam sem representação visual definitiva.
+
 ### [DEFINITIVO] Ordem global de resolução das armas — V2
 
 #### Fase 0 — Início do round

@@ -224,6 +224,117 @@ public sealed class WDWeaponExecutionCoordinatorTests
         Assert.That(context.FindTerritory("owned").Troops, Is.EqualTo(13));
     }
 
+    // ============================================================
+    // 05. DANO, FLAK, LIFECYCLE E INSTALAÇÕES OFENSIVAS REAIS
+    // ============================================================
+
+    [TestCase(WDSupportWeaponIds.AirStrike, 20)]
+    [TestCase(WDStrategicWeaponIds.LongRangeBomb, 25)]
+    [TestCase(WDSpecialWeaponIds.ChemicalBomb, 25)]
+    [TestCase(WDTacticalWeaponIds.Kamikaze, 25)]
+    public void OffensiveBatchMutatesRealStateAndCommitsCanonicalCost(
+        string weaponId, int cost)
+    {
+        source.Connect("owned", "enemy");
+        WDWeaponAction action = Action(weaponId, "enemy", origin: "owned");
+        AssertExecuted(action);
+        Assert.That(context.FindTerritory("enemy").Troops, Is.LessThan(4));
+        AssertRuntime("p1", weaponId, 200 - cost, 3, 1);
+    }
+
+    [Test]
+    public void BunkerAbsorbsOverflowAndIsRemovedAtZero()
+    {
+        AssertExecuted(Action(WDSupportWeaponIds.Bunker, "enemy", "p3", "enemy-bunker"));
+        runtime.FindPlayer("p1").GetWeapon(WDSupportWeaponIds.AirStrike).SetLevel(6, 6);
+        source.Connect("owned", "enemy");
+        AssertExecuted(Action(WDSupportWeaponIds.AirStrike, "enemy", origin: "owned"));
+        Assert.That(registry.Find("enemy-bunker"), Is.Null);
+        Assert.That(context.FindTerritory("enemy").Troops, Is.EqualTo(2));
+    }
+
+    [Test]
+    public void ChemicalIgnoresBunkerBarrier()
+    {
+        AssertExecuted(Action(WDSupportWeaponIds.Bunker, "enemy", "p3", "chemical-bunker"));
+        source.Connect("owned", "enemy");
+        AssertExecuted(Action(WDSpecialWeaponIds.ChemicalBomb, "enemy", origin: "owned"));
+        Assert.That(registry.Find("chemical-bunker").BarrierRemaining, Is.EqualTo(5));
+        Assert.That(context.FindTerritory("enemy").Troops, Is.EqualTo(2));
+    }
+
+    [Test]
+    public void FlakSelectionUsesHighestLevelThenStableIdAndInterceptsDeterministically()
+    {
+        source.Connect("enemy2", "enemy");
+        mutations.Install("flak-low", new WDWeaponInstallationState("z", "flak_tower",
+            "enemy", "p3", 3, 0, 0, 0, 2, true, 1));
+        mutations.Install("flak-high", new WDWeaponInstallationState("a", "flak_tower",
+            "enemy2", "p3", 3, 0, 0, 0, 4, true, 1));
+        coordinator = new WDWeaponExecutionCoordinator(context, runtime, mutations,
+            registry, catalog, new FixedRandom(0));
+        source.Connect("owned", "enemy");
+        WDWeaponAction action = Action(WDSupportWeaponIds.AirStrike, "enemy", origin: "owned");
+        Assert.That(coordinator.Execute(action).Status,
+            Is.EqualTo(WDIntegratedWeaponExecutionStatus.Intercepted));
+        Assert.That(context.FindTerritory("enemy").Troops, Is.EqualTo(4));
+    }
+
+    [Test]
+    public void EmptyTerritoryRemovesDefenseAndAbandonsStrategicInstallations()
+    {
+        mutations.Install("b", new WDWeaponInstallationState("b", "bunker", "enemy",
+            "p3", 0, 2, 0, 0));
+        mutations.Install("r", new WDWeaponInstallationState("r", "rockets", "enemy",
+            "p3", 0, 0, 2, 0));
+        mutations.RemoveTroops("empty", "enemy", 4);
+        Assert.That(registry.Find("b"), Is.Null);
+        Assert.That(registry.Find("r").IsAbandoned, Is.True);
+    }
+
+    [Test]
+    public void KamikazeSacrificePersistsWhenFlakIntercepts()
+    {
+        source.Connect("owned", "enemy");
+        mutations.Install("flak", new WDWeaponInstallationState("flak", "flak_tower",
+            "enemy", "p3", 3, 0, 0, 0, 4, true, 1));
+        coordinator = new WDWeaponExecutionCoordinator(context, runtime, mutations,
+            registry, catalog, new FixedRandom(0));
+        WDWeaponAction action = Action(WDTacticalWeaponIds.Kamikaze, "enemy", origin: "owned");
+        Assert.That(coordinator.Execute(action).Status,
+            Is.EqualTo(WDIntegratedWeaponExecutionStatus.Intercepted));
+        Assert.That(context.FindTerritory("owned").Troops, Is.EqualTo(4));
+        Assert.That(context.FindTerritory("enemy").Troops, Is.EqualTo(4));
+    }
+
+    [Test]
+    public void RocketsInstallWithTwoShotsAndLaunchWithoutSecondEnergyCost()
+    {
+        source.Connect("owned", "enemy");
+        AssertExecuted(Action(WDStrategicWeaponIds.Rockets, "owned",
+            installationId: "launcher"));
+        Assert.That(registry.Find("launcher").ChargesRemaining, Is.EqualTo(2));
+        int energy = runtime.FindPlayer("p1").Energy;
+        WDWeaponAction launch = Action(WDStrategicWeaponIds.Rockets, "enemy",
+            installationId: "launcher", origin: "owned",
+            phase: WDWeaponResolutionPhase.ProgrammedOffense);
+        AssertExecuted(launch);
+        Assert.That(registry.Find("launcher").ChargesRemaining, Is.EqualTo(1));
+        Assert.That(runtime.FindPlayer("p1").Energy, Is.EqualTo(energy));
+    }
+
+    [Test]
+    public void ArtilleryChoosesUpToThreeTargetsAndConsumesOnlyWhenOperating()
+    {
+        source.Connect("owned", "enemy");
+        AssertExecuted(Action(WDStrategicWeaponIds.Artillery, "owned",
+            installationId: "artillery"));
+        int before = context.FindTerritory("enemy").Troops;
+        Assert.That(coordinator.ProcessArtillery(1), Is.EqualTo(1));
+        Assert.That(context.FindTerritory("enemy").Troops, Is.LessThan(before));
+        Assert.That(coordinator.ProcessArtillery(1), Is.Zero);
+    }
+
     private void ExecuteCentralAtRound(string territory, string id, int round)
     {
         source.CurrentRound = round;
@@ -234,10 +345,11 @@ public sealed class WDWeaponExecutionCoordinatorTests
 
     private WDWeaponAction Action(
         string weaponId, string target, string author = "p1",
-        string installationId = "", int? round = null) =>
+        string installationId = "", int? round = null, string origin = "",
+        WDWeaponResolutionPhase? phase = null) =>
         new($"test-action-{actionSequence++}", author, weaponId,
-            round ?? source.CurrentRound, catalog.FindWeapon(weaponId).ResolutionPhase,
-            actionSequence, targetTerritoryId: target,
+            round ?? source.CurrentRound, phase ?? catalog.FindWeapon(weaponId).ResolutionPhase,
+            actionSequence, originTerritoryId: origin, targetTerritoryId: target,
             installationId: installationId);
 
     private void AssertExecuted(WDWeaponAction action) => Assert.That(
@@ -289,6 +401,7 @@ public sealed class WDWeaponExecutionCoordinatorTests
 
         private readonly List<WDGameWeaponPlayerView> players = new();
         private readonly Dictionary<string, Territory> territories = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, HashSet<string>> neighbours = new(StringComparer.Ordinal);
         public int CurrentRound { get; set; } = 1;
         public string ActiveMapId => "execution_test";
         public IReadOnlyList<WDGameWeaponPlayerView> GetPlayers() => players;
@@ -307,9 +420,17 @@ public sealed class WDWeaponExecutionCoordinatorTests
                 players.Count(item => item.TeamIndex == a.TeamIndex) > 1 &&
                 a.TeamIndex == b.TeamIndex;
         }
-        public bool AreConnected(string a, string b, TipoConexaoMapa type) => false;
+        public bool AreConnected(string a, string b, TipoConexaoMapa type) =>
+            neighbours.TryGetValue(a, out HashSet<string> values) && values.Contains(b);
         public IReadOnlyList<string> GetNeighbours(string id, TipoConexaoMapa? type) =>
-            Array.Empty<string>();
+            neighbours.TryGetValue(id, out HashSet<string> values)
+                ? values.OrderBy(x => x, StringComparer.Ordinal).ToArray() : Array.Empty<string>();
+        public void Connect(string a, string b)
+        {
+            if (!neighbours.TryGetValue(a, out HashSet<string> av)) neighbours[a] = av = new();
+            if (!neighbours.TryGetValue(b, out HashSet<string> bv)) neighbours[b] = bv = new();
+            av.Add(b); bv.Add(a);
+        }
         public bool TryApplyTerritory(
             string id, string owner, int troops, WDWeaponTerritoryStateKind state)
         {
@@ -335,6 +456,7 @@ public sealed class WDWeaponExecutionCoordinatorTests
             source.Add("owned3", "p1", 2);
             source.Add("ally", "p2", 4);
             source.Add("enemy", "p3", 4);
+            source.Add("enemy2", "p3", 2);
             return source;
         }
         private void Add(string id, string owner, int troops) => territories.Add(id,
@@ -342,5 +464,12 @@ public sealed class WDWeaponExecutionCoordinatorTests
                 State = WDWeaponTerritoryStateKind.Occupied });
         private static WDGameWeaponTerritoryView View(Territory value) =>
             new(value.Id, value.Owner, value.Troops, value.State);
+    }
+
+    private sealed class FixedRandom : IWDWeaponRandomSource
+    {
+        private readonly double value;
+        public FixedRandom(double value) => this.value = value;
+        public double NextUnit(string stableKey) => value;
     }
 }

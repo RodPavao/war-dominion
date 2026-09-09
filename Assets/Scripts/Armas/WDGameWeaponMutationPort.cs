@@ -128,6 +128,28 @@ public sealed class WDWeaponInstallationRegistry
     }
 
     internal bool Remove(string installationId) => installations.Remove(installationId);
+
+    internal void ApplyTerritoryLifecycle(
+        string territoryId, string ownerPlayerId, WDWeaponTerritoryStateKind state)
+    {
+        foreach (WDWeaponInstallationState item in installations.Values
+            .Where(x => !x.IsDestroyed && x.TerritoryId == territoryId).ToArray())
+        {
+            if (state == WDWeaponTerritoryStateKind.Empty)
+            {
+                if (item.WeaponId == WDSupportWeaponIds.Bunker ||
+                    item.WeaponId == WDSupportWeaponIds.FlakTower)
+                    installations.Remove(item.InstallationId);
+                else if (item.WeaponId == WDStrategicWeaponIds.EnergyPlant ||
+                         item.WeaponId == WDStrategicWeaponIds.Rockets ||
+                         item.WeaponId == WDStrategicWeaponIds.Artillery)
+                    item.Abandon();
+            }
+            else if (state == WDWeaponTerritoryStateKind.Occupied &&
+                     !string.IsNullOrEmpty(ownerPlayerId))
+                item.Capture(ownerPlayerId);
+        }
+    }
 }
 
 public sealed class WDGameWeaponMutationPort : IWDGameWeaponMutationPort
@@ -347,9 +369,13 @@ public sealed class WDGameWeaponMutationPort : IWDGameWeaponMutationPort
 
     private WDGameWeaponMutationResult Apply(
         string territoryId, string ownerId, int troops,
-        WDWeaponTerritoryStateKind state, int amount = 0) =>
-        source.TryApplyTerritory(territoryId, ownerId, troops, state)
-            ? Ok(amount) : Fail(WDGameWeaponMutationReason.InvalidState);
+        WDWeaponTerritoryStateKind state, int amount = 0)
+    {
+        if (!source.TryApplyTerritory(territoryId, ownerId, troops, state))
+            return Fail(WDGameWeaponMutationReason.InvalidState);
+        registry.ApplyTerritoryLifecycle(territoryId, ownerId, state);
+        return Ok(amount);
+    }
 
     private WDWeaponRuntimeEntry FindWeapon(
         string playerId, string weaponId, out WDGameWeaponMutationReason error)

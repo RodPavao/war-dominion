@@ -652,7 +652,7 @@ public class GameManager : MonoBehaviour
 
         EntregarRandomCardsDoRound();
         AtualizarWeaponRuntimeParaRound();
-        weaponExecutionCoordinator?.ProcessEnergyPlantPayments(RodadaAtual);
+        weaponExecutionCoordinator?.ProcessRoundStart(RodadaAtual);
         weaponPreparation?.BeginRound(RodadaAtual);
         acoesArmasCongeladas = System.Array.Empty<WDWeaponAction>();
 
