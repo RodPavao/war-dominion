@@ -92,7 +92,8 @@ public sealed class WDRealWeaponDamageService
 
         int remaining = Math.Max(0, damage), barrierDamage = 0;
         WDWeaponInstallationState bunker = useBunker
-            ? registry.GetByTerritory(targetId).FirstOrDefault(x => x.WeaponId == WDSupportWeaponIds.Bunker)
+            ? registry.GetByTerritory(targetId).FirstOrDefault(x =>
+                x.WeaponId == WDSupportWeaponIds.Bunker && !x.IsTemporarilyDisabled)
             : null;
         if (bunker != null && remaining > 0)
         {

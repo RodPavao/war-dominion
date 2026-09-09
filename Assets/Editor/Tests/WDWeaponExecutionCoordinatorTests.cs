@@ -195,22 +195,18 @@ public sealed class WDWeaponExecutionCoordinatorTests
     // 04. LOTE FECHADO, IDEMPOTÊNCIA E LEITURA IMEDIATA
     // ============================================================
 
-    [TestCase(WDSupportWeaponIds.Minefield)]
-    [TestCase(WDStrategicWeaponIds.Peace)]
-    [TestCase(WDSupportWeaponIds.AirTransport)]
-    [TestCase(WDTacticalWeaponIds.Paratroopers)]
-    [TestCase(WDSpecialWeaponIds.Infiltrator)]
-    [TestCase(WDSupportWeaponIds.TroopRecovery)]
-    [TestCase(WDSupportWeaponIds.Mercenaries)]
-    public void UnsupportedWeaponIsDeferredWithoutAnyCostOrMutation(string weaponId)
+    [Test]
+    public void UnknownWeaponIsDeferredWithoutAnyCostOrMutation()
     {
-        WDWeaponAction action = Action(weaponId, "enemy");
+        const string weaponId = "future_non_canonical_weapon";
+        var action = new WDWeaponAction("unknown", "p1", weaponId, 1,
+            WDWeaponResolutionPhase.Consolidation, 0);
         string before = source.Fingerprint();
 
         Assert.That(coordinator.Execute(action).Status,
             Is.EqualTo(WDIntegratedWeaponExecutionStatus.Deferred));
         Assert.That(source.Fingerprint(), Is.EqualTo(before));
-        AssertRuntime("p1", weaponId, 200, 0, 0);
+        Assert.That(runtime.FindPlayer("p1").Energy, Is.EqualTo(200));
     }
 
     [Test]
@@ -459,6 +455,128 @@ public sealed class WDWeaponExecutionCoordinatorTests
         Assert.That(runtime.FindPlayer("p1").Energy, Is.EqualTo(energy));
     }
 
+    // ============================================================
+    // 07. ÚLTIMO LOTE: SETE ARMAS CANÔNICAS SEM DEFERRED
+    // ============================================================
+
+    [Test]
+    public void PeaceIsMutualAndReciprocalActionHasNoCost()
+    {
+        AssertExecuted(Action(WDStrategicWeaponIds.Peace, "", targetPlayer: "p3"));
+        Assert.That(roundState.HasPeace("p3", "p1"), Is.True);
+        WDWeaponAction reciprocal=Action(WDStrategicWeaponIds.Peace,"","p3",targetPlayer:"p1");
+        Assert.That(coordinator.Execute(reciprocal).Status,Is.EqualTo(WDIntegratedWeaponExecutionStatus.Superseded));
+        AssertRuntime("p3",WDStrategicWeaponIds.Peace,200,0,0);
+    }
+
+    [Test]
+    public void PeaceResolvedFirstBlocksSabotageWithoutCost()
+    {
+        var peace=Action(WDStrategicWeaponIds.Peace,"",targetPlayer:"p3");
+        var sabotage=Action(WDStrategicWeaponIds.Sabotage,"",targetPlayer:"p3");
+        var results=coordinator.ExecuteFrozenActions(new[]{sabotage,peace});
+        Assert.That(results.Single(x=>x.ActionId==sabotage.ActionId).Status,Is.EqualTo(WDIntegratedWeaponExecutionStatus.Invalidated));
+        AssertRuntime("p1",WDStrategicWeaponIds.Sabotage,185,0,0);
+    }
+
+    [TestCase(1,2)] [TestCase(2,3)] [TestCase(3,4)]
+    [TestCase(4,5)] [TestCase(5,6)] [TestCase(6,7)]
+    public void MinefieldInstallsCanonicalPersistentDamage(int level,int damageValue)
+    {
+        SetLevel("p1",WDSupportWeaponIds.Minefield,level);
+        AssertExecuted(Action(WDSupportWeaponIds.Minefield,"owned",installationId:"mine"));
+        Assert.That(registry.Find("mine").ChargesRemaining,Is.EqualTo(1));
+        Assert.That(WDTacticalWeaponTables.MineDamage(registry.Find("mine").Level),Is.EqualTo(damageValue));
+    }
+
+    [Test]
+    public void TerrestrialEntryIntoMinedEmptyTerritoryAppliesDamageBeforeOccupation()
+    {
+        RunEmptyTerritoryEntryScenario(
+            originTroops: 6, incoming: 4, mineDamage: 2, mineEnabled: true,
+            expectedOriginTroops: 2, expectedTargetTroops: 2,
+            expectedOccupied: true, expectedMineConsumed: true);
+    }
+
+    [Test]
+    public void TerrestrialEntryIntoMinedEmptyTerritoryKeepsItEmptyWhenAllEntrantsDie()
+    {
+        RunEmptyTerritoryEntryScenario(
+            originTroops: 3, incoming: 2, mineDamage: 2, mineEnabled: true,
+            expectedOriginTroops: 1, expectedTargetTroops: 0,
+            expectedOccupied: false, expectedMineConsumed: true);
+    }
+
+    [Test]
+    public void TerrestrialEntryIgnoresTemporarilyDisabledMineAndOccupiesEmptyTerritory()
+    {
+        RunEmptyTerritoryEntryScenario(
+            originTroops: 3, incoming: 2, mineDamage: 2, mineEnabled: false,
+            expectedOriginTroops: 1, expectedTargetTroops: 2,
+            expectedOccupied: true, expectedMineConsumed: false);
+    }
+
+    [Test]
+    public void AirTransportMovesTroopsAndFlakWithoutResettingDuration()
+    {
+        mutations.Install("flak",new WDWeaponInstallationState("flak","flak_tower","owned","p1",2,0,0,0,3,true,1));
+        var action=Action(WDSupportWeaponIds.AirTransport,"ally",origin:"owned",installationId:"flak",
+            parameters:new[]{new WDWeaponActionParameter("troops","3")});
+        AssertExecuted(action);
+        Assert.That(context.FindTerritory("owned").Troops,Is.EqualTo(2));
+        Assert.That(context.FindTerritory("ally").Troops,Is.EqualTo(7));
+        Assert.That(registry.Find("flak").TerritoryId,Is.EqualTo("ally"));
+        Assert.That(registry.Find("flak").DurationRemaining,Is.EqualTo(2));
+    }
+
+    [TestCase(1,2)] [TestCase(2,3)] [TestCase(3,4)] [TestCase(4,5)]
+    public void ParatroopersOccupyEmptyAtAnyDistance(int level,int troops)
+    {
+        mutations.MakeEmpty("empty-enemy","enemy"); SetLevel("p1",WDTacticalWeaponIds.Paratroopers,level);
+        AssertExecuted(Action(WDTacticalWeaponIds.Paratroopers,"enemy"));
+        Assert.That(context.FindTerritory("enemy").OwnerPlayerId,Is.EqualTo("p1"));
+        Assert.That(context.FindTerritory("enemy").Troops,Is.EqualTo(troops));
+    }
+
+    [Test]
+    public void InfiltratorDisablesOriginBunkerAndMineOnlyForRound()
+    {
+        mutations.Install("b",new WDWeaponInstallationState("b","bunker","enemy","p3",0,4,0,0));
+        mutations.Install("m",new WDWeaponInstallationState("m","minefield","enemy","p3",0,0,1,0));
+        AssertExecuted(Action(WDSpecialWeaponIds.Infiltrator,"enemy"));
+        Assert.That(roundState.IsOriginBlocked("enemy"),Is.True);
+        Assert.That(registry.Find("b").IsTemporarilyDisabled,Is.True);
+        coordinator.ProcessRoundStart(2);
+        Assert.That(registry.Find("b").IsTemporarilyDisabled,Is.False);
+        Assert.That(registry.Find("b").BarrierRemaining,Is.EqualTo(4));
+    }
+
+    [TestCase(1,4)] [TestCase(2,5)] [TestCase(3,6)]
+    [TestCase(4,7)] [TestCase(5,8)] [TestCase(6,9)]
+    public void TroopRecoveryUsesAuthoritativePreviousRoundCasualties(int level,int limit)
+    {
+        roundState.CaptureTerritorySnapshot(context.Territories);
+        source.TryApplyTerritory("owned","p1",0,WDWeaponTerritoryStateKind.Empty);
+        source.TryApplyTerritory("owned","p1",1,WDWeaponTerritoryStateKind.Occupied);
+        roundState.ObserveTerritoryHistory(1,context.Territories);
+        roundState.BeginRound(2);source.CurrentRound=2;runtime.AdvanceCooldownsForRound(2);
+        SetLevel("p1",WDSupportWeaponIds.TroopRecovery,level);
+        AssertExecuted(Action(WDSupportWeaponIds.TroopRecovery,"owned",round:2));
+        Assert.That(context.FindTerritory("owned").Troops,Is.EqualTo(1+Math.Min(4,limit)));
+    }
+
+    [TestCase(1,1,1,1)] [TestCase(2,2,1,1)] [TestCase(3,2,2,1)]
+    [TestCase(4,2,2,2)] [TestCase(5,3,2,2)] [TestCase(6,3,3,2)]
+    public void MercenariesPayThreeCanonicalIdempotentInstallments(int level,int first,int second,int third)
+    {
+        SetLevel("p1",WDSupportWeaponIds.Mercenaries,level);
+        AssertExecuted(Action(WDSupportWeaponIds.Mercenaries,""));
+        Assert.That(roundState.TakeReinforcementPool("p1"),Is.EqualTo(first));
+        coordinator.ProcessRoundStart(2);Assert.That(roundState.TakeReinforcementPool("p1"),Is.EqualTo(second));
+        Assert.That(roundState.PayMercenaries(2),Is.Zero);
+        coordinator.ProcessRoundStart(3);Assert.That(roundState.TakeReinforcementPool("p1"),Is.EqualTo(third));
+    }
+
     private void ExecuteCentralAtRound(string territory, string id, int round)
     {
         source.CurrentRound = round;
@@ -495,6 +613,73 @@ public sealed class WDWeaponExecutionCoordinatorTests
     private void SetLevel(string playerId, string weaponId, int level) =>
         runtime.FindPlayer(playerId).GetWeapon(weaponId).SetLevel(
             level, catalog.FindWeapon(weaponId).MaximumLevel);
+
+    // ============================================================
+    // 08. FIXTURE DA PORTA DE ENTRADA HOSTIL EM TERRITÓRIO VAZIO
+    // ============================================================
+
+    private static void RunEmptyTerritoryEntryScenario(
+        int originTroops, int incoming, int mineDamage, bool mineEnabled,
+        int expectedOriginTroops, int expectedTargetTroops,
+        bool expectedOccupied, bool expectedMineConsumed)
+    {
+        GameObject originObject = new("Origin");
+        GameObject targetObject = new("EmptyTarget");
+        GameObject resolverObject = new("TerrestrialResolver");
+        try
+        {
+            TerritorioClique origin = CreateTerritory(
+                originObject, "origin", TerritorioClique.Dono.Jogador1,
+                originTroops, TerritorioClique.EstadoTerritorial.Ocupado);
+            TerritorioClique target = CreateTerritory(
+                targetObject, "empty", TerritorioClique.Dono.Neutro,
+                0, TerritorioClique.EstadoTerritorial.Vazio);
+            originObject.GetComponent<TerritorioFronteiras>()
+                .Configurar(new[] { target });
+
+            bool mineConsumed = false;
+            var resolver = resolverObject.AddComponent<ResolvedorAcoesTerrestres>();
+            resolver.Inicializar(null, (order, amount) =>
+            {
+                if (!mineEnabled)
+                    return amount;
+
+                int losses = Math.Min(amount, mineDamage);
+                Assert.That(order.Origem.RemoverTropas(losses), Is.True);
+                mineConsumed = true;
+                return amount - losses;
+            });
+
+            ResultadoAcaoTerrestre result = resolver.ResolverOrdem(
+                new OrdemTerrestre(origin, target, incoming,
+                    TerritorioClique.Dono.Jogador1, 0));
+
+            Assert.That(result.Executada, Is.EqualTo(expectedOccupied));
+            Assert.That(origin.Tropas, Is.EqualTo(expectedOriginTroops));
+            Assert.That(target.Tropas, Is.EqualTo(expectedTargetTroops));
+            Assert.That(target.IsOccupied, Is.EqualTo(expectedOccupied));
+            Assert.That(target.IsEmpty, Is.EqualTo(!expectedOccupied));
+            Assert.That(mineConsumed, Is.EqualTo(expectedMineConsumed));
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(resolverObject);
+            UnityEngine.Object.DestroyImmediate(targetObject);
+            UnityEngine.Object.DestroyImmediate(originObject);
+        }
+    }
+
+    private static TerritorioClique CreateTerritory(
+        GameObject gameObject, string id, TerritorioClique.Dono owner,
+        int troops, TerritorioClique.EstadoTerritorial state)
+    {
+        gameObject.AddComponent<TerritorioTropas>();
+        gameObject.AddComponent<TerritorioFronteiras>();
+        TerritorioClique territory = gameObject.AddComponent<TerritorioClique>();
+        territory.idTerritorio = id;
+        Assert.That(territory.TentarAplicarEstadoAutoritativo(owner, troops, state), Is.True);
+        return territory;
+    }
 
     private sealed class AllWeaponsLoadout :
         IWDMatchWeaponLoadoutSource, IWDWeaponLevelSource

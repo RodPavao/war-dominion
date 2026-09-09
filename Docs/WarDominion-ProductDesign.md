@@ -1386,3 +1386,28 @@ Ao atualizar:
   e Mercenários permanecem `Deferred`, sem custo, cooldown, uso ou mutação.
 - O `WDWeaponResolutionPipeline` global permanece desligado; a integração continua
   controlada pelo coordenador incremental e não possui apresentação visual definitiva.
+## Armas V1 — Etapa 7D.5 acelerada (último lote individual)
+
+[IMPLEMENTADO — AGUARDANDO VALIDAÇÃO MANUAL NO UNITY]
+
+- As 25 armas canônicas possuem integração individual com o estado autoritativo.
+- Paz, Campo Minado, Transporte Aéreo, Paraquedistas, Infiltrado, Recuperação de
+  Tropas e Mercenários deixam de ser `Deferred` por ausência de integração.
+- Paz é simétrica, temporária por round e bloqueia ações hostis aplicáveis; a ação
+  recíproca não cobra Energy, cooldown ou uso. Collateral atômico continua geográfico.
+- Campo Minado é uma instalação persistente e secreta, permanece em território Vazio,
+  não é transportável e pode ser desarmada temporariamente por Infiltrado.
+- Transporte Aéreo move tropas entre território próprio e próprio/aliado, deixa uma
+  guarnição e pode transportar somente Flak, preservando nível e duração.
+- Paraquedistas revalidam o alvo sequencialmente, sofrem Flak/Bunker/Mina e são a única
+  arma autorizada a ocupar/conquistar território.
+- Infiltrado bloqueia a origem e desarma temporariamente Bunker/Mina sem alterar HP;
+  Central e Flak não são afetadas.
+- Recuperação usa baixas reais do round anterior, somente quando o território manteve
+  o mesmo proprietário, limitada pelo nível.
+- Mercenários paga três parcelas no pool autoritativo (ativação, round +1 e round +2),
+  sem nova cobrança nas parcelas automáticas.
+- A lacuna de produto para instalações em território tornado Neutro por Propaganda
+  permanece aberta; nenhum lifecycle não aprovado foi inventado.
+- O `WDWeaponResolutionPipeline` global continua desligado. UI/VFX e ativação global
+  da Resolution Order V2 permanecem para etapa posterior.

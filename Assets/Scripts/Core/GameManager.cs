@@ -392,7 +392,12 @@ public class GameManager : MonoBehaviour
         uiCompositionRoot.Inicializar(matchUIPresenter);
 
         sistemaAcoesTerrestres.Inicializar(filaAcoes);
-        resolvedorAcoesTerrestres.Inicializar(resolvedorCombate);
+        resolvedorAcoesTerrestres.Inicializar(
+            resolvedorCombate,
+            (ordem, quantidade) => weaponExecutionCoordinator == null
+                ? quantidade
+                : weaponExecutionCoordinator.PrepareHostileTerrestrialEntry(
+                    ordem, quantidade));
         sistemaTransferencias.Inicializar(filaTransferencias);
     }
 
@@ -1576,6 +1581,8 @@ public class GameManager : MonoBehaviour
 
         weaponRoundRuntime?.CaptureOwnershipSnapshot(
             new WDGameWeaponContext(this).Territories);
+        weaponRoundRuntime?.CaptureTerritorySnapshot(
+            new WDGameWeaponContext(this).Territories);
 
         weaponExecutionCoordinator?.ExecuteFrozenActions(acoesArmasCongeladas);
 
@@ -1586,6 +1593,15 @@ public class GameManager : MonoBehaviour
                 string playerId = ObterPlayerId(ordem.Autor);
                 if (weaponRoundRuntime.IsTransferBlocked(playerId))
                     filaTransferencias.RemoverPara(ordem.Autor);
+            }
+
+            foreach (OrdemTerrestre ordem in filaAcoes.CriarCopia())
+            {
+                string autorId = ObterPlayerId(ordem.Jogador);
+                string alvoId = ObterPlayerId(ordem.Destino.dono);
+                if (weaponRoundRuntime.IsOriginBlocked(ordem.IdOrigem) ||
+                    weaponRoundRuntime.HasPeace(autorId, alvoId))
+                    filaAcoes.Remover(ordem);
             }
         }
 
@@ -1600,6 +1616,8 @@ public class GameManager : MonoBehaviour
             gerenciadorRodada.ObterPrioridadeJogadores());
 
         weaponRoundRuntime?.ObserveOwnershipChanges(
+            RodadaAtual, new WDGameWeaponContext(this).Territories);
+        weaponRoundRuntime?.ObserveTerritoryHistory(
             RodadaAtual, new WDGameWeaponContext(this).Territories);
 
         CancelarSelecaoAtual();

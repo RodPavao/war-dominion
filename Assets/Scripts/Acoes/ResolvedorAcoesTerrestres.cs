@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -8,10 +9,14 @@ public class ResolvedorAcoesTerrestres : MonoBehaviour
     // =====================================================
 
     private ResolvedorCombate resolvedorCombate;
+    private Func<OrdemTerrestre, int, int> prepararEntradaHostil;
 
-    public void Inicializar(ResolvedorCombate combate)
+    public void Inicializar(
+        ResolvedorCombate combate,
+        Func<OrdemTerrestre, int, int> prepararEntradaHostil = null)
     {
         resolvedorCombate = combate;
+        this.prepararEntradaHostil = prepararEntradaHostil;
     }
 
     // =====================================================
@@ -107,9 +112,6 @@ public class ResolvedorAcoesTerrestres : MonoBehaviour
                 ResultadoAcaoTerrestre.TipoResultado.MovimentoProprio);
         }
 
-        if (ordem.Destino.IsEmpty)
-            return ResolverOcupacaoVazio(ordem, quantidadeEfetiva);
-
         if (EquipesJogadores.SaoAliados(
                 ordem.Jogador,
                 ordem.Destino.dono))
@@ -119,6 +121,18 @@ public class ResolvedorAcoesTerrestres : MonoBehaviour
                 quantidadeEfetiva,
                 ResultadoAcaoTerrestre.TipoResultado.MovimentoAliado);
         }
+
+        // A porta opcional permite que efeitos autoritativos de entrada, como
+        // Campo Minado, sejam resolvidos antes do combate sem acoplar armas aqui.
+        if (prepararEntradaHostil != null)
+        {
+            quantidadeEfetiva = prepararEntradaHostil(ordem, quantidadeEfetiva);
+            if (quantidadeEfetiva < 1)
+                return Cancelar("A força de entrada foi eliminada antes do combate.");
+        }
+
+        if (ordem.Destino.IsEmpty)
+            return ResolverOcupacaoVazio(ordem, quantidadeEfetiva);
 
         if (resolvedorCombate == null)
             return Cancelar("Resolvedor de combate não está disponível.");
