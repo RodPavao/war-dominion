@@ -1,5 +1,32 @@
 # War Dominion — Documento Mestre de Produto e Design
 
+## [IMPLEMENTADO — AGUARDANDO VALIDAÇÃO MANUAL] Etapa 7D.6 — Global Resolution V2
+
+`WDWeaponResolutionPipeline` tornou-se a autoridade lógica única da resolução completa
+do round. A Preparation congela somente as intenções; o mapa, os runtimes e o registro
+de instalações permanecem vivos e autoritativos. Cada fase revalida o resultado deixado
+pelas fases anteriores.
+
+A ordem efetiva é: início do round; Paz; Anulador; transferências; interferências;
+reforços; instalações/logística; Sniper; Propaganda; ofensivas programadas; Artilharia
+automática; Paraquedistas; ações terrestres; consolidação. Dentro de cada fase, ações são
+ordenadas pela ordem oficial do jogador, `ProgramOrder` e `ActionId`.
+
+O pipeline produz `WDGlobalResolutionResult`, com `ResolutionId`, round, fases, ações,
+status técnico e operações sistêmicas. O mesmo `ResolutionId` não executa novamente
+custos, pagamentos, armas, transferências ou ações terrestres. O caminho direto anterior
+do `GameManager` foi removido: ele apenas fornece callbacks para os resolvedores reais e
+consome seus resultados visuais.
+
+As 25 armas participam da resolução global. IDs futuros/desconhecidos continuam
+`Deferred` tecnicamente. O pipeline não mantém cópia concorrente de tropas,
+proprietários, instalações, Energy, cooldowns ou pools.
+
+Limitações preservadas: a política definitiva de instalações em território NEUTRO segue
+pendente; a distribuição interativa do reforço natural continua no fluxo de Preparation
+já existente, enquanto a fase global mantém separadas as fontes de armas/pools; PlayMode,
+UI, VFX e backend permanecem fora desta etapa.
+
 ## 1. Propósito e autoridade do documento
 
 Este documento é a fonte persistente de verdade para as decisões de produto, direção visual, arquitetura de interface e comportamento de apresentação do War Dominion.

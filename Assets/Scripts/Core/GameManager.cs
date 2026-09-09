@@ -30,6 +30,10 @@ public class GameManager : MonoBehaviour
         weaponInstallationRegistry;
     public WDWeaponExecutionCoordinator WeaponExecutionCoordinator =>
         weaponExecutionCoordinator;
+    public WDWeaponResolutionPipeline GlobalResolutionPipeline =>
+        globalResolutionPipeline;
+    public WDGlobalResolutionResult UltimaResolucaoGlobal =>
+        ultimaResolucaoGlobal;
     public IReadOnlyList<WDWeaponAction> AcoesArmasCongeladas =>
         acoesArmasCongeladas;
     public bool EhPartidaUmContraUm => MatchSetupAtual != null && MatchSetupAtual.IsOneVsOne;
@@ -75,6 +79,8 @@ public class GameManager : MonoBehaviour
     private IWDGameWeaponMutationPort weaponMutationPort;
     private WDWeaponInstallationRegistry weaponInstallationRegistry;
     private WDWeaponExecutionCoordinator weaponExecutionCoordinator;
+    private WDWeaponResolutionPipeline globalResolutionPipeline;
+    private WDGlobalResolutionResult ultimaResolucaoGlobal;
     private WDWeaponRoundRuntime weaponRoundRuntime;
     private IReadOnlyList<WDWeaponAction> acoesArmasCongeladas =
         System.Array.Empty<WDWeaponAction>();
@@ -762,6 +768,7 @@ public class GameManager : MonoBehaviour
         weaponExecutionCoordinator = new WDWeaponExecutionCoordinator(
             new WDGameWeaponContext(this), weaponRuntime, weaponMutationPort,
             weaponInstallationRegistry, catalog, null, weaponRoundRuntime);
+        globalResolutionPipeline = new WDWeaponResolutionPipeline();
     }
 
     private void AtualizarWeaponRuntimeParaRound()
@@ -1579,46 +1586,36 @@ public class GameManager : MonoBehaviour
         gerenciadorRodada.NotificarInicioResolucao();
         GetComponent<MatchUIPresenter>()?.SolicitarSnapshotAtual();
 
-        weaponRoundRuntime?.CaptureOwnershipSnapshot(
-            new WDGameWeaponContext(this).Territories);
-        weaponRoundRuntime?.CaptureTerritorySnapshot(
-            new WDGameWeaponContext(this).Territories);
-
-        weaponExecutionCoordinator?.ExecuteFrozenActions(acoesArmasCongeladas);
-
-        if (weaponRoundRuntime != null)
-        {
-            foreach (OrdemTransferencia ordem in filaTransferencias.CriarCopia())
-            {
-                string playerId = ObterPlayerId(ordem.Autor);
-                if (weaponRoundRuntime.IsTransferBlocked(playerId))
-                    filaTransferencias.RemoverPara(ordem.Autor);
-            }
-
-            foreach (OrdemTerrestre ordem in filaAcoes.CriarCopia())
-            {
-                string autorId = ObterPlayerId(ordem.Jogador);
-                string alvoId = ObterPlayerId(ordem.Destino.dono);
-                if (weaponRoundRuntime.IsOriginBlocked(ordem.IdOrigem) ||
-                    weaponRoundRuntime.HasPeace(autorId, alvoId))
-                    filaAcoes.Remover(ordem);
-            }
-        }
-
-        List<ResultadoTransferencia> resultadosTransferencias =
-            resolvedorTransferencias.Resolver(
-            filaTransferencias,
-            gerenciadorRodada.ObterPrioridadeJogadores());
-
-        List<ResultadoAcaoTerrestre> resultadosTerrestres =
-            resolvedorAcoesTerrestres.Resolver(
-            filaAcoes,
-            gerenciadorRodada.ObterPrioridadeJogadores());
-
-        weaponRoundRuntime?.ObserveOwnershipChanges(
-            RodadaAtual, new WDGameWeaponContext(this).Territories);
-        weaponRoundRuntime?.ObserveTerritoryHistory(
-            RodadaAtual, new WDGameWeaponContext(this).Territories);
+        var resultadosTransferencias = new List<ResultadoTransferencia>();
+        var resultadosTerrestres = new List<ResultadoAcaoTerrestre>();
+        WDGameWeaponContext weaponContext = new(this);
+        string resolutionId = $"match:{MatchSetupAtual?.DeterministicSeed ?? 0}:" +
+            $"{MatchSetupAtual?.MapId ?? "map"}:round:{RodadaAtual}";
+        if (globalResolutionPipeline != null &&
+            globalResolutionPipeline.HasResolvedRound(resolutionId))
+            return;
+        ultimaResolucaoGlobal = globalResolutionPipeline?.ResolveRound(
+            new WDGlobalResolutionRequest(
+                resolutionId,
+                RodadaAtual,
+                acoesArmasCongeladas,
+                weaponExecutionCoordinator,
+                beginRound: () =>
+                {
+                    weaponRoundRuntime?.CaptureOwnershipSnapshot(weaponContext.Territories);
+                    weaponRoundRuntime?.CaptureTerritorySnapshot(weaponContext.Territories);
+                },
+                resolveTransfers: () => ResolverTransferenciasGlobais(
+                    resultadosTransferencias),
+                resolveTerrestrial: () => ResolverAcoesTerrestresGlobais(
+                    resultadosTerrestres),
+                consolidate: () =>
+                {
+                    weaponRoundRuntime?.ObserveOwnershipChanges(
+                        RodadaAtual, weaponContext.Territories);
+                    weaponRoundRuntime?.ObserveTerritoryHistory(
+                        RodadaAtual, weaponContext.Territories);
+                }));
 
         CancelarSelecaoAtual();
 
@@ -1641,6 +1638,43 @@ public class GameManager : MonoBehaviour
         }
 
         gerenciadorRodada.ConcluirResolucao();
+    }
+
+    // =====================================================
+    // 21.1. PORTAS DO ESTADO VIVO PARA A RESOLUÇÃO GLOBAL V2
+    // =====================================================
+
+    private int ResolverTransferenciasGlobais(
+        List<ResultadoTransferencia> destination)
+    {
+        foreach (OrdemTransferencia ordem in filaTransferencias.CriarCopia())
+        {
+            string playerId = ObterPlayerId(ordem.Autor);
+            if (weaponRoundRuntime != null && weaponRoundRuntime.IsTransferBlocked(playerId))
+                filaTransferencias.RemoverPara(ordem.Autor);
+        }
+
+        destination.AddRange(resolvedorTransferencias.Resolver(
+            filaTransferencias, gerenciadorRodada.ObterPrioridadeJogadores()));
+        return destination.Count;
+    }
+
+    private int ResolverAcoesTerrestresGlobais(
+        List<ResultadoAcaoTerrestre> destination)
+    {
+        foreach (OrdemTerrestre ordem in filaAcoes.CriarCopia())
+        {
+            string autorId = ObterPlayerId(ordem.Jogador);
+            string alvoId = ObterPlayerId(ordem.Destino.dono);
+            if (weaponRoundRuntime != null &&
+                (weaponRoundRuntime.IsOriginBlocked(ordem.IdOrigem) ||
+                 weaponRoundRuntime.HasPeace(autorId, alvoId)))
+                filaAcoes.Remover(ordem);
+        }
+
+        destination.AddRange(resolvedorAcoesTerrestres.Resolver(
+            filaAcoes, gerenciadorRodada.ObterPrioridadeJogadores()));
+        return destination.Count;
     }
 
     private string ObterPlayerId(TerritorioClique.Dono dono)

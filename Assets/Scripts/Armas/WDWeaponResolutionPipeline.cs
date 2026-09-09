@@ -115,8 +115,12 @@ public sealed class WDWeaponResolutionPipeline
     private readonly List<IWDWeaponPhaseHandler> phaseHandlers = new();
     private readonly Dictionary<string, WDWeaponActionResult> processedActions =
         new(StringComparer.Ordinal);
+    private readonly Dictionary<string, WDGlobalResolutionResult> processedRounds =
+        new(StringComparer.Ordinal);
 
     public IReadOnlyList<WDWeaponResolutionPhase> Phases => OrderedPhases;
+    public bool HasResolvedRound(string resolutionId) =>
+        !string.IsNullOrWhiteSpace(resolutionId) && processedRounds.ContainsKey(resolutionId);
 
     public void RegisterActionHandler(IWDWeaponActionHandler handler)
     {
@@ -165,6 +169,66 @@ public sealed class WDWeaponResolutionPipeline
         }
 
         return results;
+    }
+
+    // ============================================================
+    // 04. AUTORIDADE GLOBAL DE RESOLUÇÃO DO ROUND — V2
+    // ============================================================
+
+    public WDGlobalResolutionResult ResolveRound(WDGlobalResolutionRequest request)
+    {
+        if (request == null)
+            throw new ArgumentNullException(nameof(request));
+        if (string.IsNullOrWhiteSpace(request.ResolutionId))
+            throw new ArgumentException("ResolutionId estável é obrigatório.", nameof(request));
+        if (request.Coordinator == null)
+            throw new ArgumentException("Coordenador de armas é obrigatório.", nameof(request));
+        if (processedRounds.TryGetValue(request.ResolutionId, out WDGlobalResolutionResult prior))
+            return prior;
+
+        WDWeaponAction[] frozen = request.Coordinator.PrepareFrozenActions(request.FrozenActions);
+        var entries = new List<WDGlobalResolutionEntry>();
+        foreach (WDWeaponResolutionPhase phase in OrderedPhases)
+        {
+            entries.Add(WDGlobalResolutionEntry.PhaseStarted(phase));
+            if (phase == WDWeaponResolutionPhase.RoundStart)
+            {
+                request.BeginRound?.Invoke();
+                request.Coordinator.ProcessRoundStart(request.Round);
+            }
+
+            if (phase == WDWeaponResolutionPhase.Reinforcement)
+                entries.Add(WDGlobalResolutionEntry.ForSystem(
+                    phase, "natural-reinforcements",
+                    request.ResolveNaturalReinforcements?.Invoke() ?? 0));
+
+            foreach (WDIntegratedWeaponExecutionResult weaponResult in
+                request.Coordinator.ExecutePhase(frozen, phase))
+                entries.Add(WDGlobalResolutionEntry.ForWeapon(phase, weaponResult));
+
+            if (phase == WDWeaponResolutionPhase.TerritoryTransfer)
+                entries.Add(WDGlobalResolutionEntry.ForSystem(
+                    phase, "territory-transfers", request.ResolveTransfers?.Invoke() ?? 0));
+            else if (phase == WDWeaponResolutionPhase.AutomaticArtillery)
+                entries.Add(WDGlobalResolutionEntry.ForSystem(
+                    phase, "automatic-artillery",
+                    request.Coordinator.ProcessArtillery(request.Round)));
+            else if (phase == WDWeaponResolutionPhase.TerrestrialActions)
+                entries.Add(WDGlobalResolutionEntry.ForSystem(
+                    phase, "terrestrial-actions", request.ResolveTerrestrial?.Invoke() ?? 0));
+            else if (phase == WDWeaponResolutionPhase.Consolidation)
+            {
+                request.Consolidate?.Invoke();
+                entries.Add(WDGlobalResolutionEntry.ForSystem(phase, "consolidation", 1));
+            }
+
+            entries.Add(WDGlobalResolutionEntry.PhaseCompleted(phase));
+        }
+
+        var result = new WDGlobalResolutionResult(
+            request.ResolutionId, request.Round, entries, frozen);
+        processedRounds.Add(request.ResolutionId, result);
+        return result;
     }
 
     // ============================================================
@@ -236,5 +300,113 @@ public sealed class WDWeaponResolutionPipeline
     {
         action.MarkFailed();
         return new WDWeaponActionResult(action.ActionId, action.State, null, reason);
+    }
+}
+
+public sealed class WDGlobalResolutionRequest
+{
+    // ============================================================
+    // 05. ENTRADAS CONGELADAS E PORTAS PARA O ESTADO VIVO
+    // ============================================================
+
+    public string ResolutionId { get; }
+    public int Round { get; }
+    public IReadOnlyList<WDWeaponAction> FrozenActions { get; }
+    public WDWeaponExecutionCoordinator Coordinator { get; }
+    public Action BeginRound { get; }
+    public Func<int> ResolveTransfers { get; }
+    public Func<int> ResolveNaturalReinforcements { get; }
+    public Func<int> ResolveTerrestrial { get; }
+    public Action Consolidate { get; }
+
+    public WDGlobalResolutionRequest(
+        string resolutionId, int round, IEnumerable<WDWeaponAction> frozenActions,
+        WDWeaponExecutionCoordinator coordinator, Action beginRound = null,
+        Func<int> resolveTransfers = null,
+        Func<int> resolveNaturalReinforcements = null,
+        Func<int> resolveTerrestrial = null,
+        Action consolidate = null)
+    {
+        ResolutionId = resolutionId ?? string.Empty;
+        Round = Math.Max(1, round);
+        FrozenActions = (frozenActions ?? Array.Empty<WDWeaponAction>()).ToArray();
+        Coordinator = coordinator;
+        BeginRound = beginRound;
+        ResolveTransfers = resolveTransfers;
+        ResolveNaturalReinforcements = resolveNaturalReinforcements;
+        ResolveTerrestrial = resolveTerrestrial;
+        Consolidate = consolidate;
+    }
+}
+
+public enum WDGlobalResolutionEntryKind
+{
+    PhaseStarted,
+    WeaponAction,
+    SystemOperation,
+    PhaseCompleted
+}
+
+public sealed class WDGlobalResolutionEntry
+{
+    // ============================================================
+    // 06. LOG TÉCNICO ESTRUTURADO PARA TESTES E VFX FUTURO
+    // ============================================================
+
+    public WDWeaponResolutionPhase Phase { get; }
+    public WDGlobalResolutionEntryKind Kind { get; }
+    public string StableId { get; }
+    public string AuthorPlayerId { get; }
+    public string WeaponId { get; }
+    public WDIntegratedWeaponExecutionStatus? WeaponStatus { get; }
+    public int AffectedCount { get; }
+
+    private WDGlobalResolutionEntry(
+        WDWeaponResolutionPhase phase, WDGlobalResolutionEntryKind kind,
+        string stableId, string authorPlayerId = "", string weaponId = "",
+        WDIntegratedWeaponExecutionStatus? status = null, int affectedCount = 0)
+    {
+        Phase = phase;
+        Kind = kind;
+        StableId = stableId ?? string.Empty;
+        AuthorPlayerId = authorPlayerId ?? string.Empty;
+        WeaponId = weaponId ?? string.Empty;
+        WeaponStatus = status;
+        AffectedCount = affectedCount;
+    }
+
+    public static WDGlobalResolutionEntry PhaseStarted(WDWeaponResolutionPhase phase) =>
+        new(phase, WDGlobalResolutionEntryKind.PhaseStarted, $"phase:{(int)phase}:start");
+    public static WDGlobalResolutionEntry PhaseCompleted(WDWeaponResolutionPhase phase) =>
+        new(phase, WDGlobalResolutionEntryKind.PhaseCompleted, $"phase:{(int)phase}:complete");
+    public static WDGlobalResolutionEntry ForWeapon(
+        WDWeaponResolutionPhase phase, WDIntegratedWeaponExecutionResult result) =>
+        new(phase, WDGlobalResolutionEntryKind.WeaponAction, result.ActionId,
+            result.AuthorPlayerId, result.WeaponId, result.Status);
+    public static WDGlobalResolutionEntry ForSystem(
+        WDWeaponResolutionPhase phase, string stableId, int affectedCount) =>
+        new(phase, WDGlobalResolutionEntryKind.SystemOperation, stableId,
+            affectedCount: affectedCount);
+}
+
+public sealed class WDGlobalResolutionResult
+{
+    // ============================================================
+    // 07. RESULTADO IMUTÁVEL E IDEMPOTENTE DO ROUND
+    // ============================================================
+
+    public string ResolutionId { get; }
+    public int Round { get; }
+    public IReadOnlyList<WDGlobalResolutionEntry> Entries { get; }
+    public IReadOnlyList<WDWeaponAction> FrozenActions { get; }
+
+    public WDGlobalResolutionResult(
+        string resolutionId, int round, IEnumerable<WDGlobalResolutionEntry> entries,
+        IEnumerable<WDWeaponAction> frozenActions)
+    {
+        ResolutionId = resolutionId ?? string.Empty;
+        Round = Math.Max(1, round);
+        Entries = (entries ?? Array.Empty<WDGlobalResolutionEntry>()).ToArray();
+        FrozenActions = (frozenActions ?? Array.Empty<WDWeaponAction>()).ToArray();
     }
 }

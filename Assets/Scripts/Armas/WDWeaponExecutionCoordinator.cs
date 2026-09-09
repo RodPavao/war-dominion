@@ -82,6 +82,7 @@ public enum WDIntegratedWeaponExecutionStatus
 public sealed class WDIntegratedWeaponExecutionResult
 {
     public string ActionId { get; }
+    public string AuthorPlayerId { get; }
     public string WeaponId { get; }
     public WDIntegratedWeaponExecutionStatus Status { get; }
     public WDGameWeaponMutationReason? MutationReason { get; }
@@ -91,6 +92,7 @@ public sealed class WDIntegratedWeaponExecutionResult
         WDGameWeaponMutationReason? mutationReason = null)
     {
         ActionId = action?.ActionId ?? string.Empty;
+        AuthorPlayerId = action?.AuthorPlayerId ?? string.Empty;
         WeaponId = action?.WeaponId ?? string.Empty;
         Status = status;
         MutationReason = mutationReason;
@@ -165,8 +167,15 @@ public sealed class WDWeaponExecutionCoordinator
     public IReadOnlyList<WDIntegratedWeaponExecutionResult> ExecuteFrozenActions(
         IEnumerable<WDWeaponAction> actions)
     {
-        var playerOrder = context.OfficialPlayerOrder.Select((id, index) => (id, index))
-            .ToDictionary(item => item.id, item => item.index, StringComparer.Ordinal);
+        WDWeaponAction[] frozen = PrepareFrozenActions(actions);
+        WDIntegratedWeaponExecutionResult[] results = ExecuteOrdered(frozen);
+        ProcessArtillery(context.CurrentRound);
+        return results;
+    }
+
+    public WDWeaponAction[] PrepareFrozenActions(IEnumerable<WDWeaponAction> actions)
+    {
+        IReadOnlyDictionary<string, int> playerOrder = CreatePlayerOrder();
         WDWeaponAction[] ordered = (actions ?? Array.Empty<WDWeaponAction>())
             .Where(action => action != null)
             .OrderBy(action => action.Phase)
@@ -176,6 +185,20 @@ public sealed class WDWeaponExecutionCoordinator
             .ThenBy(action => action.ActionId, StringComparer.Ordinal).ToArray();
         foreach (WDWeaponAction sniper in ordered.Where(x => x.WeaponId == WDTacticalWeaponIds.Sniper))
             roundRuntime.RegisterProgrammedSniper(sniper.AuthorPlayerId, sniper.TargetTerritoryId);
+        return ordered;
+    }
+
+    public IReadOnlyList<WDIntegratedWeaponExecutionResult> ExecutePhase(
+        IEnumerable<WDWeaponAction> frozenActions, WDWeaponResolutionPhase phase)
+    {
+        return ExecuteOrdered((frozenActions ?? Array.Empty<WDWeaponAction>())
+            .Where(action => action != null && action.Phase == phase).ToArray());
+    }
+
+    private WDIntegratedWeaponExecutionResult[] ExecuteOrdered(
+        IReadOnlyList<WDWeaponAction> ordered)
+    {
+        IReadOnlyDictionary<string, int> playerOrder = CreatePlayerOrder();
         var sabotageWinners = ordered.Where(x => x.WeaponId == WDStrategicWeaponIds.Sabotage)
             .GroupBy(x => x.TargetPlayerId, StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => g.OrderByDescending(x =>
@@ -184,14 +207,21 @@ public sealed class WDWeaponExecutionCoordinator
                     ? order : int.MaxValue)
                 .ThenBy(x => x.ActionId, StringComparer.Ordinal).First(), StringComparer.Ordinal);
         WDIntegratedWeaponExecutionResult[] results = ordered.Select(action =>
-            action.WeaponId == WDStrategicWeaponIds.Sabotage &&
-            sabotageWinners.TryGetValue(action.TargetPlayerId, out WDWeaponAction winner) &&
-            winner != action
-                ? Remember(action, WDIntegratedWeaponExecutionStatus.Superseded)
-                : Execute(action)).ToArray();
-        ProcessArtillery(context.CurrentRound);
+        {
+            if (action.WeaponId == WDStrategicWeaponIds.Sabotage &&
+                sabotageWinners.TryGetValue(
+                    action.TargetPlayerId, out WDWeaponAction winner) &&
+                !ReferenceEquals(winner, action))
+                return Remember(action, WDIntegratedWeaponExecutionStatus.Superseded);
+
+            return Execute(action);
+        }).ToArray();
         return results;
     }
+
+    private IReadOnlyDictionary<string, int> CreatePlayerOrder() =>
+        context.OfficialPlayerOrder.Select((id, index) => (id, index))
+            .ToDictionary(item => item.id, item => item.index, StringComparer.Ordinal);
 
     // ============================================================
     // 02. REVALIDAÇÃO FINAL E DESPACHO DAS QUATRO ARMAS
@@ -421,7 +451,6 @@ public sealed class WDWeaponExecutionCoordinator
             item.SetTemporarilyDisabled(false);
         lifecycle.AdvanceFlakLifecycle(round);
         ProcessEnergyPlantPayments(round);
-        ProcessArtillery(round);
     }
 
     public int ProcessArtillery(int round)

@@ -577,6 +577,141 @@ public sealed class WDWeaponExecutionCoordinatorTests
         coordinator.ProcessRoundStart(3);Assert.That(roundState.TakeReinforcementPool("p1"),Is.EqualTo(third));
     }
 
+    // ============================================================
+    // 09. GLOBAL RESOLUTION V2: ORDEM, ESTADO VIVO E IDEMPOTÊNCIA
+    // ============================================================
+
+    [Test]
+    public void GlobalResolutionRunsEveryCanonicalPhaseAndSystemHookInOrder()
+    {
+        var pipeline = new WDWeaponResolutionPipeline();
+        int transfers = 0, terrestrial = 0, consolidation = 0;
+        WDGlobalResolutionResult result = pipeline.ResolveRound(
+            new WDGlobalResolutionRequest(
+                "resolution:order", 1,
+                new[]
+                {
+                    Action(WDSupportWeaponIds.Reinforcements, "owned"),
+                    Action(WDStrategicWeaponIds.Peace, "", targetPlayer: "p3"),
+                    Action(WDTacticalWeaponIds.Blitzkrieg, "")
+                },
+                coordinator,
+                resolveTransfers: () => ++transfers,
+                resolveTerrestrial: () => ++terrestrial,
+                consolidate: () => consolidation++));
+
+        WDWeaponResolutionPhase[] starts = result.Entries
+            .Where(item => item.Kind == WDGlobalResolutionEntryKind.PhaseStarted)
+            .Select(item => item.Phase).ToArray();
+        Assert.That(starts, Is.EqualTo(pipeline.Phases));
+        Assert.That(transfers, Is.EqualTo(1));
+        Assert.That(terrestrial, Is.EqualTo(1));
+        Assert.That(consolidation, Is.EqualTo(1));
+        Assert.That(result.Entries.Where(item =>
+            item.Kind == WDGlobalResolutionEntryKind.WeaponAction)
+            .Select(item => item.Phase), Is.Ordered);
+    }
+
+    [Test]
+    public void EqualSabotageUsesOfficialPlayerOrderWithoutDependingOnInputOrder()
+    {
+        SetLevel("p1", WDStrategicWeaponIds.Sabotage, 1);
+        SetLevel("p2", WDStrategicWeaponIds.Sabotage, 1);
+        WDWeaponAction firstOfficial = Action(
+            WDStrategicWeaponIds.Sabotage, "", "p1", targetPlayer: "p3");
+        WDWeaponAction secondOfficial = Action(
+            WDStrategicWeaponIds.Sabotage, "", "p2", targetPlayer: "p3");
+
+        IReadOnlyList<WDIntegratedWeaponExecutionResult> results =
+            coordinator.ExecuteFrozenActions(new[] { secondOfficial, firstOfficial });
+
+        Assert.That(results.Single(item => item.ActionId == firstOfficial.ActionId).Status,
+            Is.EqualTo(WDIntegratedWeaponExecutionStatus.Executed));
+        Assert.That(results.Single(item => item.ActionId == secondOfficial.ActionId).Status,
+            Is.EqualTo(WDIntegratedWeaponExecutionStatus.Superseded));
+    }
+
+    [Test]
+    public void GlobalResolutionIdPreventsEveryMutationAndHookFromRunningTwice()
+    {
+        var pipeline = new WDWeaponResolutionPipeline();
+        int transferCalls = 0;
+        var request = new WDGlobalResolutionRequest(
+            "resolution:idempotent", 1,
+            new[] { Action(WDSupportWeaponIds.Reinforcements, "owned") },
+            coordinator, resolveTransfers: () => ++transferCalls);
+
+        WDGlobalResolutionResult first = pipeline.ResolveRound(request);
+        WDGlobalResolutionResult second = pipeline.ResolveRound(request);
+
+        Assert.That(second, Is.SameAs(first));
+        Assert.That(context.FindTerritory("owned").Troops, Is.EqualTo(13));
+        Assert.That(transferCalls, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void GlobalResolutionSniperChangesLiveStateBeforePropagandaRevalidation()
+    {
+        SetLevel("p1", WDSpecialWeaponIds.WarPropaganda, 1);
+        var pipeline = new WDWeaponResolutionPipeline();
+        pipeline.ResolveRound(new WDGlobalResolutionRequest(
+            "resolution:sniper-propaganda", 1,
+            new[]
+            {
+                Action(WDSpecialWeaponIds.WarPropaganda, "enemy"),
+                Action(WDTacticalWeaponIds.Sniper, "enemy")
+            }, coordinator));
+
+        Assert.That(context.FindTerritory("enemy").State,
+            Is.EqualTo(WDWeaponTerritoryStateKind.Neutral));
+        Assert.That(context.FindTerritory("enemy").Troops, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void GlobalResolutionParatroopersMutateLiveStateBeforeTerrestrialPhase()
+    {
+        mutations.MakeEmpty("global-empty", "enemy2");
+        bool terrestrialObservedOccupation = false;
+        var pipeline = new WDWeaponResolutionPipeline();
+        pipeline.ResolveRound(new WDGlobalResolutionRequest(
+            "resolution:paratroopers-terrestrial", 1,
+            new[] { Action(WDTacticalWeaponIds.Paratroopers, "enemy2") },
+            coordinator,
+            resolveTerrestrial: () =>
+            {
+                WDGameWeaponTerritoryView current = context.FindTerritory("enemy2");
+                terrestrialObservedOccupation = current.OwnerPlayerId == "p1" &&
+                    current.State == WDWeaponTerritoryStateKind.Occupied;
+                return terrestrialObservedOccupation ? 1 : 0;
+            }));
+
+        Assert.That(terrestrialObservedOccupation, Is.True);
+    }
+
+    [Test]
+    public void GlobalResolutionNextRoundExpiresTemporaryPeaceAndKeepsTechnicalDeferred()
+    {
+        var pipeline = new WDWeaponResolutionPipeline();
+        pipeline.ResolveRound(new WDGlobalResolutionRequest(
+            "resolution:round-1", 1,
+            new[] { Action(WDStrategicWeaponIds.Peace, "", targetPlayer: "p3") },
+            coordinator));
+        Assert.That(roundState.HasPeace("p1", "p3"), Is.True);
+
+        source.CurrentRound = 2;
+        runtime.AdvanceCooldownsForRound(2);
+        WDWeaponAction unknown = new(
+            "unknown-action", "p1", "future_weapon", 2,
+            WDWeaponResolutionPhase.ProgrammedOffense, 0);
+        WDGlobalResolutionResult next = pipeline.ResolveRound(
+            new WDGlobalResolutionRequest(
+                "resolution:round-2", 2, new[] { unknown }, coordinator));
+
+        Assert.That(roundState.HasPeace("p1", "p3"), Is.False);
+        Assert.That(next.Entries.Single(item => item.StableId == "unknown-action")
+            .WeaponStatus, Is.EqualTo(WDIntegratedWeaponExecutionStatus.Deferred));
+    }
+
     private void ExecuteCentralAtRound(string territory, string id, int round)
     {
         source.CurrentRound = round;
