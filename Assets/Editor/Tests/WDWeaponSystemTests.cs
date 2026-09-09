@@ -146,7 +146,7 @@ public sealed class WDWeaponSystemTests
         Assert.That(phases, Is.Ordered);
         Assert.That(pipeline.Phases.First(), Is.EqualTo(WDWeaponResolutionPhase.RoundStart));
         Assert.That(pipeline.Phases.Last(), Is.EqualTo(WDWeaponResolutionPhase.Consolidation));
-        Assert.That(pipeline.Phases.Count, Is.EqualTo(14));
+        Assert.That(pipeline.Phases.Count, Is.EqualTo(15));
         Assert.That(observed, Is.EqualTo(pipeline.Phases));
     }
 

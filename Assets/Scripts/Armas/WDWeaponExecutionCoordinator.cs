@@ -10,7 +10,9 @@ public sealed class WDWeaponRoundRuntime
     private readonly Dictionary<string, int> terrestrialLimits = new(StringComparer.Ordinal);
     private readonly HashSet<string> blockedOrigins = new(StringComparer.Ordinal);
     private readonly Dictionary<string, int> reinforcementPool = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, IReadOnlyList<WDDroneDiscovery>> droneRecon = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, WDRadarRevealResult> radarResults = new(StringComparer.Ordinal);
+    private readonly HashSet<string> blockedWeaponActions = new(StringComparer.Ordinal);
+    private readonly HashSet<string> claimedInfiltratorTargets = new(StringComparer.Ordinal);
     private readonly HashSet<string> peace = new(StringComparer.Ordinal);
     private readonly HashSet<string> programmedSnipers = new(StringComparer.Ordinal);
     private readonly List<WDMercenaryPayment> mercenaryPayments = new();
@@ -26,7 +28,8 @@ public sealed class WDWeaponRoundRuntime
     {
         int normalized = Math.Max(1, round); if (normalized <= ActiveRound) return;
         ActiveRound = normalized; transferBlocked.Clear();
-        terrestrialLimits.Clear(); blockedOrigins.Clear(); droneRecon.Clear(); peace.Clear();
+        terrestrialLimits.Clear(); blockedOrigins.Clear(); radarResults.Clear(); peace.Clear();
+        blockedWeaponActions.Clear(); claimedInfiltratorTargets.Clear();
         programmedSnipers.Clear();
     }
     public bool ApplySabotage(string id, double rate)
@@ -50,8 +53,18 @@ public sealed class WDWeaponRoundRuntime
     {ownershipSnapshot=(territories??Array.Empty<WDGameWeaponTerritoryView>()).ToDictionary(x=>x.TerritoryId,x=>x.OwnerPlayerId,StringComparer.Ordinal);}
     public void ObserveOwnershipChanges(int round,IEnumerable<WDGameWeaponTerritoryView> territories)
     {foreach(var t in territories??Array.Empty<WDGameWeaponTerritoryView>())if(ownershipSnapshot.TryGetValue(t.TerritoryId,out string oldOwner))RecordOwnershipChange(round,t.TerritoryId,oldOwner,t.OwnerPlayerId);ownershipSnapshot.Clear();}
-    public bool StoreDroneRecon(string id,IReadOnlyList<WDDroneDiscovery> value)=>droneRecon.TryAdd(id??"",value??Array.Empty<WDDroneDiscovery>());
-    public IReadOnlyList<WDDroneDiscovery> GetDroneRecon(string id)=>droneRecon.TryGetValue(id??"",out var v)?v:Array.Empty<WDDroneDiscovery>();
+    public bool StoreRadarResult(WDRadarRevealResult value) => value != null &&
+        radarResults.TryAdd(value.CommandId, value);
+    public WDRadarRevealResult GetRadarResult(string commandId, string requestingPlayerId) =>
+        radarResults.TryGetValue(commandId ?? "", out WDRadarRevealResult value) &&
+        value.CanBeReadBy(requestingPlayerId) ? value : null;
+    public bool TryBlockWeaponAction(string targetActionId) =>
+        claimedInfiltratorTargets.Add(targetActionId ?? "") &&
+        blockedWeaponActions.Add(targetActionId ?? "");
+    public bool IsInfiltratorTargetClaimed(string targetActionId) =>
+        claimedInfiltratorTargets.Contains(targetActionId ?? "");
+    public bool IsWeaponActionBlocked(string actionId) =>
+        blockedWeaponActions.Contains(actionId ?? "");
     public bool EstablishPeace(string a,string b)=>peace.Add(Pair(a,b));
     public bool HasPeace(string a,string b)=>peace.Contains(Pair(a,b));
     public void RegisterProgrammedSniper(string p,string t)=>programmedSnipers.Add((p??"")+"|"+(t??""));
@@ -74,9 +87,10 @@ public enum WDIntegratedWeaponExecutionStatus
     ,Intercepted
     ,NoValidTargets
     ,ThresholdFailed
-    ,ReconCompleted
-    ,ReconCompletedNoAttack
     ,Superseded
+    ,BlockedByInfiltrator
+    ,BlockedBySniper
+    ,Launched
 }
 
 public sealed class WDIntegratedWeaponExecutionResult
@@ -126,6 +140,7 @@ public sealed class WDWeaponExecutionCoordinator
         ,WDSupportWeaponIds.AirTransport
         ,WDTacticalWeaponIds.Paratroopers
         ,WDSpecialWeaponIds.Infiltrator
+        ,WDTacticalWeaponIds.Radar
         ,WDSupportWeaponIds.TroopRecovery
         ,WDSupportWeaponIds.Mercenaries
     };
@@ -140,6 +155,8 @@ public sealed class WDWeaponExecutionCoordinator
     private readonly WDWeaponRoundRuntime roundRuntime;
     private readonly Dictionary<string, WDIntegratedWeaponExecutionResult> processed =
         new(StringComparer.Ordinal);
+    private IReadOnlyDictionary<string, WDWeaponAction> frozenById =
+        new Dictionary<string, WDWeaponAction>(StringComparer.Ordinal);
 
     // ============================================================
     // 01. COORDENADOR INCREMENTAL SOBRE AS FONTES AUTORITATIVAS
@@ -185,6 +202,7 @@ public sealed class WDWeaponExecutionCoordinator
             .ThenBy(action => action.ActionId, StringComparer.Ordinal).ToArray();
         foreach (WDWeaponAction sniper in ordered.Where(x => x.WeaponId == WDTacticalWeaponIds.Sniper))
             roundRuntime.RegisterProgrammedSniper(sniper.AuthorPlayerId, sniper.TargetTerritoryId);
+        frozenById = ordered.ToDictionary(action => action.ActionId, StringComparer.Ordinal);
         return ordered;
     }
 
@@ -235,10 +253,20 @@ public sealed class WDWeaponExecutionCoordinator
             return new WDIntegratedWeaponExecutionResult(
                 action, WDIntegratedWeaponExecutionStatus.AlreadyProcessed,
                 prior.MutationReason);
+        if (roundRuntime.IsWeaponActionBlocked(action.ActionId))
+        {
+            action.MarkAnnulled();
+            return Remember(action, WDIntegratedWeaponExecutionStatus.BlockedByInfiltrator);
+        }
         if (!SupportedWeaponIds.Contains(action.WeaponId))
             return Remember(action, WDIntegratedWeaponExecutionStatus.Deferred);
 
         WDWeaponDefinition definition = catalog.FindWeapon(action.WeaponId);
+        if (action.WeaponId == WDSpecialWeaponIds.Drone)
+            return ExecuteCanonicalDrone(action, definition);
+        if (action.WeaponId == WDSpecialWeaponIds.Infiltrator)
+            return ExecuteInfiltrator(action, definition,
+                runtime.GetAvailability(action.AuthorPlayerId, action.WeaponId));
         bool rocketLaunch = action.WeaponId == WDStrategicWeaponIds.Rockets &&
             action.Phase == WDWeaponResolutionPhase.ProgrammedOffense;
         WDWeaponAvailability availability = runtime.GetAvailability(action.AuthorPlayerId, action.WeaponId);
@@ -276,6 +304,8 @@ public sealed class WDWeaponExecutionCoordinator
             WDStrategicWeaponIds.Artillery => Install(action, availability.Level,
                 duration: WDStrategicWeaponTables.ArtilleryDuration(availability.Level),
                 barrier: 0, payments: 0, transportable: false),
+            WDTacticalWeaponIds.Radar => Install(action, availability.Level,
+                duration: 0, barrier: 0, payments: 0, transportable: true, charges: 1),
             _ => default
         };
         if (!effect.Succeeded)
@@ -577,9 +607,6 @@ public sealed class WDWeaponExecutionCoordinator
 
         if (action.WeaponId == WDSpecialWeaponIds.AtomicBomb)
             return ExecuteAtomic(action, definition, effectiveLevel);
-        if (action.WeaponId == WDSpecialWeaponIds.Drone)
-            return ExecuteDrone(action, definition, effectiveLevel);
-
         WDGameWeaponTerritoryView target = context.FindTerritory(action.TargetTerritoryId);
         if (action.WeaponId == WDTacticalWeaponIds.Sniper)
         {
@@ -643,38 +670,89 @@ public sealed class WDWeaponExecutionCoordinator
         return Remember(action, WDIntegratedWeaponExecutionStatus.Executed);
     }
 
-    private WDIntegratedWeaponExecutionResult ExecuteDrone(
-        WDWeaponAction action, WDWeaponDefinition definition, int level)
+    private WDIntegratedWeaponExecutionResult ExecuteCanonicalDrone(
+        WDWeaponAction action, WDWeaponDefinition definition)
     {
         string mode = WDSpecialWeaponParameters.Get(action, "mode");
-        if (mode == "recon")
+        if (mode != "shot")
         {
-            var discoveries = WDSpecialWeaponParameters.List(action, "options")
-                .Select(context.FindTerritory).Where(x => x != null)
-                .Take(WDSpecialWeaponTables.DroneDiscoveries(level))
-                .Select(x => new WDDroneDiscovery(x.TerritoryId,
-                    damage.SelectCoveringFlak(x.TerritoryId))).ToArray();
-            if (discoveries.Length == 0) return Invalid(action);
-            roundRuntime.StoreDroneRecon(action.ActionId, discoveries);
+            WDWeaponAvailability availability = runtime.GetAvailability(
+                action.AuthorPlayerId, action.WeaponId);
+            WDGameWeaponTerritoryView site = context.FindTerritory(action.TargetTerritoryId);
+            if (definition == null || action.Round != context.CurrentRound ||
+                !availability.IsAvailable || site == null ||
+                site.OwnerPlayerId != action.AuthorPlayerId ||
+                string.IsNullOrWhiteSpace(action.InstallationId))
+                return Invalid(action);
+            WDGameWeaponMutationResult installed = Install(action, availability.Level,
+                0, 0, 0, true, 2);
+            if (!installed.Succeeded) return MutationFailed(action, installed.Reason);
             CommitCosts(action, definition); action.MarkValidated(); action.MarkExecuted();
-            return Remember(action, WDIntegratedWeaponExecutionStatus.ReconCompleted);
+            return Remember(action, WDIntegratedWeaponExecutionStatus.Executed);
         }
-        string reconId = WDSpecialWeaponParameters.Get(action, "recon");
-        if (mode == "abandon")
-            return roundRuntime.GetDroneRecon(reconId).Count > 0
-                ? Remember(action, WDIntegratedWeaponExecutionStatus.ReconCompletedNoAttack)
-                : Invalid(action);
-        if (mode != "attack" || !roundRuntime.GetDroneRecon(reconId)
-            .Any(x => x.TerritoryId == action.TargetTerritoryId)) return Invalid(action);
+
+        WDWeaponInstallationState drone = installations.Find(action.InstallationId);
         WDGameWeaponTerritoryView target = context.FindTerritory(action.TargetTerritoryId);
-        if (target != null && target.State == WDWeaponTerritoryStateKind.Occupied &&
-            roundRuntime.HasPeace(action.AuthorPlayerId, target.OwnerPlayerId)) return Invalid(action);
+        if (drone == null || drone.WeaponId != WDSpecialWeaponIds.Drone ||
+            drone.IsAbandoned || drone.OwnerPlayerId != action.AuthorPlayerId ||
+            drone.ChargesRemaining <= 0 || target == null ||
+            target.State == WDWeaponTerritoryStateKind.Occupied &&
+            (target.OwnerPlayerId == action.AuthorPlayerId ||
+             context.AreAllied(action.AuthorPlayerId, target.OwnerPlayerId)))
+            return Invalid(action);
+        if (roundRuntime.IsOriginBlocked(drone.TerritoryId))
+            return Remember(action, WDIntegratedWeaponExecutionStatus.BlockedBySniper);
+        if (target.State == WDWeaponTerritoryStateKind.Occupied &&
+            roundRuntime.HasPeace(action.AuthorPlayerId, target.OwnerPlayerId))
+            return Invalid(action);
+        if (!drone.TryMarkAutomaticRound(action.Round))
+            return Remember(action, WDIntegratedWeaponExecutionStatus.Superseded);
+
+        int shot = drone.NextChargeSequenceNumber;
         WDRealWeaponDamageResult result = damage.Apply(action.ActionId,
-            action.TargetTerritoryId, WDSpecialWeaponTables.DroneDamage(level), true, false);
+            target.TerritoryId, WDSpecialWeaponTables.DroneShotDamage(drone.Level, shot),
+            true, true);
+        drone.ConsumeCharge();
+        if (drone.ChargesRemaining == 0)
+            mutations.RemoveInstallation(Mutation(action, "drone-expended"), drone.InstallationId);
         action.MarkValidated(); action.MarkExecuted();
         return Remember(action, result.Intercepted
             ? WDIntegratedWeaponExecutionStatus.Intercepted
-            : WDIntegratedWeaponExecutionStatus.Executed);
+            : WDIntegratedWeaponExecutionStatus.Launched);
+    }
+
+    public WDRadarUseResult UseRadarDuringPreparation(string commandId,
+        string authorPlayerId, string installationId, string targetTerritoryId,
+        IEnumerable<WDWeaponAction> currentlyProgrammedActions)
+    {
+        WDRadarRevealResult prior = roundRuntime.GetRadarResult(commandId, authorPlayerId);
+        if (prior != null) return new WDRadarUseResult(WDRadarUseStatus.AlreadyProcessed, prior);
+        WDWeaponInstallationState radar = installations.Find(installationId);
+        WDGameWeaponTerritoryView target = context.FindTerritory(targetTerritoryId);
+        if (string.IsNullOrWhiteSpace(commandId) || radar == null ||
+            radar.WeaponId != WDTacticalWeaponIds.Radar || radar.IsAbandoned ||
+            radar.OwnerPlayerId != authorPlayerId || radar.ChargesRemaining != 1 ||
+            radar.InstalledRound >= context.CurrentRound || target == null ||
+            target.State == WDWeaponTerritoryStateKind.Occupied &&
+            (target.OwnerPlayerId == authorPlayerId || context.AreAllied(authorPlayerId,
+                target.OwnerPlayerId)))
+            return new WDRadarUseResult(WDRadarUseStatus.Invalid);
+        bool sniperProgrammed = (currentlyProgrammedActions ?? Array.Empty<WDWeaponAction>())
+            .Any(item => item != null && item.Round == context.CurrentRound &&
+                item.WeaponId == WDTacticalWeaponIds.Sniper &&
+                item.TargetTerritoryId == radar.TerritoryId);
+        if (sniperProgrammed)
+            return new WDRadarUseResult(WDRadarUseStatus.BlockedBySniper);
+
+        bool hasCoverage = damage.SelectCoveringFlak(targetTerritoryId) != null;
+        var reveal = new WDRadarRevealResult(context.CurrentRound, targetTerritoryId,
+            hasCoverage, authorPlayerId, commandId);
+        if (!roundRuntime.StoreRadarResult(reveal))
+            return new WDRadarUseResult(WDRadarUseStatus.AlreadyProcessed,
+                roundRuntime.GetRadarResult(commandId, authorPlayerId));
+        radar.ConsumeCharge();
+        mutations.RemoveInstallation("radar:" + commandId + ":consume", radar.InstallationId);
+        return new WDRadarUseResult(WDRadarUseStatus.Used, reveal);
     }
 
     private bool IsEnemy(string author, WDGameWeaponTerritoryView target) =>
@@ -683,7 +761,7 @@ public sealed class WDWeaponExecutionCoordinator
     private bool IsOpponent(string author, string target) =>
         context.AreOpponents(author, target);
     private static bool IsSecondBatch(string id) =>
-        id == WDSpecialWeaponIds.AtomicBomb || id == WDSpecialWeaponIds.Drone ||
+        id == WDSpecialWeaponIds.AtomicBomb ||
         id == WDTacticalWeaponIds.Sniper || id == WDSpecialWeaponIds.WarPropaganda ||
         id == WDStrategicWeaponIds.Sabotage || id == WDTacticalWeaponIds.TransferNullifier ||
         id == WDTacticalWeaponIds.Blitzkrieg || id == WDSupportWeaponIds.ReserveTroops;
@@ -718,15 +796,6 @@ public sealed class WDWeaponExecutionCoordinator
         }
         else if (action.WeaponId == WDTacticalWeaponIds.Paratroopers)
             return ExecuteParatroopers(action, definition, availability.Level);
-        else if (action.WeaponId == WDSpecialWeaponIds.Infiltrator)
-        {
-            WDGameWeaponTerritoryView target=context.FindTerritory(action.TargetTerritoryId);
-            if(!IsEnemy(action.AuthorPlayerId,target)||roundRuntime.HasPeace(action.AuthorPlayerId,target.OwnerPlayerId)||
-                roundRuntime.HasProgrammedSniper(action.AuthorPlayerId,target.TerritoryId)) return Invalid(action);
-            roundRuntime.BlockOrigin(target.TerritoryId);
-            foreach(var item in installations.GetByTerritory(target.TerritoryId).Where(x=>x.WeaponId==WDSupportWeaponIds.Bunker||x.WeaponId==WDSupportWeaponIds.Minefield))
-                item.SetTemporarilyDisabled(true);
-        }
         else if (action.WeaponId == WDSupportWeaponIds.TroopRecovery)
         {
             WDGameWeaponTerritoryView target=context.FindTerritory(action.TargetTerritoryId);
@@ -748,6 +817,30 @@ public sealed class WDWeaponExecutionCoordinator
         return Remember(action,WDIntegratedWeaponExecutionStatus.Executed);
     }
 
+    private WDIntegratedWeaponExecutionResult ExecuteInfiltrator(
+        WDWeaponAction action, WDWeaponDefinition definition,
+        WDWeaponAvailability availability)
+    {
+        string targetActionId = WDSpecialWeaponParameters.Get(action, "targetActionId");
+        if (definition == null || !frozenById.TryGetValue(targetActionId,
+                out WDWeaponAction targetAction) ||
+            targetAction.Round != action.Round ||
+            targetAction.AuthorPlayerId != action.TargetPlayerId ||
+            targetAction.WeaponId == WDSpecialWeaponIds.Infiltrator ||
+            WDWeaponActionSemantics.IsPersistentInstallationOperation(targetAction) ||
+            roundRuntime.HasPeace(action.AuthorPlayerId, targetAction.AuthorPlayerId) ||
+            !IsOpponent(action.AuthorPlayerId, targetAction.AuthorPlayerId))
+            return Invalid(action);
+        if (roundRuntime.IsInfiltratorTargetClaimed(targetActionId))
+            return Remember(action, WDIntegratedWeaponExecutionStatus.Superseded);
+        if (action.Round != context.CurrentRound || !availability.IsAvailable)
+            return Invalid(action);
+        if (!roundRuntime.TryBlockWeaponAction(targetActionId))
+            return Remember(action, WDIntegratedWeaponExecutionStatus.Superseded);
+        CommitCosts(action, definition); action.MarkValidated(); action.MarkExecuted();
+        return Remember(action, WDIntegratedWeaponExecutionStatus.Executed);
+    }
+
     private bool ExecuteTransport(WDWeaponAction action,int level)
     {
         WDGameWeaponTerritoryView origin=context.FindTerritory(action.OriginTerritoryId),target=context.FindTerritory(action.TargetTerritoryId);
@@ -756,12 +849,13 @@ public sealed class WDWeaponExecutionCoordinator
             target.OwnerPlayerId!=action.AuthorPlayerId&&!context.AreAllied(action.AuthorPlayerId,target.OwnerPlayerId)||troops<=0||
             troops>WDSupportWeaponTables.AirTransportCapacity(level)||origin.Troops-troops<1)return false;
         WDWeaponInstallationState item=string.IsNullOrEmpty(action.InstallationId)?null:installations.Find(action.InstallationId);
-        if(item!=null&&(item.WeaponId!=WDSupportWeaponIds.FlakTower||item.TerritoryId!=origin.TerritoryId||
+        if(item!=null&&(!WDWeaponInstallationRegistry.IsAirTransportAllowed(item.WeaponId)||item.TerritoryId!=origin.TerritoryId||
             installations.GetByTerritory(target.TerritoryId).Any(x=>x.WeaponId==item.WeaponId)))return false;
         if(!string.IsNullOrEmpty(action.InstallationId)&&item==null)return false;
         if(!mutations.RemoveTroops(Mutation(action,"transport-out"),origin.TerritoryId,troops).Succeeded)return false;
         if(!mutations.AddTroops(Mutation(action,"transport-in"),target.TerritoryId,troops).Succeeded)return false;
-        if(item!=null)mutations.MoveInstallation(Mutation(action,"transport-installation"),item.InstallationId,target.TerritoryId);
+        if(item!=null)mutations.MoveInstallation(Mutation(action,"transport-installation"),
+            item.InstallationId,target.TerritoryId,target.OwnerPlayerId);
         return true;
     }
 

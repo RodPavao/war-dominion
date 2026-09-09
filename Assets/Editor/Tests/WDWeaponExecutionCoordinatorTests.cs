@@ -438,21 +438,248 @@ public sealed class WDWeaponExecutionCoordinatorTests
     }
 
     [Test]
-    public void DroneReconCommitsOnceAndAttackUsesDiscoveryWithoutSecondCost()
+    public void DroneInstallationAndSameRoundShotUseCanonicalPersistentState()
     {
         SetLevel("p1", WDSpecialWeaponIds.Drone, 1);
-        WDWeaponAction recon = Action(WDSpecialWeaponIds.Drone, "",
-            parameters: new[] { new WDWeaponActionParameter("mode", "recon"),
-                new WDWeaponActionParameter("options", "enemy") });
-        Assert.That(coordinator.Execute(recon).Status,
-            Is.EqualTo(WDIntegratedWeaponExecutionStatus.ReconCompleted));
-        int energy = runtime.FindPlayer("p1").Energy;
-        WDWeaponAction attack = Action(WDSpecialWeaponIds.Drone, "enemy",
-            parameters: new[] { new WDWeaponActionParameter("mode", "attack"),
-                new WDWeaponActionParameter("recon", recon.ActionId) });
-        AssertExecuted(attack);
-        Assert.That(context.FindTerritory("enemy").Troops, Is.EqualTo(2));
-        Assert.That(runtime.FindPlayer("p1").Energy, Is.EqualTo(energy));
+        WDWeaponAction install = Action(WDSpecialWeaponIds.Drone, "owned",
+            installationId: "drone-live",
+            parameters: new[] { new WDWeaponActionParameter("mode", "install") });
+        WDWeaponAction shot = Action(WDSpecialWeaponIds.Drone, "enemy",
+            installationId: "drone-live", phase: WDWeaponResolutionPhase.ProgrammedOffense,
+            parameters: new[] { new WDWeaponActionParameter("mode", "shot") });
+
+        WDIntegratedWeaponExecutionResult[] results = coordinator
+            .ExecuteFrozenActions(new[] { shot, install }).ToArray();
+
+        Assert.That(results.Single(x => x.ActionId == install.ActionId).Status,
+            Is.EqualTo(WDIntegratedWeaponExecutionStatus.Executed));
+        Assert.That(results.Single(x => x.ActionId == shot.ActionId).Status,
+            Is.EqualTo(WDIntegratedWeaponExecutionStatus.Launched));
+        Assert.That(context.FindTerritory("enemy").Troops, Is.EqualTo(3));
+        Assert.That(registry.Find("drone-live").ChargesRemaining, Is.EqualTo(1));
+        AssertRuntime("p1", WDSpecialWeaponIds.Drone, 170, 3, 1);
+
+        WDWeaponAction repeated = Action(WDSpecialWeaponIds.Drone, "enemy",
+            installationId: "drone-live", phase: WDWeaponResolutionPhase.ProgrammedOffense,
+            parameters: new[] { new WDWeaponActionParameter("mode", "shot") });
+        Assert.That(coordinator.Execute(repeated).Status,
+            Is.EqualTo(WDIntegratedWeaponExecutionStatus.Superseded));
+        Assert.That(registry.Find("drone-live").ChargesRemaining, Is.EqualTo(1));
+
+        source.CurrentRound = 2;
+        roundState.BeginRound(2);
+        WDWeaponAction second = Action(WDSpecialWeaponIds.Drone, "enemy",
+            installationId: "drone-live", round: 2,
+            phase: WDWeaponResolutionPhase.ProgrammedOffense,
+            parameters: new[] { new WDWeaponActionParameter("mode", "shot") });
+        Assert.That(coordinator.Execute(second).Status,
+            Is.EqualTo(WDIntegratedWeaponExecutionStatus.Launched));
+        Assert.That(registry.Find("drone-live"), Is.Null);
+    }
+
+    [Test]
+    public void InfiltratorBlocksExactProgrammedActionBeforePeaceWithoutChargingTarget()
+    {
+        WDWeaponAction peace = Action(WDStrategicWeaponIds.Peace, "", "p3",
+            targetPlayer: "p1");
+        WDWeaponAction infiltrator = Action(WDSpecialWeaponIds.Infiltrator, "",
+            targetPlayer: "p3", phase: WDWeaponResolutionPhase.Infiltration,
+            parameters: new[] { new WDWeaponActionParameter("targetActionId", peace.ActionId) });
+
+        WDIntegratedWeaponExecutionResult[] results = coordinator
+            .ExecuteFrozenActions(new[] { peace, infiltrator }).ToArray();
+
+        Assert.That(results.Single(x => x.ActionId == infiltrator.ActionId).Status,
+            Is.EqualTo(WDIntegratedWeaponExecutionStatus.Executed));
+        Assert.That(results.Single(x => x.ActionId == peace.ActionId).Status,
+            Is.EqualTo(WDIntegratedWeaponExecutionStatus.BlockedByInfiltrator));
+        AssertRuntime("p3", WDStrategicWeaponIds.Peace, 200, 0, 0);
+    }
+
+    [Test]
+    public void RadarPreparationUseIsPrivateIdempotentAndRemovedAfterReveal()
+    {
+        var radar = new WDWeaponInstallationState("radar-live", WDTacticalWeaponIds.Radar,
+            "owned", "p1", 0, 0, 1, 0, 1, true, 0);
+        Assert.That(mutations.Install("install-radar-fixture", radar).Succeeded, Is.True);
+
+        WDRadarUseResult first = coordinator.UseRadarDuringPreparation(
+            "scan-1", "p1", radar.InstallationId, "enemy", Array.Empty<WDWeaponAction>());
+        WDRadarUseResult duplicate = coordinator.UseRadarDuringPreparation(
+            "scan-1", "p1", radar.InstallationId, "enemy", Array.Empty<WDWeaponAction>());
+
+        Assert.That(first.Status, Is.EqualTo(WDRadarUseStatus.Used));
+        Assert.That(first.Reveal.CanBeReadBy("p1"), Is.True);
+        Assert.That(first.Reveal.CanBeReadBy("p2"), Is.False);
+        Assert.That(duplicate.Status, Is.EqualTo(WDRadarUseStatus.AlreadyProcessed));
+        Assert.That(registry.Find(radar.InstallationId), Is.Null);
+
+        source.CurrentRound = 2;
+        roundState.BeginRound(2);
+        Assert.That(roundState.GetRadarResult("scan-1", "p1"), Is.Null);
+    }
+
+    [Test]
+    public void RadarInstalledThisRoundIsInvalidAndProgrammedSniperBlocksWithoutConsumption()
+    {
+        var newRadar = new WDWeaponInstallationState("radar-new", WDTacticalWeaponIds.Radar,
+            "owned", "p1", 0, 0, 1, 0, 1, true, 1);
+        Assert.That(mutations.Install("install-radar-new", newRadar).Succeeded, Is.True);
+        Assert.That(coordinator.UseRadarDuringPreparation("scan-new", "p1", "radar-new",
+            "enemy", Array.Empty<WDWeaponAction>()).Status,
+            Is.EqualTo(WDRadarUseStatus.Invalid));
+
+        mutations.RemoveInstallation("remove-new", "radar-new");
+        var oldRadar = new WDWeaponInstallationState("radar-old", WDTacticalWeaponIds.Radar,
+            "owned", "p1", 0, 0, 1, 0, 1, true, 0);
+        Assert.That(mutations.Install("install-radar-old", oldRadar).Succeeded, Is.True);
+        WDWeaponAction sniper = Action(WDTacticalWeaponIds.Sniper, "owned", "p3");
+        Assert.That(coordinator.UseRadarDuringPreparation("scan-blocked", "p1", "radar-old",
+            "enemy", new[] { sniper }).Status, Is.EqualTo(WDRadarUseStatus.BlockedBySniper));
+        Assert.That(oldRadar.ChargesRemaining, Is.EqualTo(1));
+        Assert.That(registry.Find("radar-old"), Is.SameAs(oldRadar));
+    }
+
+    [Test]
+    public void RadarReportsFlakCoverageWithoutExposingItToAlly()
+    {
+        var flak = new WDWeaponInstallationState("enemy-flak", WDSupportWeaponIds.FlakTower,
+            "enemy", "p3", 3, 0, 0, 0, 4, true, 0);
+        var radar = new WDWeaponInstallationState("radar-cover", WDTacticalWeaponIds.Radar,
+            "owned", "p1", 0, 0, 1, 0, 1, true, 0);
+        Assert.That(mutations.Install("install-enemy-flak", flak).Succeeded, Is.True);
+        Assert.That(mutations.Install("install-radar-cover", radar).Succeeded, Is.True);
+
+        WDRadarUseResult result = coordinator.UseRadarDuringPreparation("scan-cover",
+            "p1", radar.InstallationId, "enemy", Array.Empty<WDWeaponAction>());
+
+        Assert.That(result.Status, Is.EqualTo(WDRadarUseStatus.Used));
+        Assert.That(result.Reveal.HasFlakCoverage, Is.True);
+        Assert.That(roundState.GetRadarResult("scan-cover", "p2"), Is.Null);
+    }
+
+    [Test]
+    public void InfiltratorMissingTargetIsInvalidAndDuplicateTargetIsSuperseded()
+    {
+        WDWeaponAction peace = Action(WDStrategicWeaponIds.Peace, "", "p3",
+            targetPlayer: "p1");
+        WDWeaponAction first = Action(WDSpecialWeaponIds.Infiltrator, "", "p1",
+            targetPlayer: "p3", phase: WDWeaponResolutionPhase.Infiltration,
+            parameters: new[] { new WDWeaponActionParameter("targetActionId", peace.ActionId) });
+        WDWeaponAction second = Action(WDSpecialWeaponIds.Infiltrator, "", "p2",
+            targetPlayer: "p3", phase: WDWeaponResolutionPhase.Infiltration,
+            parameters: new[] { new WDWeaponActionParameter("targetActionId", peace.ActionId) });
+        WDWeaponAction missing = Action(WDSpecialWeaponIds.Infiltrator, "", "p2",
+            targetPlayer: "p3", phase: WDWeaponResolutionPhase.Infiltration,
+            parameters: new[] { new WDWeaponActionParameter("targetActionId", "cancelled") });
+
+        WDIntegratedWeaponExecutionResult[] results = coordinator
+            .ExecuteFrozenActions(new[] { second, peace, first, missing }).ToArray();
+
+        Assert.That(results.Single(x => x.ActionId == first.ActionId).Status,
+            Is.EqualTo(WDIntegratedWeaponExecutionStatus.Executed));
+        Assert.That(results.Single(x => x.ActionId == second.ActionId).Status,
+            Is.EqualTo(WDIntegratedWeaponExecutionStatus.Superseded));
+        Assert.That(results.Single(x => x.ActionId == missing.ActionId).Status,
+            Is.EqualTo(WDIntegratedWeaponExecutionStatus.Invalidated));
+        AssertRuntime("p1", WDSpecialWeaponIds.Infiltrator, 175, 3, 1);
+        AssertRuntime("p2", WDSpecialWeaponIds.Infiltrator, 200, 0, 0);
+        AssertRuntime("p3", WDStrategicWeaponIds.Peace, 200, 0, 0);
+    }
+
+    [Test]
+    public void InfiltratorDuplicateTargetUsesProgramOrderBeforeActionId()
+    {
+        WDWeaponAction peace = Action(WDStrategicWeaponIds.Peace, "", "p3",
+            targetPlayer: "p1");
+        WDWeaponAction earlier = InfiltratorAction(
+            "infiltrator-z", "p1", "p3", peace.ActionId, 10);
+        WDWeaponAction later = InfiltratorAction(
+            "infiltrator-a", "p1", "p3", peace.ActionId, 20);
+
+        WDIntegratedWeaponExecutionResult[] results = coordinator
+            .ExecuteFrozenActions(new[] { later, peace, earlier }).ToArray();
+
+        Assert.That(results.Single(x => x.ActionId == earlier.ActionId).Status,
+            Is.EqualTo(WDIntegratedWeaponExecutionStatus.Executed));
+        Assert.That(results.Single(x => x.ActionId == later.ActionId).Status,
+            Is.EqualTo(WDIntegratedWeaponExecutionStatus.Superseded));
+        AssertRuntime("p1", WDSpecialWeaponIds.Infiltrator, 175, 3, 1);
+    }
+
+    [Test]
+    public void InfiltratorDuplicateTargetUsesActionIdAsFinalTieBreaker()
+    {
+        WDWeaponAction peace = Action(WDStrategicWeaponIds.Peace, "", "p3",
+            targetPlayer: "p1");
+        WDWeaponAction firstId = InfiltratorAction(
+            "infiltrator-a", "p1", "p3", peace.ActionId, 10);
+        WDWeaponAction lastId = InfiltratorAction(
+            "infiltrator-z", "p1", "p3", peace.ActionId, 10);
+
+        WDIntegratedWeaponExecutionResult[] results = coordinator
+            .ExecuteFrozenActions(new[] { lastId, peace, firstId }).ToArray();
+
+        Assert.That(results.Single(x => x.ActionId == firstId.ActionId).Status,
+            Is.EqualTo(WDIntegratedWeaponExecutionStatus.Executed));
+        Assert.That(results.Single(x => x.ActionId == lastId.ActionId).Status,
+            Is.EqualTo(WDIntegratedWeaponExecutionStatus.Superseded));
+        AssertRuntime("p1", WDSpecialWeaponIds.Infiltrator, 175, 3, 1);
+    }
+
+    [Test]
+    public void InfiltratorCannotBlockPersistentDroneOperation()
+    {
+        WDWeaponAction shot = Action(WDSpecialWeaponIds.Drone, "enemy", "p3",
+            installationId: "enemy-drone",
+            phase: WDWeaponResolutionPhase.ProgrammedOffense,
+            parameters: new[] { new WDWeaponActionParameter("mode", "shot") });
+        WDWeaponAction infiltrator = Action(WDSpecialWeaponIds.Infiltrator, "", "p1",
+            targetPlayer: "p3", phase: WDWeaponResolutionPhase.Infiltration,
+            parameters: new[] { new WDWeaponActionParameter("targetActionId", shot.ActionId) });
+
+        WDIntegratedWeaponExecutionResult result = coordinator
+            .ExecuteFrozenActions(new[] { shot, infiltrator })
+            .Single(item => item.ActionId == infiltrator.ActionId);
+
+        Assert.That(result.Status, Is.EqualTo(WDIntegratedWeaponExecutionStatus.Invalidated));
+    }
+
+    [TestCase("owned")]
+    [TestCase("ally")]
+    public void DronePersistentShotRejectsOwnAndAlliedTerritories(string targetId)
+    {
+        var drone = new WDWeaponInstallationState("drone-invalid", WDSpecialWeaponIds.Drone,
+            "owned", "p1", 0, 0, 2, 0, 1, true, 0);
+        Assert.That(mutations.Install("install-drone-invalid", drone).Succeeded, Is.True);
+        WDWeaponAction shot = Action(WDSpecialWeaponIds.Drone, targetId,
+            installationId: drone.InstallationId,
+            phase: WDWeaponResolutionPhase.ProgrammedOffense,
+            parameters: new[] { new WDWeaponActionParameter("mode", "shot") });
+
+        Assert.That(coordinator.Execute(shot).Status,
+            Is.EqualTo(WDIntegratedWeaponExecutionStatus.Invalidated));
+        Assert.That(drone.ChargesRemaining, Is.EqualTo(2));
+    }
+
+    [TestCase("neutral", 0, WDWeaponTerritoryStateKind.Empty)]
+    [TestCase("empty", 0, WDWeaponTerritoryStateKind.Empty)]
+    public void DroneCanLaunchAtNeutralOrEmptyAndConsumesCharge(
+        string targetId, int expectedTroops, WDWeaponTerritoryStateKind expectedState)
+    {
+        var drone = new WDWeaponInstallationState("drone-open", WDSpecialWeaponIds.Drone,
+            "owned", "p1", 0, 0, 2, 0, 1, true, 0);
+        Assert.That(mutations.Install("install-drone-open", drone).Succeeded, Is.True);
+        WDWeaponAction shot = Action(WDSpecialWeaponIds.Drone, targetId,
+            installationId: drone.InstallationId,
+            phase: WDWeaponResolutionPhase.ProgrammedOffense,
+            parameters: new[] { new WDWeaponActionParameter("mode", "shot") });
+
+        Assert.That(coordinator.Execute(shot).Status,
+            Is.EqualTo(WDIntegratedWeaponExecutionStatus.Launched));
+        Assert.That(context.FindTerritory(targetId).Troops, Is.EqualTo(expectedTroops));
+        Assert.That(context.FindTerritory(targetId).State, Is.EqualTo(expectedState));
+        Assert.That(drone.ChargesRemaining, Is.EqualTo(1));
     }
 
     // ============================================================
@@ -536,19 +763,6 @@ public sealed class WDWeaponExecutionCoordinatorTests
         AssertExecuted(Action(WDTacticalWeaponIds.Paratroopers,"enemy"));
         Assert.That(context.FindTerritory("enemy").OwnerPlayerId,Is.EqualTo("p1"));
         Assert.That(context.FindTerritory("enemy").Troops,Is.EqualTo(troops));
-    }
-
-    [Test]
-    public void InfiltratorDisablesOriginBunkerAndMineOnlyForRound()
-    {
-        mutations.Install("b",new WDWeaponInstallationState("b","bunker","enemy","p3",0,4,0,0));
-        mutations.Install("m",new WDWeaponInstallationState("m","minefield","enemy","p3",0,0,1,0));
-        AssertExecuted(Action(WDSpecialWeaponIds.Infiltrator,"enemy"));
-        Assert.That(roundState.IsOriginBlocked("enemy"),Is.True);
-        Assert.That(registry.Find("b").IsTemporarilyDisabled,Is.True);
-        coordinator.ProcessRoundStart(2);
-        Assert.That(registry.Find("b").IsTemporarilyDisabled,Is.False);
-        Assert.That(registry.Find("b").BarrierRemaining,Is.EqualTo(4));
     }
 
     [TestCase(1,4)] [TestCase(2,5)] [TestCase(3,6)]
@@ -712,6 +926,117 @@ public sealed class WDWeaponExecutionCoordinatorTests
             .WeaponStatus, Is.EqualTo(WDIntegratedWeaponExecutionStatus.Deferred));
     }
 
+    // ============================================================
+    // 10. INTEGRAÇÃO DE RODADA: PREPARAÇÃO, ESTADO VIVO E LIFECYCLE
+    // ============================================================
+
+    [Test]
+    public void FrozenPreparationCrossesGlobalPipelineBeforeTerrestrialAndConsolidation()
+    {
+        var preparation = new WDWeaponPreparationService(runtime, context, catalog);
+        preparation.BeginRound(1);
+        Assert.That(preparation.Program(new WDWeaponProgrammingRequest(
+            "p1", WDSupportWeaponIds.Reinforcements,
+            targetTerritoryId: "owned")).Succeeded, Is.True);
+
+        IReadOnlyList<WDWeaponAction> frozen = preparation.FreezeRound();
+        int troopsObservedByTerrestrial = -1;
+        int troopsObservedByConsolidation = -1;
+        var pipeline = new WDWeaponResolutionPipeline();
+        WDGlobalResolutionResult result = pipeline.ResolveRound(
+            new WDGlobalResolutionRequest(
+                "integration:complete-round", 1, frozen, coordinator,
+                resolveTerrestrial: () =>
+                {
+                    troopsObservedByTerrestrial = context.FindTerritory("owned").Troops;
+                    return 1;
+                },
+                consolidate: () =>
+                {
+                    troopsObservedByConsolidation = context.FindTerritory("owned").Troops;
+                    roundState.ObserveTerritoryHistory(1, context.Territories);
+                }));
+
+        Assert.That(frozen, Has.Count.EqualTo(1));
+        Assert.That(troopsObservedByTerrestrial, Is.EqualTo(13));
+        Assert.That(troopsObservedByConsolidation, Is.EqualTo(13));
+        Assert.That(context.FindTerritory("owned").Troops, Is.EqualTo(13));
+        Assert.That(result.Entries.Single(item =>
+            item.Kind == WDGlobalResolutionEntryKind.WeaponAction).WeaponStatus,
+            Is.EqualTo(WDIntegratedWeaponExecutionStatus.Executed));
+    }
+
+    [Test]
+    public void DuplicateGlobalResolutionDoesNotRepeatCentralMercenariesOrSystemHooks()
+    {
+        SetLevel("p1", WDStrategicWeaponIds.EnergyPlant, 1);
+        SetLevel("p1", WDSupportWeaponIds.Mercenaries, 1);
+        var pipeline = new WDWeaponResolutionPipeline();
+        int terrestrialCalls = 0;
+        int consolidationCalls = 0;
+        var request = new WDGlobalResolutionRequest(
+            "integration:idempotent-economy", 1,
+            new[]
+            {
+                Action(WDStrategicWeaponIds.EnergyPlant, "owned",
+                    installationId: "integration-central"),
+                Action(WDSupportWeaponIds.Mercenaries, "")
+            },
+            coordinator,
+            resolveTerrestrial: () => ++terrestrialCalls,
+            consolidate: () => consolidationCalls++);
+
+        WDGlobalResolutionResult first = pipeline.ResolveRound(request);
+        int energyAfterFirst = runtime.FindPlayer("p1").Energy;
+        int poolAfterFirst = roundState.TakeReinforcementPool("p1");
+        WDGlobalResolutionResult second = pipeline.ResolveRound(request);
+
+        Assert.That(second, Is.SameAs(first));
+        Assert.That(runtime.FindPlayer("p1").Energy, Is.EqualTo(energyAfterFirst));
+        Assert.That(poolAfterFirst, Is.EqualTo(1));
+        Assert.That(roundState.TakeReinforcementPool("p1"), Is.Zero);
+        Assert.That(terrestrialCalls, Is.EqualTo(1));
+        Assert.That(consolidationCalls, Is.EqualTo(1));
+        Assert.That(registry.GetByTerritory("owned").Count(item =>
+            item.WeaponId == WDStrategicWeaponIds.EnergyPlant), Is.EqualTo(1));
+    }
+
+    [Test]
+    public void NextRoundExpiresPeaceButPreservesCentralAndPaysOnlyOnce()
+    {
+        SetLevel("p1", WDStrategicWeaponIds.EnergyPlant, 1);
+        var pipeline = new WDWeaponResolutionPipeline();
+        pipeline.ResolveRound(new WDGlobalResolutionRequest(
+            "integration:lifecycle:round-1", 1,
+            new[]
+            {
+                Action(WDStrategicWeaponIds.EnergyPlant, "owned",
+                    installationId: "lifecycle-central"),
+                Action(WDStrategicWeaponIds.Peace, "", targetPlayer: "p3")
+            }, coordinator));
+        Assert.That(roundState.HasPeace("p1", "p3"), Is.True);
+
+        source.CurrentRound = 2;
+        runtime.AdvanceCooldownsForRound(2);
+        int energyBeforeRoundTwo = runtime.FindPlayer("p1").Energy;
+        WDGlobalResolutionResult roundTwo = pipeline.ResolveRound(
+            new WDGlobalResolutionRequest(
+                "integration:lifecycle:round-2", 2,
+                Array.Empty<WDWeaponAction>(), coordinator));
+        int energyAfterRoundTwo = runtime.FindPlayer("p1").Energy;
+        WDGlobalResolutionResult duplicate = pipeline.ResolveRound(
+            new WDGlobalResolutionRequest(
+                "integration:lifecycle:round-2", 2,
+                Array.Empty<WDWeaponAction>(), coordinator));
+
+        Assert.That(roundState.HasPeace("p1", "p3"), Is.False);
+        Assert.That(registry.Find("lifecycle-central"), Is.Not.Null);
+        Assert.That(registry.Find("lifecycle-central").IsDestroyed, Is.False);
+        Assert.That(energyAfterRoundTwo - energyBeforeRoundTwo, Is.EqualTo(5));
+        Assert.That(runtime.FindPlayer("p1").Energy, Is.EqualTo(energyAfterRoundTwo));
+        Assert.That(duplicate, Is.SameAs(roundTwo));
+    }
+
     private void ExecuteCentralAtRound(string territory, string id, int round)
     {
         source.CurrentRound = round;
@@ -730,6 +1055,17 @@ public sealed class WDWeaponExecutionCoordinatorTests
             actionSequence, originTerritoryId: origin, targetTerritoryId: target,
             targetPlayerId: targetPlayer, installationId: installationId,
             parameters: parameters);
+
+    private static WDWeaponAction InfiltratorAction(
+        string actionId, string author, string targetPlayer,
+        string targetActionId, int programOrder) =>
+        new(actionId, author, WDSpecialWeaponIds.Infiltrator, 1,
+            WDWeaponResolutionPhase.Infiltration, programOrder,
+            targetPlayerId: targetPlayer,
+            parameters: new[]
+            {
+                new WDWeaponActionParameter("targetActionId", targetActionId)
+            });
 
     private void AssertExecuted(WDWeaponAction action) => Assert.That(
         coordinator.Execute(action).Status,
@@ -903,11 +1239,16 @@ public sealed class WDWeaponExecutionCoordinatorTests
             source.Add("ally", "p2", 4);
             source.Add("enemy", "p3", 4);
             source.Add("enemy2", "p3", 2);
+            source.Add("neutral", "", 1, WDWeaponTerritoryStateKind.Neutral);
+            source.Add("empty", "", 0, WDWeaponTerritoryStateKind.Empty);
             return source;
         }
         private void Add(string id, string owner, int troops) => territories.Add(id,
             new Territory { Id = id, Owner = owner, Troops = troops,
                 State = WDWeaponTerritoryStateKind.Occupied });
+        private void Add(string id, string owner, int troops,
+            WDWeaponTerritoryStateKind state) => territories.Add(id,
+            new Territory { Id = id, Owner = owner, Troops = troops, State = state });
         private static WDGameWeaponTerritoryView View(Territory value) =>
             new(value.Id, value.Owner, value.Troops, value.State);
     }

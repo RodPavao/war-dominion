@@ -24,23 +24,12 @@ public sealed class WDWeaponInstallationLifecycle
     { this.registry = registry; this.mutations = mutations; }
 
     public void TerritoryBecameEmpty(string territoryId, string mutationPrefix)
-    {
-        foreach (WDWeaponInstallationState item in registry.GetByTerritory(territoryId).ToArray())
-            if (item.WeaponId == WDSupportWeaponIds.Bunker ||
-                item.WeaponId == WDSupportWeaponIds.FlakTower)
-                mutations.RemoveInstallation($"{mutationPrefix}:remove:{item.InstallationId}", item.InstallationId);
-            else if (item.WeaponId == WDStrategicWeaponIds.EnergyPlant ||
-                     item.WeaponId == WDStrategicWeaponIds.Rockets ||
-                     item.WeaponId == WDStrategicWeaponIds.Artillery)
-                mutations.AbandonInstallation($"{mutationPrefix}:abandon:{item.InstallationId}", item.InstallationId);
-    }
+        => registry.ApplyTerritoryLifecycle(territoryId, string.Empty,
+            WDWeaponTerritoryStateKind.Empty);
 
     public void TerritoryCaptured(string territoryId, string ownerId, string mutationPrefix)
-    {
-        foreach (WDWeaponInstallationState item in registry.GetByTerritory(territoryId).ToArray())
-            mutations.CaptureInstallation($"{mutationPrefix}:capture:{item.InstallationId}",
-                item.InstallationId, ownerId);
-    }
+        => registry.ApplyTerritoryLifecycle(territoryId, ownerId,
+            WDWeaponTerritoryStateKind.Occupied);
 
     public int AdvanceFlakLifecycle(int round)
     {

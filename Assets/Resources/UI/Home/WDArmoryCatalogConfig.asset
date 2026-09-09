@@ -30,11 +30,15 @@ MonoBehaviour:
     displayName: Drone
     categoryId: special
     maximumLevel: 6
-    energyCost: 25
+    energyCost: 30
     cooldownRounds: 3
-    behaviorType: 0
-    resolutionPhase: 90
-    costTiming: 1
+    behaviorType: 1
+    resolutionPhase: 60
+    costTiming: 0
+    requiresTargetTerritory: 1
+    canTargetEmptyTerritory: 1
+    installation: 1
+    charges: 2
     iconKey: drone
     levels: []
   - id: atomic_bomb
@@ -83,9 +87,9 @@ MonoBehaviour:
     energyCost: 25
     cooldownRounds: 3
     behaviorType: 4
-    resolutionPhase: 40
+    resolutionPhase: 5
     costTiming: 0
-    requiresTargetTerritory: 1
+    requiresTargetPlayer: 1
     iconKey: infiltrator
     levels: []
   - id: sabotage
@@ -246,6 +250,20 @@ MonoBehaviour:
     canTargetEmptyTerritory: 1
     iconKey: paratroopers
     levels: []
+  - id: radar
+    displayName: Radar
+    categoryId: tactical
+    maximumLevel: 1
+    energyCost: 25
+    cooldownRounds: 3
+    behaviorType: 1
+    resolutionPhase: 60
+    costTiming: 0
+    requiresTargetTerritory: 1
+    installation: 1
+    charges: 1
+    iconKey: radar
+    levels: []
   - id: air_strike
     displayName: Ataque Aéreo
     categoryId: support
@@ -369,3 +387,4 @@ MonoBehaviour:
     - {targetLevel: 5, requiredTokens: 5000, coinCost: 25000, futureLevelConfigId: standard_6_l5}
     - {targetLevel: 6, requiredTokens: 10000, coinCost: 50000, futureLevelConfigId: standard_6_l6}
   vipEnabledForDevelopment: 0
+  unlockAllWeaponsForDevelopment: 1

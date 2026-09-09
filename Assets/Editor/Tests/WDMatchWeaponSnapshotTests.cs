@@ -31,7 +31,7 @@ public sealed class WDMatchWeaponSnapshotTests
             .Where(id => id != WDMatchWeaponSnapshotFactory.UniversalEnergyPlantId)
             .ToArray();
 
-        Assert.That(pool, Has.Length.EqualTo(24));
+        Assert.That(pool, Has.Length.EqualTo(25));
         Assert.That(pool, Is.EquivalentTo(expected));
         Assert.That(pool, Has.None.StartsWith("card_"));
     }

@@ -33,6 +33,7 @@ MonoBehaviour:
   - {cardId: rockets, basic: 0, randomCardsEligible: 1}
   - {cardId: kamikaze, basic: 0, randomCardsEligible: 1}
   - {cardId: paratroopers, basic: 0, randomCardsEligible: 1}
+  - {cardId: radar, basic: 0, randomCardsEligible: 1}
   - {cardId: flak_tower, basic: 0, randomCardsEligible: 1}
   - {cardId: reserve_troops, basic: 0, randomCardsEligible: 1}
   - {cardId: troop_recovery, basic: 0, randomCardsEligible: 1}

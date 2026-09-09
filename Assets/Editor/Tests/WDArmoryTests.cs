@@ -167,6 +167,24 @@ public sealed class WDArmoryTests
     }
 
     [Test]
+    public void DevelopmentBootstrapCompletesExistingCanonicalCollectionWithoutChangingDecks()
+    {
+        catalog.Configure(catalog.Categories, catalog.Weapons,
+            developmentUnlockAllWeapons: true);
+        var existingProfile = new WDArmoryProfile();
+        existingProfile.AddProgress(new WDWeaponProgress("legacy_weapon", true));
+        existingProfile.GetDeck(0).SetMain(0, "weapon_0");
+        string[] deckBefore = existingProfile.GetDeck(0).MainWeaponIds.ToArray();
+
+        Assert.That(WDArmoryDevelopmentBootstrap.Apply(catalog, existingProfile), Is.True);
+
+        Assert.That(catalog.Weapons.All(weapon =>
+            existingProfile.GetProgress(weapon.Id)?.Obtained == true), Is.True);
+        Assert.That(existingProfile.GetDeck(0).MainWeaponIds, Is.EqualTo(deckBefore));
+        Assert.That(WDArmoryDevelopmentBootstrap.Apply(catalog, existingProfile), Is.False);
+    }
+
+    [Test]
     public void TwoSupportUsesAreIndependentAndLimitedToOneEach()
     {
         var usage = new WDMatchSupportUsage();

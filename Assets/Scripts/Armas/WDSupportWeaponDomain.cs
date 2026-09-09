@@ -77,7 +77,8 @@ public sealed class WDWeaponTerritoryState
         OwnerPlayerId = owner ?? string.Empty;
         State = WDWeaponTerritoryStateKind.Occupied;
         foreach (WDWeaponInstallationState installation in installations.Where(item => !item.IsDestroyed))
-            if (installation.WeaponId != WDSupportWeaponIds.Minefield || installation.IsTemporarilyDisabled) installation.Capture(OwnerPlayerId);
+            if (installation.WeaponId != WDSupportWeaponIds.Minefield)
+                installation.Capture(OwnerPlayerId);
     }
     public void MakeNeutral(int troops)
     {

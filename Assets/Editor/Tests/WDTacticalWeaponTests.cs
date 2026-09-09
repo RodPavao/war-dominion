@@ -5,6 +5,13 @@ using NUnit.Framework;
 
 public sealed class WDTacticalWeaponTests
 {
+    [Test]
+    public void RadarHasOneCanonicalReveal()
+    {
+        Assert.That(WDTacticalWeaponIds.Radar, Is.EqualTo("radar"));
+        Assert.That(WDTacticalWeaponTables.RadarRevelations, Is.EqualTo(1));
+    }
+
     // ============================================================
     // 01. TABELAS, CATÁLOGO E ORDEM
     // ============================================================

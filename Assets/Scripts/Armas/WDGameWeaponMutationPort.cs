@@ -69,6 +69,9 @@ public interface IWDGameWeaponInstallationMutationPort
         string mutationId, string installationId, string newOwnerPlayerId);
     WDGameWeaponMutationResult MoveInstallation(
         string mutationId, string installationId, string targetTerritoryId);
+    WDGameWeaponMutationResult MoveInstallation(
+        string mutationId, string installationId, string targetTerritoryId,
+        string newOwnerPlayerId);
 }
 
 public interface IWDGameWeaponMutationPort :
@@ -131,6 +134,14 @@ public sealed class WDWeaponInstallationRegistry
 
     internal bool Remove(string installationId) => installations.Remove(installationId);
 
+    public static bool IsAirTransportAllowed(string weaponId) =>
+        weaponId == WDSupportWeaponIds.FlakTower ||
+        weaponId == WDStrategicWeaponIds.EnergyPlant ||
+        weaponId == WDStrategicWeaponIds.Artillery ||
+        weaponId == WDStrategicWeaponIds.Rockets ||
+        weaponId == WDSpecialWeaponIds.Drone ||
+        weaponId == WDTacticalWeaponIds.Radar;
+
     internal void ApplyTerritoryLifecycle(
         string territoryId, string ownerPlayerId, WDWeaponTerritoryStateKind state)
     {
@@ -144,11 +155,20 @@ public sealed class WDWeaponInstallationRegistry
                     installations.Remove(item.InstallationId);
                 else if (item.WeaponId == WDStrategicWeaponIds.EnergyPlant ||
                          item.WeaponId == WDStrategicWeaponIds.Rockets ||
-                         item.WeaponId == WDStrategicWeaponIds.Artillery)
+                         item.WeaponId == WDStrategicWeaponIds.Artillery ||
+                         item.WeaponId == WDSpecialWeaponIds.Drone ||
+                         item.WeaponId == WDTacticalWeaponIds.Radar)
+                    item.Abandon();
+            }
+            else if (state == WDWeaponTerritoryStateKind.Neutral)
+            {
+                // Mina preserva o instalador original; todas as demais ficam abandonadas.
+                if (item.WeaponId != WDSupportWeaponIds.Minefield)
                     item.Abandon();
             }
             else if (state == WDWeaponTerritoryStateKind.Occupied &&
-                     !string.IsNullOrEmpty(ownerPlayerId))
+                     !string.IsNullOrEmpty(ownerPlayerId) &&
+                     item.WeaponId != WDSupportWeaponIds.Minefield)
                 item.Capture(ownerPlayerId);
         }
     }
@@ -349,17 +369,35 @@ public sealed class WDGameWeaponMutationPort : IWDGameWeaponMutationPort
 
     public WDGameWeaponMutationResult MoveInstallation(
         string mutationId, string installationId, string targetTerritoryId) =>
+        MoveInstallation(mutationId, installationId, targetTerritoryId, null);
+
+    public WDGameWeaponMutationResult MoveInstallation(
+        string mutationId, string installationId, string targetTerritoryId,
+        string newOwnerPlayerId) =>
         Execute(mutationId, () =>
         {
             WDWeaponInstallationState installation = registry.Find(installationId);
             if (installation == null)
                 return Fail(WDGameWeaponMutationReason.InstallationNotFound);
+            if (!WDWeaponInstallationRegistry.IsAirTransportAllowed(installation.WeaponId))
+                return Fail(WDGameWeaponMutationReason.InvalidInstallation);
             if (source.FindTerritory(targetTerritoryId) == null)
                 return Fail(WDGameWeaponMutationReason.TerritoryNotFound);
             if (registry.GetByTerritory(targetTerritoryId).Any(
                 item => item.WeaponId == installation.WeaponId))
                 return Fail(WDGameWeaponMutationReason.DuplicateInstallation);
+            if (!string.IsNullOrEmpty(newOwnerPlayerId))
+            {
+                if (!source.PlayerExists(newOwnerPlayerId))
+                    return Fail(WDGameWeaponMutationReason.PlayerNotFound);
+                WDGameWeaponTerritoryView target = source.FindTerritory(targetTerritoryId);
+                if (target.State != WDWeaponTerritoryStateKind.Occupied ||
+                    target.OwnerPlayerId != newOwnerPlayerId)
+                    return Fail(WDGameWeaponMutationReason.InvalidOwner);
+            }
             installation.MoveTo(targetTerritoryId);
+            if (!string.IsNullOrEmpty(newOwnerPlayerId))
+                installation.Capture(newOwnerPlayerId);
             return Ok();
         });
 

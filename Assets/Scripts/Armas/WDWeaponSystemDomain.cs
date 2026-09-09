@@ -22,6 +22,7 @@ public enum WDWeaponCostTiming
 public enum WDWeaponResolutionPhase
 {
     RoundStart = 0,
+    Infiltration = 5,
     Peace = 10,
     TransferNullifier = 20,
     TerritoryTransfer = 30,
@@ -239,6 +240,8 @@ public sealed class WDWeaponInstallationState
     public int DurationRemaining { get; private set; }
     public int BarrierRemaining { get; private set; }
     public int ChargesRemaining { get; private set; }
+    public int InitialCharges { get; }
+    public int NextChargeSequenceNumber => Math.Max(1, InitialCharges - ChargesRemaining + 1);
     public int PaymentsRemaining { get; private set; }
     public bool IsTemporarilyDisabled { get; private set; }
     public bool IsAbandoned => string.IsNullOrEmpty(OwnerPlayerId);
@@ -258,6 +261,7 @@ public sealed class WDWeaponInstallationState
         DurationRemaining = Math.Max(0, duration);
         BarrierRemaining = Math.Max(0, barrier);
         ChargesRemaining = Math.Max(0, charges);
+        InitialCharges = ChargesRemaining;
         PaymentsRemaining = Math.Max(0, payments);
         Level = Math.Max(1, level);
         IsTransportable = isTransportable;

@@ -255,12 +255,156 @@ public sealed class WDGameWeaponMutationPortTests
     [Test]
     public void MovesInstallationAndKeepsTerritoryIndexesIsolated()
     {
-        port.Install("install-move", Installation("bunker-1", "bunker", "owned"));
-        Assert.That(port.MoveInstallation("move", "bunker-1", "enemy").Succeeded,
+        port.Install("install-move", Installation("flak-1", "flak_tower", "owned"));
+        Assert.That(port.MoveInstallation("move", "flak-1", "enemy").Succeeded,
             Is.True);
         Assert.That(registry.GetByTerritory("owned"), Is.Empty);
         Assert.That(registry.GetByTerritory("enemy").Single().InstallationId,
-            Is.EqualTo("bunker-1"));
+            Is.EqualTo("flak-1"));
+    }
+
+    [TestCase(WDSupportWeaponIds.Minefield)]
+    [TestCase(WDSupportWeaponIds.Bunker)]
+    public void AirTransportRejectsNonTransportableInstallationTypes(string weaponId)
+    {
+        WDWeaponInstallationState item = Installation("blocked-" + weaponId,
+            weaponId, "owned");
+        Assert.That(port.Install("install-blocked-" + weaponId, item).Succeeded, Is.True);
+        Assert.That(port.MoveInstallation("move-blocked-" + weaponId,
+            item.InstallationId, "enemy").Reason,
+            Is.EqualTo(WDGameWeaponMutationReason.InvalidInstallation));
+    }
+
+    [Test]
+    public void DroneStatePreservesSequentialChargesAndLastOperationRound()
+    {
+        WDWeaponInstallationState drone = new("drone-1", WDSpecialWeaponIds.Drone,
+            "owned", "p1", 0, 0, 2, 0, 5, true, 3);
+
+        Assert.That(drone.InitialCharges, Is.EqualTo(2));
+        Assert.That(drone.NextChargeSequenceNumber, Is.EqualTo(1));
+        Assert.That(drone.TryMarkAutomaticRound(3), Is.True);
+        drone.ConsumeCharge();
+
+        Assert.That(drone.ChargesRemaining, Is.EqualTo(1));
+        Assert.That(drone.NextChargeSequenceNumber, Is.EqualTo(2));
+        Assert.That(drone.LastAutomaticRound, Is.EqualTo(3));
+    }
+
+    [Test]
+    public void EmptyLifecycleDestroysDefencesAndAbandonsPersistentInstallations()
+    {
+        string[] destroyed = { WDSupportWeaponIds.Bunker, WDSupportWeaponIds.FlakTower };
+        string[] abandoned = { WDStrategicWeaponIds.EnergyPlant, WDStrategicWeaponIds.Artillery,
+            WDStrategicWeaponIds.Rockets, WDSpecialWeaponIds.Drone, WDTacticalWeaponIds.Radar };
+        foreach (string id in destroyed.Concat(abandoned))
+            Assert.That(port.Install("install-" + id,
+                Installation("i-" + id, id, "owned")).Succeeded, Is.True, id);
+        WDWeaponInstallationState mine = Installation(
+            "i-mine", WDSupportWeaponIds.Minefield, "owned");
+        Assert.That(port.Install("install-mine-empty", mine).Succeeded, Is.True);
+
+        Assert.That(port.MakeEmpty("empty-lifecycle", "owned").Succeeded, Is.True);
+
+        Assert.That(registry.Find(mine.InstallationId), Is.SameAs(mine));
+        Assert.That(mine.OwnerPlayerId, Is.EqualTo("p1"));
+        Assert.That(mine.OriginalInstallerPlayerId, Is.EqualTo("p1"));
+        foreach (string id in destroyed)
+            Assert.That(registry.Find("i-" + id), Is.Null, id);
+        foreach (string id in abandoned)
+            Assert.That(registry.Find("i-" + id).IsAbandoned, Is.True, id);
+    }
+
+    [Test]
+    public void NeutralLifecyclePreservesMineAndAbandonsEveryOtherInstallation()
+    {
+        string[] abandoned = { WDSupportWeaponIds.Bunker, WDSupportWeaponIds.FlakTower,
+            WDStrategicWeaponIds.EnergyPlant, WDStrategicWeaponIds.Artillery,
+            WDStrategicWeaponIds.Rockets, WDSpecialWeaponIds.Drone, WDTacticalWeaponIds.Radar };
+        Assert.That(port.Install("install-mine", Installation("i-mine",
+            WDSupportWeaponIds.Minefield, "owned")).Succeeded, Is.True);
+        foreach (string id in abandoned)
+            Assert.That(port.Install("install-neutral-" + id,
+                Installation("n-" + id, id, "owned")).Succeeded, Is.True, id);
+
+        Assert.That(port.MakeNeutral("neutral-lifecycle", "owned").Succeeded, Is.True);
+
+        Assert.That(registry.Find("i-mine").OwnerPlayerId, Is.EqualTo("p1"));
+        foreach (string id in abandoned)
+            Assert.That(registry.Find("n-" + id).IsAbandoned, Is.True, id);
+
+        Assert.That(port.MakeOccupied("occupy-after-neutral", "owned", "p2", 2)
+            .Succeeded, Is.True);
+        Assert.That(registry.Find("i-mine").OwnerPlayerId, Is.EqualTo("p1"));
+        foreach (string id in abandoned)
+            Assert.That(registry.Find("n-" + id).OwnerPlayerId, Is.EqualTo("p2"), id);
+    }
+
+    [TestCase(WDSupportWeaponIds.FlakTower)]
+    [TestCase(WDStrategicWeaponIds.EnergyPlant)]
+    [TestCase(WDStrategicWeaponIds.Artillery)]
+    [TestCase(WDStrategicWeaponIds.Rockets)]
+    [TestCase(WDSpecialWeaponIds.Drone)]
+    [TestCase(WDTacticalWeaponIds.Radar)]
+    public void AlliedTransportTransfersInstallationWithoutResettingState(string weaponId)
+    {
+        WDWeaponInstallationState installation = Installation(
+            "move-" + weaponId, weaponId, "owned");
+        Assert.That(port.Install("install-move-" + weaponId, installation).Succeeded,
+            Is.True);
+        installation.ConsumeDuration();
+        installation.ApplyBarrierDamage(2);
+        installation.ConsumeCharge();
+        installation.ConsumePayment();
+        Assert.That(installation.TryMarkAutomaticRound(4), Is.True);
+
+        Assert.That(port.MoveInstallation("move-to-ally-" + weaponId,
+            installation.InstallationId,
+            "ally", "p3").Succeeded, Is.True);
+
+        Assert.That(registry.Find(installation.InstallationId), Is.SameAs(installation));
+        AssertInstallationState(installation, weaponId, "ally", "p3",
+            duration: 3, barrier: 5, charges: 2, payments: 1,
+            level: 4, installedRound: 2, lastAutomaticRound: 4);
+    }
+
+    [TestCase(WDSupportWeaponIds.FlakTower)]
+    [TestCase(WDStrategicWeaponIds.EnergyPlant)]
+    [TestCase(WDStrategicWeaponIds.Artillery)]
+    [TestCase(WDStrategicWeaponIds.Rockets)]
+    [TestCase(WDSpecialWeaponIds.Drone)]
+    [TestCase(WDTacticalWeaponIds.Radar)]
+    public void CapturePreservesInstallationStateWithoutWeaponRuntimeCost(string weaponId)
+    {
+        WDWeaponInstallationState installation = Installation(
+            "capture-" + weaponId, weaponId, "owned");
+        Assert.That(port.Install("install-capture-" + weaponId, installation).Succeeded,
+            Is.True);
+        installation.ConsumeDuration();
+        installation.ApplyBarrierDamage(2);
+        installation.ConsumeCharge();
+        installation.ConsumePayment();
+        Assert.That(installation.TryMarkAutomaticRound(4), Is.True);
+        Assert.That(port.AddEnergy("energy-before-capture-" + weaponId, "p1", 50).Succeeded,
+            Is.True);
+        Assert.That(port.StartCooldown("cooldown-before-capture-" + weaponId,
+            "p1", weaponId, 2).Succeeded, Is.True);
+        Assert.That(port.RegisterUse("use-before-capture-" + weaponId,
+            "p1", weaponId).Succeeded, Is.True);
+
+        Assert.That(port.MakeNeutral("neutral-before-capture-" + weaponId, "owned")
+            .Succeeded, Is.True);
+        Assert.That(port.MakeOccupied("capture-territory-" + weaponId,
+            "owned", "p2", 2).Succeeded, Is.True);
+
+        Assert.That(registry.Find(installation.InstallationId), Is.SameAs(installation));
+        AssertInstallationState(installation, weaponId, "owned", "p2",
+            duration: 3, barrier: 5, charges: 2, payments: 1,
+            level: 4, installedRound: 2, lastAutomaticRound: 4);
+        WDWeaponPlayerRuntimeState player = runtime.FindPlayer("p1");
+        Assert.That(player.Energy, Is.EqualTo(50));
+        Assert.That(player.GetWeapon(weaponId).CooldownRemaining, Is.EqualTo(2));
+        Assert.That(player.GetWeapon(weaponId).Uses, Is.EqualTo(1));
     }
 
     [Test]
@@ -318,6 +462,28 @@ public sealed class WDGameWeaponMutationPortTests
         new(installationId, weaponId, territoryId, owner,
             duration: 4, barrier: 7, charges: 3, payments: 2,
             level: 4, isTransportable: true, installedRound: 2);
+
+    private static void AssertInstallationState(
+        WDWeaponInstallationState installation, string weaponId,
+        string territoryId, string ownerPlayerId, int duration, int barrier,
+        int charges, int payments, int level, int installedRound,
+        int lastAutomaticRound)
+    {
+        Assert.That(installation.WeaponId, Is.EqualTo(weaponId));
+        Assert.That(installation.TerritoryId, Is.EqualTo(territoryId));
+        Assert.That(installation.OwnerPlayerId, Is.EqualTo(ownerPlayerId));
+        Assert.That(installation.OriginalInstallerPlayerId, Is.EqualTo("p1"));
+        Assert.That(installation.DurationRemaining, Is.EqualTo(duration));
+        Assert.That(installation.BarrierRemaining, Is.EqualTo(barrier));
+        Assert.That(installation.ChargesRemaining, Is.EqualTo(charges));
+        Assert.That(installation.InitialCharges, Is.EqualTo(3));
+        Assert.That(installation.NextChargeSequenceNumber, Is.EqualTo(2));
+        Assert.That(installation.PaymentsRemaining, Is.EqualTo(payments));
+        Assert.That(installation.Level, Is.EqualTo(level));
+        Assert.That(installation.InstalledRound, Is.EqualTo(installedRound));
+        Assert.That(installation.LastAutomaticRound, Is.EqualTo(lastAutomaticRound));
+        Assert.That(installation.IsDestroyed, Is.False);
+    }
 
     private sealed class AllWeaponsLoadout :
         IWDMatchWeaponLoadoutSource, IWDWeaponLevelSource
@@ -414,6 +580,7 @@ public sealed class WDGameWeaponMutationPortTests
             });
             result.Add("owned", "p1", 5, WDWeaponTerritoryStateKind.Occupied);
             result.Add("enemy", "p2", 3, WDWeaponTerritoryStateKind.Occupied);
+            result.Add("ally", "p3", 3, WDWeaponTerritoryStateKind.Occupied);
             result.Add("neutral", "", 1, WDWeaponTerritoryStateKind.Neutral);
             result.Add("empty", "", 0, WDWeaponTerritoryStateKind.Empty);
             return result;

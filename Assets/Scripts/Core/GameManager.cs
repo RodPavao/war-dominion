@@ -834,6 +834,23 @@ public class GameManager : MonoBehaviour
             ? weaponPreparation.GetPlayerActions(playerId, RodadaAtual)
             : System.Array.Empty<WDWeaponAction>();
 
+    public IReadOnlyList<WDPreparedWeaponActionIdentity> ObterAlvosDoInfiltrado(
+        string playerId, string opponentPlayerId) =>
+        PodeEditarPreparacao && weaponPreparation != null
+            ? weaponPreparation.GetEligibleInfiltratorTargets(playerId, opponentPlayerId)
+            : System.Array.Empty<WDPreparedWeaponActionIdentity>();
+
+    public WDRadarUseResult UsarRadarDurantePreparacao(string commandId,
+        string playerId, string installationId, string targetTerritoryId)
+    {
+        if (!PodeEditarPreparacao || weaponPreparation == null ||
+            weaponExecutionCoordinator == null)
+            return new WDRadarUseResult(WDRadarUseStatus.Invalid);
+        return weaponExecutionCoordinator.UseRadarDuringPreparation(commandId, playerId,
+            installationId, targetTerritoryId,
+            weaponPreparation.GetRoundActions(RodadaAtual));
+    }
+
     private string ObterIdJogadorLocal()
     {
         if (MatchSetupAtual != null)

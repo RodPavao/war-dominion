@@ -21,7 +21,11 @@ public sealed class WDPlayerPrefsArmoryRepository : IWDArmoryRepository
             profile = JsonUtility.FromJson<WDArmoryProfile>(PlayerPrefs.GetString(StorageKey));
         profile ??= CreateDevelopmentProfile(catalog);
         profile.Normalize();
-        if (profile.RemoveLegacyCardPlaceholders() && PlayerPrefs.HasKey(StorageKey))
+        bool changed = profile.RemoveLegacyCardPlaceholders();
+#if UNITY_EDITOR
+        changed |= WDArmoryDevelopmentBootstrap.Apply(catalog, profile);
+#endif
+        if (changed && PlayerPrefs.HasKey(StorageKey))
             Save(profile);
         return profile;
     }
@@ -52,3 +56,41 @@ public sealed class WDPlayerPrefsArmoryRepository : IWDArmoryRepository
         return profile;
     }
 }
+
+#if UNITY_EDITOR
+public static class WDArmoryDevelopmentBootstrap
+{
+    // ============================================================
+    // 01. COLEÇÃO CANÔNICA DISPONÍVEL SOMENTE PARA TESTES NO EDITOR
+    // ============================================================
+
+    public static bool Apply(WDArmoryCatalogConfig catalog, WDArmoryProfile profile)
+    {
+        if (catalog == null || profile == null ||
+            !catalog.UnlockAllWeaponsForDevelopment)
+            return false;
+
+        bool changed = false;
+        foreach (WDWeaponDefinition weapon in catalog.Weapons)
+        {
+            if (weapon == null || string.IsNullOrWhiteSpace(weapon.Id))
+                continue;
+
+            WDWeaponProgress progress = profile.GetProgress(weapon.Id);
+            if (progress == null)
+            {
+                profile.AddProgress(new WDWeaponProgress(weapon.Id, true, 1, 0));
+                changed = true;
+                continue;
+            }
+
+            if (!progress.Obtained)
+            {
+                progress.SetProgress(true, progress.Level, progress.Tokens);
+                changed = true;
+            }
+        }
+        return changed;
+    }
+}
+#endif

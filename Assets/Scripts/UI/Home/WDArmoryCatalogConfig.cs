@@ -15,11 +15,13 @@ public sealed class WDArmoryCatalogConfig : ScriptableObject
     [SerializeField] private List<WDWeaponDefinition> weapons = new();
     [SerializeField] private List<WDWeaponProgressionProfile> progressionProfiles = new();
     [SerializeField] private bool vipEnabledForDevelopment;
+    [SerializeField] private bool unlockAllWeaponsForDevelopment;
 
     public IReadOnlyList<WDWeaponCategoryDefinition> Categories => categories;
     public IReadOnlyList<WDWeaponDefinition> Weapons => weapons;
     public IReadOnlyList<WDWeaponProgressionProfile> ProgressionProfiles => progressionProfiles;
     public bool VipEnabledForDevelopment => vipEnabledForDevelopment;
+    public bool UnlockAllWeaponsForDevelopment => unlockAllWeaponsForDevelopment;
 
     public WDWeaponDefinition FindWeapon(string weaponId) =>
         weapons?.FirstOrDefault(item => item != null && item.Id == weaponId);
@@ -48,11 +50,13 @@ public sealed class WDArmoryCatalogConfig : ScriptableObject
     public void Configure(
         IEnumerable<WDWeaponCategoryDefinition> newCategories,
         IEnumerable<WDWeaponDefinition> newWeapons,
-        bool developmentVip = false)
+        bool developmentVip = false,
+        bool developmentUnlockAllWeapons = false)
     {
         categories = newCategories?.ToList() ?? new List<WDWeaponCategoryDefinition>();
         weapons = newWeapons?.ToList() ?? new List<WDWeaponDefinition>();
         vipEnabledForDevelopment = developmentVip;
+        unlockAllWeaponsForDevelopment = developmentUnlockAllWeapons;
     }
 
     public void ConfigureProgressionProfiles(

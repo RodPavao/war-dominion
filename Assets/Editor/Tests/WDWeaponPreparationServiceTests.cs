@@ -188,14 +188,54 @@ public sealed class WDWeaponPreparationServiceTests
     }
 
     [Test]
-    public void DroneAndRocketLaunchHaveDistinctSelectionContracts()
+    public void DroneInstallationShotAndRocketLaunchHaveDistinctSelectionContracts()
     {
         Assert.That(service.GetRequirement(WDSpecialWeaponIds.Drone).Fields,
-            Is.EqualTo(WDWeaponSelectionFields.SpecialFlow));
+            Is.EqualTo(WDWeaponSelectionFields.TargetTerritory |
+                WDWeaponSelectionFields.Installation));
+        WDWeaponSelectionRequirement droneShot = service.GetRequirement(
+            WDSpecialWeaponIds.Drone, WDWeaponIntentKind.DroneShot);
+        Assert.That(droneShot.Fields, Is.EqualTo(WDWeaponSelectionFields.TargetTerritory |
+            WDWeaponSelectionFields.Installation));
+        Assert.That(droneShot.AllowsEmptyTarget, Is.True);
         WDWeaponSelectionRequirement rocket = service.GetRequirement(
             WDStrategicWeaponIds.Rockets, WDWeaponIntentKind.RocketLaunch);
         Assert.That(rocket.Fields.HasFlag(WDWeaponSelectionFields.Installation), Is.True);
         Assert.That(rocket.MaximumGraphDistance, Is.EqualTo(3));
+    }
+
+    [Test]
+    public void InfiltratorTargetQueryExposesOnlyCanonicalActionIdentity()
+    {
+        WDWeaponProgrammingResult target = service.Program(Request("p2",
+            WDStrategicWeaponIds.Peace, targetPlayer: "p1"));
+        Assert.That(target.Succeeded, Is.True);
+
+        WDPreparedWeaponActionIdentity option = service
+            .GetEligibleInfiltratorTargets("p1", "p2").Single();
+
+        Assert.That(option.ActionId, Is.EqualTo(target.Action.ActionId));
+        Assert.That(option.WeaponId, Is.EqualTo(WDStrategicWeaponIds.Peace));
+        Assert.That(option.DisplayName, Is.EqualTo("Paz"));
+    }
+
+    [Test]
+    public void InfiltratorTargetQueryExcludesPersistentInstallationOperations()
+    {
+        WDWeaponProgrammingResult droneShot = service.Program(new WDWeaponProgrammingRequest(
+            "p2", WDSpecialWeaponIds.Drone, WDWeaponIntentKind.DroneShot,
+            targetTerritoryId: "p1_a", installationId: "drone-live",
+            parameters: new[] { new WDWeaponActionParameter("mode", "shot") }));
+        WDWeaponProgrammingResult peace = service.Program(Request("p2",
+            WDStrategicWeaponIds.Peace, targetPlayer: "p1"));
+
+        IReadOnlyList<WDPreparedWeaponActionIdentity> options = service
+            .GetEligibleInfiltratorTargets("p1", "p2");
+
+        Assert.That(droneShot.Succeeded, Is.True);
+        Assert.That(peace.Succeeded, Is.True);
+        Assert.That(options.Select(item => item.ActionId),
+            Is.EqualTo(new[] { peace.Action.ActionId }));
     }
 
     // ============================================================

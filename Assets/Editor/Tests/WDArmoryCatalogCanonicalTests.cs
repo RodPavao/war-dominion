@@ -24,18 +24,18 @@ public sealed class WDArmoryCatalogCanonicalTests
     // ============================================================
 
     [Test]
-    public void RuntimeCatalogContainsExactlyTwentyFiveOfficialWeapons()
+    public void RuntimeCatalogContainsExactlyTwentySixOfficialWeapons()
     {
-        Assert.That(catalog.Weapons.Count, Is.EqualTo(25));
+        Assert.That(catalog.Weapons.Count, Is.EqualTo(26));
         Assert.That(catalog.Weapons.Select(weapon => weapon.Id).Distinct().Count(),
-            Is.EqualTo(25));
+            Is.EqualTo(26));
         Assert.That(catalog.Weapons.Any(weapon =>
             weapon.Id.StartsWith("mock_") || weapon.DisplayName.Contains("(Mock)")),
             Is.False);
     }
 
     [TestCase("support", 8)]
-    [TestCase("tactical", 6)]
+    [TestCase("tactical", 7)]
     [TestCase("strategic", 6)]
     [TestCase("special", 5)]
     public void RuntimeCatalogHasOfficialCategoryCount(string categoryId, int expected)
@@ -68,6 +68,7 @@ public sealed class WDArmoryCatalogCanonicalTests
             ["minefield"] = "Campo Minado", ["blitzkrieg"] = "Blitzkrieg",
             ["transfer_nullifier"] = "Anulador de Transferência", ["sniper"] = "Sniper",
             ["kamikaze"] = "Kamikaze", ["paratroopers"] = "Paraquedistas",
+            ["radar"] = "Radar",
             ["sabotage"] = "Sabotagem", ["energy_plant"] = "Central de Energia",
             ["long_range_bomb"] = "Bomba de Longo Alcance", ["peace"] = "Paz",
             ["artillery"] = "Artilharia", ["rockets"] = "Foguetes",
@@ -84,7 +85,8 @@ public sealed class WDArmoryCatalogCanonicalTests
     // 03. PARÂMETROS DE EXECUÇÃO E LOOKUP
     // ============================================================
 
-    [TestCase("drone", 25, 3, 6)]
+    [TestCase("drone", 30, 3, 6)]
+    [TestCase("radar", 25, 3, 1)]
     [TestCase("atomic_bomb", 40, 3, 6)]
     [TestCase("war_propaganda", 25, 3, 6)]
     [TestCase("chemical_bomb", 25, 3, 6)]
@@ -127,5 +129,20 @@ public sealed class WDArmoryCatalogCanonicalTests
             Is.EqualTo("Artilharia"));
         Assert.That(catalog.FindWeapon("mock_field_support"), Is.Null);
         Assert.That(catalog.FindWeapon("unknown_weapon"), Is.Null);
+    }
+
+    [Test]
+    public void DroneAndRadarUseCanonicalInstallationContracts()
+    {
+        WDWeaponDefinition drone = catalog.FindWeapon(WDSpecialWeaponIds.Drone);
+        WDWeaponDefinition radar = catalog.FindWeapon(WDTacticalWeaponIds.Radar);
+
+        Assert.That(drone.IsInstallation, Is.True);
+        Assert.That(drone.Charges, Is.EqualTo(2));
+        Assert.That(drone.CanTargetEmptyTerritory, Is.True);
+        Assert.That(radar.CategoryId, Is.EqualTo("tactical"));
+        Assert.That(radar.MaximumLevel, Is.EqualTo(1));
+        Assert.That(radar.IsInstallation, Is.True);
+        Assert.That(radar.Charges, Is.EqualTo(1));
     }
 }

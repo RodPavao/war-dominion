@@ -19,7 +19,7 @@ public enum WDWeaponIntentKind
     Standard,
     Installation,
     RocketLaunch,
-    DroneRecognition
+    DroneShot
 }
 
 public enum WDWeaponTerritoryRelation
@@ -149,6 +149,35 @@ public sealed class WDWeaponProgrammingOption
         WeaponId = weaponId ?? string.Empty;
         Availability = availability;
         Requirement = requirement;
+    }
+}
+
+public sealed class WDPreparedWeaponActionIdentity
+{
+    public string ActionId { get; }
+    public string WeaponId { get; }
+    public string DisplayName { get; }
+
+    public WDPreparedWeaponActionIdentity(string actionId, string weaponId, string displayName)
+    {
+        ActionId = actionId ?? string.Empty;
+        WeaponId = weaponId ?? string.Empty;
+        DisplayName = displayName ?? string.Empty;
+    }
+}
+
+public static class WDWeaponActionSemantics
+{
+    public static bool IsPersistentInstallationOperation(WDWeaponAction action)
+    {
+        if (action == null)
+            return false;
+        if (action.WeaponId == WDSpecialWeaponIds.Drone)
+            return string.Equals(WDSpecialWeaponParameters.Get(action, "mode"), "shot",
+                StringComparison.Ordinal);
+        return action.WeaponId == WDStrategicWeaponIds.Rockets &&
+            action.Phase == WDWeaponResolutionPhase.ProgrammedOffense &&
+            !string.IsNullOrWhiteSpace(action.InstallationId);
     }
 }
 
@@ -290,6 +319,20 @@ public sealed class WDWeaponPreparationService
     public IReadOnlyList<WDWeaponAction> GetRoundActions(int round) =>
         Order(actions.Where(item => item.Round == round));
 
+    public IReadOnlyList<WDPreparedWeaponActionIdentity> GetEligibleInfiltratorTargets(
+        string authorPlayerId, string opponentPlayerId)
+    {
+        if (!MatchesPlayer(authorPlayerId, opponentPlayerId, WDWeaponPlayerRelation.Opponent))
+            return Array.Empty<WDPreparedWeaponActionIdentity>();
+        return actions.Where(item => item.Round == activeRound &&
+                item.AuthorPlayerId == opponentPlayerId &&
+                item.WeaponId != WDSpecialWeaponIds.Infiltrator &&
+                !WDWeaponActionSemantics.IsPersistentInstallationOperation(item))
+            .Select(item => new WDPreparedWeaponActionIdentity(item.ActionId, item.WeaponId,
+                catalog.FindWeapon(item.WeaponId)?.DisplayName ?? item.WeaponId))
+            .OrderBy(item => item.ActionId, StringComparer.Ordinal).ToArray();
+    }
+
     public IReadOnlyList<WDWeaponAction> FreezeRound()
     {
         preparationOpen = false;
@@ -352,7 +395,10 @@ public sealed class WDWeaponPreparationService
 
         int order = nextProgramOrder++;
         string actionId = $"weapon:{activeRound:D3}:{request.PlayerId}:{order:D4}";
-        WDWeaponResolutionPhase phase = request.WeaponId == WDStrategicWeaponIds.Rockets &&
+        WDWeaponResolutionPhase phase = request.WeaponId == WDSpecialWeaponIds.Drone &&
+            request.IntentKind == WDWeaponIntentKind.DroneShot
+                ? WDWeaponResolutionPhase.ProgrammedOffense
+                : request.WeaponId == WDStrategicWeaponIds.Rockets &&
             request.IntentKind == WDWeaponIntentKind.RocketLaunch
                 ? WDWeaponResolutionPhase.ProgrammedOffense
                 : definition.ResolutionPhase;
@@ -423,8 +469,10 @@ public sealed class WDWeaponPreparationService
         WDWeaponDefinition definition, WDWeaponIntentKind intentKind)
     {
         string id = definition.Id;
-        if (id == WDSpecialWeaponIds.Drone)
-            return new WDWeaponSelectionRequirement(WDWeaponSelectionFields.SpecialFlow);
+        if (id == WDSpecialWeaponIds.Drone && intentKind == WDWeaponIntentKind.DroneShot)
+            return new WDWeaponSelectionRequirement(
+                WDWeaponSelectionFields.TargetTerritory | WDWeaponSelectionFields.Installation,
+                targetRelation: WDWeaponTerritoryRelation.NonAllied, allowsEmptyTarget: true);
         if (id == WDStrategicWeaponIds.Rockets && intentKind == WDWeaponIntentKind.RocketLaunch)
             return new WDWeaponSelectionRequirement(
                 WDWeaponSelectionFields.OriginTerritory |
@@ -445,7 +493,10 @@ public sealed class WDWeaponPreparationService
             return Target(WDWeaponTerritoryRelation.Any, true);
         if (id == WDStrategicWeaponIds.LongRangeBomb)
             return Target(WDWeaponTerritoryRelation.NonAllied, true);
-        if (id == WDTacticalWeaponIds.Sniper || id == WDSpecialWeaponIds.Infiltrator ||
+        if (id == WDSpecialWeaponIds.Infiltrator)
+            return new WDWeaponSelectionRequirement(
+                WDWeaponSelectionFields.TargetPlayer | WDWeaponSelectionFields.Parameters);
+        if (id == WDTacticalWeaponIds.Sniper ||
             id == WDSpecialWeaponIds.WarPropaganda)
             return Target(WDWeaponTerritoryRelation.Enemy, false);
         if (id == WDStrategicWeaponIds.Sabotage || id == WDStrategicWeaponIds.Peace ||

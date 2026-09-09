@@ -10,6 +10,7 @@ public static class WDTacticalWeaponIds
     public const string Sniper = "sniper";
     public const string Kamikaze = "kamikaze";
     public const string Paratroopers = "paratroopers";
+    public const string Radar = "radar";
 }
 
 public interface IWDTacticalWeaponContext : IWDSupportWeaponContext
@@ -32,6 +33,7 @@ public static class WDTacticalWeaponTables
     public static int BlitzkriegLimit(int level) => From(new[] { 4, 5, 6, 7 }, level);
     public static int KamikazeDamage(int level) => From(new[] { 2, 3, 4, 5, 6, 7 }, level);
     public static int ParatrooperCount(int level) => From(new[] { 2, 3, 4, 5 }, level);
+    public const int RadarRevelations = 1;
 
     public static int Distance(IWDWeaponTerritoryEnumerable board, string originId, string targetId)
     {
@@ -63,6 +65,43 @@ public static class WDTacticalWeaponTables
     }
 
     private static int From(int[] values, int level) => values[Math.Clamp(level, 1, values.Length) - 1];
+}
+
+public sealed class WDRadarRevealResult
+{
+    public int Round { get; }
+    public string TerritoryId { get; }
+    public bool HasFlakCoverage { get; }
+    public string AuthorPlayerId { get; }
+    public string CommandId { get; }
+
+    public WDRadarRevealResult(int round, string territoryId, bool hasFlakCoverage,
+        string authorPlayerId, string commandId)
+    {
+        Round = Math.Max(1, round);
+        TerritoryId = territoryId ?? string.Empty;
+        HasFlakCoverage = hasFlakCoverage;
+        AuthorPlayerId = authorPlayerId ?? string.Empty;
+        CommandId = commandId ?? string.Empty;
+    }
+
+    public bool CanBeReadBy(string playerId) => AuthorPlayerId == playerId;
+}
+
+public enum WDRadarUseStatus
+{
+    Used,
+    BlockedBySniper,
+    Invalid,
+    AlreadyProcessed
+}
+
+public readonly struct WDRadarUseResult
+{
+    public WDRadarUseStatus Status { get; }
+    public WDRadarRevealResult Reveal { get; }
+    public WDRadarUseResult(WDRadarUseStatus status, WDRadarRevealResult reveal = null)
+    { Status = status; Reveal = reveal; }
 }
 
 public static class WDTacticalWeaponInteractionService

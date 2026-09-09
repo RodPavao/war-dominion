@@ -7,7 +7,7 @@ do round. A Preparation congela somente as intenções; o mapa, os runtimes e o 
 de instalações permanecem vivos e autoritativos. Cada fase revalida o resultado deixado
 pelas fases anteriores.
 
-A ordem efetiva é: início do round; Paz; Anulador; transferências; interferências;
+A ordem efetiva é: início do round; Infiltrado; Paz; Anulador; transferências; interferências;
 reforços; instalações/logística; Sniper; Propaganda; ofensivas programadas; Artilharia
 automática; Paraquedistas; ações terrestres; consolidação. Dentro de cada fase, ações são
 ordenadas pela ordem oficial do jogador, `ProgramOrder` e `ActionId`.
@@ -18,14 +18,14 @@ custos, pagamentos, armas, transferências ou ações terrestres. O caminho dire
 do `GameManager` foi removido: ele apenas fornece callbacks para os resolvedores reais e
 consome seus resultados visuais.
 
-As 25 armas participam da resolução global. IDs futuros/desconhecidos continuam
-`Deferred` tecnicamente. O pipeline não mantém cópia concorrente de tropas,
+As 26 armas possuem identidade canônica; Drone, Radar e Infiltrado usam a execução
+canônica concluída no bloco 7D.7A-2. IDs futuros/desconhecidos continuam `Deferred`
+tecnicamente. O pipeline não mantém cópia concorrente de tropas,
 proprietários, instalações, Energy, cooldowns ou pools.
 
-Limitações preservadas: a política definitiva de instalações em território NEUTRO segue
-pendente; a distribuição interativa do reforço natural continua no fluxo de Preparation
-já existente, enquanto a fase global mantém separadas as fontes de armas/pools; PlayMode,
-UI, VFX e backend permanecem fora desta etapa.
+Limitações preservadas: a distribuição interativa do reforço natural continua no fluxo
+de Preparation já existente, enquanto a fase global mantém separadas as fontes de
+armas/pools; UI, VFX e backend permanecem fora desta etapa.
 
 ## 1. Propósito e autoridade do documento
 
@@ -495,13 +495,13 @@ As armas V1 possuem um, quatro ou seis níveis conforme sua definição. Arma de
 
 Tokens continuam específicos por arma e podem acumular após o nível máximo. Todos os jogadores começam a partida com zero Energy. Valores V1 atualizados: Sniper 15, Central de Energia 0, Transporte Aéreo 5, Flak Tower 5, Bunker 10 e Propaganda de Guerra 25 Energy.
 
-A coleção distingue arma não obtida, progresso parcial de Tokens, Tokens completos com Moedas insuficientes, upgrade disponível e nível máximo. O catálogo data-driven de runtime contém exclusivamente as 25 armas oficiais: 8 de Apoio, 6 Táticas, 6 Estratégicas e 5 Especiais. Mocks de desenvolvimento não pertencem ao catálogo carregado pela Home; cenários isolados de teste devem construir seus próprios fixtures em memória. As 25 armas estão implementadas no domínio V1, enquanto a integração ampla com a partida permanece reservada para etapa própria.
+A coleção distingue arma não obtida, progresso parcial de Tokens, Tokens completos com Moedas insuficientes, upgrade disponível e nível máximo. O catálogo data-driven de runtime contém exclusivamente as 26 armas oficiais: 8 de Apoio, 7 Táticas, 6 Estratégicas e 5 Especiais. Mocks de desenvolvimento não pertencem ao catálogo carregado pela Home; cenários isolados de teste devem construir seus próprios fixtures em memória.
 
 O estado local atual utiliza um repositório substituível por conta/backend. Nomes e composições dos cinco decks, inventário, níveis, Tokens, Moedas, Esmeraldas e estado VIP são persistidos sem acoplar a interface ao armazenamento. O visual desta seção é **[PROVISÓRIO]** até o Premium Polish.
 
 A modalidade futura **Deckbuilder** é completamente distinta dos slots de decks salvos: ela construirá dinamicamente um deck antes do Round 1 e não foi implementada nesta fase.
 
-### [DEFINITIVO] Catálogo nominal de 25 armas
+### [DEFINITIVO] Catálogo nominal de 26 armas
 
 1. Ataque Aéreo
 2. Campo Minado
@@ -528,6 +528,7 @@ A modalidade futura **Deckbuilder** é completamente distinta dos slots de decks
 23. Infiltrado
 24. Recuperação de Tropas
 25. Mercenários
+26. Radar
 
 **Anulador** não é uma arma adicional: o nome correto é **Anulador de Transferência**. **Mercenários** é o nome oficial que substitui “Tropas Mercenárias”.
 
@@ -543,7 +544,7 @@ Armas de dano não conquistam território. A conquista ocorre somente por movime
 - Alvo: território adversário vizinho.
 - Dano por nível: N1 2, N2 3, N3 4, N4 5, N5 6, N6 7.
 - Ocorre antes dos movimentos e ataques terrestres do jogador.
-- Flak pode interceptar; Paz pode impedir. Infiltrado não interfere por não se tratar de arma fixa no território infiltrado.
+- Flak pode interceptar; Paz pode impedir. A ação preparada pode ser bloqueada por Infiltrado através de seu `ActionId`.
 - O dano atravessa primeiro a barreira do Bunker; somente o excedente alcança as tropas.
 - Não conquista território.
 
@@ -556,7 +557,7 @@ Armas de dano não conquistam território. A conquista ocorre somente por movime
 - Dano por nível: N1 2, N2 3, N3 4, N4 5, N5 6, N6 7.
 - Causa até o número de baixas possível; dano excedente é perdido e, após o acionamento, a mina é consumida.
 - Se Paz impedir o ataque antes de ele ocorrer, a mina não é consumida.
-- Não é capturável e continua enterrado mesmo se o território ficar Vazio. Infiltrado pode desarmá-lo apenas durante o round corrente, sem removê-lo.
+- Não é capturável e continua enterrado mesmo se o território ficar Vazio. Infiltrado não desarma Campo Minado nem interfere em instalações persistentes.
 
 ### [DEFINITIVO — IMPLEMENTADO NO DOMÍNIO V1] Sabotagem
 
@@ -565,7 +566,7 @@ Armas de dano não conquistam território. A conquista ocorre somente por movime
 - Não afeta Reforços, Tropas Reservas, Mercenários nem tropas previamente existentes.
 - Percentuais: N1 15%, N2 20%, N3 25%, N4 30%, N5 35%, N6 40%.
 - A quantidade sabotada é arredondada para baixo.
-- Infiltrado não bloqueia Sabotagem, pois ela é uma ação global contra o jogador e não uma instalação fixa territorial.
+- Uma Sabotagem preparada pode ser bloqueada por Infiltrado através de seu `ActionId`.
 - Se várias Sabotagens forem preparadas contra o mesmo jogador no mesmo round, prevalece apenas a primeira ação válida conforme a ordem oficial, independentemente do nível. As posteriores são anuladas sem consumo de Energia nem cooldown. Se uma anterior for invalidada por Paz, a próxima válida ainda pode funcionar.
 
 ### [DEFINITIVO — IMPLEMENTADO NO DOMÍNIO V1] Reforços
@@ -574,7 +575,7 @@ Armas de dano não conquistam território. A conquista ocorre somente por movime
 - Escolhe um único território próprio ou, em modo de equipe, um território aliado.
 - As tropas são adicionadas diretamente ao território escolhido.
 - Quantidade por nível: N1 3, N2 4, N3 5, N4 6, N5 7, N6 8.
-- Sabotagem não afeta esta arma. Infiltrado não bloqueia o recebimento das tropas por não se tratar de arma fixa no território infiltrado.
+- Sabotagem não afeta esta arma. A ação preparada de Reforços pode ser bloqueada por Infiltrado através de seu `ActionId`.
 
 ### [DEFINITIVO — IMPLEMENTADO NO DOMÍNIO V1] Blitzkrieg
 
@@ -583,21 +584,25 @@ Armas de dano não conquistam território. A conquista ocorre somente por movime
 - Concede ataques terrestres adicionais além do limite padrão de três: N1 +1, N2 +2, N3 +3 e N4 +4.
 - Os máximos correspondentes no round são 4, 5, 6 e 7 ataques terrestres.
 - Possui somente quatro níveis.
-- Paz poderá interferir. Infiltrado não bloqueia Blitzkrieg em si, mas pode impedir um ataque terrestre quando ele se originar especificamente do território infiltrado.
+- Paz poderá interferir. A ação preparada de Blitzkrieg pode ser bloqueada por Infiltrado através de seu `ActionId`; Infiltrado não bloqueia ações terrestres nem territórios.
 
-### [DEFINITIVO — IMPLEMENTADO NO DOMÍNIO V1] Drone
+### [DEFINITIVO — EXECUÇÃO CANÔNICA] Drone
 
 Drone é uma arma própria do War Dominion.
 
-- Energia: 25; pode atuar em qualquer lugar do mapa.
-- A ativação já consome Energia e inicia cooldown, mesmo que o jogador desista posteriormente do disparo.
-- Possui reconhecimento de Torre Antiaérea/Flak Tower; o reconhecimento não pode ser usado gratuitamente para mapear defesas.
-- Progressão: N1 1 reconhecimento e até 2 tropas de dano; N2 1 e até 3; N3 1 e até 4; N4 2 e até 3; N5 2 e até 4; N6 2 e até 5.
-- Após consumir os reconhecimentos permitidos, não pode testar outros territórios naquela ativação.
-- O disparo deve escolher um dos territórios reconhecidos. O jogador pode desistir, mas Energia e cooldown não retornam.
-- Flak ainda pode interceptar conforme sua chance; Paz pode impedir. Infiltrado não interfere por não se tratar de arma fixa no território infiltrado.
-- Drone ignora Bunker: sua ação atinge diretamente as tropas e a barreira não absorve o dano.
+- Energia: 30; cooldown 3; instalação ofensiva fixa de alcance global.
+- A instalação possui exatamente dois disparos totais e pode disparar no mesmo round em que é instalada, respeitando o máximo de um disparo por instalação/round.
+- Danos do primeiro/segundo disparo: N1 1/1, N2 2/1, N3 2/2, N4 3/2, N5 3/3 e N6 4/3.
+- Instalação e disparos são eventos distintos: Energy/cooldown são comprometidos pela carta; disparos posteriores não geram nova cobrança.
+- Captura e Transporte Aéreo preservam carga, sequência e último round de disparo.
 - Não conquista território.
+
+### [DEFINITIVO — EXECUÇÃO CANÔNICA] Radar
+
+- Energia: 25; cooldown 3; Tática de nível único.
+- Instalação fixa de inteligência, alcance global e exatamente uma revelação.
+- Radar recém-instalado na Resolution só pode ser usado a partir da Preparation seguinte.
+- O resultado revela somente presença/ausência de cobertura Flak, vale até o fim do round e é privado: somente o autor pode consultá-lo; aliados precisam usar seu próprio Radar.
 
 ### [DEFINITIVO — IMPLEMENTADO NO DOMÍNIO V1] Central de Energia
 
@@ -623,7 +628,7 @@ Pode detonar no alvo central programado mesmo que esse território tenha sido ze
 - Pode transportar junto uma instalação fixa compatível existente na origem, como Artilharia, Foguetes, Central de Energia ou Flak Tower. A Flak Tower transportada preserva exatamente sua duração restante; o transporte não reinicia essa duração. Campo Minado e Bunker não são transportáveis.
 - A instalação mantém integralmente duração, disparos, barreira, produção e demais estados restantes.
 - Se o destino já possuir instalação do mesmo tipo, a ação é bloqueada com informação apropriada; tropas e instalação não se movem nem são perdidas. Instalações diferentes podem coexistir no território, salvo futura exceção explícita.
-- Flak não intercepta, Paz não bloqueia e Infiltrado não interfere: Transporte Aéreo é uma ação logística própria ou aliada, não uma ação hostil nem uma instalação fixa atuando no território infiltrado.
+- Flak não intercepta e Paz não bloqueia. A ação preparada de Transporte Aéreo pode ser bloqueada por Infiltrado através de seu `ActionId`.
 
 ### [DEFINITIVO — IMPLEMENTADO NO DOMÍNIO V1] Kamikaze
 
@@ -632,7 +637,7 @@ Pode detonar no alvo central programado mesmo que esse território tenha sido ze
 - A origem precisa possuir ao menos duas tropas. Uma delas é usada como Kamikaze e sacrificada.
 - Alcance de até três territórios/conexões; não conquista território.
 - Flak pode interceptar. Se isso ocorrer, a tropa Kamikaze continua perdida e o alvo não sofre dano.
-- Kamikaze reduz primeiro a barreira do Bunker e somente o dano excedente alcança as tropas. Paz poderá impedir a ação; Infiltrado não interfere por não se tratar de arma fixa no território infiltrado.
+- Kamikaze reduz primeiro a barreira do Bunker e somente o dano excedente alcança as tropas. Paz poderá impedir a ação; a ação preparada pode ser bloqueada por Infiltrado através de seu `ActionId`.
 
 ### [DEFINITIVO — IMPLEMENTADO NO DOMÍNIO V1] Bomba de Longo Alcance
 
@@ -640,7 +645,7 @@ Pode detonar no alvo central programado mesmo que esse território tenha sido ze
 - Pode atingir qualquer território inimigo do mapa.
 - Dano: N1 2, N2 3, N3 4, N4 5, N5 6 e N6 7.
 - Flak pode interceptar; o dano reduz primeiro a barreira do Bunker e somente o excedente alcança as tropas; não conquista território.
-- Paz poderá impedir a ação; Infiltrado não interfere por não se tratar de arma fixa no território infiltrado.
+- Paz poderá impedir a ação; a ação preparada pode ser bloqueada por Infiltrado através de seu `ActionId`.
 
 ### [DEFINITIVO — IMPLEMENTADO NO DOMÍNIO V1] Paz
 
@@ -648,8 +653,8 @@ Pode detonar no alvo central programado mesmo que esse território tenha sido ze
 - Durante a Preparação, jogadores podem programar Paz entre si porque as escolhas ainda não foram resolvidas.
 - Na Resolução, é processada conforme a ordem de jogadores daquele round. Uma Paz válida estabelece a relação entre os dois jogadores e impede ações ofensivas posteriores entre eles conforme a matriz final; ambos continuam livres contra outros jogadores.
 - Em Paz recíproca, a primeira ação válida estabelece a relação. Quando a segunda chegar à resolução, será apresentada como anulada; seu jogador não perde Energia nem entra em cooldown.
-- Regra econômica geral: programar uma arma na Preparação não significa consumir Energia imediatamente. Em regra, o consumo ocorre quando a ação consegue ser executada. Exceções precisam ser explícitas, como o Drone, cujo reconhecimento já consome Energia e inicia cooldown.
-- Paz prevalece sobre Sabotagem e Infiltrado: ações preparadas contra o jogador protegido são anuladas.
+- Regra econômica geral: programar uma arma na Preparação não significa consumir Energia imediatamente. Em regra, o consumo ocorre quando a ação consegue ser executada.
+- Paz já efetiva impede Infiltrado quando aplicável. Uma Paz apenas programada no mesmo round ainda pode ser bloqueada antes de ser estabelecida, sem retroatividade.
 - Paz não impede Anulador de Transferência, que não é considerado hostilidade territorial abrangida por ela.
 - Propaganda de Guerra ignora Paz.
 - Transporte Aéreo não interage com Paz por ser ação logística própria ou aliada.
@@ -666,7 +671,7 @@ Pode detonar no alvo central programado mesmo que esse território tenha sido ze
 - O jogador não escolhe alvos a cada round. A seleção é recalculada em cada operação e pode repetir ou trocar completamente os alvos.
 - Pode operar no mesmo round em que é instalada. Resolve depois das demais armas ofensivas programadas e antes de Paraquedistas e ações terrestres, recalculando seus alvos no momento da execução com o estado já atualizado.
 - Múltiplas Artilharias resolvem sequencialmente. A ordem entre proprietários segue a ordem oficial dos jogadores; instalações do mesmo proprietário usam o ID estável do território de origem.
-- Infiltrado ou Sniper podem impedir sua operação no round. Só uma operação efetivamente realizada consome a duração operacional da Artilharia; imobilização, ausência de alvos atacáveis ou Paz excluindo todos os alvos inimigos não reduzem as operações restantes.
+- Sniper pode impedir a operação de uma Artilharia já instalada no round. Infiltrado pode bloquear somente a ação que instala uma nova Artilharia, não suas operações persistentes. Só uma operação efetivamente realizada consome a duração operacional; bloqueio por Sniper, ausência de alvos atacáveis ou Paz excluindo todos os alvos inimigos não reduzem as operações restantes.
 - Pode ser destruída por armas compatíveis, conforme as regras consolidadas.
 - Se o território for conquistado, é capturada e continua para o novo proprietário pelo tempo restante. A duração não reinicia e a captura não consome arma, Energia, ativação ou cooldown do conquistador.
 
@@ -681,7 +686,7 @@ Pode detonar no alvo central programado mesmo que esse território tenha sido ze
 - No máximo uma nova instalação no round permitido pela arma. Podem coexistir instalações do mesmo jogador em territórios diferentes, mas nunca duas de Foguetes no mesmo território. Uma instalação antiga ainda ativa não impede outra quando a arma voltar a estar disponível.
 - A contagem é 2 → 1 → 0, quando a instalação é encerrada/removida.
 - Se capturada, o novo proprietário recebe exatamente os disparos restantes, sem pagar Energia nem consumir sua própria ativação/cooldown.
-- Um disparo lançado e interceptado por Flak consome o tiro. Se Paz, Infiltrado ou Sniper impedirem o lançamento antes que ocorra, o tiro não é consumido.
+- Um disparo lançado e interceptado por Flak consome o tiro. Paz ou Sniper podem impedir o lançamento antes que ocorra, sem consumir o tiro. Infiltrado pode bloquear a instalação programada, mas não um disparo de Foguetes já instalados.
 - Resolve antes dos combates terrestres.
 
 ### [DEFINITIVO — IMPLEMENTADO NO DOMÍNIO V1] Torre Antiaérea / Flak Tower
@@ -701,11 +706,11 @@ Pode detonar no alvo central programado mesmo que esse território tenha sido ze
 - Esta lógica se aplica a Ataque Aéreo, Artilharia, Foguetes, Bomba de Longo Alcance, Bomba Atômica no território central, Kamikaze, forças terrestres e Paraquedistas em ataque.
 - Na Bomba Atômica, a barreira protege apenas o território central conforme o dano aplicável; não impede por si só a detonação nem o dano colateral aos vizinhos.
 - Não pode haver dois Bunkers empilhados no mesmo território.
-- Drone ignora Bunker e atinge diretamente as tropas; Flak ainda pode interceptar Drone conforme sua regra própria.
+- Drone aplica dano primeiro à barreira do Bunker; Flak pode interceptar conforme sua regra própria.
 - Sniper ignora a barreira e mata diretamente uma tropa.
 - Propaganda de Guerra ignora completamente o Bunker.
 - Bomba Química ignora completamente o Bunker, causa baixas diretamente nas tropas e não reduz a barreira.
-- Infiltrado desarma o Bunker apenas durante aquele round, sem reduzir a barreira nem destruí-lo. Se continuar existente, volta ao funcionamento normal posteriormente.
+- Infiltrado não desarma nem modifica Bunker persistente.
 - Bunker não pode ser transportado por Transporte Aéreo.
 - Se capturado sem ser destruído, passa ao novo proprietário com a barreira restante e sem regeneração automática.
 - Se Sniper ou qualquer resultado aplicável eliminar a última tropa e tornar o território Vazio, o Bunker é destruído junto com a perda do domínio.
@@ -714,7 +719,7 @@ Pode detonar no alvo central programado mesmo que esse território tenha sido ze
 
 Se um território chegar a zero tropas, passa a Vazio e o Campo Minado continua enterrado, independentemente do proprietário territorial anterior. A próxima força que tentar entrar sofre a mina, mesmo que pertença a um adversário, aliado do instalador ou ao próprio jogador que a instalou. Depois de o território ficar Vazio, a mina é perigo para qualquer força que entrar.
 
-Campo Minado nunca é capturado. Se estiver temporariamente desarmado por Infiltrado naquele round, a entrada não o aciona naquele round. Continua não sendo transportável por Transporte Aéreo.
+Campo Minado nunca é capturado e não é desarmado por Infiltrado. Continua não sendo transportável por Transporte Aéreo.
 
 ### [DEFINITIVO] Instalações em território Vazio e captura posterior
 
@@ -734,7 +739,7 @@ Ao ocupar posteriormente um território Vazio com Artilharia, Foguetes ou Centra
 - Energia: 25.
 - Limite por nível: N1 até 3, N2 até 4, N3 até 5, N4 até 6, N5 até 7 e N6 até 8 tropas. Uma única tropa acima do limite faz a arma falhar completamente.
 - Em caso de sucesso, o território perde o proprietário, torna-se Neutro e mantém metade das tropas anteriores, com divisão inteira para baixo: 8 → 4, 7 → 3, 5 → 2 e 3 → 1.
-- Ignora Bunker, Campo Minado, Flak e Paz e não interage com Infiltrado.
+- Ignora Bunker, Campo Minado, Flak e Paz. A ação preparada pode ser bloqueada por Infiltrado através de seu `ActionId`.
 - Sniper obrigatoriamente resolve antes de Propaganda. Assim, um território com 9 tropas pode cair para 8 por Sniper e então se tornar elegível para Propaganda N6.
 - Reforços e distribuição de tropas ocorrem antes da verificação de seu limite e podem fazer a ação falhar.
 
@@ -743,7 +748,7 @@ Ao ocupar posteriormente um território Vazio com Artilharia, Foguetes ou Centra
 - Energia: 25; alvo: território inimigo diretamente vizinho.
 - Dano percentual: N1 25%, N2 30%, N3 35%, N4 40%, N5 45% e N6 50%.
 - Arredondar baixas para cima, com mínimo de uma baixa quando a porcentagem positiva aplicada a um alvo válido produzir valor inferior a um. Exemplo: 7 × 50% = 3,5, portanto 4 baixas e 3 sobreviventes.
-- Cooldown geral previsto: três rounds. Flak pode interceptar e Paz pode impedir. Ignora completamente o Bunker, causando as baixas diretamente nas tropas sem reduzir a barreira. Infiltrado não interfere por não se tratar de arma fixa no território infiltrado.
+- Cooldown geral previsto: três rounds. Flak pode interceptar e Paz pode impedir. Ignora completamente o Bunker, causando as baixas diretamente nas tropas sem reduzir a barreira. A ação preparada pode ser bloqueada por Infiltrado através de seu `ActionId`.
 - Não conquista território.
 
 ### [DEFINITIVO — IMPLEMENTADO NO DOMÍNIO V1] Paraquedistas
@@ -771,17 +776,17 @@ Ao ocupar posteriormente um território Vazio com Artilharia, Foguetes ou Centra
 | N5 | 1 | 2 | 3 | 6 | 8 | 10 |
 | N6 | 1 | 2 | 3 | 8 | 10 | 12 |
 
-A coluna 6+ representa seis ou mais territórios perdidos. As tropas entram no pool de reforços do jogador. Sabotagem e Infiltrado não afetam Tropas Reservas. O servidor deriva as perdas efetivas do round anterior e não confia em informação fornecida pelo cliente.
+A coluna 6+ representa seis ou mais territórios perdidos. As tropas entram no pool de reforços do jogador. Sabotagem não reduz Tropas Reservas; a ação preparada pode ser bloqueada por Infiltrado através de seu `ActionId`. O servidor deriva as perdas efetivas do round anterior e não confia em informação fornecida pelo cliente.
 
 ### [DEFINITIVO — IMPLEMENTADO NO DOMÍNIO V1] Infiltrado
 
 - Energia: 25; nível único; cooldown geral previsto: três rounds.
-- Seleciona um território adversário específico e sabota ações territoriais daquele local durante o round; não atua genericamente sobre tropas ou sobre o jogador.
-- Não mata nem reduz tropas, não impede sua defesa normal e não bloqueia o recebimento normal de tropas.
-- Pode impedir ataque terrestre e movimento terrestre originados do território infiltrado; impedir disparos de Artilharia e Foguetes instalados ali; e desarmar temporariamente Campo Minado e Bunker existentes no local.
-- Campo Minado e Bunker não são removidos, danificados ou consumidos pelo Infiltrado. Apenas ficam inativos durante o round e retornam ao funcionamento normal se continuarem existentes.
-- Não interfere com Propaganda de Guerra, Transporte Aéreo, Paz, Sabotagem, Anulador de Transferência ou outras armas globais/não fixas no território.
-- Paz prevalece: quando uma relação válida de Paz impedir a hostilidade entre os jogadores, o Infiltrado preparado contra o jogador protegido é anulado.
+- Seleciona um adversário e uma ação de carta programada naquele round pelo `ActionId` exato; não seleciona território nem interfere em instalações persistentes.
+- A consulta expõe apenas `ActionId`, `WeaponId` e nome público. Origem, alvo, tropas, parâmetros e instalações permanecem ocultos.
+- Resolve em fase própria anterior à Paz e às demais ações anuláveis. Pode bloquear Paz ou instalação de Drone programada naquele round, mas não outro Infiltrado.
+- A ação bloqueada não executa nem paga custo/cooldown. Alvo cancelado/ausente invalida o Infiltrado sem cobrança e sem redirecionamento.
+- Se vários Infiltrados mirarem o mesmo `ActionId`, o primeiro pela ordem oficial/ordem de programação/ID executa; posteriores ficam `Superseded` sem custo.
+- Não bloqueia operações de Drone, Radar, Foguetes ou Artilharia já instalados. Sniper permanece responsável por impedir operações persistentes no round.
 
 ### [DEFINITIVO — IMPLEMENTADO NO DOMÍNIO V1] Recuperação de Tropas
 
@@ -798,7 +803,7 @@ A coluna 6+ representa seis ou mais territórios perdidos. As tropas entram no p
 - Progressão: N1 1/1/1, N2 2/1/1, N3 2/2/1, N4 2/2/2, N5 3/2/2 e N6 3/3/2.
 - A primeira parcela entra no pool de reforços do próprio jogador no round da ativação, antes da distribuição. As duas parcelas seguintes ocorrem automaticamente nos rounds posteriores.
 - Sabotagem não reduz Mercenários. Internamente, preservar a origem: reforço natural/regiões é sabotável; Mercenários não é.
-- Infiltrado não cancela nem interfere com Mercenários, que não é uma instalação fixa territorial.
+- A ação preparada de Mercenários pode ser bloqueada por Infiltrado através de seu `ActionId`; parcelas já estabelecidas não são operações elegíveis.
 
 ### [DEFINITIVO] Categoria única de ações terrestres
 
@@ -821,7 +826,8 @@ As ações são resolvidas sequencialmente conforme a ordem oficial e critérios
 - Múltiplas relações independentes de Paz podem coexistir. Em Paz recíproca, a primeira válida estabelece a relação e a segunda é anulada sem Energia/cooldown.
 - O primeiro Anulador válido contra um jogador prevalece; os posteriores contra o mesmo jogador são anulados sem Energia/cooldown.
 - A primeira Sabotagem válida contra um jogador prevalece independentemente do nível.
-- O primeiro Infiltrado válido no mesmo território prevalece; os posteriores são anulados sem Energia/cooldown.
+- O primeiro Infiltrado válido contra o mesmo `ActionId` prevalece pela ordem oficial;
+  os posteriores ficam `Superseded` sem Energy/cooldown.
 - Múltiplos Snipers válidos podem atingir sequencialmente o mesmo território, causando uma baixa cada enquanto houver alvo/tropas aplicáveis.
 - Múltiplas Propagandas podem ser tentadas em sequência. Falhar pelo limite de tropas não impede uma tentativa posterior de nível suficiente; após um sucesso alterar o estado, ações posteriores incompatíveis deixam de executar.
 - Múltiplas armas ofensivas podem atingir sequencialmente o mesmo território. O estado Vazio não cancela bombardeios já programados.
@@ -833,13 +839,13 @@ Capturas usam o estado sequencial da resolução. Se um território trocar de pr
 Categoria organiza identidade e comportamento; não representa raridade nem necessariamente poder.
 
 - **Apoio — 8:** Ataque Aéreo, Reforços, Transporte Aéreo, Flak Tower, Bunker, Tropas Reservas, Recuperação de Tropas e Mercenários.
-- **Tática — 6:** Campo Minado, Blitzkrieg, Anulador de Transferência, Sniper, Kamikaze e Paraquedistas.
+- **Tática — 7:** Campo Minado, Blitzkrieg, Anulador de Transferência, Sniper, Kamikaze, Paraquedistas e Radar.
 - **Estratégica — 6:** Sabotagem, Central de Energia, Bomba de Longo Alcance, Paz, Artilharia e Foguetes.
 - **Especial — 5:** Drone, Bomba Atômica, Propaganda de Guerra, Bomba Química e Infiltrado.
 
-Total: 25 armas, distribuídas em 8/6/6/5.
+Total: 26 armas, distribuídas em 8/7/6/5.
 
-As 25 armas das categorias Apoio, Tática, Estratégica e Especial estão implementadas no domínio V1 e registradas no pipeline modular. A integração ampla com GameManager, Preparation, HUD e Play Mode permanece reservada para etapa própria.
+As 26 armas possuem identidade canônica no domínio. A execução canônica de Drone, Radar e Infiltrado está conectada pelo bloco 7D.7A-2 sem pipeline paralelo.
 
 ### [DEFINITIVO] Primeira ponte read-only com a partida
 
@@ -855,9 +861,9 @@ O ciclo real de rounds avança cooldown uma única vez por round. A consulta run
 
 ### Identidade e loadout da partida — decisão definitiva
 
-A Central de Energia é uma arma-base universal: integra o catálogo oficial de 25 armas, não ocupa os oito slots principais nem os dois slots de Apoio do deck Normal e não participa do sorteio Random Cards. Seu custo zero permite uso desde o Round 1, mas sua produção começa somente no Round 2. Quando possuída, usa o nível permanente capturado; quando ainda não possuída, recebe N1 temporário apenas naquela partida, sem alterar a progressão.
+A Central de Energia é uma arma-base universal: integra o catálogo oficial de 26 armas, não ocupa os oito slots principais nem os dois slots de Apoio do deck Normal e não participa do sorteio Random Cards. Seu custo zero permite uso desde o Round 1, mas sua produção começa somente no Round 2. Quando possuída, usa o nível permanente capturado; quando ainda não possuída, recebe N1 temporário apenas naquela partida, sem alterar a progressão.
 
-O Random Cards utiliza diretamente `WeaponId` canônico. Seu pool efetivo contém as 24 armas oficiais exceto `energy_plant`. Os antigos `card_01` a `card_24` eram placeholders derivados dos três decks mock de oito cards, não possuíam correspondência semântica e deixam de ser identidade funcional. Saves locais que ainda os contenham têm esses slots limpos, sem conversão inventada.
+O Random Cards utiliza diretamente `WeaponId` canônico. Seu pool efetivo contém as 25 armas oficiais exceto `energy_plant`. Os antigos `card_01` a `card_24` eram placeholders derivados dos três decks mock de oito cards, não possuíam correspondência semântica e deixam de ser identidade funcional. Saves locais que ainda os contenham têm esses slots limpos, sem conversão inventada.
 
 O pool BASIC do Round 1 contém exatamente `air_strike`, `reinforcements`, `minefield`, `blitzkrieg`, `transfer_nullifier`, `sniper`, `air_transport` e `bunker`. A quantidade inicial, a sequência comum determinística, as entregas posteriores e a capacidade da mão permanecem inalteradas.
 
@@ -867,7 +873,7 @@ No Random Cards, uma arma possuída usa o nível permanente capturado no início
 
 A programação de armas é uma camada de intenção separada da execução. Durante a Preparação, o jogador escolhe uma arma disponível e fornece origem, alvo, instalação e parâmetros conforme um contrato técnico canônico. O serviço consulta o loadout/mão, nível, Energy, cooldown, usos e a visão read-only do tabuleiro, mas não chama handlers nem o pipeline de resolução.
 
-Criar, cancelar ou substituir uma intenção não debita Energy, não inicia cooldown, não consome carta e não altera tropas, proprietário ou instalações. O Drone apenas registra que necessita do fluxo especial futuro; reconhecimento e custo antecipado continuam pertencendo à integração de execução. Instalar Foguetes e disparar uma instalação existente são intenções distintas.
+Criar, cancelar ou substituir uma intenção não debita Energy, não inicia cooldown, não consome carta e não altera tropas, proprietário ou instalações. Instalar Drone/Foguetes e disparar uma instalação existente são intenções distintas.
 
 Ao fechar a Preparação, as intenções daquele round são congeladas em uma coleção imutável e ordenadas por round, fase, ordem oficial do jogador, ordem de programação e `ActionId`. A futura etapa de execução deverá revalidar cada ação contra o estado autoritativo daquele momento, pois uma intenção válida na Preparação pode deixar de ser válida durante a resolução.
 
@@ -997,11 +1003,11 @@ O servidor consolida proprietários, capturas, instalações, minas, durações,
 - O servidor não confia no cliente para Energia, cooldown, alvo, resultado, instalação, tropas ou propriedade.
 - Efeitos, custos, anulações, falhas, interceptações e alterações de estado são auditáveis.
 
-### [PENDENTE] Especificação de implementação e balanceamento
+### [HISTÓRICO — SUPERADO PELA IMPLEMENTAÇÃO CANÔNICA 7D.7A] Especificação de implementação e balanceamento
 
 As regras documentais não autorizam ainda a implementação completa das armas. Antes disso, deve-se transformar a matriz consolidada em especificação técnica, verificar as interações das 25 armas e revisar comparativamente Energia, cooldowns, níveis, duração, usos e força relativa. As curvas padrão de progressão em Tokens específicos e Moedas já estão definidas; exceções futuras exigem decisão explícita.
 
-### [STATUS EM 08/09/2026] Revisão das armas
+### [HISTÓRICO — STATUS EM 08/09/2026, SUPERADO PELO CATÁLOGO DE 26 ARMAS] Revisão das armas
 
 - Catálogo nominal: 25 armas.
 - A revisão conceitual inicial das 25 armas foi concluída.
@@ -1069,6 +1075,8 @@ O painel administrativo poderá apresentar histórico, gráficos, percentuais, f
 ### [PROVISÓRIO] Persistência local e configuração de desenvolvimento
 
 `IWDArmoryRepository` já separa o domínio do mecanismo de persistência. `WDPlayerPrefsArmoryRepository` é apenas o adaptador local de desenvolvimento e deverá ser substituído por uma implementação de conta/backend sem acoplar a UI ao armazenamento.
+
+Na terminologia de produto e UI, esta área se chama **ARSENAL**. Os identificadores técnicos históricos `WDArmory*` permanecem inalterados para evitar uma renomeação cosmética sem benefício arquitetural.
 
 O catálogo real de Armas e Progressão pode ser editado em **War Dominion > Configurações do Jogo > Armas e Progressão**, que abre o mesmo `WDArmoryCatalogConfig.asset` consumido pelo runtime. Não existe ferramenta vazia para economia ou administração ao vivo: novos acessos só devem aparecer quando houver configuração ou serviço real para editar.
 
@@ -1385,16 +1393,17 @@ Ao atualizar:
 - não inventar detalhes para preencher itens ainda pendentes;
 - tratar a versão corrente do documento como referência ativa para novas fases.
 
-## Armas V1 — Etapa 7D.4 acelerada (integração incremental)
+## Armas V1 — Etapa 7D.4 acelerada (histórico da integração incremental)
 
-[IMPLEMENTADO — AGUARDANDO VALIDAÇÃO MANUAL NO UNITY]
+[HISTÓRICO — SUPERADO PELA 7D.7A]
 
 - 18 das 25 armas V1 estão conectadas ao estado real da partida.
 - Este lote integra Bomba Atômica, Drone, Sniper, Propaganda de Guerra, Sabotagem,
   Anulador de Transferência, Blitzkrieg e Tropas Reservas.
 - Um runtime autoritativo por round concentra bloqueios temporários, modificadores de
-  reforço/ações terrestres, reconhecimento do Drone, pool independente de reforços e
-  histórico idempotente de perdas territoriais.
+  reforço/ações terrestres, pool independente de reforços e histórico idempotente de
+  perdas territoriais. O reconhecimento do Drone descrito nesta etapa foi superado
+  pela semântica canônica Drone ofensivo + Radar da Etapa 7D.7A.
 - Sabotagem reduz somente o reforço natural e usa apenas a maior porcentagem válida.
 - Tropas Reservas deriva seu valor das perdas do round anterior e entra no pool de
   reforços; não é reduzida por Sabotagem.
@@ -1404,8 +1413,9 @@ Ao atualizar:
   mínimo 1. Instalações não recebem lifecycle novo enquanto estiverem em Neutro.
 - A Bomba Atômica congela os vizinhos antes das mutações; somente a Flak central pode
   cancelar a explosão inteira, e cada território aplica Bunker/lifecycle separadamente.
-- O reconhecimento válido do Drone compromete Energy, cooldown e uso; atacar ou
-  abandonar depois não gera uma segunda cobrança.
+- A antiga operação de reconhecimento do Drone foi removida na Etapa 7D.7A; a regra
+  vigente é a instalação ofensiva com dois disparos, enquanto Radar concentra a
+  revelação de cobertura Flak.
 - Anulador bloqueia a transferência antes da mutação sem consumir a oportunidade do
   alvo; somente o primeiro efeito válido contra o jogador é cobrado.
 - Blitzkrieg mantém o limite-base 3 e fornece, por round, os totais 4/5/6/7.
@@ -1413,9 +1423,9 @@ Ao atualizar:
   e Mercenários permanecem `Deferred`, sem custo, cooldown, uso ou mutação.
 - O `WDWeaponResolutionPipeline` global permanece desligado; a integração continua
   controlada pelo coordenador incremental e não possui apresentação visual definitiva.
-## Armas V1 — Etapa 7D.5 acelerada (último lote individual)
+## Armas V1 — Etapa 7D.5 acelerada (histórico do último lote individual)
 
-[IMPLEMENTADO — AGUARDANDO VALIDAÇÃO MANUAL NO UNITY]
+[HISTÓRICO — SUPERADO PELA 7D.7A]
 
 - As 25 armas canônicas possuem integração individual com o estado autoritativo.
 - Paz, Campo Minado, Transporte Aéreo, Paraquedistas, Infiltrado, Recuperação de
@@ -1428,8 +1438,8 @@ Ao atualizar:
   guarnição e pode transportar somente Flak, preservando nível e duração.
 - Paraquedistas revalidam o alvo sequencialmente, sofrem Flak/Bunker/Mina e são a única
   arma autorizada a ocupar/conquistar território.
-- Infiltrado bloqueia a origem e desarma temporariamente Bunker/Mina sem alterar HP;
-  Central e Flak não são afetadas.
+- A antiga infiltração territorial deste lote foi substituída na Etapa 7D.7A pelo
+  bloqueio determinístico de uma ação de arma preparada, identificada por `ActionId`.
 - Recuperação usa baixas reais do round anterior, somente quando o território manteve
   o mesmo proprietário, limitada pelo nível.
 - Mercenários paga três parcelas no pool autoritativo (ativação, round +1 e round +2),
@@ -1438,3 +1448,59 @@ Ao atualizar:
   permanece aberta; nenhum lifecycle não aprovado foi inventado.
 - O `WDWeaponResolutionPipeline` global continua desligado. UI/VFX e ativação global
   da Resolution Order V2 permanecem para etapa posterior.
+
+## Armas V1 — Etapa 7D.7A-1 (fundação canônica de 26 armas)
+
+[DEFINITIVO — FUNDAÇÃO IMPLEMENTADA; EXECUÇÃO CONCLUÍDA NO BLOCO 2]
+
+- O catálogo oficial passa a conter 26 armas: 8 Apoio, 7 Tática, 6 Estratégica e
+  5 Especial. Radar (`radar`) é Tática; Central de Energia continua universal e fora
+  do Random Cards, que passa a possuir 25 armas sorteáveis.
+- Drone mantém o ID `drone`, deixa de ser reconhecimento e passa a ser instalação
+  ofensiva fixa global: 6 níveis, Energy 30, cooldown 3 e dois disparos totais, no
+  máximo um por instalação/round. Danos primeiro/segundo por nível: 1/1, 2/1, 2/2,
+  3/2, 3/3 e 4/3. Instalação, captura e transporte preservam sequência, cargas e
+  último round de disparo.
+- Radar é instalação fixa global de inteligência, N1, Energy 25, cooldown 3 e uma
+  revelação. A instalação criada na Resolution só poderá ser usada na Preparation
+  seguinte. O resultado futuro será efêmero até o fim do round e não revelará nível,
+  posição da Flak ou outras instalações.
+- Lifecycle em VAZIO: Mina permanece; Bunker e Flak são destruídos; Central,
+  Artilharia, Foguetes, Drone e Radar permanecem abandonados. Em NEUTRO, todas as
+  instalações permanecem fisicamente; Mina conserva o instalador original e as
+  demais ficam abandonadas/inoperantes.
+- Captura preserva integralmente o estado restante e não cobra Energy, cooldown ou
+  uso. Transporte Aéreo aceita Flak, Central, Artilharia, Foguetes, Drone ou Radar;
+  Mina e Bunker não são transportáveis. Para destino aliado, somente a instalação
+  selecionada muda de território e passa ao aliado, sem reinicialização.
+- Mina temporariamente desarmada não dispara na ocupação e, ao rearmar, continua
+  pertencendo ao instalador original.
+- O bootstrap de desenvolvimento completa saves existentes com os 26 IDs sem apagar
+  níveis, moedas, tokens, VIP ou decks. Saves antigos mantêm `drone`; Radar é apenas
+  acrescentado quando aplicável.
+- Os contratos legados de reconhecimento do Drone e infiltração territorial foram
+  removidos atomicamente na etapa 7D.7A-2; não existe execução paralela.
+
+## Armas V1 — Etapa 7D.7A-2 (execução canônica)
+
+[IMPLEMENTADO — VALIDADO NO UNITY: 633/633 EDITMODE]
+
+- Ordem global: início do round; Infiltrado; Paz; Anulador; transferências;
+  interferências; reforços; instalações/logística; Sniper; Propaganda; ofensivas;
+  Artilharia automática; Paraquedistas; terrestres; consolidação.
+- Drone instala em território próprio e pode disparar no mesmo round por ação
+  dependente. Cada instalação dispara no máximo uma vez por round; Flak intercepta,
+  Bunker absorve, Paz impede antes do lançamento e Sniper bloqueia sem consumir carga.
+  Alvos inimigos, Neutros e Vazios são válidos; Vazio consome carga com dano efetivo
+  zero. O segundo disparo remove a instalação.
+- Radar existente no início da Preparation usa uma porta imediata idempotente do
+  `WDWeaponExecutionCoordinator`. Instalação do round corrente é inelegível. A leitura
+  privada do autor detecta somente cobertura Flak e expira no próximo `BeginRound`.
+  Flak e Paz não bloqueiam; Sniper já programado no momento da tentativa bloqueia sem
+  consumo e sem rollback posterior.
+- Infiltrado bloqueia por `ActionId` antes da ação alvo, incluindo Paz e instalação
+  Drone do mesmo round. Operações persistentes não são elegíveis e outro Infiltrado
+  nunca é alvo.
+- `WDWeaponResolutionPipeline.ResolveRound` continua autoridade global única;
+  `WDWeaponExecutionCoordinator` continua executor único e o GameManager apenas expõe
+  portas finas de orquestração.
