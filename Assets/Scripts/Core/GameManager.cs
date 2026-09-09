@@ -75,6 +75,7 @@ public class GameManager : MonoBehaviour
     private IWDGameWeaponMutationPort weaponMutationPort;
     private WDWeaponInstallationRegistry weaponInstallationRegistry;
     private WDWeaponExecutionCoordinator weaponExecutionCoordinator;
+    private WDWeaponRoundRuntime weaponRoundRuntime;
     private IReadOnlyList<WDWeaponAction> acoesArmasCongeladas =
         System.Array.Empty<WDWeaponAction>();
     private WDInitialTerritorySelectionSession initialSelectionSession;
@@ -748,12 +749,14 @@ public class GameManager : MonoBehaviour
         weaponPreparation = new WDWeaponPreparationService(
             weaponRuntime, new WDGameWeaponContext(this), catalog);
         weaponInstallationRegistry = new WDWeaponInstallationRegistry();
+        weaponRoundRuntime = new WDWeaponRoundRuntime();
+        weaponRoundRuntime.BeginRound(RodadaAtual);
         weaponMutationPort = new WDGameWeaponMutationPort(
             new WDUnityGameWeaponMutableStateSource(this), weaponRuntime,
-            catalog, weaponInstallationRegistry);
+            catalog, weaponInstallationRegistry, weaponRoundRuntime);
         weaponExecutionCoordinator = new WDWeaponExecutionCoordinator(
             new WDGameWeaponContext(this), weaponRuntime, weaponMutationPort,
-            weaponInstallationRegistry, catalog);
+            weaponInstallationRegistry, catalog, null, weaponRoundRuntime);
     }
 
     private void AtualizarWeaponRuntimeParaRound()
@@ -835,10 +838,15 @@ public class GameManager : MonoBehaviour
     public void DefinirReforcos(
         int quantidade)
     {
+        string playerId = ObterIdJogadorLocal();
+        int natural = weaponRoundRuntime != null
+            ? weaponRoundRuntime.ApplyNaturalReinforcement(playerId, quantidade)
+            : quantidade;
+        int independente = weaponRoundRuntime?.TakeReinforcementPool(playerId) ?? 0;
         reforcosDisponiveis =
             Mathf.Max(
                 0,
-                quantidade
+                natural + independente
             );
 
         historicoReforcos.Limpar();
@@ -1566,17 +1574,33 @@ public class GameManager : MonoBehaviour
         gerenciadorRodada.NotificarInicioResolucao();
         GetComponent<MatchUIPresenter>()?.SolicitarSnapshotAtual();
 
+        weaponRoundRuntime?.CaptureOwnershipSnapshot(
+            new WDGameWeaponContext(this).Territories);
+
+        weaponExecutionCoordinator?.ExecuteFrozenActions(acoesArmasCongeladas);
+
+        if (weaponRoundRuntime != null)
+        {
+            foreach (OrdemTransferencia ordem in filaTransferencias.CriarCopia())
+            {
+                string playerId = ObterPlayerId(ordem.Autor);
+                if (weaponRoundRuntime.IsTransferBlocked(playerId))
+                    filaTransferencias.RemoverPara(ordem.Autor);
+            }
+        }
+
         List<ResultadoTransferencia> resultadosTransferencias =
             resolvedorTransferencias.Resolver(
             filaTransferencias,
             gerenciadorRodada.ObterPrioridadeJogadores());
 
-        weaponExecutionCoordinator?.ExecuteFrozenActions(acoesArmasCongeladas);
-
         List<ResultadoAcaoTerrestre> resultadosTerrestres =
             resolvedorAcoesTerrestres.Resolver(
             filaAcoes,
             gerenciadorRodada.ObterPrioridadeJogadores());
+
+        weaponRoundRuntime?.ObserveOwnershipChanges(
+            RodadaAtual, new WDGameWeaponContext(this).Territories);
 
         CancelarSelecaoAtual();
 
@@ -1599,6 +1623,14 @@ public class GameManager : MonoBehaviour
         }
 
         gerenciadorRodada.ConcluirResolucao();
+    }
+
+    private string ObterPlayerId(TerritorioClique.Dono dono)
+    {
+        int slot = (int)dono - 1;
+        WDMatchParticipant participant = MatchSetupAtual?.Participants
+            .FirstOrDefault(item => item.SlotIndex == slot);
+        return participant?.PlayerId ?? string.Empty;
     }
 
     private static List<ResolutionVisualEvent> CriarEventosVisuaisAcoesTerrestres(

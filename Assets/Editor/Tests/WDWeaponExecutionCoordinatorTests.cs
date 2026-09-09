@@ -13,6 +13,7 @@ public sealed class WDWeaponExecutionCoordinatorTests
     private WDWeaponInstallationRegistry registry;
     private WDGameWeaponMutationPort mutations;
     private WDWeaponExecutionCoordinator coordinator;
+    private WDWeaponRoundRuntime roundState;
     private int actionSequence;
 
     [SetUp]
@@ -30,9 +31,10 @@ public sealed class WDWeaponExecutionCoordinatorTests
         foreach (string playerId in new[] { "p1", "p2", "p3" })
             runtime.AddEnergy(playerId, 200);
         registry = new WDWeaponInstallationRegistry();
-        mutations = new WDGameWeaponMutationPort(source, runtime, catalog, registry);
+        roundState = new WDWeaponRoundRuntime(); roundState.BeginRound(1);
+        mutations = new WDGameWeaponMutationPort(source, runtime, catalog, registry, roundState);
         coordinator = new WDWeaponExecutionCoordinator(
-            context, runtime, mutations, registry, catalog);
+            context, runtime, mutations, registry, catalog, null, roundState);
     }
 
     // ============================================================
@@ -193,16 +195,22 @@ public sealed class WDWeaponExecutionCoordinatorTests
     // 04. LOTE FECHADO, IDEMPOTÊNCIA E LEITURA IMEDIATA
     // ============================================================
 
-    [Test]
-    public void UnsupportedWeaponIsDeferredWithoutAnyCostOrMutation()
+    [TestCase(WDSupportWeaponIds.Minefield)]
+    [TestCase(WDStrategicWeaponIds.Peace)]
+    [TestCase(WDSupportWeaponIds.AirTransport)]
+    [TestCase(WDTacticalWeaponIds.Paratroopers)]
+    [TestCase(WDSpecialWeaponIds.Infiltrator)]
+    [TestCase(WDSupportWeaponIds.TroopRecovery)]
+    [TestCase(WDSupportWeaponIds.Mercenaries)]
+    public void UnsupportedWeaponIsDeferredWithoutAnyCostOrMutation(string weaponId)
     {
-        WDWeaponAction action = Action(WDTacticalWeaponIds.Sniper, "enemy");
+        WDWeaponAction action = Action(weaponId, "enemy");
         string before = source.Fingerprint();
 
         Assert.That(coordinator.Execute(action).Status,
             Is.EqualTo(WDIntegratedWeaponExecutionStatus.Deferred));
         Assert.That(source.Fingerprint(), Is.EqualTo(before));
-        AssertRuntime("p1", WDTacticalWeaponIds.Sniper, 200, 0, 0);
+        AssertRuntime("p1", weaponId, 200, 0, 0);
     }
 
     [Test]
@@ -335,6 +343,122 @@ public sealed class WDWeaponExecutionCoordinatorTests
         Assert.That(coordinator.ProcessArtillery(1), Is.Zero);
     }
 
+    // ============================================================
+    // 06. SEGUNDO LOTE: EFEITOS REAIS, MODIFICADORES E HISTÓRICO
+    // ============================================================
+
+    [Test]
+    public void AtomicBombFreezesNeighboursAndAppliesCentralAndCollateralDamage()
+    {
+        source.Connect("enemy", "owned"); source.Connect("enemy", "ally");
+        SetLevel("p1", WDSpecialWeaponIds.AtomicBomb, 1);
+        AssertExecuted(Action(WDSpecialWeaponIds.AtomicBomb, "enemy"));
+        Assert.That(context.FindTerritory("enemy").Troops, Is.EqualTo(1));
+        Assert.That(context.FindTerritory("owned").Troops, Is.EqualTo(3));
+        Assert.That(context.FindTerritory("ally").Troops, Is.EqualTo(2));
+        AssertRuntime("p1", WDSpecialWeaponIds.AtomicBomb, 160, 3, 1);
+    }
+
+    [Test]
+    public void SniperKillsOneAndBlocksRocketsAndArtilleryOriginForRound()
+    {
+        AssertExecuted(Action(WDTacticalWeaponIds.Sniper, "enemy"));
+        Assert.That(context.FindTerritory("enemy").Troops, Is.EqualTo(3));
+        Assert.That(roundState.IsOriginBlocked("enemy"), Is.True);
+        mutations.Install("art", new WDWeaponInstallationState("art", "artillery",
+            "enemy", "p3", 2, 0, 0, 0, 1, false, 1));
+        source.Connect("enemy", "owned");
+        Assert.That(coordinator.ProcessArtillery(1), Is.Zero);
+        Assert.That(registry.Find("art").DurationRemaining, Is.EqualTo(2));
+    }
+
+    [Test]
+    public void PropagandaUsesCurrentTroopsAndPreservesHalfAsNeutral()
+    {
+        SetLevel("p1", WDSpecialWeaponIds.WarPropaganda, 2);
+        AssertExecuted(Action(WDSpecialWeaponIds.WarPropaganda, "enemy"));
+        Assert.That(context.FindTerritory("enemy").State,
+            Is.EqualTo(WDWeaponTerritoryStateKind.Neutral));
+        Assert.That(context.FindTerritory("enemy").Troops, Is.EqualTo(2));
+        Assert.That(context.FindTerritory("enemy").OwnerPlayerId, Is.Empty);
+    }
+
+    [TestCase(1, 15, 9, 8)]
+    [TestCase(2, 20, 10, 8)]
+    [TestCase(3, 25, 10, 8)]
+    [TestCase(4, 30, 10, 7)]
+    [TestCase(5, 35, 10, 7)]
+    [TestCase(6, 40, 10, 6)]
+    public void SabotageUsesLargestRateAndFloorsNaturalOnly(
+        int level, int percent, int natural, int expected)
+    {
+        SetLevel("p1", WDStrategicWeaponIds.Sabotage, level);
+        AssertExecuted(Action(WDStrategicWeaponIds.Sabotage, "",
+            targetPlayer: "p3"));
+        Assert.That(WDStrategicWeaponTables.SabotageRate(level) * 100,
+            Is.EqualTo(percent).Within(.001));
+        Assert.That(roundState.ApplyNaturalReinforcement("p3", natural),
+            Is.EqualTo(expected));
+    }
+
+    [Test]
+    public void FirstTransferNullifierWinsWithoutChargingLaterAction()
+    {
+        AssertExecuted(Action(WDTacticalWeaponIds.TransferNullifier, "",
+            targetPlayer: "p3"));
+        runtime.FindPlayer("p2").GetWeapon(WDTacticalWeaponIds.TransferNullifier)
+            .SetLevel(1, 1);
+        WDWeaponAction later = Action(WDTacticalWeaponIds.TransferNullifier, "", "p2",
+            targetPlayer: "p3");
+        Assert.That(coordinator.Execute(later).Status,
+            Is.EqualTo(WDIntegratedWeaponExecutionStatus.Superseded));
+        Assert.That(roundState.IsTransferBlocked("p3"), Is.True);
+        AssertRuntime("p2", WDTacticalWeaponIds.TransferNullifier, 200, 0, 0);
+    }
+
+    [TestCase(1, 4)] [TestCase(2, 5)] [TestCase(3, 6)] [TestCase(4, 7)]
+    public void BlitzkriegChangesOnlyCurrentRoundLimit(int level, int expected)
+    {
+        SetLevel("p1", WDTacticalWeaponIds.Blitzkrieg, level);
+        AssertExecuted(Action(WDTacticalWeaponIds.Blitzkrieg, ""));
+        Assert.That(roundState.GetTerrestrialLimit("p1"), Is.EqualTo(expected));
+        roundState.BeginRound(2);
+        Assert.That(roundState.GetTerrestrialLimit("p1"), Is.EqualTo(3));
+    }
+
+    [TestCase(1,1,1)] [TestCase(1,6,6)] [TestCase(2,5,6)]
+    [TestCase(3,2,2)] [TestCase(4,6,9)] [TestCase(5,3,3)]
+    [TestCase(6,1,1)] [TestCase(6,2,2)] [TestCase(6,3,3)]
+    [TestCase(6,4,8)] [TestCase(6,5,10)] [TestCase(6,7,12)]
+    public void ReserveTroopsUsesAuthoritativePreviousRoundLosses(
+        int level, int losses, int expected)
+    {
+        for (int i = 0; i < losses; i++)
+            roundState.RecordOwnershipChange(1, "lost-" + i, "p1", "p3");
+        roundState.BeginRound(2); source.CurrentRound = 2; runtime.AdvanceCooldownsForRound(2);
+        SetLevel("p1", WDSupportWeaponIds.ReserveTroops, level);
+        AssertExecuted(Action(WDSupportWeaponIds.ReserveTroops, "", round: 2));
+        Assert.That(roundState.GetReinforcementPool("p1"), Is.EqualTo(expected));
+    }
+
+    [Test]
+    public void DroneReconCommitsOnceAndAttackUsesDiscoveryWithoutSecondCost()
+    {
+        SetLevel("p1", WDSpecialWeaponIds.Drone, 1);
+        WDWeaponAction recon = Action(WDSpecialWeaponIds.Drone, "",
+            parameters: new[] { new WDWeaponActionParameter("mode", "recon"),
+                new WDWeaponActionParameter("options", "enemy") });
+        Assert.That(coordinator.Execute(recon).Status,
+            Is.EqualTo(WDIntegratedWeaponExecutionStatus.ReconCompleted));
+        int energy = runtime.FindPlayer("p1").Energy;
+        WDWeaponAction attack = Action(WDSpecialWeaponIds.Drone, "enemy",
+            parameters: new[] { new WDWeaponActionParameter("mode", "attack"),
+                new WDWeaponActionParameter("recon", recon.ActionId) });
+        AssertExecuted(attack);
+        Assert.That(context.FindTerritory("enemy").Troops, Is.EqualTo(2));
+        Assert.That(runtime.FindPlayer("p1").Energy, Is.EqualTo(energy));
+    }
+
     private void ExecuteCentralAtRound(string territory, string id, int round)
     {
         source.CurrentRound = round;
@@ -346,11 +470,13 @@ public sealed class WDWeaponExecutionCoordinatorTests
     private WDWeaponAction Action(
         string weaponId, string target, string author = "p1",
         string installationId = "", int? round = null, string origin = "",
-        WDWeaponResolutionPhase? phase = null) =>
+        WDWeaponResolutionPhase? phase = null, string targetPlayer = "",
+        IEnumerable<WDWeaponActionParameter> parameters = null) =>
         new($"test-action-{actionSequence++}", author, weaponId,
             round ?? source.CurrentRound, phase ?? catalog.FindWeapon(weaponId).ResolutionPhase,
             actionSequence, originTerritoryId: origin, targetTerritoryId: target,
-            installationId: installationId);
+            targetPlayerId: targetPlayer, installationId: installationId,
+            parameters: parameters);
 
     private void AssertExecuted(WDWeaponAction action) => Assert.That(
         coordinator.Execute(action).Status,

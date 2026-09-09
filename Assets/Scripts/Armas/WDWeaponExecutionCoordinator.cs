@@ -2,6 +2,52 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
+public sealed class WDWeaponRoundRuntime
+{
+    private readonly Dictionary<int, Dictionary<string, HashSet<string>>> losses = new();
+    private readonly Dictionary<string, double> sabotage = new(StringComparer.Ordinal);
+    private readonly HashSet<string> transferBlocked = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, int> terrestrialLimits = new(StringComparer.Ordinal);
+    private readonly HashSet<string> blockedOrigins = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, int> reinforcementPool = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, IReadOnlyList<WDDroneDiscovery>> droneRecon = new(StringComparer.Ordinal);
+    private Dictionary<string, string> ownershipSnapshot = new(StringComparer.Ordinal);
+    public int ActiveRound { get; private set; }
+
+    // ============================================================
+    // 01. ESTADO AUTORITATIVO TEMPORÁRIO E HISTÓRICO DE ROUND
+    // ============================================================
+    public void BeginRound(int round)
+    {
+        int normalized = Math.Max(1, round); if (normalized <= ActiveRound) return;
+        ActiveRound = normalized; transferBlocked.Clear();
+        terrestrialLimits.Clear(); blockedOrigins.Clear(); droneRecon.Clear();
+    }
+    public bool ApplySabotage(string id, double rate)
+    { rate=Math.Clamp(rate,0d,1d); if(sabotage.TryGetValue(id,out double old)&&old>=rate)return false;sabotage[id]=rate;return true; }
+    public int ApplyNaturalReinforcement(string id,int amount)
+    {string key=id??"";double r=sabotage.TryGetValue(key,out double value)?value:0d;sabotage.Remove(key);return Math.Max(0,amount-(int)Math.Floor(Math.Max(0,amount)*r));}
+    public bool TryBlockTransfer(string id)=>transferBlocked.Add(id??"");
+    public bool IsTransferBlocked(string id)=>transferBlocked.Contains(id??"");
+    public void SetTerrestrialLimit(string id,int value)=>terrestrialLimits[id??""]=Math.Max(3,value);
+    public int GetTerrestrialLimit(string id)=>terrestrialLimits.TryGetValue(id??"",out int v)?v:3;
+    public void BlockOrigin(string id)=>blockedOrigins.Add(id??"");
+    public bool IsOriginBlocked(string id)=>blockedOrigins.Contains(id??"");
+    public void AddReinforcementPool(string id,int value)=>reinforcementPool[id??""]=GetReinforcementPool(id)+Math.Max(0,value);
+    public int GetReinforcementPool(string id)=>reinforcementPool.TryGetValue(id??"",out int v)?v:0;
+    public int TakeReinforcementPool(string id)
+    {string key=id??"";int value=GetReinforcementPool(key);reinforcementPool.Remove(key);return value;}
+    public void RecordOwnershipChange(int round,string territory,string oldOwner,string newOwner)
+    {if(string.IsNullOrEmpty(oldOwner)||oldOwner==newOwner)return;if(!losses.TryGetValue(round,out var p))losses[round]=p=new();if(!p.TryGetValue(oldOwner,out var ids))p[oldOwner]=ids=new(StringComparer.Ordinal);ids.Add(territory??"");}
+    public int GetTerritoriesLostPreviousRound(string id)=>losses.TryGetValue(ActiveRound-1,out var p)&&p.TryGetValue(id??"",out var ids)?ids.Count:0;
+    public void CaptureOwnershipSnapshot(IEnumerable<WDGameWeaponTerritoryView> territories)
+    {ownershipSnapshot=(territories??Array.Empty<WDGameWeaponTerritoryView>()).ToDictionary(x=>x.TerritoryId,x=>x.OwnerPlayerId,StringComparer.Ordinal);}
+    public void ObserveOwnershipChanges(int round,IEnumerable<WDGameWeaponTerritoryView> territories)
+    {foreach(var t in territories??Array.Empty<WDGameWeaponTerritoryView>())if(ownershipSnapshot.TryGetValue(t.TerritoryId,out string oldOwner))RecordOwnershipChange(round,t.TerritoryId,oldOwner,t.OwnerPlayerId);ownershipSnapshot.Clear();}
+    public bool StoreDroneRecon(string id,IReadOnlyList<WDDroneDiscovery> value)=>droneRecon.TryAdd(id??"",value??Array.Empty<WDDroneDiscovery>());
+    public IReadOnlyList<WDDroneDiscovery> GetDroneRecon(string id)=>droneRecon.TryGetValue(id??"",out var v)?v:Array.Empty<WDDroneDiscovery>();
+}
+
 public enum WDIntegratedWeaponExecutionStatus
 {
     Executed,
@@ -11,6 +57,10 @@ public enum WDIntegratedWeaponExecutionStatus
     MutationFailed
     ,Intercepted
     ,NoValidTargets
+    ,ThresholdFailed
+    ,ReconCompleted
+    ,ReconCompletedNoAttack
+    ,Superseded
 }
 
 public sealed class WDIntegratedWeaponExecutionResult
@@ -45,6 +95,14 @@ public sealed class WDWeaponExecutionCoordinator
         ,WDTacticalWeaponIds.Kamikaze
         ,WDStrategicWeaponIds.Rockets
         ,WDStrategicWeaponIds.Artillery
+        ,WDSpecialWeaponIds.AtomicBomb
+        ,WDSpecialWeaponIds.Drone
+        ,WDTacticalWeaponIds.Sniper
+        ,WDSpecialWeaponIds.WarPropaganda
+        ,WDStrategicWeaponIds.Sabotage
+        ,WDTacticalWeaponIds.TransferNullifier
+        ,WDTacticalWeaponIds.Blitzkrieg
+        ,WDSupportWeaponIds.ReserveTroops
     };
 
     private readonly WDGameWeaponContext context;
@@ -54,6 +112,7 @@ public sealed class WDWeaponExecutionCoordinator
     private readonly WDArmoryCatalogConfig catalog;
     private readonly WDWeaponInstallationLifecycle lifecycle;
     private readonly WDRealWeaponDamageService damage;
+    private readonly WDWeaponRoundRuntime roundRuntime;
     private readonly Dictionary<string, WDIntegratedWeaponExecutionResult> processed =
         new(StringComparer.Ordinal);
 
@@ -65,13 +124,16 @@ public sealed class WDWeaponExecutionCoordinator
         WDGameWeaponContext context, WDWeaponMatchRuntime runtime,
         IWDGameWeaponMutationPort mutations,
         WDWeaponInstallationRegistry installations,
-        WDArmoryCatalogConfig catalog, IWDWeaponRandomSource random = null)
+        WDArmoryCatalogConfig catalog, IWDWeaponRandomSource random = null,
+        WDWeaponRoundRuntime roundRuntime = null)
     {
         this.context = context ?? throw new ArgumentNullException(nameof(context));
         this.runtime = runtime ?? throw new ArgumentNullException(nameof(runtime));
         this.mutations = mutations ?? throw new ArgumentNullException(nameof(mutations));
         this.installations = installations ?? throw new ArgumentNullException(nameof(installations));
         this.catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
+        this.roundRuntime = roundRuntime ?? new WDWeaponRoundRuntime();
+        this.roundRuntime.BeginRound(context.CurrentRound);
         lifecycle = new WDWeaponInstallationLifecycle(installations, mutations);
         damage = new WDRealWeaponDamageService(context, mutations, installations,
             lifecycle, random ?? new WDDeterministicWeaponRandom(0));
@@ -82,14 +144,26 @@ public sealed class WDWeaponExecutionCoordinator
     {
         var playerOrder = context.OfficialPlayerOrder.Select((id, index) => (id, index))
             .ToDictionary(item => item.id, item => item.index, StringComparer.Ordinal);
-        WDIntegratedWeaponExecutionResult[] results = (actions ?? Array.Empty<WDWeaponAction>())
+        WDWeaponAction[] ordered = (actions ?? Array.Empty<WDWeaponAction>())
             .Where(action => action != null)
             .OrderBy(action => action.Phase)
             .ThenBy(action => playerOrder.TryGetValue(action.AuthorPlayerId, out int order)
                 ? order : int.MaxValue)
             .ThenBy(action => action.ProgramOrder)
-            .ThenBy(action => action.ActionId, StringComparer.Ordinal)
-            .Select(Execute).ToArray();
+            .ThenBy(action => action.ActionId, StringComparer.Ordinal).ToArray();
+        var sabotageWinners = ordered.Where(x => x.WeaponId == WDStrategicWeaponIds.Sabotage)
+            .GroupBy(x => x.TargetPlayerId, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(x =>
+                runtime.FindPlayer(x.AuthorPlayerId)?.GetWeapon(x.WeaponId)?.Level ?? 0)
+                .ThenBy(x => playerOrder.TryGetValue(x.AuthorPlayerId, out int order)
+                    ? order : int.MaxValue)
+                .ThenBy(x => x.ActionId, StringComparer.Ordinal).First(), StringComparer.Ordinal);
+        WDIntegratedWeaponExecutionResult[] results = ordered.Select(action =>
+            action.WeaponId == WDStrategicWeaponIds.Sabotage &&
+            sabotageWinners.TryGetValue(action.TargetPlayerId, out WDWeaponAction winner) &&
+            winner != action
+                ? Remember(action, WDIntegratedWeaponExecutionStatus.Superseded)
+                : Execute(action)).ToArray();
         ProcessArtillery(context.CurrentRound);
         return results;
     }
@@ -113,6 +187,9 @@ public sealed class WDWeaponExecutionCoordinator
         bool rocketLaunch = action.WeaponId == WDStrategicWeaponIds.Rockets &&
             action.Phase == WDWeaponResolutionPhase.ProgrammedOffense;
         WDWeaponAvailability availability = runtime.GetAvailability(action.AuthorPlayerId, action.WeaponId);
+        roundRuntime.BeginRound(action.Round);
+        if (IsSecondBatch(action.WeaponId))
+            return ExecuteSecondBatch(action, definition, availability);
         WDGameWeaponTerritoryView target = context.FindTerritory(action.TargetTerritoryId);
         if (definition == null || action.Round != context.CurrentRound ||
             (!rocketLaunch && !availability.IsAvailable) || target == null ||
@@ -267,6 +344,7 @@ public sealed class WDWeaponExecutionCoordinator
         WDWeaponInstallationState rocket = installations.Find(action.InstallationId);
         return rocket != null && rocket.WeaponId == WDStrategicWeaponIds.Rockets &&
             rocket.OwnerPlayerId == action.AuthorPlayerId && rocket.ChargesRemaining > 0 &&
+            !roundRuntime.IsOriginBlocked(rocket.TerritoryId) &&
             GraphDistance(rocket.TerritoryId, target.TerritoryId, 3) <= 3 &&
             (target.State == WDWeaponTerritoryStateKind.Empty ||
              context.AreOpponents(action.AuthorPlayerId, target.OwnerPlayerId));
@@ -306,6 +384,7 @@ public sealed class WDWeaponExecutionCoordinator
 
     public void ProcessRoundStart(int round)
     {
+        roundRuntime.BeginRound(round);
         lifecycle.AdvanceFlakLifecycle(round);
         ProcessEnergyPlantPayments(round);
         ProcessArtillery(round);
@@ -320,7 +399,8 @@ public sealed class WDWeaponExecutionCoordinator
             .OrderBy(x => x.OwnerPlayerId, StringComparer.Ordinal)
             .ThenBy(x => x.InstallationId, StringComparer.Ordinal).ToArray())
         {
-            if (artillery.LastAutomaticRound == round) continue;
+            if (artillery.LastAutomaticRound == round ||
+                roundRuntime.IsOriginBlocked(artillery.TerritoryId)) continue;
             string[] targets = context.GetNeighbours(artillery.TerritoryId)
                 .Select(context.FindTerritory).Where(x => x != null &&
                     x.OwnerPlayerId != artillery.OwnerPlayerId &&
@@ -377,4 +457,130 @@ public sealed class WDWeaponExecutionCoordinator
 
     private static string Mutation(WDWeaponAction action, string suffix) =>
         $"execute:{action.ActionId}:{suffix}";
+
+    // ============================================================
+    // 06. SEGUNDO LOTE REAL SOBRE O RUNTIME AUTORITATIVO DO ROUND
+    // ============================================================
+    public WDWeaponRoundRuntime RoundRuntime => roundRuntime;
+
+    private WDIntegratedWeaponExecutionResult ExecuteSecondBatch(
+        WDWeaponAction action, WDWeaponDefinition definition,
+        WDWeaponAvailability availability)
+    {
+        string droneMode = action.WeaponId == WDSpecialWeaponIds.Drone
+            ? WDSpecialWeaponParameters.Get(action, "mode") : string.Empty;
+        bool droneFollowUp = action.WeaponId == WDSpecialWeaponIds.Drone &&
+            (droneMode == "attack" || droneMode == "abandon");
+        if (definition == null || action.Round != context.CurrentRound ||
+            (!droneFollowUp && !availability.IsAvailable)) return Invalid(action);
+        int effectiveLevel = droneFollowUp
+            ? runtime.FindPlayer(action.AuthorPlayerId)?.GetWeapon(action.WeaponId)?.Level ?? 1
+            : availability.Level;
+
+        if (action.WeaponId == WDSpecialWeaponIds.AtomicBomb)
+            return ExecuteAtomic(action, definition, effectiveLevel);
+        if (action.WeaponId == WDSpecialWeaponIds.Drone)
+            return ExecuteDrone(action, definition, effectiveLevel);
+
+        WDGameWeaponTerritoryView target = context.FindTerritory(action.TargetTerritoryId);
+        if (action.WeaponId == WDTacticalWeaponIds.Sniper)
+        {
+            if (!IsEnemy(action.AuthorPlayerId, target)) return Invalid(action);
+            damage.Apply(action.ActionId, target.TerritoryId, 1, false, false);
+            roundRuntime.BlockOrigin(target.TerritoryId);
+        }
+        else if (action.WeaponId == WDSpecialWeaponIds.WarPropaganda)
+        {
+            if (!IsEnemy(action.AuthorPlayerId, target)) return Invalid(action);
+            if (target.Troops > WDSpecialWeaponTables.PropagandaLimit(availability.Level))
+                return Remember(action, WDIntegratedWeaponExecutionStatus.ThresholdFailed);
+            mutations.MakeNeutral(Mutation(action, "neutralize"), target.TerritoryId,
+                Math.Max(1, target.Troops / 2));
+        }
+        else if (action.WeaponId == WDStrategicWeaponIds.Sabotage)
+        {
+            if (!IsOpponent(action.AuthorPlayerId, action.TargetPlayerId)) return Invalid(action);
+            if (!roundRuntime.ApplySabotage(action.TargetPlayerId,
+                WDStrategicWeaponTables.SabotageRate(availability.Level)))
+                return Remember(action, WDIntegratedWeaponExecutionStatus.Superseded);
+        }
+        else if (action.WeaponId == WDTacticalWeaponIds.TransferNullifier)
+        {
+            if (!IsOpponent(action.AuthorPlayerId, action.TargetPlayerId)) return Invalid(action);
+            if (!roundRuntime.TryBlockTransfer(action.TargetPlayerId))
+                return Remember(action, WDIntegratedWeaponExecutionStatus.Superseded);
+        }
+        else if (action.WeaponId == WDTacticalWeaponIds.Blitzkrieg)
+            roundRuntime.SetTerrestrialLimit(action.AuthorPlayerId,
+                WDTacticalWeaponTables.BlitzkriegLimit(availability.Level));
+        else if (action.WeaponId == WDSupportWeaponIds.ReserveTroops)
+        {
+            int lost = roundRuntime.GetTerritoriesLostPreviousRound(action.AuthorPlayerId);
+            int amount = WDSupportWeaponTables.ReserveTroops(availability.Level, lost);
+            if (amount <= 0) return Invalid(action);
+            roundRuntime.AddReinforcementPool(action.AuthorPlayerId, amount);
+        }
+
+        CommitCosts(action, definition); action.MarkValidated(); action.MarkExecuted();
+        return Remember(action, WDIntegratedWeaponExecutionStatus.Executed);
+    }
+
+    private WDIntegratedWeaponExecutionResult ExecuteAtomic(
+        WDWeaponAction action, WDWeaponDefinition definition, int level)
+    {
+        WDGameWeaponTerritoryView center = context.FindTerritory(action.TargetTerritoryId);
+        if (center == null || center.State != WDWeaponTerritoryStateKind.Empty &&
+            !context.AreOpponents(action.AuthorPlayerId, center.OwnerPlayerId)) return Invalid(action);
+        string[] neighbours = context.GetNeighbours(center.TerritoryId).ToArray();
+        WDRealWeaponDamageResult central = damage.Apply(action.ActionId + ":center",
+            center.TerritoryId, WDSpecialWeaponTables.AtomicDamage(level), true, true);
+        CommitCosts(action, definition); action.MarkValidated(); action.MarkExecuted();
+        if (central.Intercepted)
+            return Remember(action, WDIntegratedWeaponExecutionStatus.Intercepted);
+        foreach (string id in neighbours)
+            damage.Apply(action.ActionId + ":collateral:" + id, id, 2, false, true);
+        return Remember(action, WDIntegratedWeaponExecutionStatus.Executed);
+    }
+
+    private WDIntegratedWeaponExecutionResult ExecuteDrone(
+        WDWeaponAction action, WDWeaponDefinition definition, int level)
+    {
+        string mode = WDSpecialWeaponParameters.Get(action, "mode");
+        if (mode == "recon")
+        {
+            var discoveries = WDSpecialWeaponParameters.List(action, "options")
+                .Select(context.FindTerritory).Where(x => x != null)
+                .Take(WDSpecialWeaponTables.DroneDiscoveries(level))
+                .Select(x => new WDDroneDiscovery(x.TerritoryId,
+                    damage.SelectCoveringFlak(x.TerritoryId))).ToArray();
+            if (discoveries.Length == 0) return Invalid(action);
+            roundRuntime.StoreDroneRecon(action.ActionId, discoveries);
+            CommitCosts(action, definition); action.MarkValidated(); action.MarkExecuted();
+            return Remember(action, WDIntegratedWeaponExecutionStatus.ReconCompleted);
+        }
+        string reconId = WDSpecialWeaponParameters.Get(action, "recon");
+        if (mode == "abandon")
+            return roundRuntime.GetDroneRecon(reconId).Count > 0
+                ? Remember(action, WDIntegratedWeaponExecutionStatus.ReconCompletedNoAttack)
+                : Invalid(action);
+        if (mode != "attack" || !roundRuntime.GetDroneRecon(reconId)
+            .Any(x => x.TerritoryId == action.TargetTerritoryId)) return Invalid(action);
+        WDRealWeaponDamageResult result = damage.Apply(action.ActionId,
+            action.TargetTerritoryId, WDSpecialWeaponTables.DroneDamage(level), true, false);
+        action.MarkValidated(); action.MarkExecuted();
+        return Remember(action, result.Intercepted
+            ? WDIntegratedWeaponExecutionStatus.Intercepted
+            : WDIntegratedWeaponExecutionStatus.Executed);
+    }
+
+    private bool IsEnemy(string author, WDGameWeaponTerritoryView target) =>
+        target != null && target.State == WDWeaponTerritoryStateKind.Occupied &&
+        context.AreOpponents(author, target.OwnerPlayerId);
+    private bool IsOpponent(string author, string target) =>
+        context.AreOpponents(author, target);
+    private static bool IsSecondBatch(string id) =>
+        id == WDSpecialWeaponIds.AtomicBomb || id == WDSpecialWeaponIds.Drone ||
+        id == WDTacticalWeaponIds.Sniper || id == WDSpecialWeaponIds.WarPropaganda ||
+        id == WDStrategicWeaponIds.Sabotage || id == WDTacticalWeaponIds.TransferNullifier ||
+        id == WDTacticalWeaponIds.Blitzkrieg || id == WDSupportWeaponIds.ReserveTroops;
 }

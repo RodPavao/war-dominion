@@ -1357,3 +1357,32 @@ Ao atualizar:
 - manter tabelas e seções coerentes entre si;
 - não inventar detalhes para preencher itens ainda pendentes;
 - tratar a versão corrente do documento como referência ativa para novas fases.
+
+## Armas V1 — Etapa 7D.4 acelerada (integração incremental)
+
+[IMPLEMENTADO — AGUARDANDO VALIDAÇÃO MANUAL NO UNITY]
+
+- 18 das 25 armas V1 estão conectadas ao estado real da partida.
+- Este lote integra Bomba Atômica, Drone, Sniper, Propaganda de Guerra, Sabotagem,
+  Anulador de Transferência, Blitzkrieg e Tropas Reservas.
+- Um runtime autoritativo por round concentra bloqueios temporários, modificadores de
+  reforço/ações terrestres, reconhecimento do Drone, pool independente de reforços e
+  histórico idempotente de perdas territoriais.
+- Sabotagem reduz somente o reforço natural e usa apenas a maior porcentagem válida.
+- Tropas Reservas deriva seu valor das perdas do round anterior e entra no pool de
+  reforços; não é reduzida por Sabotagem.
+- Sniper bloqueia a origem atingida para ações terrestres, Foguetes e Artilharia no
+  round; disparos/operações bloqueados não são consumidos.
+- Propaganda usa a quantidade atual de tropas, neutraliza com `floor(tropas / 2)` e
+  mínimo 1. Instalações não recebem lifecycle novo enquanto estiverem em Neutro.
+- A Bomba Atômica congela os vizinhos antes das mutações; somente a Flak central pode
+  cancelar a explosão inteira, e cada território aplica Bunker/lifecycle separadamente.
+- O reconhecimento válido do Drone compromete Energy, cooldown e uso; atacar ou
+  abandonar depois não gera uma segunda cobrança.
+- Anulador bloqueia a transferência antes da mutação sem consumir a oportunidade do
+  alvo; somente o primeiro efeito válido contra o jogador é cobrado.
+- Blitzkrieg mantém o limite-base 3 e fornece, por round, os totais 4/5/6/7.
+- Campo Minado, Paz, Transporte Aéreo, Paraquedistas, Infiltrado, Recuperação de Tropas
+  e Mercenários permanecem `Deferred`, sem custo, cooldown, uso ou mutação.
+- O `WDWeaponResolutionPipeline` global permanece desligado; a integração continua
+  controlada pelo coordenador incremental e não possui apresentação visual definitiva.

@@ -40,6 +40,8 @@ public interface IWDGameWeaponTerritoryMutationPort
     WDGameWeaponMutationResult MakeOccupied(
         string mutationId, string territoryId, string playerId, int troops);
     WDGameWeaponMutationResult MakeNeutral(string mutationId, string territoryId);
+    WDGameWeaponMutationResult MakeNeutral(
+        string mutationId, string territoryId, int troops);
     WDGameWeaponMutationResult MakeEmpty(string mutationId, string territoryId);
     WDGameWeaponMutationResult TransferTerritory(
         string mutationId, string territoryId, string newOwnerPlayerId);
@@ -158,6 +160,7 @@ public sealed class WDGameWeaponMutationPort : IWDGameWeaponMutationPort
     private readonly WDWeaponMatchRuntime runtime;
     private readonly WDArmoryCatalogConfig catalog;
     private readonly WDWeaponInstallationRegistry registry;
+    private readonly WDWeaponRoundRuntime roundRuntime;
     private readonly HashSet<string> appliedMutationIds = new(StringComparer.Ordinal);
 
     // ============================================================
@@ -166,12 +169,14 @@ public sealed class WDGameWeaponMutationPort : IWDGameWeaponMutationPort
 
     public WDGameWeaponMutationPort(
         IWDGameWeaponMutableStateSource source, WDWeaponMatchRuntime runtime,
-        WDArmoryCatalogConfig catalog, WDWeaponInstallationRegistry registry)
+        WDArmoryCatalogConfig catalog, WDWeaponInstallationRegistry registry,
+        WDWeaponRoundRuntime roundRuntime = null)
     {
         this.source = source ?? throw new ArgumentNullException(nameof(source));
         this.runtime = runtime ?? throw new ArgumentNullException(nameof(runtime));
         this.catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
         this.registry = registry ?? throw new ArgumentNullException(nameof(registry));
+        this.roundRuntime = roundRuntime;
     }
 
     // ============================================================
@@ -219,9 +224,16 @@ public sealed class WDGameWeaponMutationPort : IWDGameWeaponMutationPort
         });
 
     public WDGameWeaponMutationResult MakeNeutral(string mutationId, string territoryId) =>
+        MakeNeutral(mutationId, territoryId, 1);
+
+    public WDGameWeaponMutationResult MakeNeutral(
+        string mutationId, string territoryId, int troops) =>
         Execute(mutationId, () => source.FindTerritory(territoryId) == null
             ? Fail(WDGameWeaponMutationReason.TerritoryNotFound)
-            : Apply(territoryId, string.Empty, 1, WDWeaponTerritoryStateKind.Neutral, 1));
+            : troops < 1
+                ? Fail(WDGameWeaponMutationReason.InvalidAmount)
+                : Apply(territoryId, string.Empty, troops,
+                    WDWeaponTerritoryStateKind.Neutral, troops));
 
     public WDGameWeaponMutationResult MakeEmpty(string mutationId, string territoryId) =>
         Execute(mutationId, () => source.FindTerritory(territoryId) == null
@@ -371,8 +383,11 @@ public sealed class WDGameWeaponMutationPort : IWDGameWeaponMutationPort
         string territoryId, string ownerId, int troops,
         WDWeaponTerritoryStateKind state, int amount = 0)
     {
+        string previousOwner = source.FindTerritory(territoryId)?.OwnerPlayerId ?? string.Empty;
         if (!source.TryApplyTerritory(territoryId, ownerId, troops, state))
             return Fail(WDGameWeaponMutationReason.InvalidState);
+        roundRuntime?.RecordOwnershipChange(roundRuntime.ActiveRound, territoryId,
+            previousOwner, ownerId);
         registry.ApplyTerritoryLifecycle(territoryId, ownerId, state);
         return Ok(amount);
     }
