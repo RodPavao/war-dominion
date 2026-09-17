@@ -1,6 +1,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
+using TMPro;
+using UnityEngine;
+using UnityEngine.UI;
 
 public sealed class WDMapVoteControllerTests
 {
@@ -123,7 +126,7 @@ public sealed class WDMapVoteControllerTests
     private static WDMapModeRule Rule(string mapId, float weight) => new(mapId, weight);
 
     // ============================================================
-    // 03. MATCHMAKING LOCAL E REGRA FIXA DO FFA
+    // 03. MATCHMAKING LOCAL E REGRA FIXA DA BATALHA
     // ============================================================
 
     [Test]
@@ -160,6 +163,213 @@ public sealed class WDMapVoteControllerTests
 
         Assert.That(ffa.MapSelectionPolicy, Is.EqualTo(WDMapSelectionPolicy.Fixed));
         Assert.That(ffa.FixedMapId, Is.EqualTo("classic"));
+    }
+
+    [Test]
+    public void PlayCatalog_UsesOfficialBattleLabelsAndKeepsLegacyTechnicalId()
+    {
+        WarDominionMatchFlowConfig config = LoadFlowConfig();
+        WDMatchModeDefinition battle = config.Modes.Single(mode => mode.Id == "ffa");
+
+        Assert.That(battle.DisplayName, Is.EqualTo("BATALHA"));
+        Assert.That(config.Modes.Single(mode => mode.Id == "1x1").DisplayName,
+            Is.EqualTo("BATALHA 1V1"));
+        Assert.That(config.Modes.Single(mode => mode.Id == "2x2").DisplayName,
+            Is.EqualTo("BATALHA 2V2"));
+        Assert.That(config.Modes.Single(mode => mode.Id == "3x3").DisplayName,
+            Is.EqualTo("BATALHA 3V3"));
+        Assert.That(config.Modes.Where(mode => mode.ShowInStandardPlaySelection)
+            .All(mode => mode.DisplayName != "FFA"), Is.True);
+        Assert.That(battle.MatchSize, Is.EqualTo(4));
+        Assert.That(battle.GroupSize, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void PlayCatalog_KeepsCompetitiveAvailabilityAndThreeVsThreeRules()
+    {
+        WarDominionMatchFlowConfig config = LoadFlowConfig();
+
+        foreach (string id in new[] { "ffa", "1x1", "2x2", "3x3" })
+        {
+            WDMatchModeDefinition mode = config.Modes.Single(item => item.Id == id);
+            Assert.That(mode.Availability, Is.EqualTo(WDContentAvailability.Available));
+            Assert.That(mode.ShowInStandardPlaySelection, Is.True);
+        }
+
+        WDMatchModeDefinition threeVsThree = config.Modes.Single(mode => mode.Id == "3x3");
+        Assert.That(threeVsThree.Submodes.Select(submode => submode.Id),
+            Is.EqualTo(new[] { "normal" }));
+        Assert.That(config.Modes.Single(mode => mode.Id == "battle_royale")
+            .ShowInStandardPlaySelection, Is.False);
+        Assert.That(config.Modes.Any(mode => mode.Id == "friendly" || mode.Id == "amistosos"),
+            Is.False, "Amistosos deve permanecer fora do catálogo competitivo.");
+    }
+
+    [Test]
+    public void PlayPanel_HubRoutesToFourCompetitiveModesAndBackWithoutMutation()
+    {
+        WarDominionUITheme theme = Resources.Load<WarDominionUITheme>(
+            "UI/WarDominionUITheme");
+        WarDominionMatchFlowConfig config = LoadFlowConfig();
+        WarDominionHomeData profile = LoadProfile();
+        WDArmoryCatalogConfig armory = Resources.Load<WDArmoryCatalogConfig>(
+            "UI/Home/WDArmoryCatalogConfig");
+        var root = new GameObject("PlayPanelTest", typeof(RectTransform));
+        try
+        {
+            WDMatchSetup existingSetup = WDMatchSetupContext.Current;
+            var panel = root.AddComponent<WDHomeMatchFlowPanel>();
+            panel.Build(theme, config, profile, armory, null);
+            panel.Open();
+
+            Assert.That(panel.CurrentScreen, Is.EqualTo(WDHomeMatchFlowScreen.PlayHub));
+            Assert.That(VisibleOptionTitles(root), Is.EquivalentTo(new[]
+            {
+                "TORNEIOS", "PARTIDAS", "AMISTOSOS"
+            }));
+
+            FindButton(root, "PARTIDAS").onClick.Invoke();
+            Assert.That(panel.CurrentScreen, Is.EqualTo(WDHomeMatchFlowScreen.OfficialMatches));
+            Assert.That(VisibleOptionTitles(root), Is.EquivalentTo(new[]
+            {
+                "BATALHA", "BATALHA 1V1", "BATALHA 2V2", "BATALHA 3V3"
+            }));
+            Assert.That(VisibleOptionTitles(root), Does.Not.Contain("AMISTOSOS"));
+            Assert.That(VisibleOptionTitles(root), Does.Not.Contain("BATTLE ROYALE"));
+            Assert.That(panel.IsMatchmakingActive, Is.False);
+            Assert.That(WDMatchSetupContext.Current, Is.SameAs(existingSetup));
+
+            Button back = root.transform.Find("MatchFlowPanel/Back")?.GetComponent<Button>();
+            Assert.That(back, Is.Not.Null);
+            back.onClick.Invoke();
+            Assert.That(panel.CurrentScreen, Is.EqualTo(WDHomeMatchFlowScreen.PlayHub));
+            Assert.That(VisibleOptionTitles(root), Is.EquivalentTo(new[]
+            {
+                "TORNEIOS", "PARTIDAS", "AMISTOSOS"
+            }));
+            Assert.That(WDMatchSetupContext.Current, Is.SameAs(existingSetup));
+        }
+        finally
+        {
+            Object.DestroyImmediate(root);
+        }
+    }
+
+    [Test]
+    public void PlayPanel_FriendlyTreePreservesLocalBackContextAndNeverStartsMatch()
+    {
+        GameObject root = BuildPlayPanel(out WDHomeMatchFlowPanel panel);
+        try
+        {
+            WDMatchSetup existingSetup = WDMatchSetupContext.Current;
+            FindButton(root, "AMISTOSOS").onClick.Invoke();
+            Assert.That(panel.CurrentScreen, Is.EqualTo(WDHomeMatchFlowScreen.FriendlyHub));
+            Assert.That(VisibleOptionTitles(root), Is.EquivalentTo(new[]
+                { "PARTIDAS", "TORNEIOS AMISTOSOS" }));
+
+            FindButton(root, "PARTIDAS").onClick.Invoke();
+            Assert.That(panel.CurrentScreen, Is.EqualTo(WDHomeMatchFlowScreen.FriendlyMatchesHub));
+            Assert.That(VisibleOptionTitles(root), Is.EquivalentTo(new[]
+                { "CRIAR PARTIDA", "SALAS CRIADAS" }));
+            InvokeBack(root);
+            Assert.That(panel.CurrentScreen, Is.EqualTo(WDHomeMatchFlowScreen.FriendlyHub));
+
+            FindButton(root, "TORNEIOS AMISTOSOS").onClick.Invoke();
+            Assert.That(panel.CurrentScreen, Is.EqualTo(WDHomeMatchFlowScreen.FriendlyTournamentsHub));
+            Assert.That(VisibleOptionTitles(root), Is.EquivalentTo(new[]
+                { "CRIAR TORNEIO", "SALAS DE TORNEIOS" }));
+            InvokeBack(root);
+            Assert.That(panel.CurrentScreen, Is.EqualTo(WDHomeMatchFlowScreen.FriendlyHub));
+            InvokeBack(root);
+            Assert.That(panel.CurrentScreen, Is.EqualTo(WDHomeMatchFlowScreen.PlayHub));
+            Assert.That(panel.IsMatchmakingActive, Is.False);
+            Assert.That(WDMatchSetupContext.Current, Is.SameAs(existingSetup));
+        }
+        finally
+        {
+            Object.DestroyImmediate(root);
+        }
+    }
+
+    [Test]
+    public void PlayPanel_OfficialTournamentsAndAssistNeverCreatePlayerMatch()
+    {
+        GameObject root = BuildPlayPanel(out WDHomeMatchFlowPanel panel);
+        try
+        {
+            WDMatchSetup existingSetup = WDMatchSetupContext.Current;
+            FindButton(root, "TORNEIOS").onClick.Invoke();
+            Assert.That(panel.CurrentScreen, Is.EqualTo(WDHomeMatchFlowScreen.OfficialTournaments));
+            Assert.That(VisibleOptionTitles(root), Does.Contain("CAMPEONATO WAR DOMINION"));
+
+            FindButton(root, "CAMPEONATO WAR DOMINION").onClick.Invoke();
+            Assert.That(panel.CurrentScreen, Is.EqualTo(WDHomeMatchFlowScreen.ProvisionalEndpoint));
+            Assert.That(root.GetComponentsInChildren<TextMeshProUGUI>(true)
+                .Any(text => text.text.Contains("Modo Espectador ainda não implementado")), Is.True);
+            Assert.That(panel.IsMatchmakingActive, Is.False);
+            Assert.That(WDMatchSetupContext.Current, Is.SameAs(existingSetup));
+        }
+        finally
+        {
+            Object.DestroyImmediate(root);
+        }
+    }
+
+    [Test]
+    public void PlayPanel_CardAndAccessButtonRouteToTheSameSingleDestination()
+    {
+        GameObject root = BuildPlayPanel(out WDHomeMatchFlowPanel panel);
+        try
+        {
+            Transform playOptions = root.transform.Find("MatchFlowPanel/Options");
+            Transform tournaments = playOptions.Find("TORNEIOS");
+            tournaments.GetComponent<Button>().onClick.Invoke();
+            Assert.That(panel.CurrentScreen, Is.EqualTo(WDHomeMatchFlowScreen.OfficialTournaments));
+
+            InvokeBack(root);
+            tournaments = root.transform.Find("MatchFlowPanel/Options/TORNEIOS");
+            tournaments.Find("Action").GetComponent<Button>().onClick.Invoke();
+            Assert.That(panel.CurrentScreen, Is.EqualTo(WDHomeMatchFlowScreen.OfficialTournaments));
+            Assert.That(root.GetComponentsInChildren<TextMeshProUGUI>(true)
+                .Count(text => text.text == "TORNEIOS"), Is.EqualTo(1));
+        }
+        finally
+        {
+            Object.DestroyImmediate(root);
+        }
+    }
+
+    private static GameObject BuildPlayPanel(out WDHomeMatchFlowPanel panel)
+    {
+        WarDominionUITheme theme = Resources.Load<WarDominionUITheme>(
+            "UI/WarDominionUITheme");
+        WDArmoryCatalogConfig armory = Resources.Load<WDArmoryCatalogConfig>(
+            "UI/Home/WDArmoryCatalogConfig");
+        var root = new GameObject("PlayPanelTest", typeof(RectTransform));
+        panel = root.AddComponent<WDHomeMatchFlowPanel>();
+        panel.Build(theme, LoadFlowConfig(), LoadProfile(), armory, null);
+        panel.Open();
+        return root;
+    }
+
+    private static void InvokeBack(GameObject root) =>
+        root.transform.Find("MatchFlowPanel/Back").GetComponent<Button>().onClick.Invoke();
+
+    private static Button FindButton(GameObject root, string title) =>
+        root.GetComponentsInChildren<Button>(true).FirstOrDefault(button =>
+            button.GetComponentsInChildren<TextMeshProUGUI>(true)
+                .Any(text => text.text == title));
+
+    private static string[] VisibleOptionTitles(GameObject root)
+    {
+        Transform options = root.transform.Find("MatchFlowPanel/Options");
+        return options == null
+            ? System.Array.Empty<string>()
+            : options.Cast<Transform>()
+                .Where(child => child.gameObject.activeSelf)
+                .Select(child => child.Find("Title")?.GetComponent<TextMeshProUGUI>()?.text)
+                .Where(title => !string.IsNullOrEmpty(title))
+                .ToArray();
     }
 
     // ============================================================

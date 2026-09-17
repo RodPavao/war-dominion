@@ -5,6 +5,19 @@ using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
 
+public enum WDHomeMatchFlowScreen
+{
+    None,
+    PlayHub,
+    OfficialMatches,
+    OfficialTournaments,
+    FriendlyHub,
+    FriendlyMatchesHub,
+    FriendlyTournamentsHub,
+    ProvisionalEndpoint,
+    CompetitiveFlow
+}
+
 [DisallowMultipleComponent]
 public sealed class WDHomeMatchFlowPanel : MonoBehaviour
 {
@@ -16,10 +29,12 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
         public UnityAction Action { get; }
         public Sprite Thumbnail { get; }
         public bool Selected { get; }
+        public string ActionLabel { get; }
 
         public Option(
             string title, string description, WDContentAvailability availability,
-            UnityAction action, Sprite thumbnail = null, bool selected = false)
+            UnityAction action, Sprite thumbnail = null, bool selected = false,
+            string actionLabel = null)
         {
             Title = title;
             Description = description;
@@ -27,6 +42,7 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
             Action = action;
             Thumbnail = thumbnail;
             Selected = selected;
+            ActionLabel = actionLabel;
         }
     }
 
@@ -60,11 +76,17 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
     private WDMatchmakingRequest matchmakingRequest;
     private Action returnBeforeMatchmaking;
     private bool useCompactCenteredOptions;
+    private bool friendlyPlaceholderOpen;
+    private WDHomeMatchFlowScreen currentScreen;
 
     private const float VoteDurationSeconds = 15f;
     private const string LocalPlayerId = "local_player";
 
     public bool IsOpen => gameObject.activeSelf;
+    public bool IsFriendlyPlaceholderOpen => friendlyPlaceholderOpen;
+    public WDHomeMatchFlowScreen CurrentScreen => currentScreen;
+    public bool IsMatchmakingActive =>
+        preMatchFlow != null && preMatchFlow.State == WDPreMatchState.Searching;
 
     public void Build(
         WarDominionUITheme newTheme, WarDominionMatchFlowConfig newConfig,
@@ -165,7 +187,7 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
                 Close);
             return;
         }
-        ShowModes();
+        ShowPlayHub();
     }
 
     public void Close()
@@ -180,6 +202,8 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
         matchmakingRequest = null;
         returnBeforeMatchmaking = null;
         selectedDeckIndex = 0;
+        friendlyPlaceholderOpen = false;
+        currentScreen = WDHomeMatchFlowScreen.None;
         backAction = null;
         gameObject.SetActive(false);
     }
@@ -192,10 +216,33 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
             Close();
     }
 
+    // ============================================================
+    // 02. HUB PLAY E RAMOS DE PRIMEIRO NÍVEL
+    // ============================================================
+
+    private void ShowPlayHub()
+    {
+        ResetNavigationState(WDHomeMatchFlowScreen.PlayHub);
+        var options = new List<Option>
+        {
+            new("TORNEIOS", "COMPETIÇÕES OFICIAIS DO WAR DOMINION",
+                WDContentAvailability.Available, ShowOfficialTournaments,
+                actionLabel: "ACESSAR"),
+            new("PARTIDAS", "ESCOLHA SEU MODO DE BATALHA E ENTRE EM COMBATE",
+                WDContentAvailability.Available, ShowModes,
+                actionLabel: "ACESSAR"),
+            new("AMISTOSOS", "PARTIDAS E TORNEIOS PERSONALIZADOS",
+                WDContentAvailability.Available, ShowFriendlyHub,
+                actionLabel: "ACESSAR")
+        };
+
+        ShowOptions("PLAY", "Escolha como você quer jogar", options, Close,
+            string.Empty, true);
+    }
+
     private void ShowModes()
     {
-        selectedMode = null;
-        selectedSubmode = null;
+        ResetNavigationState(WDHomeMatchFlowScreen.OfficialMatches);
         var options = new List<Option>();
         foreach (WDMatchModeDefinition mode in config.Modes)
         {
@@ -209,8 +256,123 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
         }
 
         ShowOptions(
-            "JOGAR PARTIDA", "Selecione um modo de jogo", options,
-            null, string.Empty, true);
+            "PARTIDAS", "Escolha seu modo de batalha", options,
+            ShowPlayHub, string.Empty, true);
+    }
+
+    private void ShowOfficialTournaments()
+    {
+        ResetNavigationState(WDHomeMatchFlowScreen.OfficialTournaments);
+        var options = new List<Option>
+        {
+            new("CAMPEONATO WAR DOMINION",
+                "TEMPORADA ATUAL · INSCRIÇÕES FECHADAS · PERÍODO E FORMATO A DEFINIR",
+                WDContentAvailability.Available, ShowSpectatorPlaceholder,
+                actionLabel: "ASSISTIR"),
+            new("DOMÍNIO GLOBAL",
+                "ATIVO · TORNEIO ESTRATÉGICO OFICIAL · DADOS MOCK",
+                WDContentAvailability.Available, ShowTournamentParticipationPlaceholder,
+                actionLabel: "PARTICIPAR"),
+            new("CONFRONTO DE EQUIPES",
+                "ATIVO · FORMATO E PERÍODO A DEFINIR · DADOS MOCK",
+                WDContentAvailability.Available, ShowTournamentParticipationPlaceholder,
+                actionLabel: "PARTICIPAR"),
+            new("BATTLE ROYALE",
+                "FORMATO ESPECIAL · MAIS DETALHES SERÃO REVELADOS EM BREVE",
+                WDContentAvailability.Available, ShowTournamentDetailsPlaceholder,
+                actionLabel: "DETALHES")
+        };
+
+        ShowOptions("TORNEIOS", "ATIVOS   |   EM BREVE   |   ENCERRADOS",
+            options, ShowPlayHub,
+            "DADOS PROVISÓRIOS · INSCRIÇÃO OFICIAL CUSTARÁ 10 ESMERALDAS");
+    }
+
+    private void ShowFriendlyHub()
+    {
+        ResetNavigationState(WDHomeMatchFlowScreen.FriendlyHub);
+        friendlyPlaceholderOpen = true;
+        var options = new List<Option>
+        {
+            new("PARTIDAS", "CRIE UMA PARTIDA PERSONALIZADA OU ENTRE EM UMA SALA",
+                WDContentAvailability.Available, ShowFriendlyMatchesHub,
+                actionLabel: "ACESSAR"),
+            new("TORNEIOS AMISTOSOS", "CRIE OU PARTICIPE DE TORNEIOS ORGANIZADOS POR JOGADORES",
+                WDContentAvailability.Available, ShowFriendlyTournamentsHub,
+                actionLabel: "ACESSAR")
+        };
+        ShowOptions("AMISTOSOS", "Partidas e torneios personalizados para jogar com seus amigos",
+            options, ShowPlayHub, string.Empty, true);
+    }
+
+    private void ShowFriendlyMatchesHub()
+    {
+        ResetNavigationState(WDHomeMatchFlowScreen.FriendlyMatchesHub);
+        friendlyPlaceholderOpen = true;
+        var options = new List<Option>
+        {
+            new("CRIAR PARTIDA", "CONFIGURE UMA PARTIDA AMISTOSA",
+                WDContentAvailability.Available,
+                () => ShowProvisionalEndpoint("CRIAR PARTIDA", ShowFriendlyMatchesHub),
+                actionLabel: "CRIAR"),
+            new("SALAS CRIADAS", "ENCONTRE PARTIDAS CRIADAS POR OUTROS JOGADORES",
+                WDContentAvailability.Available,
+                () => ShowProvisionalEndpoint("SALAS CRIADAS", ShowFriendlyMatchesHub),
+                actionLabel: "ACESSAR")
+        };
+        ShowOptions("PARTIDAS AMISTOSAS", "Crie ou participe de uma sala amistosa",
+            options, ShowFriendlyHub, string.Empty, true);
+    }
+
+    private void ShowFriendlyTournamentsHub()
+    {
+        ResetNavigationState(WDHomeMatchFlowScreen.FriendlyTournamentsHub);
+        friendlyPlaceholderOpen = true;
+        var options = new List<Option>
+        {
+            new("CRIAR TORNEIO", "CONFIGURE UM NOVO TORNEIO AMISTOSO",
+                WDContentAvailability.Available,
+                () => ShowProvisionalEndpoint("CRIAR TORNEIO", ShowFriendlyTournamentsHub),
+                actionLabel: "CRIAR"),
+            new("SALAS DE TORNEIOS", "ENCONTRE TORNEIOS CRIADOS POR OUTROS JOGADORES",
+                WDContentAvailability.Available,
+                () => ShowProvisionalEndpoint("SALAS DE TORNEIOS", ShowFriendlyTournamentsHub),
+                actionLabel: "ACESSAR")
+        };
+        ShowOptions("TORNEIOS AMISTOSOS", "Crie seu torneio ou entre em uma sala de torneio",
+            options, ShowFriendlyHub, string.Empty, true);
+    }
+
+    private void ShowProvisionalEndpoint(string title, Action onBack)
+    {
+        ResetNavigationState(WDHomeMatchFlowScreen.ProvisionalEndpoint);
+        ShowStatus(title,
+            "Endpoint provisório do protótipo. Nenhum matchmaking, sala ou partida foi iniciado.",
+            onBack);
+    }
+
+    private void ShowTournamentParticipationPlaceholder() =>
+        ShowProvisionalEndpoint("PARTICIPAR", ShowOfficialTournaments);
+
+    private void ShowTournamentDetailsPlaceholder() =>
+        ShowProvisionalEndpoint("DETALHES DO TORNEIO", ShowOfficialTournaments);
+
+    private void ShowSpectatorPlaceholder()
+    {
+        ResetNavigationState(WDHomeMatchFlowScreen.ProvisionalEndpoint);
+        ShowStatus("ASSISTIR",
+            "Modo Espectador ainda não implementado. Nenhuma partida foi carregada como jogador.",
+            ShowOfficialTournaments);
+    }
+
+    private void ResetNavigationState(WDHomeMatchFlowScreen screen)
+    {
+        currentScreen = screen;
+        friendlyPlaceholderOpen = screen == WDHomeMatchFlowScreen.FriendlyHub ||
+            screen == WDHomeMatchFlowScreen.FriendlyMatchesHub ||
+            screen == WDHomeMatchFlowScreen.FriendlyTournamentsHub;
+        selectedMode = null;
+        selectedSubmode = null;
     }
 
     private void SelectMode(WDMatchModeDefinition mode)
@@ -218,6 +380,7 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
         if (!WDContentAvailabilityRules.IsAvailable(mode.Availability))
             return;
 
+        currentScreen = WDHomeMatchFlowScreen.CompetitiveFlow;
         selectedMode = mode;
         switch (mode.Destination)
         {
@@ -682,6 +845,18 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
             thumbnail.raycastTarget = false;
         }
 
+        if (!string.IsNullOrWhiteSpace(option.ActionLabel))
+        {
+            RectTransform actionRect = WDHomeUIFactory.Rect("Action", rect);
+            actionRect.anchorMin = new Vector2(0.14f, 0.07f);
+            actionRect.anchorMax = new Vector2(0.86f, 0.23f);
+            actionRect.offsetMin = actionRect.offsetMax = Vector2.zero;
+            WDUIPremiumButton actionButton =
+                actionRect.gameObject.AddComponent<WDUIPremiumButton>();
+            actionButton.Build(theme, option.ActionLabel, option.Action);
+            description.rectTransform.anchorMin = new Vector2(0.08f, 0.27f);
+        }
+
         if (option.Availability == WDContentAvailability.ComingSoon)
         {
             TextMeshProUGUI status = WDHomeUIFactory.Text(
@@ -712,7 +887,10 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
         {
             GameObject option = optionsRoot.GetChild(i).gameObject;
             option.SetActive(false);
-            Destroy(option);
+            if (Application.isPlaying)
+                Destroy(option);
+            else
+                DestroyImmediate(option);
         }
     }
 

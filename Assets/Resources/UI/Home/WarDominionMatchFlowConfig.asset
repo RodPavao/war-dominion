@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier:
   modes:
   - id: ffa
-    displayName: FFA
+    displayName: BATALHA
     description: Todos contra todos
     availability: 0
     showInStandardPlaySelection: 1
@@ -39,7 +39,7 @@ MonoBehaviour:
       votingWeight: 1
     submodes: []
   - id: 1x1
-    displayName: 1x1
+    displayName: BATALHA 1V1
     description: "Duelo estrat\xE9gico"
     availability: 0
     showInStandardPlaySelection: 1
@@ -90,7 +90,7 @@ MonoBehaviour:
       - mapId: riachuelo
         votingWeight: 1
   - id: 2x2
-    displayName: 2x2
+    displayName: BATALHA 2V2
     description: "Estrat\xE9gia em equipes"
     availability: 0
     showInStandardPlaySelection: 1
@@ -141,7 +141,7 @@ MonoBehaviour:
       - mapId: peloponeso
         votingWeight: 1
   - id: 3x3
-    displayName: 3x3
+    displayName: BATALHA 3V3
     description: "Estrat\xE9gia com tr\xEAs jogadores por equipe"
     availability: 0
     showInStandardPlaySelection: 1

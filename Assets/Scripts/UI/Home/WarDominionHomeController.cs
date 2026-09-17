@@ -152,6 +152,15 @@ public sealed class WarDominionHomeController : MonoBehaviour
             "BuildStatus", header, theme, "HOME · PASSADA 1 FUNCIONAL",
             theme.TypeMicro, theme.TextoSecundario, TextAlignmentOptions.Right);
         WDHomeUIFactory.Stretch(pass.rectTransform, 600f, 0f, 6f, 0f);
+
+        RectTransform notifications = WDHomeUIFactory.Rect("NotificationCenter", header);
+        notifications.anchorMin = notifications.anchorMax = new Vector2(1f, 0.5f);
+        notifications.pivot = new Vector2(1f, 0.5f);
+        notifications.anchoredPosition = new Vector2(-18f, 0f);
+        notifications.sizeDelta = new Vector2(52f, 52f);
+        notifications.gameObject.AddComponent<WDUIPremiumButton>().Build(
+            theme, "!", OpenNotificationPlaceholder);
+        pass.rectTransform.offsetMax = new Vector2(-82f, 0f);
     }
 
     // ============================================================
@@ -205,7 +214,7 @@ public sealed class WarDominionHomeController : MonoBehaviour
             lowerGroup.gameObject, 14f, new RectOffset(0, 0, 0, 0));
         CreateCard(lowerGroup, "M", "MISSÕES", "Objetivos e recompensas provisórias", "MISSÕES", MissionBody());
         CreateCard(lowerGroup, "R", "RANKING", "Classificação competitiva", "RANKING", RankingBody());
-        CreateCard(lowerGroup, "E", "EVENTOS / TORNEIOS", $"{mockData.RegistrationState} · {mockData.Countdown}", "EVENTOS / TORNEIOS", EventBody(), 132f);
+        CreateCard(lowerGroup, "C", "CHAT", "Mensagens", "CHAT", ChatBody(), 132f);
     }
 
     private void BuildIdentity(RectTransform parent)
@@ -305,15 +314,8 @@ public sealed class WarDominionHomeController : MonoBehaviour
         CreateCard(parent, "P", "PERFIL", "Identidade e personalização", "PERFIL", ProfileBody(), 112f);
         CreateCard(parent, "A", "AMIGOS", "Lista, presença e convites", "AMIGOS", FriendsBody(), 104f);
 
-        RectTransform smallRow = CreateRow("CommunicationRow", parent, 96f);
-        CreateCard(smallRow, "C", "CHAT", "Mensagens", "CHAT", ChatBody(), 90f);
-        CreateCard(smallRow, "S", "CONFIGURAÇÕES", "Preferências", "CONFIGURAÇÕES", SettingsBody(), 90f);
-
-        RectTransform commerceRow = CreateRow("CommerceRow", parent, 112f);
-        CreateCard(commerceRow, "L", "LOJA", "Modelo pendente", "LOJA", StoreBody(), 106f);
-        CreateCard(commerceRow, "V", "VIP", "Detalhes pendentes", "VIP", VipBody(), 106f);
-
-        CreateCard(parent, "D", "DISCORD", "Comunidade oficial · ação provisória", "DISCORD", DiscordBody(), 76f);
+        CreateCard(parent, "L", "LOJA", "Ofertas exclusivas", "LOJA", StoreBody(), 106f);
+        CreateCard(parent, "S", "CONFIGURAÇÕES", "Som, gráficos e sistema", "CONFIGURAÇÕES", SettingsBody(), 106f);
     }
 
     private RectTransform CreateRow(string name, Transform parent, float height)
@@ -352,6 +354,13 @@ public sealed class WarDominionHomeController : MonoBehaviour
     private void CloseModal() => modal.Close();
 
     private void OpenMatchFlow() => matchFlowPanel.Open();
+
+    private void OpenNotificationPlaceholder()
+    {
+        OpenModal(
+            "CENTRAL DE NOTIFICAÇÕES",
+            "Destino provisório. O conteúdo, as categorias e o histórico da Central de Notificações ainda não foram definidos.");
+    }
 
     private void OpenArmory() => armoryPanel.Open();
 
