@@ -19,6 +19,8 @@ public sealed class WarDominionHomeController : MonoBehaviour
     private WDHomeModal modal;
     private WDHomeMatchFlowPanel matchFlowPanel;
     private WDHomeArmoryPanel armoryPanel;
+    private WDNavigationStack navigationStack;
+    private WDNavigationBackRouter navigationBackRouter;
     private RectTransform safeArea;
     private GameObject homeUIRoot;
     private EventSystem homeEventSystem;
@@ -50,12 +52,7 @@ public sealed class WarDominionHomeController : MonoBehaviour
         if (Keyboard.current?.escapeKey.wasPressedThisFrame != true)
             return;
 
-        if (modal != null && modal.IsOpen)
-            modal.RequestClose();
-        else if (armoryPanel != null && armoryPanel.IsOpen)
-            armoryPanel.HandleEscape();
-        else if (matchFlowPanel != null && matchFlowPanel.IsOpen)
-            matchFlowPanel.HandleEscape();
+        navigationBackRouter?.TryHandleBack(Time.frameCount);
     }
 
     // ============================================================
@@ -109,8 +106,14 @@ public sealed class WarDominionHomeController : MonoBehaviour
         RectTransform matchFlowLayer = WDHomeUIFactory.Rect("MatchFlowLayer", root.transform);
         WDHomeUIFactory.Stretch(matchFlowLayer);
         matchFlowPanel = matchFlowLayer.gameObject.AddComponent<WDHomeMatchFlowPanel>();
+        navigationStack = new WDNavigationStack();
+        navigationStack.SetRoot(new WDNavigationContext(
+            "home", _ => matchFlowPanel?.HideFromNavigation()));
         matchFlowPanel.Build(
-            theme, matchConfig, mockData, armoryCatalog, armoryRepository);
+            theme, matchConfig, mockData, armoryCatalog, armoryRepository,
+            navigationStack);
+        navigationBackRouter = new WDNavigationBackRouter(
+            navigationStack, TryHandleCancelableContext);
 
         RectTransform armoryLayer = WDHomeUIFactory.Rect("ArmoryLayer", root.transform);
         WDHomeUIFactory.Stretch(armoryLayer);
@@ -354,6 +357,25 @@ public sealed class WarDominionHomeController : MonoBehaviour
     private void CloseModal() => modal.Close();
 
     private void OpenMatchFlow() => matchFlowPanel.Open();
+
+    private bool TryHandleCancelableContext()
+    {
+        if (modal != null && modal.IsOpen)
+        {
+            modal.RequestClose();
+            return true;
+        }
+
+        if (armoryPanel != null && armoryPanel.IsOpen)
+        {
+            armoryPanel.HandleEscape();
+            return true;
+        }
+
+        return matchFlowPanel != null &&
+            matchFlowPanel.IsOpen &&
+            matchFlowPanel.TryHandleLocalBack();
+    }
 
     private void OpenNotificationPlaceholder()
     {

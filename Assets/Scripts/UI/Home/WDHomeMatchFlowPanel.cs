@@ -78,6 +78,7 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
     private bool useCompactCenteredOptions;
     private bool friendlyPlaceholderOpen;
     private WDHomeMatchFlowScreen currentScreen;
+    private WDNavigationStack navigationStack;
 
     private const float VoteDurationSeconds = 15f;
     private const string LocalPlayerId = "local_player";
@@ -91,13 +92,21 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
     public void Build(
         WarDominionUITheme newTheme, WarDominionMatchFlowConfig newConfig,
         WarDominionHomeData newHomeData, WDArmoryCatalogConfig newArmoryCatalog,
-        IWDArmoryRepository newArmoryRepository)
+        IWDArmoryRepository newArmoryRepository,
+        WDNavigationStack newNavigationStack = null)
     {
         theme = newTheme;
         config = newConfig;
         homeData = newHomeData;
         armoryCatalog = newArmoryCatalog;
         armoryRepository = newArmoryRepository;
+        navigationStack = newNavigationStack;
+        if (navigationStack == null)
+        {
+            navigationStack = new WDNavigationStack();
+            navigationStack.SetRoot(new WDNavigationContext(
+                "home", _ => HideFromNavigation()));
+        }
         LoadMapNames();
 
         Image blocker = gameObject.AddComponent<Image>();
@@ -151,7 +160,7 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
         feedbackLabel.rectTransform.offsetMin = feedbackLabel.rectTransform.offsetMax = Vector2.zero;
 
         backButton = BuildUtilityButton(panel, "Back", "VOLTAR", new Vector2(0f, 0f), Back);
-        BuildUtilityButton(panel, "Close", "X", new Vector2(1f, 0f), Close);
+        BuildUtilityButton(panel, "Close", "X", new Vector2(1f, 0f), RequestNavigationBack);
         gameObject.SetActive(false);
     }
 
@@ -178,19 +187,24 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
 
     public void Open()
     {
-        gameObject.SetActive(true);
-        if (config == null)
-        {
-            ShowStatus(
-                "CONFIGURAÇÃO INDISPONÍVEL",
-                "O catálogo de modos não foi encontrado. Nenhum fluxo foi iniciado.",
-                Close);
+        if (IsOpen)
             return;
-        }
-        ShowPlayHub();
+
+        NavigateTo("play", RestorePlayHub);
     }
 
     public void Close()
+    {
+        if (navigationStack != null && navigationStack.CanGoBack)
+        {
+            navigationStack.ResetToRoot();
+            return;
+        }
+
+        HideFromNavigation();
+    }
+
+    public void HideFromNavigation()
     {
         selectedMode = null;
         selectedSubmode = null;
@@ -210,10 +224,17 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
 
     public void HandleEscape()
     {
-        if (backAction != null)
-            Back();
-        else
-            Close();
+        if (!TryHandleLocalBack())
+            RequestNavigationBack();
+    }
+
+    public bool TryHandleLocalBack()
+    {
+        if (currentScreen != WDHomeMatchFlowScreen.CompetitiveFlow || backAction == null)
+            return false;
+
+        Back();
+        return true;
     }
 
     // ============================================================
@@ -226,17 +247,20 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
         var options = new List<Option>
         {
             new("TORNEIOS", "COMPETIÇÕES OFICIAIS DO WAR DOMINION",
-                WDContentAvailability.Available, ShowOfficialTournaments,
+                WDContentAvailability.Available,
+                () => NavigateTo("play/tournaments", ShowOfficialTournaments),
                 actionLabel: "ACESSAR"),
             new("PARTIDAS", "ESCOLHA SEU MODO DE BATALHA E ENTRE EM COMBATE",
-                WDContentAvailability.Available, ShowModes,
+                WDContentAvailability.Available,
+                () => NavigateTo("play/matches", ShowModes),
                 actionLabel: "ACESSAR"),
             new("AMISTOSOS", "PARTIDAS E TORNEIOS PERSONALIZADOS",
-                WDContentAvailability.Available, ShowFriendlyHub,
+                WDContentAvailability.Available,
+                () => NavigateTo("play/friendly", ShowFriendlyHub),
                 actionLabel: "ACESSAR")
         };
 
-        ShowOptions("PLAY", "Escolha como você quer jogar", options, Close,
+        ShowOptions("PLAY", "Escolha como você quer jogar", options, RequestNavigationBack,
             string.Empty, true);
     }
 
@@ -257,7 +281,7 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
 
         ShowOptions(
             "PARTIDAS", "Escolha seu modo de batalha", options,
-            ShowPlayHub, string.Empty, true);
+            RequestNavigationBack, string.Empty, true);
     }
 
     private void ShowOfficialTournaments()
@@ -284,7 +308,7 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
         };
 
         ShowOptions("TORNEIOS", "ATIVOS   |   EM BREVE   |   ENCERRADOS",
-            options, ShowPlayHub,
+            options, RequestNavigationBack,
             "DADOS PROVISÓRIOS · INSCRIÇÃO OFICIAL CUSTARÁ 10 ESMERALDAS");
     }
 
@@ -295,14 +319,16 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
         var options = new List<Option>
         {
             new("PARTIDAS", "CRIE UMA PARTIDA PERSONALIZADA OU ENTRE EM UMA SALA",
-                WDContentAvailability.Available, ShowFriendlyMatchesHub,
+                WDContentAvailability.Available,
+                () => NavigateTo("play/friendly/matches", ShowFriendlyMatchesHub),
                 actionLabel: "ACESSAR"),
             new("TORNEIOS AMISTOSOS", "CRIE OU PARTICIPE DE TORNEIOS ORGANIZADOS POR JOGADORES",
-                WDContentAvailability.Available, ShowFriendlyTournamentsHub,
+                WDContentAvailability.Available,
+                () => NavigateTo("play/friendly/tournaments", ShowFriendlyTournamentsHub),
                 actionLabel: "ACESSAR")
         };
         ShowOptions("AMISTOSOS", "Partidas e torneios personalizados para jogar com seus amigos",
-            options, ShowPlayHub, string.Empty, true);
+            options, RequestNavigationBack, string.Empty, true);
     }
 
     private void ShowFriendlyMatchesHub()
@@ -313,15 +339,15 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
         {
             new("CRIAR PARTIDA", "CONFIGURE UMA PARTIDA AMISTOSA",
                 WDContentAvailability.Available,
-                () => ShowProvisionalEndpoint("CRIAR PARTIDA", ShowFriendlyMatchesHub),
+                () => NavigateToProvisionalEndpoint("friendly/create-match", "CRIAR PARTIDA"),
                 actionLabel: "CRIAR"),
             new("SALAS CRIADAS", "ENCONTRE PARTIDAS CRIADAS POR OUTROS JOGADORES",
                 WDContentAvailability.Available,
-                () => ShowProvisionalEndpoint("SALAS CRIADAS", ShowFriendlyMatchesHub),
+                () => NavigateToProvisionalEndpoint("friendly/match-rooms", "SALAS CRIADAS"),
                 actionLabel: "ACESSAR")
         };
         ShowOptions("PARTIDAS AMISTOSAS", "Crie ou participe de uma sala amistosa",
-            options, ShowFriendlyHub, string.Empty, true);
+            options, RequestNavigationBack, string.Empty, true);
     }
 
     private void ShowFriendlyTournamentsHub()
@@ -332,37 +358,74 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
         {
             new("CRIAR TORNEIO", "CONFIGURE UM NOVO TORNEIO AMISTOSO",
                 WDContentAvailability.Available,
-                () => ShowProvisionalEndpoint("CRIAR TORNEIO", ShowFriendlyTournamentsHub),
+                () => NavigateToProvisionalEndpoint("friendly/create-tournament", "CRIAR TORNEIO"),
                 actionLabel: "CRIAR"),
             new("SALAS DE TORNEIOS", "ENCONTRE TORNEIOS CRIADOS POR OUTROS JOGADORES",
                 WDContentAvailability.Available,
-                () => ShowProvisionalEndpoint("SALAS DE TORNEIOS", ShowFriendlyTournamentsHub),
+                () => NavigateToProvisionalEndpoint("friendly/tournament-rooms", "SALAS DE TORNEIOS"),
                 actionLabel: "ACESSAR")
         };
         ShowOptions("TORNEIOS AMISTOSOS", "Crie seu torneio ou entre em uma sala de torneio",
-            options, ShowFriendlyHub, string.Empty, true);
+            options, RequestNavigationBack, string.Empty, true);
     }
 
-    private void ShowProvisionalEndpoint(string title, Action onBack)
+    private void NavigateToProvisionalEndpoint(string id, string title)
+    {
+        NavigateTo($"play/{id}", () => ShowProvisionalEndpoint(title));
+    }
+
+    private void ShowProvisionalEndpoint(string title)
     {
         ResetNavigationState(WDHomeMatchFlowScreen.ProvisionalEndpoint);
         ShowStatus(title,
             "Endpoint provisório do protótipo. Nenhum matchmaking, sala ou partida foi iniciado.",
-            onBack);
+            RequestNavigationBack);
     }
 
     private void ShowTournamentParticipationPlaceholder() =>
-        ShowProvisionalEndpoint("PARTICIPAR", ShowOfficialTournaments);
+        NavigateToProvisionalEndpoint("tournaments/participate", "PARTICIPAR");
 
     private void ShowTournamentDetailsPlaceholder() =>
-        ShowProvisionalEndpoint("DETALHES DO TORNEIO", ShowOfficialTournaments);
+        NavigateToProvisionalEndpoint("tournaments/details", "DETALHES DO TORNEIO");
 
     private void ShowSpectatorPlaceholder()
     {
-        ResetNavigationState(WDHomeMatchFlowScreen.ProvisionalEndpoint);
-        ShowStatus("ASSISTIR",
-            "Modo Espectador ainda não implementado. Nenhuma partida foi carregada como jogador.",
-            ShowOfficialTournaments);
+        NavigateTo("play/tournaments/spectate", () =>
+        {
+            ResetNavigationState(WDHomeMatchFlowScreen.ProvisionalEndpoint);
+            ShowStatus("ASSISTIR",
+                "Modo Espectador ainda não implementado. Nenhuma partida foi carregada como jogador.",
+                RequestNavigationBack);
+        });
+    }
+
+    private void RestorePlayHub()
+    {
+        gameObject.SetActive(true);
+        if (config == null)
+        {
+            ShowStatus(
+                "CONFIGURAÇÃO INDISPONÍVEL",
+                "O catálogo de modos não foi encontrado. Nenhum fluxo foi iniciado.",
+                RequestNavigationBack);
+            return;
+        }
+
+        ShowPlayHub();
+    }
+
+    private void NavigateTo(string id, Action restore)
+    {
+        navigationStack.Push(new WDNavigationContext(id, _ =>
+        {
+            gameObject.SetActive(true);
+            restore();
+        }));
+    }
+
+    private void RequestNavigationBack()
+    {
+        navigationStack?.TryBack();
     }
 
     private void ResetNavigationState(WDHomeMatchFlowScreen screen)
