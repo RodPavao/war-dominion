@@ -20,7 +20,7 @@ public static class WarDominionUIEditor
     [MenuItem(MenuNovo, true)]
     private static bool ValidarHUDNovo()
     {
-        bool ativo = PlayerPrefs.GetInt(UICompositionRoot.ChaveHUDNovo, 1) == 1;
+        bool ativo = UICompositionRoot.IsNewHudSelected();
         Menu.SetChecked(MenuNovo, ativo);
         return true;
     }
@@ -28,7 +28,7 @@ public static class WarDominionUIEditor
     [MenuItem(MenuLegado, true)]
     private static bool ValidarHUDLegado()
     {
-        bool ativo = PlayerPrefs.GetInt(UICompositionRoot.ChaveHUDNovo, 1) == 0;
+        bool ativo = !UICompositionRoot.IsNewHudSelected();
         Menu.SetChecked(MenuLegado, ativo);
         return true;
     }

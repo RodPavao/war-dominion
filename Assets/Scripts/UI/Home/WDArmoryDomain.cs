@@ -300,12 +300,16 @@ public sealed class WDArmoryProfile
     [SerializeField, Min(0)] private int emeralds;
     [SerializeField] private List<WDWeaponProgress> weaponProgress = new();
     [SerializeField] private List<WDSavedWeaponDeck> decks = new();
+    [SerializeField] private List<string> ownedCosmeticIds = new();
+    [SerializeField] private int activeDeckIndex;
 
     public bool IsVip => vip;
     public int Coins => Mathf.Max(0, coins);
     public int Emeralds => Mathf.Max(0, emeralds);
     public IReadOnlyList<WDWeaponProgress> WeaponProgress => weaponProgress;
     public IReadOnlyList<WDSavedWeaponDeck> Decks => decks;
+    public IReadOnlyList<string> OwnedCosmeticIds => ownedCosmeticIds;
+    public int ActiveDeckIndex => IsDeckUnlocked(activeDeckIndex) ? activeDeckIndex : 0;
 
     public WDArmoryProfile(bool vip = false, int coins = 0, int emeralds = 0)
     {
@@ -319,6 +323,9 @@ public sealed class WDArmoryProfile
     {
         weaponProgress ??= new List<WDWeaponProgress>();
         decks ??= new List<WDSavedWeaponDeck>();
+        ownedCosmeticIds ??= new List<string>();
+        ownedCosmeticIds = ownedCosmeticIds.Where(id => !string.IsNullOrWhiteSpace(id))
+            .Distinct(StringComparer.Ordinal).ToList();
         while (decks.Count < SavedDeckCount)
             decks.Add(new WDSavedWeaponDeck($"DECK {decks.Count + 1}"));
         if (decks.Count > SavedDeckCount)
@@ -328,6 +335,7 @@ public sealed class WDArmoryProfile
             decks[i] ??= new WDSavedWeaponDeck($"DECK {i + 1}");
             decks[i].Normalize($"DECK {i + 1}");
         }
+        if (!IsDeckUnlocked(activeDeckIndex)) activeDeckIndex = 0;
     }
 
     public bool IsDeckUnlocked(int deckIndex) =>
@@ -355,6 +363,18 @@ public sealed class WDArmoryProfile
     }
 
     public void SetVip(bool value) => vip = value;
+    public bool OwnsCosmetic(string cosmeticId) => ownedCosmeticIds.Contains(cosmeticId);
+    public bool AddOwnedCosmetic(string cosmeticId)
+    {
+        if (string.IsNullOrWhiteSpace(cosmeticId) || OwnsCosmetic(cosmeticId)) return false;
+        ownedCosmeticIds.Add(cosmeticId); return true;
+    }
+    public bool SetActiveDeck(int index)
+    {
+        if (!IsDeckUnlocked(index)) return false;
+        activeDeckIndex = index;
+        return true;
+    }
     public void SetCurrencies(int newCoins, int newEmeralds)
     {
         coins = Mathf.Max(0, newCoins);
@@ -368,6 +388,12 @@ public sealed class WDArmoryProfile
             return false;
         coins -= safeAmount;
         return true;
+    }
+
+    public bool SpendEmeralds(int amount)
+    {
+        if (amount < 0 || emeralds < amount) return false;
+        emeralds -= amount; return true;
     }
 }
 
@@ -440,6 +466,32 @@ public sealed class WDArmoryService
         this.catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
         this.profile = profile ?? throw new ArgumentNullException(nameof(profile));
         profile.Normalize();
+        ValidateRestoredDecks();
+    }
+
+    private void ValidateRestoredDecks()
+    {
+        // 04. A restauração nunca pode contornar ownership, unicidade ou Apoio.
+        foreach (WDSavedWeaponDeck deck in profile.Decks)
+        {
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            for (int slot = 0; slot < WDSavedWeaponDeck.MainSlotCount; slot++)
+            {
+                string id = deck.GetMain(slot);
+                if (string.IsNullOrEmpty(id)) continue;
+                if (catalog.FindWeapon(id) == null || profile.GetProgress(id)?.Obtained != true || !seen.Add(id))
+                    deck.SetMain(slot, string.Empty);
+            }
+            for (int slot = 0; slot < WDSavedWeaponDeck.SupportSlotCount; slot++)
+            {
+                string id = deck.GetSupport(slot);
+                if (string.IsNullOrEmpty(id)) continue;
+                WDWeaponDefinition weapon = catalog.FindWeapon(id);
+                if (weapon == null || profile.GetProgress(id)?.Obtained != true ||
+                    !catalog.IsSupportEligible(weapon) || !seen.Add(id))
+                    deck.SetSupport(slot, string.Empty);
+            }
+        }
     }
 
     public void SetVipForDevelopment(bool enabled) => profile.SetVip(enabled);

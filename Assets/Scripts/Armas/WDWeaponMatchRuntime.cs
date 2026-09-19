@@ -14,7 +14,9 @@ public enum WDWeaponAvailabilityReason
     InvalidLevel,
     InsufficientEnergy,
     Cooldown,
-    UsageLimit
+    UsageLimit,
+    InitialRoundLock,
+    AlreadyProgrammedThisPreparation
 }
 
 public readonly struct WDWeaponAvailability
@@ -270,6 +272,15 @@ public sealed class WDWeaponMatchRuntime
     {
         foreach (WDWeaponPlayerRuntimeState player in players.Values)
             player.AdvanceCooldownsForRound(round);
+    }
+
+    public bool ForceCooldown(string playerId, string weaponId, int rounds)
+    {
+        WDWeaponRuntimeEntry entry = FindPlayer(playerId)?.GetWeapon(weaponId);
+        if (entry == null)
+            return false;
+        entry.StartCooldown(Math.Max(entry.CooldownRemaining, Math.Max(0, rounds)));
+        return true;
     }
 
     public IReadOnlyList<string> GetInvalidLoadoutIds(string playerId) =>

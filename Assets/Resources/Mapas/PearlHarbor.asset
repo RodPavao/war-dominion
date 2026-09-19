@@ -18,7 +18,7 @@ MonoBehaviour:
   descricao: "Mapa real Pearl Harbor com 45 territ\xF3rios e cinco setores."
   temaId: pearl_harbor
   versao: 1
-  arteBase: {fileID: 21300000, guid: 302937e338d81f04fbd3277e54f4a27f, type: 3}
+  arteBase: {fileID: 1561399433863421651, guid: 3981cd690f96bc74d870b70d182f23ee, type: 3}
   centroCamera: {x: 0, y: 0}
   tamanhoOrtografico: 4.5
   deslocamentoEnquadramento: {x: 0, y: 0}
@@ -27,7 +27,7 @@ MonoBehaviour:
     nomeExibido: Reagan Island
     chaveTraducao: territory_reaganisland
     regiaoId: north_sector
-    posicaoContador: {x: -0.4, y: 0.145}
+    posicaoContador: {x: -5.7573915, y: 3.846457}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: -0.03715086, y: 0.4335556}
     possuiPosicaoNomeManual: 1
@@ -37,7 +37,7 @@ MonoBehaviour:
     nomeExibido: Portland
     chaveTraducao: territory_portland
     regiaoId: north_sector
-    posicaoContador: {x: 0.23, y: 0.005}
+    posicaoContador: {x: -3.1617572, y: 3.347346}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: -0.16130781, y: -0.025389194}
     possuiPosicaoNomeManual: 1
@@ -47,7 +47,7 @@ MonoBehaviour:
     nomeExibido: Tucson
     chaveTraducao: territory_tucson
     regiaoId: north_sector
-    posicaoContador: {x: -0.08, y: 0.21}
+    posicaoContador: {x: -4.53766, y: 2.441466}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: -0.25293708, y: -0.09126699}
     possuiPosicaoNomeManual: 1
@@ -57,7 +57,7 @@ MonoBehaviour:
     nomeExibido: Albuquerque
     chaveTraducao: territory_albuquerque
     regiaoId: north_sector
-    posicaoContador: {x: 0.005, y: 0.075}
+    posicaoContador: {x: -2.4733915, y: 2.227065}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: -0.46208167, y: 0.19054866}
     possuiPosicaoNomeManual: 1
@@ -67,7 +67,7 @@ MonoBehaviour:
     nomeExibido: Kadena
     chaveTraducao: territory_kadena
     regiaoId: north_sector
-    posicaoContador: {x: 0.06, y: 0.105}
+    posicaoContador: {x: -0.93469167, y: 3.2393675}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0.051458776, y: -0.21788907}
     possuiPosicaoNomeManual: 1
@@ -76,8 +76,8 @@ MonoBehaviour:
   - id: AndersonBase
     nomeExibido: Anderson Base
     chaveTraducao: territory_andersonbase
-    regiaoId: left_sector
-    posicaoContador: {x: 0.08, y: 0.06}
+    regiaoId: north_sector
+    posicaoContador: {x: -4.024973, y: 1.5410901}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: -0.12677455, y: -0.19935954}
     possuiPosicaoNomeManual: 1
@@ -87,7 +87,7 @@ MonoBehaviour:
     nomeExibido: Charlotte
     chaveTraducao: territory_charlotte
     regiaoId: left_sector
-    posicaoContador: {x: 0.235, y: 0.15}
+    posicaoContador: {x: -2.5813706, y: 1.0527943}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: -0.15719771, y: -0.017392993}
     possuiPosicaoNomeManual: 1
@@ -97,7 +97,7 @@ MonoBehaviour:
     nomeExibido: Hoover
     chaveTraducao: territory_hoover
     regiaoId: left_sector
-    posicaoContador: {x: 0.09, y: -0.215}
+    posicaoContador: {x: -3.9145734, y: 0.17613526}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: -0.19322062, y: 0.0064415634}
     possuiPosicaoNomeManual: 1
@@ -107,7 +107,7 @@ MonoBehaviour:
     nomeExibido: Yokota
     chaveTraducao: territory_yokota
     regiaoId: left_sector
-    posicaoContador: {x: -0.115, y: 0.03}
+    posicaoContador: {x: -2.2689507, y: 0.07106385}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0.09429073, y: 0.32376155}
     possuiPosicaoNomeManual: 1
@@ -117,7 +117,7 @@ MonoBehaviour:
     nomeExibido: Harrison
     chaveTraducao: territory_harrison
     regiaoId: center_base
-    posicaoContador: {x: -0.205, y: -0.08}
+    posicaoContador: {x: -0.93469167, y: 1.8761336}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0.2377767, y: -0.06985319}
     possuiPosicaoNomeManual: 1
@@ -127,7 +127,7 @@ MonoBehaviour:
     nomeExibido: Incirlik
     chaveTraducao: territory_incirlik
     regiaoId: center_base
-    posicaoContador: {x: 0.17, y: 0.03}
+    posicaoContador: {x: -0.36780283, y: 1.2147626}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: -0.23840612, y: -0.12399924}
     possuiPosicaoNomeManual: 1
@@ -137,7 +137,7 @@ MonoBehaviour:
     nomeExibido: Austin
     chaveTraducao: territory_austin
     regiaoId: center_base
-    posicaoContador: {x: 0.095, y: 0.115}
+    posicaoContador: {x: 0.037117768, y: 0.44541365}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0.21529317, y: -0.1904183}
     possuiPosicaoNomeManual: 1
@@ -147,7 +147,7 @@ MonoBehaviour:
     nomeExibido: Fairchild
     chaveTraducao: territory_fairchild
     regiaoId: center_base
-    posicaoContador: {x: 0.01, y: 0.04}
+    posicaoContador: {x: 0.81686157, y: 1.508451}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0.2446891, y: -0.20038176}
     possuiPosicaoNomeManual: 1
@@ -157,7 +157,7 @@ MonoBehaviour:
     nomeExibido: Hayes
     chaveTraducao: territory_hayes
     regiaoId: center_base
-    posicaoContador: {x: -0.04, y: 0}
+    posicaoContador: {x: 0.33723632, y: 2.4338026}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0.25246677, y: -0.21115208}
     possuiPosicaoNomeManual: 1
@@ -167,7 +167,7 @@ MonoBehaviour:
     nomeExibido: Mather
     chaveTraducao: territory_mather
     regiaoId: north_sector
-    posicaoContador: {x: 0.035, y: 0.09}
+    posicaoContador: {x: 0.44203836, y: 3.387838}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: -0.09601429, y: -0.2116561}
     possuiPosicaoNomeManual: 1
@@ -177,7 +177,7 @@ MonoBehaviour:
     nomeExibido: Roosevelt
     chaveTraducao: territory_roosevelt
     regiaoId: north_sector
-    posicaoContador: {x: 0.185, y: 0}
+    posicaoContador: {x: 1.5758172, y: 3.7522671}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: -0.073703885, y: 0.25575995}
     possuiPosicaoNomeManual: 1
@@ -187,7 +187,7 @@ MonoBehaviour:
     nomeExibido: Coolidge
     chaveTraducao: territory_coolidge
     regiaoId: north_sector
-    posicaoContador: {x: -0.1, y: -0.005}
+    posicaoContador: {x: 2.4487634, y: 3.4862483}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0.27362692, y: -0.19491482}
     possuiPosicaoNomeManual: 1
@@ -197,17 +197,17 @@ MonoBehaviour:
     nomeExibido: Phoenix
     chaveTraducao: territory_phoenix
     regiaoId: right_sector
-    posicaoContador: {x: 0.02, y: 0.015}
+    posicaoContador: {x: 2.8786292, y: 2.578805}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: -0.1744771, y: 0.2935853}
     possuiPosicaoNomeManual: 1
     tamanhoFonteNome: 0
     metadados: []
-  - id: NGay
-    nomeExibido: N. Gay
-    chaveTraducao: territory_ngay
-    regiaoId: north_sector
-    posicaoContador: {x: 0.015, y: -0.055}
+  - id: PhilipCollins
+    nomeExibido: Philip Collins
+    chaveTraducao: territory_philipcollins
+    regiaoId: right_sector
+    posicaoContador: {x: 3.9766283, y: 2.8460047}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: -0.32601833, y: -0.09181452}
     possuiPosicaoNomeManual: 1
@@ -217,7 +217,7 @@ MonoBehaviour:
     nomeExibido: Maxwell
     chaveTraducao: territory_maxwell
     regiaoId: right_sector
-    posicaoContador: {x: -0.015, y: 0.045}
+    posicaoContador: {x: 1.7107911, y: 2.4970126}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0.32011807, y: -0.17717409}
     possuiPosicaoNomeManual: 1
@@ -227,7 +227,7 @@ MonoBehaviour:
     nomeExibido: Otix
     chaveTraducao: territory_otix
     regiaoId: right_sector
-    posicaoContador: {x: -0.05, y: 0.31}
+    posicaoContador: {x: 2.210193, y: 1.5252022}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: -0.14793408, y: 0.024636984}
     possuiPosicaoNomeManual: 1
@@ -237,7 +237,7 @@ MonoBehaviour:
     nomeExibido: Abraham Lincoln Coast
     chaveTraducao: territory_abrahamlincolncoast
     regiaoId: right_sector
-    posicaoContador: {x: -0.09, y: 0.065}
+    posicaoContador: {x: 3.7683752, y: 1.6670569}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: -0.2596047, y: -0.20165586}
     possuiPosicaoNomeManual: 1
@@ -247,7 +247,7 @@ MonoBehaviour:
     nomeExibido: El Aguacate
     chaveTraducao: territory_elaguacate
     regiaoId: right_sector
-    posicaoContador: {x: -0.305, y: -0.03}
+    posicaoContador: {x: 5.4548097, y: 1.9127984}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0.022655487, y: -0.24027872}
     possuiPosicaoNomeManual: 1
@@ -257,7 +257,7 @@ MonoBehaviour:
     nomeExibido: Andrews
     chaveTraducao: territory_andrews
     regiaoId: center_base
-    posicaoContador: {x: -0.04, y: -0.03}
+    posicaoContador: {x: 0.7868848, y: 0.5070422}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: -0.013988316, y: 0.2407634}
     possuiPosicaoNomeManual: 1
@@ -267,7 +267,7 @@ MonoBehaviour:
     nomeExibido: Grant
     chaveTraducao: territory_grant
     regiaoId: center_base
-    posicaoContador: {x: -0.225, y: 0.015}
+    posicaoContador: {x: 0.56955504, y: -0.5133801}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0.10759941, y: -0.10186556}
     possuiPosicaoNomeManual: 1
@@ -277,7 +277,7 @@ MonoBehaviour:
     nomeExibido: Eglin
     chaveTraducao: territory_eglin
     regiaoId: right_sector
-    posicaoContador: {x: -0.1, y: 0.19}
+    posicaoContador: {x: 1.8997537, y: 0.04049256}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: -0.20508254, y: -0.09410136}
     possuiPosicaoNomeManual: 1
@@ -287,7 +287,7 @@ MonoBehaviour:
     nomeExibido: Edwards
     chaveTraducao: territory_edwards
     regiaoId: right_sector
-    posicaoContador: {x: -0.055, y: 0.04}
+    posicaoContador: {x: 2.493639, y: -0.44541237}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0.31228697, y: 0.07598394}
     possuiPosicaoNomeManual: 1
@@ -297,7 +297,7 @@ MonoBehaviour:
     nomeExibido: Davis-Monthan
     chaveTraducao: territory_davismonthan
     regiaoId: right_sector
-    posicaoContador: {x: 0.04, y: -0.075}
+    posicaoContador: {x: 5.7975245, y: 1.1294519}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: -0.36425495, y: 0.08238268}
     possuiPosicaoNomeManual: 1
@@ -307,7 +307,7 @@ MonoBehaviour:
     nomeExibido: Hearbor Port
     chaveTraducao: territory_hearborport
     regiaoId: right_sector
-    posicaoContador: {x: -0.01, y: 0.025}
+    posicaoContador: {x: 5.977765, y: 0.15979187}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: -0.23325491, y: 0.2704916}
     possuiPosicaoNomeManual: 1
@@ -317,7 +317,7 @@ MonoBehaviour:
     nomeExibido: Rhein-Main
     chaveTraducao: territory_rheinmain
     regiaoId: right_sector
-    posicaoContador: {x: -0.11, y: 0.09}
+    posicaoContador: {x: 4.3157835, y: 0.90432376}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: -0.10015774, y: -0.18730438}
     possuiPosicaoNomeManual: 1
@@ -327,7 +327,7 @@ MonoBehaviour:
     nomeExibido: Columbus
     chaveTraducao: territory_columbus
     regiaoId: right_sector
-    posicaoContador: {x: -0.01, y: 0.215}
+    posicaoContador: {x: 3.0335336, y: 0.36442918}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0.18335366, y: -0.09328169}
     possuiPosicaoNomeManual: 1
@@ -337,7 +337,7 @@ MonoBehaviour:
     nomeExibido: Taft
     chaveTraducao: territory_taft
     regiaoId: left_sector
-    posicaoContador: {x: 0.165, y: 0.065}
+    posicaoContador: {x: -1.5737708, y: -0.6908453}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: -0.16093254, y: -0.03700316}
     possuiPosicaoNomeManual: 1
@@ -347,7 +347,7 @@ MonoBehaviour:
     nomeExibido: Thule
     chaveTraducao: territory_thule
     regiaoId: left_sector
-    posicaoContador: {x: -0.005, y: 0.175}
+    posicaoContador: {x: -4.0525837, y: -1.2417572}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: -0.080527544, y: -0.1525808}
     possuiPosicaoNomeManual: 1
@@ -357,7 +357,7 @@ MonoBehaviour:
     nomeExibido: Atlanta
     chaveTraducao: territory_atlanta
     regiaoId: left_sector
-    posicaoContador: {x: -0.125, y: 0.19}
+    posicaoContador: {x: -3.001115, y: -0.9284009}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0.2090199, y: -0.05938995}
     possuiPosicaoNomeManual: 1
@@ -367,7 +367,7 @@ MonoBehaviour:
     nomeExibido: Long Beach
     chaveTraducao: territory_longbeach
     regiaoId: left_sector
-    posicaoContador: {x: -0.255, y: 0.005}
+    posicaoContador: {x: -2.6623547, y: -2.227065}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0.17715275, y: -0.07200825}
     possuiPosicaoNomeManual: 1
@@ -377,7 +377,7 @@ MonoBehaviour:
     nomeExibido: Garfield
     chaveTraducao: territory_garfield
     regiaoId: center_base
-    posicaoContador: {x: 0.335, y: 0.055}
+    posicaoContador: {x: -0.029976808, y: -1.7176056}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0.090432316, y: -0.21280527}
     possuiPosicaoNomeManual: 1
@@ -387,7 +387,7 @@ MonoBehaviour:
     nomeExibido: Malmstrom
     chaveTraducao: territory_malmstrom
     regiaoId: center_base
-    posicaoContador: {x: -0.065, y: -0.005}
+    posicaoContador: {x: 1.3058705, y: -1.2012656}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0.33345407, y: 0.0042625666}
     possuiPosicaoNomeManual: 1
@@ -397,7 +397,7 @@ MonoBehaviour:
     nomeExibido: Robins
     chaveTraducao: territory_robins
     regiaoId: left_sector
-    posicaoContador: {x: -0.28, y: 0.03}
+    posicaoContador: {x: -1.8660102, y: -1.6331807}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0.06987691, y: -0.14453351}
     possuiPosicaoNomeManual: 1
@@ -407,7 +407,7 @@ MonoBehaviour:
     nomeExibido: Bush
     chaveTraducao: territory_bush
     regiaoId: south_sector
-    posicaoContador: {x: -0.16, y: 0.005}
+    posicaoContador: {x: 2.3991578, y: -1.9976093}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0.15071285, y: -0.13852537}
     possuiPosicaoNomeManual: 1
@@ -417,7 +417,7 @@ MonoBehaviour:
     nomeExibido: Sacramento
     chaveTraducao: territory_sacramento
     regiaoId: south_sector
-    posicaoContador: {x: 0.07, y: -0.06}
+    posicaoContador: {x: 1.1439023, y: -2.4970124}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0.22213334, y: 0.20864546}
     possuiPosicaoNomeManual: 1
@@ -427,7 +427,7 @@ MonoBehaviour:
     nomeExibido: Eisenhower
     chaveTraducao: territory_eisenhower
     regiaoId: south_sector
-    posicaoContador: {x: 0.335, y: 0.07}
+    posicaoContador: {x: -0.20583516, y: -2.5105095}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: -0.096214056, y: 0.01694107}
     possuiPosicaoNomeManual: 1
@@ -437,7 +437,7 @@ MonoBehaviour:
     nomeExibido: Ramstein
     chaveTraducao: territory_ramstein
     regiaoId: south_sector
-    posicaoContador: {x: 0.035, y: 0.06}
+    posicaoContador: {x: 0.55001795, y: -3.3473458}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0.2746192, y: -0.18688583}
     possuiPosicaoNomeManual: 1
@@ -447,7 +447,7 @@ MonoBehaviour:
     nomeExibido: Nixon
     chaveTraducao: territory_nixon
     regiaoId: south_sector
-    posicaoContador: {x: -0.115, y: 0.045}
+    posicaoContador: {x: 3.401593, y: -2.72342}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0.23997617, y: 0.04669404}
     possuiPosicaoNomeManual: 1
@@ -457,7 +457,7 @@ MonoBehaviour:
     nomeExibido: Virginia Beach
     chaveTraducao: territory_virginiabeach
     regiaoId: south_sector
-    posicaoContador: {x: -0.13, y: 0.005}
+    posicaoContador: {x: 2.12921, y: -2.888436}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0.22800767, y: 0.20938993}
     possuiPosicaoNomeManual: 1
@@ -467,7 +467,7 @@ MonoBehaviour:
     nomeExibido: Trump Island
     chaveTraducao: territory_trumpisland
     regiaoId: south_sector
-    posicaoContador: {x: 0.1, y: -0.025}
+    posicaoContador: {x: 4.485958, y: -3.628368}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: -0.3487997, y: -0.15777779}
     possuiPosicaoNomeManual: 1
@@ -481,6 +481,8 @@ MonoBehaviour:
     bonus: 6
     ordemExibicao: 0
     corDestaque: {r: 0.25, g: 0.65, b: 1, a: 1}
+    possuiDeslocamentoLabelManual: 1
+    deslocamentoLabelManual: {x: -0.39142394, y: -0.20246029}
     territorioIds:
     - ReaganIsland
     - Portland
@@ -490,7 +492,7 @@ MonoBehaviour:
     - Mather
     - Roosevelt
     - Coolidge
-    - NGay
+    - AndersonBase
     metadados: []
   - id: left_sector
     nomeExibido: Left Sector
@@ -499,8 +501,9 @@ MonoBehaviour:
     bonus: 5
     ordemExibicao: 1
     corDestaque: {r: 0.35, g: 0.85, b: 0.45, a: 1}
+    possuiDeslocamentoLabelManual: 1
+    deslocamentoLabelManual: {x: 0.24427915, y: 0.56397235}
     territorioIds:
-    - AndersonBase
     - Charlotte
     - Hoover
     - Yokota
@@ -517,6 +520,8 @@ MonoBehaviour:
     bonus: 7
     ordemExibicao: 2
     corDestaque: {r: 1, g: 0.72, b: 0.25, a: 1}
+    possuiDeslocamentoLabelManual: 1
+    deslocamentoLabelManual: {x: 0.39142343, y: 0.51289845}
     territorioIds:
     - Harrison
     - Incirlik
@@ -535,6 +540,8 @@ MonoBehaviour:
     bonus: 6
     ordemExibicao: 3
     corDestaque: {r: 0.85, g: 0.42, b: 0.9, a: 1}
+    possuiDeslocamentoLabelManual: 1
+    deslocamentoLabelManual: {x: -0.15445447, y: -0.11485994}
     territorioIds:
     - Phoenix
     - Maxwell
@@ -547,6 +554,7 @@ MonoBehaviour:
     - HearborPort
     - RheinMain
     - Columbus
+    - PhilipCollins
     metadados: []
   - id: south_sector
     nomeExibido: South Sector
@@ -555,6 +563,8 @@ MonoBehaviour:
     bonus: 4
     ordemExibicao: 4
     corDestaque: {r: 1, g: 0.38, b: 0.32, a: 1}
+    possuiDeslocamentoLabelManual: 1
+    deslocamentoLabelManual: {x: 0.14846992, y: 0.3914237}
     territorioIds:
     - Bush
     - Sacramento
@@ -621,7 +631,7 @@ MonoBehaviour:
     destinoId: Kadena
     tipo: 0
     bidirecional: 1
-  - origemId: NGay
+  - origemId: PhilipCollins
     destinoId: Phoenix
     tipo: 0
     bidirecional: 1
@@ -773,10 +783,6 @@ MonoBehaviour:
     destinoId: Yokota
     tipo: 0
     bidirecional: 1
-  - origemId: Thule
-    destinoId: Yokota
-    tipo: 0
-    bidirecional: 1
   - origemId: Edwards
     destinoId: Eglin
     tipo: 0
@@ -789,15 +795,7 @@ MonoBehaviour:
     destinoId: Grant
     tipo: 0
     bidirecional: 1
-  - origemId: Taft
-    destinoId: Thule
-    tipo: 0
-    bidirecional: 1
   - origemId: Atlanta
-    destinoId: Thule
-    tipo: 0
-    bidirecional: 1
-  - origemId: Robins
     destinoId: Thule
     tipo: 0
     bidirecional: 1
@@ -870,7 +868,7 @@ MonoBehaviour:
     tipo: 0
     bidirecional: 1
   - origemId: AbrahamLincolnCoast
-    destinoId: NGay
+    destinoId: PhilipCollins
     tipo: 0
     bidirecional: 1
   - origemId: AbrahamLincolnCoast
@@ -925,8 +923,20 @@ MonoBehaviour:
     destinoId: Otix
     tipo: 0
     bidirecional: 1
-  - origemId: NGay
-    destinoId: ElAguacate
+  - origemId: Yokota
+    destinoId: Atlanta
+    tipo: 0
+    bidirecional: 1
+  - origemId: Taft
+    destinoId: Atlanta
+    tipo: 0
+    bidirecional: 1
+  - origemId: Atlanta
+    destinoId: Robins
+    tipo: 0
+    bidirecional: 1
+  - origemId: Taft
+    destinoId: Robins
     tipo: 0
     bidirecional: 1
   condicoesEstrategicas: []

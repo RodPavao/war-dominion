@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 public enum ResolutionVisualEventType
 {
@@ -6,6 +8,7 @@ public enum ResolutionVisualEventType
     Movement,
     Reinforcement,
     Transfer,
+    RegionConquest,
     Card,
     Other
 }
@@ -16,7 +19,8 @@ public enum ResolutionVisualResult
     Completed,
     Cancelled,
     AttackDefended,
-    TerritoryConquered
+    TerritoryConquered,
+    RegionConquered
 }
 
 public sealed class ResolutionVisualEvent
@@ -39,6 +43,8 @@ public sealed class ResolutionVisualEvent
     public TerritorioClique.Dono PreviousOwner { get; }
     public TerritorioClique.Dono NewOwner { get; }
     public string ContentId { get; }
+    public string RegionId { get; }
+    public IReadOnlyList<string> RegionTerritoryIds { get; }
 
     private ResolutionVisualEvent(
         ResolutionVisualEventType type,
@@ -54,7 +60,9 @@ public sealed class ResolutionVisualEvent
         bool conquered,
         TerritorioClique.Dono previousOwner,
         TerritorioClique.Dono newOwner,
-        string contentId)
+        string contentId,
+        string regionId = null,
+        IEnumerable<string> regionTerritoryIds = null)
     {
         Type = type;
         Result = result;
@@ -70,6 +78,8 @@ public sealed class ResolutionVisualEvent
         PreviousOwner = previousOwner;
         NewOwner = newOwner;
         ContentId = contentId ?? string.Empty;
+        RegionId = regionId ?? string.Empty;
+        RegionTerritoryIds = (regionTerritoryIds ?? Array.Empty<string>()).ToArray();
     }
 
     // ============================================================
@@ -126,12 +136,15 @@ public sealed class ResolutionVisualEvent
         TerritorioClique.Dono previousOwner,
         TerritorioClique.Dono newOwner)
     {
+        bool conquered = previousOwner != newOwner &&
+            newOwner != TerritorioClique.Dono.Neutro;
         return new ResolutionVisualEvent(
             ResolutionVisualEventType.Movement,
-            ResolutionVisualResult.Completed,
+            conquered ? ResolutionVisualResult.TerritoryConquered
+                : ResolutionVisualResult.Completed,
             player, originId, destinationId, amount,
             originBefore, originAfter, destinationBefore, destinationAfter,
-            false, previousOwner, newOwner, string.Empty);
+            conquered, previousOwner, newOwner, string.Empty);
     }
 
     public static ResolutionVisualEvent TerritoryHandoff(
@@ -147,6 +160,20 @@ public sealed class ResolutionVisualEvent
             player, string.Empty, territoryId, 0,
             0, 0, troopsBefore, troopsAfter,
             false, player, recipient, string.Empty);
+    }
+
+    public static ResolutionVisualEvent RegionControlGained(
+        TerritorioClique.Dono player,
+        string regionId,
+        IEnumerable<string> territoryIds)
+    {
+        return new ResolutionVisualEvent(
+            ResolutionVisualEventType.RegionConquest,
+            ResolutionVisualResult.RegionConquered,
+            player, string.Empty, string.Empty, 0,
+            0, 0, 0, 0, false,
+            TerritorioClique.Dono.Neutro, player, string.Empty,
+            regionId, territoryIds);
     }
 
     public static ResolutionVisualEvent FutureContent(
@@ -168,6 +195,16 @@ public sealed class ResolutionVisualEvent
             TerritorioClique.Dono.Neutro, contentId);
     }
 
+    public static ResolutionVisualEvent WeaponCard(
+        TerritorioClique.Dono player, string weaponId, string status)
+    {
+        string content = (weaponId ?? string.Empty) + "|" + (status ?? string.Empty);
+        return new ResolutionVisualEvent(
+            ResolutionVisualEventType.Card, ResolutionVisualResult.Completed, player,
+            string.Empty, string.Empty, 0, 0, 0, 0, 0, false,
+            TerritorioClique.Dono.Neutro, TerritorioClique.Dono.Neutro, content);
+    }
+
     // ============================================================
     // 03. DESCRIÇÃO PARA DIAGNÓSTICO
     // ============================================================
@@ -178,5 +215,111 @@ public sealed class ResolutionVisualEvent
             ? DestinationTerritoryId
             : $"{OriginTerritoryId} -> {DestinationTerritoryId}";
         return $"{Type} | {route} | quantidade {Amount} | resultado {Result}";
+    }
+}
+
+public readonly struct WDTerritoryOwnershipChange
+{
+    public string TerritoryId { get; }
+    public TerritorioClique.Dono PreviousOwner { get; }
+    public TerritorioClique.Dono NewOwner { get; }
+
+    public WDTerritoryOwnershipChange(string territoryId,
+        TerritorioClique.Dono previousOwner, TerritorioClique.Dono newOwner)
+    {
+        TerritoryId = territoryId ?? string.Empty;
+        PreviousOwner = previousOwner;
+        NewOwner = newOwner;
+    }
+}
+
+public static class WDRegionConquestVisualDetector
+{
+    // ============================================================
+    // 01. TRANSIÇÃO CANÔNICA DE CONTROLE → EVENTO VISUAL REGIONAL
+    // ============================================================
+
+    public static IReadOnlyList<ResolutionVisualEvent> Detect(
+        IEnumerable<DefinicaoRegiaoMapa> regions,
+        IReadOnlyDictionary<string, TerritorioClique.Dono> ownersBefore,
+        IEnumerable<WDTerritoryOwnershipChange> changes)
+    {
+        var events = new List<ResolutionVisualEvent>();
+        var owners = ownersBefore != null
+            ? new Dictionary<string, TerritorioClique.Dono>(ownersBefore,
+                StringComparer.Ordinal)
+            : new Dictionary<string, TerritorioClique.Dono>(StringComparer.Ordinal);
+        DefinicaoRegiaoMapa[] definitions = (regions ??
+            Array.Empty<DefinicaoRegiaoMapa>()).Where(region =>
+                region?.territorioIds != null && region.territorioIds.Count > 0).ToArray();
+
+        foreach (WDTerritoryOwnershipChange change in changes ??
+            Array.Empty<WDTerritoryOwnershipChange>())
+        {
+            if (string.IsNullOrEmpty(change.TerritoryId) ||
+                change.PreviousOwner == change.NewOwner)
+                continue;
+
+            DefinicaoRegiaoMapa[] relevant = definitions.Where(region =>
+                region.territorioIds.Contains(change.TerritoryId)).ToArray();
+            bool[] controlledBefore = relevant.Select(region =>
+                Controls(region, change.NewOwner, owners)).ToArray();
+            owners[change.TerritoryId] = change.NewOwner;
+            for (int index = 0; index < relevant.Length; index++)
+            {
+                DefinicaoRegiaoMapa region = relevant[index];
+                bool controlledAfter = change.NewOwner != TerritorioClique.Dono.Neutro &&
+                    Controls(region, change.NewOwner, owners);
+                if (!controlledBefore[index] && controlledAfter)
+                    events.Add(ResolutionVisualEvent.RegionControlGained(
+                        change.NewOwner, region.id, region.territorioIds));
+            }
+        }
+        return events;
+    }
+
+    public static IReadOnlyList<ResolutionVisualEvent> InterleaveWithTerritoryResults(
+        IEnumerable<DefinicaoRegiaoMapa> regions,
+        IReadOnlyDictionary<string, TerritorioClique.Dono> ownersBefore,
+        IEnumerable<ResolutionVisualEvent> territoryEvents)
+    {
+        var ordered = new List<ResolutionVisualEvent>();
+        var owners = ownersBefore != null
+            ? new Dictionary<string, TerritorioClique.Dono>(ownersBefore,
+                StringComparer.Ordinal)
+            : new Dictionary<string, TerritorioClique.Dono>(StringComparer.Ordinal);
+
+        foreach (ResolutionVisualEvent territoryEvent in territoryEvents ??
+            Array.Empty<ResolutionVisualEvent>())
+        {
+            if (territoryEvent == null)
+                continue;
+            ordered.Add(territoryEvent);
+            if (string.IsNullOrEmpty(territoryEvent.DestinationTerritoryId) ||
+                territoryEvent.PreviousOwner == territoryEvent.NewOwner)
+                continue;
+
+            var change = new WDTerritoryOwnershipChange(
+                territoryEvent.DestinationTerritoryId,
+                territoryEvent.PreviousOwner,
+                territoryEvent.NewOwner);
+            ordered.AddRange(Detect(regions, owners, new[] { change }));
+            owners[change.TerritoryId] = change.NewOwner;
+        }
+
+        return ordered;
+    }
+
+    private static bool Controls(DefinicaoRegiaoMapa region,
+        TerritorioClique.Dono player,
+        IReadOnlyDictionary<string, TerritorioClique.Dono> owners)
+    {
+        if (player == TerritorioClique.Dono.Neutro)
+            return false;
+        foreach (string territoryId in region.territorioIds)
+            if (!owners.TryGetValue(territoryId, out TerritorioClique.Dono owner) ||
+                owner != player)
+                return false;
+        return true;
     }
 }

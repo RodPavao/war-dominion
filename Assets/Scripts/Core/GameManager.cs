@@ -88,6 +88,14 @@ public class GameManager : MonoBehaviour
     private UICompositionRoot uiCompositionRoot;
     private bool bloqueioInicioPartida = true;
     private readonly HashSet<TerritorioClique.Dono> jogadoresQueEnviaram = new();
+    private sealed class BeneficioPreparacao
+    {
+        public string WeaponId;
+        public int Valor;
+        public int Restante;
+    }
+    private readonly Dictionary<string, BeneficioPreparacao> beneficiosPreparacao = new();
+    private int reforcosBaseDisponiveis;
 
     // =====================================================
     // 3. PREPARAÇÃO E MODOS
@@ -193,7 +201,7 @@ public class GameManager : MonoBehaviour
 
     public bool LimiteAcoesAtingido =>
         filaAcoes != null &&
-        filaAcoes.EstaCheiaPara(jogadorLocal);
+        filaAcoes.EstaCheiaPara(jogadorLocal, LimiteAcoesPorRodada);
 
     public int RodadaAtual =>
         gerenciadorRodada != null
@@ -232,6 +240,8 @@ public class GameManager : MonoBehaviour
 
     public bool TransferenciaDisponivelParaJogadorLocal =>
         ObterDestinatariosTransferencia().Count > 0;
+    public bool TemTargetingArmaTerritorialAtivo =>
+        GetComponent<WDWeaponMatchUIController>()?.IsSelectingTerritory == true;
 
     public bool MatchSetupUsaEquipes
     {
@@ -272,7 +282,11 @@ public class GameManager : MonoBehaviour
     }
 
     public int LimiteAcoesPorRodada =>
-        FilaAcoes.MaximoAcoesPorRodada;
+        beneficiosPreparacao.Values
+            .Where(item => item.WeaponId == WDTacticalWeaponIds.Blitzkrieg)
+            .Select(item => item.Valor)
+            .DefaultIfEmpty(FilaAcoes.MaximoAcoesPorRodada)
+            .Max();
 
     public bool PodeCancelarEnvio =>
         faseAtual == FaseTurno.Preparacao &&
@@ -372,10 +386,11 @@ public class GameManager : MonoBehaviour
                 gameObject.AddComponent<GerenciadorRodada>();
         }
 
-        if (GetComponent<HUDPreparacao>() == null)
-        {
-            gameObject.AddComponent<HUDPreparacao>();
-        }
+        HUDPreparacao hudLegado = GetComponent<HUDPreparacao>();
+        if (hudLegado == null)
+            hudLegado = gameObject.AddComponent<HUDPreparacao>();
+        // 01. O legado não deve desenhar enquanto o HUD selecionado é construído.
+        hudLegado.enabled = !UICompositionRoot.IsNewHudSelected();
 
         MatchUIPresenter matchUIPresenter =
             GetComponent<MatchUIPresenter>();
@@ -666,10 +681,11 @@ public class GameManager : MonoBehaviour
         AtualizarWeaponRuntimeParaRound();
         weaponExecutionCoordinator?.ProcessRoundStart(RodadaAtual);
         weaponPreparation?.BeginRound(RodadaAtual);
+        beneficiosPreparacao.Clear();
+        reforcosBaseDisponiveis = 0;
         acoesArmasCongeladas = System.Array.Empty<WDWeaponAction>();
 
         CancelarSelecaoAtual();
-
     }
 
     // =====================================================
@@ -801,7 +817,10 @@ public class GameManager : MonoBehaviour
         if (!PodeEditarPreparacao || weaponPreparation == null)
             return new WDWeaponProgrammingResult(
                 WDWeaponProgrammingReason.PreparationClosed, default);
-        return weaponPreparation.Program(request);
+        WDWeaponProgrammingResult result = weaponPreparation.Program(request);
+        if (result.Succeeded)
+            AplicarBeneficioProvisorio(result.Action, result.Availability.Level);
+        return result;
     }
 
     public WDWeaponProgrammingOption SelecionarArma(
@@ -816,7 +835,10 @@ public class GameManager : MonoBehaviour
         if (!PodeEditarPreparacao || weaponPreparation == null)
             return new WDWeaponProgrammingResult(
                 WDWeaponProgrammingReason.PreparationClosed, default);
-        return weaponPreparation.Cancel(playerId, actionId);
+        WDWeaponProgrammingResult result = weaponPreparation.Cancel(playerId, actionId);
+        if (result.Succeeded)
+            ReverterBeneficioProvisorio(actionId);
+        return result;
     }
 
     public WDWeaponProgrammingResult ReprogramarArma(
@@ -825,7 +847,14 @@ public class GameManager : MonoBehaviour
         if (!PodeEditarPreparacao || weaponPreparation == null)
             return new WDWeaponProgrammingResult(
                 WDWeaponProgrammingReason.PreparationClosed, default);
-        return weaponPreparation.Replace(playerId, actionId, replacement);
+        WDWeaponProgrammingResult result = weaponPreparation.Replace(
+            playerId, actionId, replacement);
+        if (result.Succeeded)
+        {
+            ReverterBeneficioProvisorio(actionId);
+            AplicarBeneficioProvisorio(result.Action, result.Availability.Level);
+        }
+        return result;
     }
 
     public IReadOnlyList<WDWeaponAction> ObterAcoesArmasProgramadas(
@@ -834,11 +863,11 @@ public class GameManager : MonoBehaviour
             ? weaponPreparation.GetPlayerActions(playerId, RodadaAtual)
             : System.Array.Empty<WDWeaponAction>();
 
-    public IReadOnlyList<WDPreparedWeaponActionIdentity> ObterAlvosDoInfiltrado(
+    public IReadOnlyList<WDInfiltratorWeaponTarget> ObterArmasDoInfiltrado(
         string playerId, string opponentPlayerId) =>
         PodeEditarPreparacao && weaponPreparation != null
-            ? weaponPreparation.GetEligibleInfiltratorTargets(playerId, opponentPlayerId)
-            : System.Array.Empty<WDPreparedWeaponActionIdentity>();
+            ? weaponPreparation.GetEligibleInfiltratorWeapons(playerId, opponentPlayerId)
+            : System.Array.Empty<WDInfiltratorWeaponTarget>();
 
     public WDRadarUseResult UsarRadarDurantePreparacao(string commandId,
         string playerId, string installationId, string targetTerritoryId)
@@ -846,10 +875,69 @@ public class GameManager : MonoBehaviour
         if (!PodeEditarPreparacao || weaponPreparation == null ||
             weaponExecutionCoordinator == null)
             return new WDRadarUseResult(WDRadarUseStatus.Invalid);
-        return weaponExecutionCoordinator.UseRadarDuringPreparation(commandId, playerId,
+        WDRadarUseResult result = weaponExecutionCoordinator.UseRadarDuringPreparation(commandId, playerId,
             installationId, targetTerritoryId,
             weaponPreparation.GetRoundActions(RodadaAtual));
+        if (result.Status == WDRadarUseStatus.Used)
+        {
+            WDWeaponAction radarAction = weaponPreparation.GetRoundActions(RodadaAtual)
+                .FirstOrDefault(item => item.WeaponId == WDTacticalWeaponIds.Radar &&
+                    item.AuthorPlayerId == playerId && item.InstallationId == installationId);
+            if (radarAction != null)
+                weaponPreparation.MarkIrreversible(radarAction.ActionId);
+        }
+        return result;
     }
+
+    public string ObterIdJogadorLocalParaArmas() => ObterIdJogadorLocal();
+
+    private void AplicarBeneficioProvisorio(WDWeaponAction action, int level)
+    {
+        if (action == null || beneficiosPreparacao.ContainsKey(action.ActionId))
+            return;
+        int value = 0;
+        if (action.WeaponId == WDTacticalWeaponIds.Blitzkrieg)
+            value = WDTacticalWeaponTables.BlitzkriegLimit(level);
+        else if (action.WeaponId == WDSupportWeaponIds.ReserveTroops)
+            value = WDSupportWeaponTables.ReserveTroops(level,
+                weaponRoundRuntime?.GetTerritoriesLostPreviousRound(action.AuthorPlayerId) ?? 0);
+        else if (action.WeaponId == WDSupportWeaponIds.TroopRecovery)
+        {
+            WDPreviousRoundTerritoryRecord record =
+                weaponRoundRuntime?.FindPreviousRoundRecord(action.TargetTerritoryId);
+            value = record == null ? 0 : Mathf.Min(record.Casualties,
+                WDSupportWeaponTables.RecoveryLimit(level));
+        }
+        else return;
+
+        beneficiosPreparacao[action.ActionId] = new BeneficioPreparacao
+        {
+            WeaponId = action.WeaponId,
+            Valor = value,
+            Restante = value
+        };
+        weaponRoundRuntime?.MarkPreparationBenefitApplied(action.ActionId);
+        AtualizarReforcosDisponiveis();
+    }
+
+    private void ReverterBeneficioProvisorio(string actionId)
+    {
+        if (!beneficiosPreparacao.Remove(actionId))
+            return;
+        foreach (DistribuicaoReforco item in historicoReforcos
+            .ObterPorAcao(actionId).ToArray())
+        {
+            if (item.Territorio != null)
+                item.Territorio.RemoverTropas(item.Quantidade);
+            historicoReforcos.Remover(item.Id);
+        }
+        filaAcoes?.RemoverExcedentes(jogadorLocal, LimiteAcoesPorRodada);
+        AtualizarReforcosDisponiveis();
+        AtualizarHighlightsPreparacao();
+    }
+
+    private void AtualizarReforcosDisponiveis() => reforcosDisponiveis =
+        Mathf.Max(0, reforcosBaseDisponiveis + beneficiosPreparacao.Values.Sum(x => x.Restante));
 
     private string ObterIdJogadorLocal()
     {
@@ -877,6 +965,8 @@ public class GameManager : MonoBehaviour
                 0,
                 natural + independente
             );
+        reforcosBaseDisponiveis = reforcosDisponiveis;
+        beneficiosPreparacao.Clear();
 
         historicoReforcos.Limpar();
     }
@@ -919,11 +1009,25 @@ public class GameManager : MonoBehaviour
             territorio.AdicionarTropa();
         }
 
-        reforcosDisponiveis -= quantidadeAplicada;
-        historicoReforcos.Registrar(
-            territorio,
-            quantidadeAplicada
-        );
+        int restante = quantidadeAplicada;
+        int baseConsumida = Mathf.Min(restante, reforcosBaseDisponiveis);
+        if (baseConsumida > 0)
+        {
+            reforcosBaseDisponiveis -= baseConsumida;
+            restante -= baseConsumida;
+            historicoReforcos.Registrar(territorio, baseConsumida);
+        }
+        foreach (KeyValuePair<string, BeneficioPreparacao> pair in beneficiosPreparacao
+            .OrderBy(item => item.Key, System.StringComparer.Ordinal).ToArray())
+        {
+            if (restante <= 0) break;
+            int consumed = Mathf.Min(restante, pair.Value.Restante);
+            if (consumed <= 0) continue;
+            pair.Value.Restante -= consumed;
+            restante -= consumed;
+            historicoReforcos.Registrar(territorio, consumed, pair.Key);
+        }
+        AtualizarReforcosDisponiveis();
 
         return quantidadeAplicada;
     }
@@ -946,7 +1050,12 @@ public class GameManager : MonoBehaviour
         }
 
         historicoReforcos.Remover(id);
-        reforcosDisponiveis += distribuicao.Quantidade;
+        if (string.IsNullOrEmpty(distribuicao.AcaoOrigemId))
+            reforcosBaseDisponiveis += distribuicao.Quantidade;
+        else if (beneficiosPreparacao.TryGetValue(distribuicao.AcaoOrigemId,
+            out BeneficioPreparacao beneficio))
+            beneficio.Restante += distribuicao.Quantidade;
+        AtualizarReforcosDisponiveis();
         return true;
     }
 
@@ -986,11 +1095,20 @@ public class GameManager : MonoBehaviour
         }
 
         modoAcao = ModoAcao.Transferir;
-        feedbackTransferencia =
-            "Selecione um território seu para transferir ao aliado.";
-
         CancelarSelecaoTransferencia();
         CancelarSelecaoAtual();
+        IReadOnlyList<TerritorioClique.Dono> destinatarios =
+            ObterDestinatariosTransferencia();
+        if (destinatarios.Count == 1)
+        {
+            destinatarioTransferenciaSelecionado = destinatarios[0];
+            feedbackTransferencia =
+                "Selecione um território seu para transferir ao aliado.";
+        }
+        else
+        {
+            feedbackTransferencia = "Escolha o aliado destinatário.";
+        }
     }
 
     // =====================================================
@@ -1052,6 +1170,11 @@ public class GameManager : MonoBehaviour
         if (territorio == null)
             return;
 
+        WDMatchInformationalOverlayController informational =
+            GetComponentInChildren<WDMatchInformationalOverlayController>(true);
+        if (informational != null && informational.HandleTerritory(territorio.idTerritorio))
+            return;
+
         if (EmSelecaoInicial)
         {
             RegistrarEscolhaInicialLocal(territorio);
@@ -1060,6 +1183,13 @@ public class GameManager : MonoBehaviour
 
         if (!PodeEditarPreparacao)
             return;
+
+        WDWeaponMatchUIController weaponUI = GetComponent<WDWeaponMatchUIController>();
+        if (weaponUI != null && weaponUI.HandleTerritory(territorio.idTerritorio))
+        {
+            GetComponent<MatchUIPresenter>()?.SolicitarSnapshotAtual();
+            return;
+        }
 
         if (modoAcao == ModoAcao.Transferir)
         {
@@ -1238,7 +1368,8 @@ public class GameManager : MonoBehaviour
                     territorioSelecionado,
                     territorioDestinoSelecionado,
                     quantidadeAcaoSelecionada,
-                    jogadorLocal
+                    jogadorLocal,
+                    LimiteAcoesPorRodada
                 );
 
         if (!registrado)
@@ -1325,20 +1456,19 @@ public class GameManager : MonoBehaviour
         }
 
         territorioTransferenciaSelecionado = territorio;
-        destinatarioTransferenciaSelecionado = TerritorioClique.Dono.Neutro;
         IReadOnlyList<TerritorioClique.Dono> destinatarios =
             ObterDestinatariosTransferencia();
 
-        if (destinatarios.Count == 1)
+        if (destinatarios.Contains(destinatarioTransferenciaSelecionado))
         {
-            feedbackTransferencia = "Território selecionado. Confirme a transferência.";
-            AtualizarHighlightsPreparacao();
+            TentarPrepararTransferenciaPara(destinatarioTransferenciaSelecionado);
             return;
         }
 
         if (destinatarios.Count > 1)
         {
-            feedbackTransferencia = "Território selecionado. Escolha o aliado destinatário.";
+            feedbackTransferencia = "Escolha o aliado antes de selecionar o território.";
+            territorioTransferenciaSelecionado = null;
             AtualizarHighlightsPreparacao();
             return;
         }
@@ -1376,7 +1506,7 @@ public class GameManager : MonoBehaviour
     public void SelecionarDestinatarioTransferencia(
         TerritorioClique.Dono jogador)
     {
-        if (!EmModoTransferencia || territorioTransferenciaSelecionado == null)
+        if (!EmModoTransferencia)
             return;
 
         IReadOnlyList<TerritorioClique.Dono> destinatarios =
@@ -1388,7 +1518,7 @@ public class GameManager : MonoBehaviour
         }
 
         destinatarioTransferenciaSelecionado = jogador;
-        feedbackTransferencia = $"Destinatário: {jogador}. Confirme a transferência.";
+        feedbackTransferencia = $"Destinatário: {jogador}. Selecione um território seu.";
     }
 
     private void TentarPrepararTransferenciaPara(
@@ -1625,7 +1755,7 @@ public class GameManager : MonoBehaviour
                 resolveTransfers: () => ResolverTransferenciasGlobais(
                     resultadosTransferencias),
                 resolveTerrestrial: () => ResolverAcoesTerrestresGlobais(
-                    resultadosTerrestres),
+                    resultadosTerrestres, resolutionId),
                 consolidate: () =>
                 {
                     weaponRoundRuntime?.ObserveOwnershipChanges(
@@ -1637,10 +1767,12 @@ public class GameManager : MonoBehaviour
         CancelarSelecaoAtual();
 
         var eventosVisuais = new List<ResolutionVisualEvent>();
+        eventosVisuais.AddRange(CriarEventosVisuaisArmas(ultimaResolucaoGlobal));
         eventosVisuais.AddRange(eventosReforcoPendentes);
         eventosVisuais.AddRange(
             CriarEventosVisuaisTransferencia(resultadosTransferencias));
-        eventosVisuais.AddRange(CriarEventosVisuaisAcoesTerrestres(resultadosTerrestres));
+        eventosVisuais.AddRange(
+            CriarEventosVisuaisAcoesTerrestresComConquistasRegiao(resultadosTerrestres));
         eventosReforcoPendentes.Clear();
 
         ResolutionSequenceController controller =
@@ -1655,6 +1787,28 @@ public class GameManager : MonoBehaviour
         }
 
         gerenciadorRodada.ConcluirResolucao();
+    }
+
+    private List<ResolutionVisualEvent> CriarEventosVisuaisArmas(
+        WDGlobalResolutionResult result)
+    {
+        var events = new List<ResolutionVisualEvent>();
+        if (result?.Entries == null)
+            return events;
+        foreach (WDGlobalResolutionEntry entry in result.Entries)
+        {
+            if (entry.Kind != WDGlobalResolutionEntryKind.WeaponAction ||
+                !entry.WeaponStatus.HasValue)
+                continue;
+            WDMatchParticipant participant = MatchSetupAtual?.Participants
+                .FirstOrDefault(item => item.PlayerId == entry.AuthorPlayerId);
+            TerritorioClique.Dono owner = participant == null
+                ? TerritorioClique.Dono.Neutro
+                : (TerritorioClique.Dono)(participant.SlotIndex + 1);
+            events.Add(ResolutionVisualEvent.WeaponCard(owner, entry.WeaponId,
+                entry.WeaponStatus.Value.ToString()));
+        }
+        return events;
     }
 
     // =====================================================
@@ -1677,7 +1831,7 @@ public class GameManager : MonoBehaviour
     }
 
     private int ResolverAcoesTerrestresGlobais(
-        List<ResultadoAcaoTerrestre> destination)
+        List<ResultadoAcaoTerrestre> destination, string resolutionId)
     {
         foreach (OrdemTerrestre ordem in filaAcoes.CriarCopia())
         {
@@ -1689,8 +1843,11 @@ public class GameManager : MonoBehaviour
                 filaAcoes.Remover(ordem);
         }
 
-        destination.AddRange(resolvedorAcoesTerrestres.Resolver(
-            filaAcoes, gerenciadorRodada.ObterPrioridadeJogadores()));
+        ResultadoAcaoTerrestre[] resolved = resolvedorAcoesTerrestres.Resolver(
+            filaAcoes, gerenciadorRodada.ObterPrioridadeJogadores()).ToArray();
+        destination.AddRange(resolved);
+        weaponRoundRuntime?.ScheduleEnergyFromTerrestrialResults(
+            resolutionId, RodadaAtual, resolved, ObterPlayerId);
         return destination.Count;
     }
 
@@ -1748,6 +1905,35 @@ public class GameManager : MonoBehaviour
         }
 
         return eventos;
+    }
+
+    private static IReadOnlyList<ResolutionVisualEvent>
+        CriarEventosVisuaisAcoesTerrestresComConquistasRegiao(
+            IReadOnlyList<ResultadoAcaoTerrestre> resultados)
+    {
+        List<ResolutionVisualEvent> territoriais =
+            CriarEventosVisuaisAcoesTerrestres(resultados);
+        DefinicaoMapa mapa = MapaAtivo.Instance?.Definicao;
+        if (mapa?.Regioes == null || territoriais.Count == 0)
+            return territoriais;
+
+        var donosAntes = MapaAtivo.ObterTerritoriosOuCena()
+            .Where(territorio => territorio != null &&
+                !string.IsNullOrEmpty(territorio.idTerritorio))
+            .ToDictionary(territorio => territorio.idTerritorio,
+                territorio => territorio.dono, System.StringComparer.Ordinal);
+        for (int index = territoriais.Count - 1; index >= 0; index--)
+        {
+            ResolutionVisualEvent visual = territoriais[index];
+            if (!string.IsNullOrEmpty(visual.DestinationTerritoryId) &&
+                visual.PreviousOwner != visual.NewOwner)
+            {
+                donosAntes[visual.DestinationTerritoryId] = visual.PreviousOwner;
+            }
+        }
+
+        return WDRegionConquestVisualDetector.InterleaveWithTerritoryResults(
+            mapa.Regioes, donosAntes, territoriais);
     }
 
     // =====================================================
@@ -1872,25 +2058,6 @@ public class GameManager : MonoBehaviour
             territorio == territorioDestinoSelecionado ||
             territorio == territorioTransferenciaSelecionado)
             return true;
-
-        if (filaAcoes == null)
-            return false;
-
-        foreach (OrdemTerrestre ordem in filaAcoes.Ordens)
-        {
-            if (ordem.Origem == territorio ||
-                ordem.Destino == territorio)
-                return true;
-        }
-
-        if (filaTransferencias != null)
-        {
-            foreach (OrdemTransferencia ordem in filaTransferencias.Ordens)
-            {
-                if (ordem.Territorio == territorio)
-                    return true;
-            }
-        }
 
         return false;
     }

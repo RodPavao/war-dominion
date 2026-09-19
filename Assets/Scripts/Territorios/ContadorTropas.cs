@@ -481,12 +481,17 @@ public class ContadorTropas : MonoBehaviour
     {
         if (novaVisualizacao != null)
         {
-            bool estadoSemDono = donoVisual == TerritorioClique.Dono.Neutro ||
-                (territorio != null && territorio.UsaOverlaySemDono);
-            Color corFaixa = estadoSemDono
+            bool neutro = territorio != null && territorio.IsNeutral;
+            bool vazio = territorio != null && territorio.IsEmpty;
+            bool estadoSemDono = donoVisual == TerritorioClique.Dono.Neutro || neutro;
+            Color corFaixa = estadoSemDono && !vazio
                 ? PaletaJogadores.ObterCorNeutraAtiva()
                 : PaletaJogadores.ObterCorAtiva(donoVisual);
-            novaVisualizacao.Exibir(quantidade, corFaixa);
+            WDArmyCounterView.VisualState estado = neutro
+                ? WDArmyCounterView.VisualState.Neutral
+                : vazio ? WDArmyCounterView.VisualState.Empty
+                : WDArmyCounterView.VisualState.Normal;
+            novaVisualizacao.Exibir(quantidade, corFaixa, estado);
             return;
         }
 

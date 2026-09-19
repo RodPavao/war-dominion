@@ -189,7 +189,7 @@ public sealed class WDMapVoteControllerTests
     {
         WarDominionMatchFlowConfig config = LoadFlowConfig();
 
-        foreach (string id in new[] { "ffa", "1x1", "2x2", "3x3" })
+        foreach (string id in new[] { "ffa", "1x1", "2x2" })
         {
             WDMatchModeDefinition mode = config.Modes.Single(item => item.Id == id);
             Assert.That(mode.Availability, Is.EqualTo(WDContentAvailability.Available));
@@ -197,8 +197,19 @@ public sealed class WDMapVoteControllerTests
         }
 
         WDMatchModeDefinition threeVsThree = config.Modes.Single(mode => mode.Id == "3x3");
+        Assert.That(threeVsThree.Availability, Is.EqualTo(WDContentAvailability.ComingSoon));
+        Assert.That(threeVsThree.ShowInStandardPlaySelection, Is.True);
         Assert.That(threeVsThree.Submodes.Select(submode => submode.Id),
             Is.EqualTo(new[] { "normal" }));
+        Assert.That(threeVsThree.Submodes[0].Availability,
+            Is.EqualTo(WDContentAvailability.ComingSoon));
+        Assert.That(config.Modes.Single(mode => mode.Id == "1x1").Submodes
+            .Single(item => item.Id == "deckbuilder").Availability,
+            Is.EqualTo(WDContentAvailability.ComingSoon));
+        Assert.That(config.Modes.Where(mode => mode.Id == "1x1" || mode.Id == "2x2")
+            .SelectMany(mode => mode.Submodes).Where(item => item.Id == "normal" ||
+                item.Id == "random_cards").All(item =>
+                    item.Availability == WDContentAvailability.Available), Is.True);
         Assert.That(config.Modes.Single(mode => mode.Id == "battle_royale")
             .ShowInStandardPlaySelection, Is.False);
         Assert.That(config.Modes.Any(mode => mode.Id == "friendly" || mode.Id == "amistosos"),
@@ -256,6 +267,57 @@ public sealed class WDMapVoteControllerTests
     }
 
     [Test]
+    public void PlayPanel_ThreeVsThreeIsVisibleButCannotStartQueue()
+    {
+        GameObject root = BuildPlayPanel(out WDHomeMatchFlowPanel panel);
+        try
+        {
+            FindButton(root, "PARTIDAS").onClick.Invoke();
+            Button threeVsThree = FindButton(root, "BATALHA 3V3");
+
+            Assert.That(threeVsThree, Is.Not.Null);
+            Assert.That(threeVsThree.interactable, Is.False);
+            Assert.That(panel.IsMatchmakingActive, Is.False);
+            Assert.That(panel.CurrentScreen, Is.EqualTo(WDHomeMatchFlowScreen.OfficialMatches));
+        }
+        finally
+        {
+            Object.DestroyImmediate(root);
+        }
+    }
+
+    [Test]
+    public void CancellingQueueClearsOldSetupAndNextAttemptStartsFresh()
+    {
+        WDMatchSetup prior = WDMatchSetupContext.Current;
+        GameObject root = BuildPlayPanel(out WDHomeMatchFlowPanel panel);
+        try
+        {
+            WDMatchSetupContext.Store(new WDMatchSetup("old", "", "classic", "old-scene",
+                "standard", 10, true, 1, System.Array.Empty<WDMatchParticipant>()));
+            FindButton(root, "PARTIDAS").onClick.Invoke();
+            FindButton(root, "BATALHA 1V1").onClick.Invoke();
+            FindButton(root, "NORMAL").onClick.Invoke();
+
+            Assert.That(panel.IsMatchmakingActive, Is.True);
+            Assert.That(WDMatchSetupContext.Current, Is.Null);
+            InvokeBack(root);
+            Assert.That(panel.IsMatchmakingActive, Is.False);
+            Assert.That(WDMatchSetupContext.Current, Is.Null);
+
+            FindButton(root, "RANDOM CARDS").onClick.Invoke();
+            Assert.That(panel.IsMatchmakingActive, Is.True);
+            Assert.That(WDMatchSetupContext.Current, Is.Null);
+        }
+        finally
+        {
+            Object.DestroyImmediate(root);
+            WDMatchSetupContext.Clear();
+            if (prior != null) WDMatchSetupContext.Store(prior);
+        }
+    }
+
+    [Test]
     public void PlayPanel_FriendlyTreePreservesLocalBackContextAndNeverStartsMatch()
     {
         GameObject root = BuildPlayPanel(out WDHomeMatchFlowPanel panel);
@@ -298,14 +360,19 @@ public sealed class WDMapVoteControllerTests
         try
         {
             WDMatchSetup existingSetup = WDMatchSetupContext.Current;
+            string currentTournamentName = new WDTournamentRepository(
+                new WDProfileRepository(LoadProfile()))
+                .CurrentOfficialTournament.Name;
+
             FindButton(root, "TORNEIOS").onClick.Invoke();
             Assert.That(panel.CurrentScreen, Is.EqualTo(WDHomeMatchFlowScreen.OfficialTournaments));
-            Assert.That(VisibleOptionTitles(root), Does.Contain("CAMPEONATO WAR DOMINION"));
+            Assert.That(VisibleOptionTitles(root), Does.Contain(currentTournamentName));
 
-            FindButton(root, "CAMPEONATO WAR DOMINION").onClick.Invoke();
-            Assert.That(panel.CurrentScreen, Is.EqualTo(WDHomeMatchFlowScreen.ProvisionalEndpoint));
+            FindButton(root, currentTournamentName).onClick.Invoke();
+            FindButton(root, "ASSISTIR").onClick.Invoke();
+            Assert.That(panel.CurrentScreen, Is.EqualTo(WDHomeMatchFlowScreen.OfficialTournaments));
             Assert.That(root.GetComponentsInChildren<TextMeshProUGUI>(true)
-                .Any(text => text.text.Contains("Modo Espectador ainda não implementado")), Is.True);
+                .Any(text => text.text.Contains("Spectator real não está disponível")), Is.True);
             Assert.That(panel.IsMatchmakingActive, Is.False);
             Assert.That(WDMatchSetupContext.Current, Is.SameAs(existingSetup));
         }
@@ -325,13 +392,75 @@ public sealed class WDMapVoteControllerTests
             Transform tournaments = playOptions.Find("TORNEIOS");
             tournaments.GetComponent<Button>().onClick.Invoke();
             Assert.That(panel.CurrentScreen, Is.EqualTo(WDHomeMatchFlowScreen.OfficialTournaments));
+            string cardDestinationTitle = MatchFlowTitle(root);
+            string[] cardDestinationOptions = VisibleOptionTitles(root);
 
             InvokeBack(root);
             tournaments = root.transform.Find("MatchFlowPanel/Options/TORNEIOS");
             tournaments.Find("Action").GetComponent<Button>().onClick.Invoke();
             Assert.That(panel.CurrentScreen, Is.EqualTo(WDHomeMatchFlowScreen.OfficialTournaments));
-            Assert.That(root.GetComponentsInChildren<TextMeshProUGUI>(true)
-                .Count(text => text.text == "TORNEIOS"), Is.EqualTo(1));
+            Assert.That(MatchFlowTitle(root), Is.EqualTo(cardDestinationTitle));
+            Assert.That(VisibleOptionTitles(root), Is.EqualTo(cardDestinationOptions));
+            Assert.That(root.transform.Cast<Transform>()
+                .Count(child => child.name == "MatchFlowPanel"), Is.EqualTo(1));
+        }
+        finally
+        {
+            Object.DestroyImmediate(root);
+        }
+    }
+
+    [Test]
+    public void TournamentParticipantPublicProfileBackRestoresSameTournamentParticipantsContext()
+    {
+        WarDominionUITheme theme = Resources.Load<WarDominionUITheme>(
+            "UI/WarDominionUITheme");
+        WDArmoryCatalogConfig armory = Resources.Load<WDArmoryCatalogConfig>(
+            "UI/Home/WDArmoryCatalogConfig");
+        WarDominionHomeData homeData = LoadProfile();
+        var profiles = new WDProfileRepository(homeData);
+        var navigation = new WDNavigationStack();
+        var root = new GameObject("TournamentProfileNavigationTest", typeof(RectTransform));
+        RectTransform matchLayer = WDHomeUIFactory.Rect("MatchLayer", root.transform);
+        RectTransform profileLayer = WDHomeUIFactory.Rect("ProfileLayer", root.transform);
+        var matchPanel = matchLayer.gameObject.AddComponent<WDHomeMatchFlowPanel>();
+        var profilePanel = profileLayer.gameObject.AddComponent<WDHomeProfilePanel>();
+
+        try
+        {
+            navigation.SetRoot(new WDNavigationContext("home", _ =>
+            {
+                matchPanel.HideFromNavigation();
+                profilePanel.HideFromNavigation();
+            }));
+            profilePanel.Build(theme, profiles, navigation, (_, _) => { }, () => { });
+            matchPanel.Build(theme, LoadFlowConfig(), homeData, armory, null,
+                navigation, profiles, profilePanel.OpenPublicProfile);
+
+            matchPanel.Open();
+            FindButton(root, "TORNEIOS").onClick.Invoke();
+            string tournamentName = new WDTournamentRepository(profiles)
+                .CurrentOfficialTournament.Name;
+            FindButton(root, tournamentName).onClick.Invoke();
+            FindButton(root, "PARTICIPANTES").onClick.Invoke();
+            FindButton(root, "VER PERFIL").onClick.Invoke();
+
+            Assert.That(profilePanel.CurrentView, Is.EqualTo(WDProfileView.PublicProfile));
+            FindButton(root, "<  VOLTAR").onClick.Invoke();
+
+            Assert.That(navigation.CurrentId, Is.EqualTo("play/tournaments/generals-cup"));
+            Assert.That(matchPanel.CurrentScreen, Is.EqualTo(WDHomeMatchFlowScreen.OfficialTournaments));
+            Assert.That(MatchFlowTitle(matchLayer.gameObject), Is.EqualTo(tournamentName));
+            Assert.That(MatchFlowSubtitle(matchLayer.gameObject), Does.StartWith("PARTICIPANTES"));
+            Assert.That(matchLayer.GetSiblingIndex(), Is.EqualTo(root.transform.childCount - 1));
+
+            InvokeBack(matchLayer.gameObject);
+            Assert.That(navigation.CurrentId, Is.EqualTo("play/tournaments"));
+            Assert.That(MatchFlowTitle(matchLayer.gameObject), Is.EqualTo("TORNEIOS OFICIAIS"));
+
+            InvokeBack(matchLayer.gameObject);
+            Assert.That(navigation.CurrentId, Is.EqualTo("play"));
+            Assert.That(matchPanel.CurrentScreen, Is.EqualTo(WDHomeMatchFlowScreen.PlayHub));
         }
         finally
         {
@@ -354,6 +483,13 @@ public sealed class WDMapVoteControllerTests
 
     private static void InvokeBack(GameObject root) =>
         root.transform.Find("MatchFlowPanel/Back").GetComponent<Button>().onClick.Invoke();
+
+    private static string MatchFlowTitle(GameObject root) =>
+        root.transform.Find("MatchFlowPanel/Title").GetComponent<TextMeshProUGUI>().text;
+
+    private static string MatchFlowSubtitle(GameObject root) =>
+        root.GetComponentsInChildren<TextMeshProUGUI>(true)
+            .First(text => text.gameObject.name == "Subtitle").text;
 
     private static Button FindButton(GameObject root, string title) =>
         root.GetComponentsInChildren<Button>(true).FirstOrDefault(button =>
@@ -488,7 +624,7 @@ public sealed class WDMapVoteControllerTests
             new WDMatchmakingRequest(mode, submode, "random_teammate"),
             LoadMap("Classic"), LoadProfile(), 0);
 
-        Assert.That(mode.Availability, Is.EqualTo(WDContentAvailability.Available));
+        Assert.That(mode.Availability, Is.EqualTo(WDContentAvailability.ComingSoon));
         Assert.That(setup.Participants, Has.Count.EqualTo(6));
         Assert.That(setup.Participants.Select(item => item.TeamIndex),
             Is.EqualTo(new[] { 0, 1, 0, 1, 0, 1 }));

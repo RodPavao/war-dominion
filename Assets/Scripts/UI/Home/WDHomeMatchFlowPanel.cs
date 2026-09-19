@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
@@ -72,6 +73,7 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
     private float voteTimeRemaining;
     private bool voteActive;
     private int selectedDeckIndex;
+    private bool matchTransitionStarted;
     private WDPreMatchFlowController preMatchFlow;
     private WDMatchmakingRequest matchmakingRequest;
     private Action returnBeforeMatchmaking;
@@ -79,6 +81,11 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
     private bool friendlyPlaceholderOpen;
     private WDHomeMatchFlowScreen currentScreen;
     private WDNavigationStack navigationStack;
+    private WDTournamentRepository tournamentRepository;
+    private WDProfileRepository profileRepository;
+    private Action<string> openPublicProfile;
+    private string selectedTournamentId;
+    private string selectedTournamentTab = "overview";
 
     private const float VoteDurationSeconds = 15f;
     private const string LocalPlayerId = "local_player";
@@ -93,7 +100,9 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
         WarDominionUITheme newTheme, WarDominionMatchFlowConfig newConfig,
         WarDominionHomeData newHomeData, WDArmoryCatalogConfig newArmoryCatalog,
         IWDArmoryRepository newArmoryRepository,
-        WDNavigationStack newNavigationStack = null)
+        WDNavigationStack newNavigationStack = null,
+        WDProfileRepository newProfileRepository = null,
+        Action<string> publicProfileAction = null)
     {
         theme = newTheme;
         config = newConfig;
@@ -101,6 +110,9 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
         armoryCatalog = newArmoryCatalog;
         armoryRepository = newArmoryRepository;
         navigationStack = newNavigationStack;
+        profileRepository = newProfileRepository ?? new WDProfileRepository(newHomeData);
+        openPublicProfile = publicProfileAction;
+        tournamentRepository = new WDTournamentRepository(profileRepository);
         if (navigationStack == null)
         {
             navigationStack = new WDNavigationStack();
@@ -206,6 +218,9 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
 
     public void HideFromNavigation()
     {
+        if (!matchTransitionStarted &&
+            (preMatchFlow != null || voteActive || voteRequest != null || matchmakingRequest != null))
+            WDMatchSetupContext.Clear();
         selectedMode = null;
         selectedSubmode = null;
         voteActive = false;
@@ -216,6 +231,7 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
         matchmakingRequest = null;
         returnBeforeMatchmaking = null;
         selectedDeckIndex = 0;
+        matchTransitionStarted = false;
         friendlyPlaceholderOpen = false;
         currentScreen = WDHomeMatchFlowScreen.None;
         backAction = null;
@@ -287,30 +303,192 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
     private void ShowOfficialTournaments()
     {
         ResetNavigationState(WDHomeMatchFlowScreen.OfficialTournaments);
-        var options = new List<Option>
-        {
-            new("CAMPEONATO WAR DOMINION",
-                "TEMPORADA ATUAL · INSCRIÇÕES FECHADAS · PERÍODO E FORMATO A DEFINIR",
-                WDContentAvailability.Available, ShowSpectatorPlaceholder,
-                actionLabel: "ASSISTIR"),
-            new("DOMÍNIO GLOBAL",
-                "ATIVO · TORNEIO ESTRATÉGICO OFICIAL · DADOS MOCK",
-                WDContentAvailability.Available, ShowTournamentParticipationPlaceholder,
-                actionLabel: "PARTICIPAR"),
-            new("CONFRONTO DE EQUIPES",
-                "ATIVO · FORMATO E PERÍODO A DEFINIR · DADOS MOCK",
-                WDContentAvailability.Available, ShowTournamentParticipationPlaceholder,
-                actionLabel: "PARTICIPAR"),
-            new("BATTLE ROYALE",
-                "FORMATO ESPECIAL · MAIS DETALHES SERÃO REVELADOS EM BREVE",
-                WDContentAvailability.Available, ShowTournamentDetailsPlaceholder,
-                actionLabel: "DETALHES")
-        };
-
-        ShowOptions("TORNEIOS", "ATIVOS   |   EM BREVE   |   ENCERRADOS",
+        var options = new List<Option>();
+        WDTournament current = tournamentRepository.CurrentOfficialTournament;
+        if (current != null)
+            options.Add(TournamentOption(current, "TORNEIO VIGENTE"));
+        foreach (WDTournament upcoming in tournamentRepository.Upcoming)
+            options.Add(TournamentOption(upcoming, "EM BREVE"));
+        foreach (WDTournament closed in tournamentRepository.History.Take(2))
+            options.Add(TournamentOption(closed, "ENCERRADO"));
+        ShowOptions("TORNEIOS OFICIAIS",
+            "UM VIGENTE · FUTUROS EM BREVE · HISTÓRICO ENCERRADO",
             options, RequestNavigationBack,
-            "DADOS PROVISÓRIOS · INSCRIÇÃO OFICIAL CUSTARÁ 10 ESMERALDAS");
+            current == null ? "SEM TORNEIO OFICIAL VIGENTE" :
+            $"SITUAÇÃO: {ParticipationLabel(current.ParticipationOf(profileRepository.LocalProfile.PlayerId))}");
     }
+
+    private Option TournamentOption(WDTournament tournament, string group)
+    {
+        string description = $"{group} · {LifecycleLabel(tournament.Lifecycle)} · " +
+            $"{FormatLabel(tournament.Format)} · {ModeLabel(tournament.CardMode)} · {tournament.Period}";
+        string action = tournament.Lifecycle == WDTournamentLifecycle.RegistrationOpen
+            ? "VER / PARTICIPAR" : "DETALHES";
+        return new Option(tournament.Name, description, WDContentAvailability.Available,
+            () => OpenTournament(tournament.Id), actionLabel: action);
+    }
+
+    // ============================================================
+    // 03. CENTRAL E DETALHE DO TORNEIO OFICIAL
+    // ============================================================
+
+    private void OpenTournament(string tournamentId)
+    {
+        selectedTournamentId = tournamentId;
+        selectedTournamentTab = "overview";
+        NavigateTo($"play/tournaments/{tournamentId}", ShowTournamentDetail);
+    }
+
+    private void ShowTournamentDetail()
+    {
+        WDTournament tournament = tournamentRepository.Find(selectedTournamentId);
+        if (tournament == null)
+        {
+            ShowStatus("TORNEIO INDISPONÍVEL", "Os dados locais deste torneio não foram encontrados.",
+                RequestNavigationBack);
+            return;
+        }
+        ResetNavigationState(WDHomeMatchFlowScreen.OfficialTournaments);
+        if (selectedTournamentTab == "participants") ShowTournamentParticipants(tournament);
+        else if (selectedTournamentTab == "bracket") ShowTournamentBracket(tournament);
+        else ShowTournamentOverview(tournament);
+    }
+
+    private void ShowTournamentOverview(WDTournament tournament)
+    {
+        selectedTournamentTab = "overview";
+        var options = TournamentTabs(tournament);
+        WDTournamentParticipation state = tournament.ParticipationOf(profileRepository.LocalProfile.PlayerId);
+        if (tournament.Lifecycle == WDTournamentLifecycle.RegistrationOpen)
+            options.Add(new Option("CONFIRMAR INSCRIÇÃO",
+                tournament.TeamSize == 1 ? "INSCRIÇÃO INDIVIDUAL" :
+                $"EXIGE EQUIPE JÁ FORMADA COM {tournament.TeamSize} JOGADORES",
+                WDContentAvailability.Available, () => ConfirmTournamentRegistration(tournament),
+                actionLabel: "PARTICIPAR"));
+        WDTournamentMatch next = tournamentRepository.NextMatchFor(tournament.Id,
+            profileRepository.LocalProfile.PlayerId);
+        if (next != null)
+        {
+            if (tournament.DeckSelectionIntentAvailable)
+                options.Add(new Option("ESCOLHER DECK",
+                    "USARÁ A SELEÇÃO DE DECK EXISTENTE NA INTEGRAÇÃO DEFINITIVA",
+                    WDContentAvailability.Available, () => ShowTournamentDeckIntent(tournament),
+                    actionLabel: "ESCOLHER"));
+            options.Add(new Option("SUA PRÓXIMA PARTIDA",
+                $"{EntryName(tournament, next.FirstEntryId)} VS {EntryName(tournament, next.SecondEntryId)} · " +
+                $"{(string.IsNullOrEmpty(next.EntryWindow) ? "JANELA A DEFINIR" : next.EntryWindow)}",
+                WDContentAvailability.Available, () => ShowTournamentMatchIntent(tournament),
+                actionLabel: "ENTRAR"));
+        }
+        if (tournament.SpectatorCapabilityPlanned && tournament.Lifecycle == WDTournamentLifecycle.InProgress)
+            options.Add(new Option("ASSISTIR",
+                "CAPABILITY FUTURA · SPECTATOR NÃO DISPONÍVEL NO PROTÓTIPO",
+                WDContentAvailability.Available, ShowTournamentSpectatorIntent,
+                actionLabel: "INDISPONÍVEL"));
+        ShowOptions(tournament.Name,
+            $"TORNEIO OFICIAL · {LifecycleLabel(tournament.Lifecycle)} · {ParticipationLabel(state)}",
+            options, RequestNavigationBack,
+            $"{FormatLabel(tournament.Format)} · {ModeLabel(tournament.CardMode)} · {tournament.MapRule} · " +
+            $"{tournament.Entries.Count}/{tournament.Capacity} PARTICIPANTES/EQUIPES · {tournament.Period}\n" +
+            $"REGRAS: {tournament.Rules}\nPREMIAÇÃO CONFIGURÁVEL · VALORES E FAIXAS A DEFINIR");
+    }
+
+    private List<Option> TournamentTabs(WDTournament tournament) => new()
+    {
+        new("VISÃO GERAL", "FORMATO, REGRAS, SITUAÇÃO E PRÓXIMA PARTIDA",
+            WDContentAvailability.Available, () => { selectedTournamentTab = "overview"; ShowTournamentDetail(); },
+            selected: selectedTournamentTab == "overview", actionLabel: "ABRIR"),
+        new("PARTICIPANTES", "JOGADORES OU EQUIPES INSCRITAS",
+            WDContentAvailability.Available, () => { selectedTournamentTab = "participants"; ShowTournamentDetail(); },
+            selected: selectedTournamentTab == "participants", actionLabel: "ABRIR"),
+        new("CHAVEAMENTO", "MATA-MATA · ELIMINAÇÃO SIMPLES",
+            WDContentAvailability.Available, () => { selectedTournamentTab = "bracket"; ShowTournamentDetail(); },
+            selected: selectedTournamentTab == "bracket", actionLabel: "ABRIR")
+    };
+
+    private void ShowTournamentParticipants(WDTournament tournament)
+    {
+        selectedTournamentTab = "participants";
+        var options = TournamentTabs(tournament);
+        foreach (WDTournamentEntry entry in tournament.Entries.Take(5))
+        {
+            string members = string.Join(" · ", entry.MemberPlayerIds.Select(id =>
+                profileRepository.Find(id)?.Nickname ?? id));
+            string firstPlayer = entry.MemberPlayerIds.FirstOrDefault();
+            options.Add(new Option(entry.DisplayName, members, WDContentAvailability.Available,
+                string.IsNullOrEmpty(firstPlayer) ? null : () => openPublicProfile?.Invoke(firstPlayer),
+                actionLabel: string.IsNullOrEmpty(firstPlayer) ? null : "VER PERFIL"));
+        }
+        ShowOptions(tournament.Name, "PARTICIPANTES · SELECIONE UM JOGADOR PARA O PERFIL PÚBLICO",
+            options, RequestNavigationBack, tournament.IsReadOnly ? "HISTÓRICO SOMENTE LEITURA" : string.Empty);
+    }
+
+    private void ShowTournamentBracket(WDTournament tournament)
+    {
+        selectedTournamentTab = "bracket";
+        var options = TournamentTabs(tournament);
+        foreach (WDTournamentMatch match in tournament.Matches.Take(7))
+        {
+            string result = match.State == WDTournamentMatchState.Completed
+                ? $"VENCEDOR: {EntryName(tournament, match.WinnerEntryId)} · {match.Score}"
+                : MatchStateLabel(match.State);
+            options.Add(new Option($"RODADA {match.RoundIndex + 1} · JOGO {match.SlotIndex + 1}",
+                $"{EntryName(tournament, match.FirstEntryId)} VS {EntryName(tournament, match.SecondEntryId)} · {result}",
+                WDContentAvailability.Available, null));
+        }
+        ShowOptions(tournament.Name, "CHAVEAMENTO DATA-DRIVEN · ELIMINAÇÃO SIMPLES",
+            options, RequestNavigationBack, tournament.IsReadOnly ? "RESULTADO FINAL · SOMENTE LEITURA" :
+            "PRAZO EXPIRADO NÃO ATRIBUI WO AUTOMATICAMENTE");
+    }
+
+    private void ConfirmTournamentRegistration(WDTournament tournament)
+    {
+        string local = profileRepository.LocalProfile.PlayerId;
+        WDTournamentRegistrationResult result = tournament.TeamSize == 1
+            ? tournamentRepository.Register(tournament.Id, local)
+            : WDTournamentRegistrationResult.IncompleteTeam;
+        ShowTournamentDetail();
+        feedbackLabel.text = result == WDTournamentRegistrationResult.Success
+            ? "INSCRIÇÃO CONFIRMADA." : result == WDTournamentRegistrationResult.IncompleteTeam
+                ? "INSCRIÇÃO REQUER EQUIPE COMPLETA JÁ FORMADA. MATCHMAKING NÃO É USADO."
+                : $"INSCRIÇÃO NÃO REALIZADA: {result}.";
+    }
+
+    private void ShowTournamentMatchIntent(WDTournament tournament)
+    {
+        ShowStatus("ENTRAR NA PARTIDA",
+            tournament.DeckSelectionIntentAvailable
+                ? "Intenção registrada. A seleção de deck usará a infraestrutura existente quando a integração oficial estiver disponível. Nenhuma partida foi iniciada."
+                : "Este modo usa Random Cards. Nenhuma partida foi iniciada.",
+            ShowTournamentDetail);
+    }
+
+    private void ShowTournamentDeckIntent(WDTournament tournament)
+    {
+        ShowStatus("ESCOLHER DECK",
+            "A intenção foi reconhecida. O torneio reutilizará a infraestrutura existente de decks quando o lock definitivo da partida for integrado. Nenhum deck ou gameplay foi alterado.",
+            ShowTournamentDetail);
+    }
+
+    private void ShowTournamentSpectatorIntent()
+    {
+        ShowStatus("ASSISTIR",
+            "Spectator real não está disponível no protótipo. Nenhuma câmera, conexão ou partida foi criada.",
+            ShowTournamentDetail);
+    }
+
+    private string EntryName(WDTournament tournament, string entryId) =>
+        tournament.Entries.FirstOrDefault(entry => entry.Id == entryId)?.DisplayName ?? "PENDENTE";
+    private static string FormatLabel(WDTournamentFormat value) => value switch
+    { WDTournamentFormat.OneVsOne => "1V1", WDTournamentFormat.TwoVsTwo => "2V2", _ => "3V3" };
+    private static string ModeLabel(WDTournamentCardMode value) =>
+        value == WDTournamentCardMode.Normal ? "NORMAL" : "RANDOM CARDS";
+    private static string LifecycleLabel(WDTournamentLifecycle value) => value switch
+    { WDTournamentLifecycle.ComingSoon => "EM BREVE", WDTournamentLifecycle.RegistrationOpen => "INSCRIÇÕES ABERTAS", WDTournamentLifecycle.InProgress => "EM ANDAMENTO", _ => "ENCERRADO" };
+    private static string ParticipationLabel(WDTournamentParticipation value) => value switch
+    { WDTournamentParticipation.NotRegistered => "NÃO INSCRITO", WDTournamentParticipation.Registered => "INSCRITO", WDTournamentParticipation.Competing => "EM DISPUTA", WDTournamentParticipation.Qualified => "CLASSIFICADO", WDTournamentParticipation.Eliminated => "ELIMINADO", _ => "CAMPEÃO" };
+    private static string MatchStateLabel(WDTournamentMatchState value) => value switch
+    { WDTournamentMatchState.Next => "PRÓXIMA", WDTournamentMatchState.InProgress => "EM ANDAMENTO", WDTournamentMatchState.Completed => "CONCLUÍDA", _ => "PENDENTE" };
 
     private void ShowFriendlyHub()
     {
@@ -382,23 +560,6 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
             RequestNavigationBack);
     }
 
-    private void ShowTournamentParticipationPlaceholder() =>
-        NavigateToProvisionalEndpoint("tournaments/participate", "PARTICIPAR");
-
-    private void ShowTournamentDetailsPlaceholder() =>
-        NavigateToProvisionalEndpoint("tournaments/details", "DETALHES DO TORNEIO");
-
-    private void ShowSpectatorPlaceholder()
-    {
-        NavigateTo("play/tournaments/spectate", () =>
-        {
-            ResetNavigationState(WDHomeMatchFlowScreen.ProvisionalEndpoint);
-            ShowStatus("ASSISTIR",
-                "Modo Espectador ainda não implementado. Nenhuma partida foi carregada como jogador.",
-                RequestNavigationBack);
-        });
-    }
-
     private void RestorePlayHub()
     {
         gameObject.SetActive(true);
@@ -419,6 +580,7 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
         navigationStack.Push(new WDNavigationContext(id, _ =>
         {
             gameObject.SetActive(true);
+            transform.SetAsLastSibling();
             restore();
         }));
     }
@@ -443,6 +605,7 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
         if (!WDContentAvailabilityRules.IsAvailable(mode.Availability))
             return;
 
+        WDMatchSetupContext.Clear();
         currentScreen = WDHomeMatchFlowScreen.CompetitiveFlow;
         selectedMode = mode;
         switch (mode.Destination)
@@ -484,6 +647,7 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
         if (!WDContentAvailabilityRules.IsAvailable(submode.Availability))
             return;
 
+        WDMatchSetupContext.Clear();
         selectedSubmode = submode;
         if (submode.Destination == WDMatchFlowDestination.TeamFormation)
             ShowTeamFormation();
@@ -521,7 +685,7 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
 
     private void SelectClanTeammate()
     {
-        if (!homeData.HasClan)
+        if (string.IsNullOrWhiteSpace(profileRepository.LocalProfile.Clan))
         {
             feedbackLabel.text = "É necessário participar de um clã para convidar companheiros.";
             return;
@@ -555,6 +719,25 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
 
     private void BeginMatchmaking(WDMatchmakingRequest request, Action onCancel)
     {
+        // 04. Toda tentativa local começa sem contexto ou temporizador anterior.
+        WDMatchSetupContext.Clear();
+        voteActive = false;
+        mapVote = null;
+        voteRequest = null;
+        matchTransitionStarted = false;
+        if (request == null || selectedMode == null ||
+            !WDContentAvailabilityRules.IsAvailable(selectedMode.Availability) ||
+            request.ModeId != selectedMode.Id ||
+            (request.GroupSize > 1 && string.IsNullOrWhiteSpace(request.TeamFormation)) ||
+            (selectedSubmode == null && !string.IsNullOrEmpty(request.SubmodeId)) ||
+            (selectedSubmode != null &&
+             (!WDContentAvailabilityRules.IsAvailable(selectedSubmode.Availability) ||
+              !selectedMode.Submodes.Contains(selectedSubmode) ||
+              request.SubmodeId != selectedSubmode.Id)))
+        {
+            ShowStatus("PARTIDA INDISPONÍVEL", "Modalidade indisponível para esta tentativa.", onCancel);
+            return;
+        }
         matchmakingRequest = request;
         returnBeforeMatchmaking = onCancel;
         preMatchFlow = new WDPreMatchFlowController();
@@ -582,6 +765,7 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
         preMatchFlow = null;
         matchmakingRequest = null;
         returnBeforeMatchmaking = null;
+        WDMatchSetupContext.Clear();
         destination?.Invoke();
     }
 
@@ -618,7 +802,8 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
 
     private void ShowFixedMapResult(WDMatchmakingRequest request)
     {
-        selectedDeckIndex = homeData.DefaultDeckIndex;
+        selectedDeckIndex = armoryRepository?.Load(armoryCatalog)?.ActiveDeckIndex ??
+            homeData.DefaultDeckIndex;
         CompleteMatchSetup(request, request.FixedMapId);
     }
 
@@ -639,7 +824,8 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
             request.ModeId, request.EligibleMaps));
         voteRequest = request;
         returnAfterVoting = onBack;
-        selectedDeckIndex = homeData.DefaultDeckIndex;
+        selectedDeckIndex = armoryRepository?.Load(armoryCatalog)?.ActiveDeckIndex ??
+            homeData.DefaultDeckIndex;
 
         if (mapVote.Candidates.Count == 0)
         {
@@ -671,15 +857,18 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
                 () => ToggleLocalVote(mapId), GetMapThumbnail(mapId), isSelected));
         }
 
-        bool usesProfileDeck = voteRequest != null &&
-            voteRequest.DeckSelectionEnabled;
-        for (int i = 0; usesProfileDeck && i < homeData.Decks.Count; i++)
+        bool usesProfileDeck = voteRequest != null && voteRequest.DeckSelectionEnabled;
+        WDArmoryProfile armoryProfile = usesProfileDeck
+            ? armoryRepository?.Load(armoryCatalog) : null;
+        for (int i = 0; armoryProfile != null && i < armoryProfile.Decks.Count; i++)
         {
             int deckIndex = i;
-            WDDeckProfile deck = homeData.Decks[i];
+            if (!armoryProfile.IsDeckUnlocked(i))
+                continue;
+            WDSavedWeaponDeck deck = armoryProfile.GetDeck(i);
             bool isSelected = deckIndex == selectedDeckIndex;
             options.Add(new Option(
-                deck.DisplayName,
+                $"DECK {i + 1} · {deck.Name}",
                 isSelected ? "DECK SELECIONADO" : "Usar nesta partida",
                 WDContentAvailability.Available,
                 () => SelectDeck(deckIndex), null, isSelected));
@@ -708,7 +897,8 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
 
     private void SelectDeck(int deckIndex)
     {
-        if (!voteActive || deckIndex < 0 || deckIndex >= homeData.Decks.Count)
+        WDArmoryProfile profile = armoryRepository?.Load(armoryCatalog);
+        if (!voteActive || profile == null || !profile.IsDeckUnlocked(deckIndex))
             return;
 
         selectedDeckIndex = deckIndex;
@@ -731,6 +921,19 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
 
     private void CompleteMatchSetup(WDMatchmakingRequest request, string mapId)
     {
+        if (matchTransitionStarted)
+            return;
+        if (request == null || homeData == null ||
+            armoryCatalog == null || armoryRepository == null ||
+            config == null || !config.IsMapAllowedForMode(request.ModeId, mapId) ||
+            (request.MapSelectionPolicy == WDMapSelectionPolicy.Vote &&
+             (mapVote == null || !mapVote.Candidates.Any(item => item.MapId == mapId))))
+        {
+            WDMatchSetupContext.Clear();
+            ShowStatus("PARTIDA INDISPONÍVEL", "Configuração de partida incompleta.",
+                returnBeforeMatchmaking);
+            return;
+        }
         DefinicaoMapa map = GetMapDefinition(mapId);
         if (map == null)
         {
@@ -742,14 +945,38 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
         }
 
         WDArmoryProfile armoryProfile = armoryRepository?.Load(armoryCatalog);
+        if (armoryProfile == null ||
+            (!WDMatchSetup.IsRandomCardsRule(request.CardRuleId) &&
+             !armoryProfile.IsDeckUnlocked(selectedDeckIndex)))
+        {
+            WDMatchSetupContext.Clear();
+            ShowStatus("PARTIDA INDISPONÍVEL", "Deck selecionado não está disponível.",
+                returnBeforeMatchmaking);
+            return;
+        }
         WDMatchSetup setup = WDMatchSetupFactory.Create(
             request, map, homeData, selectedDeckIndex, 0,
             armoryCatalog, armoryProfile);
+        int effectiveDeckIndex = request.MapSelectionPolicy == WDMapSelectionPolicy.Fixed ||
+            !request.DeckSelectionEnabled
+            ? armoryProfile.ActiveDeckIndex : selectedDeckIndex;
+        if (!WDMatchSetupFactory.IsReadyForEntry(setup, request, mapId,
+            effectiveDeckIndex, armoryCatalog))
+        {
+            WDMatchSetupContext.Clear();
+            ShowStatus("PARTIDA INDISPONÍVEL",
+                "Deck ou participantes inválidos para iniciar a partida. Verifique o deck salvo no Arsenal.",
+                returnBeforeMatchmaking);
+            return;
+        }
+        matchTransitionStarted = true;
         WDMatchSetupContext.Store(setup);
         GetComponentInParent<WarDominionHomeController>()?
             .PrepareForSceneTransition();
         if (!WDMatchSetupContext.TryLoadCurrentScene())
         {
+            matchTransitionStarted = false;
+            WDMatchSetupContext.Clear();
             ShowStatus(
                 "PARTIDA INDISPONÍVEL",
                 "A cena do mapa não está configurada para carregamento.",

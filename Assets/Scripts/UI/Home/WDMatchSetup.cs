@@ -59,6 +59,7 @@ public sealed class WDMatchSetup
     public int RoundLimit { get; }
     public bool SuddenDeathEnabled { get; }
     public int DeterministicSeed { get; }
+    public string MatchId { get; }
     public IReadOnlyList<WDMatchParticipant> Participants { get; }
     public bool IsOneVsOne => ModeId == "1x1" && Participants.Count == 2 &&
         Participants[0].TeamIndex != Participants[1].TeamIndex;
@@ -76,7 +77,8 @@ public sealed class WDMatchSetup
     public WDMatchSetup(
         string modeId, string submodeId, string mapId, string scenePath,
         string cardRuleId, int roundLimit, bool suddenDeathEnabled,
-        int deterministicSeed, IReadOnlyList<WDMatchParticipant> participants)
+        int deterministicSeed, IReadOnlyList<WDMatchParticipant> participants,
+        string matchId = null)
     {
         ModeId = modeId ?? string.Empty;
         SubmodeId = submodeId ?? string.Empty;
@@ -86,6 +88,7 @@ public sealed class WDMatchSetup
         RoundLimit = roundLimit;
         SuddenDeathEnabled = suddenDeathEnabled;
         DeterministicSeed = deterministicSeed;
+        MatchId = string.IsNullOrWhiteSpace(matchId) ? "WD-" + Guid.NewGuid().ToString("N") : matchId;
         Participants = participants ?? Array.Empty<WDMatchParticipant>();
     }
 }
@@ -255,10 +258,11 @@ public static class WDMatchSetupFactory
         bool usesProfileDeck = !usesRandomCards;
         int deckIndex = request.MapSelectionPolicy == WDMapSelectionPolicy.Fixed ||
             !request.DeckSelectionEnabled
-            ? profile.DefaultDeckIndex
+            ? armoryProfile?.ActiveDeckIndex ?? profile.DefaultDeckIndex
             : selectedDeckIndex;
-        WDDeckProfile deck = profile.GetDeck(deckIndex);
-        string deckId = usesProfileDeck ? deck.Id : string.Empty;
+        string deckId = !usesProfileDeck ? string.Empty : armoryProfile != null
+            ? $"deck_{deckIndex + 1}"
+            : profile.GetDeck(deckIndex).Id;
         int participantCount = Mathf.Max(1, request.MatchSize);
         var participants = new List<WDMatchParticipant>(participantCount);
         WDMatchWeaponLoadoutSnapshot localLoadout = CreateWeaponSnapshot(
@@ -303,6 +307,67 @@ public static class WDMatchSetupFactory
             ? WDMatchWeaponSnapshotFactory.CreateRandomCards(catalog, profile)
             : WDMatchWeaponSnapshotFactory.CreateNormal(
                 deckId, deckIndex, catalog, profile);
+
+    // 05. A entrada valida o contexto pronto, sem alterar a criação de snapshots.
+    public static bool IsReadyForEntry(WDMatchSetup setup, WDMatchmakingRequest request,
+        string expectedMapId, int expectedDeckIndex, WDArmoryCatalogConfig catalog = null)
+    {
+        if (setup == null || request == null || string.IsNullOrWhiteSpace(expectedMapId) ||
+            setup.ModeId != request.ModeId || setup.SubmodeId != request.SubmodeId ||
+            setup.MapId != expectedMapId || string.IsNullOrWhiteSpace(setup.ScenePath) ||
+            (request.MapSelectionPolicy == WDMapSelectionPolicy.Fixed &&
+             setup.MapId != request.FixedMapId) ||
+            setup.CardRuleId != request.CardRuleId ||
+            setup.Participants.Count != request.MatchSize || request.MatchSize < 2 ||
+            request.GroupSize < 1 || request.MatchSize % request.GroupSize != 0 ||
+            setup.Participants.Count(item => item.Kind == WDMatchParticipantKind.Local) != 1 ||
+            setup.Participants.Select(item => item.PlayerId).Distinct(StringComparer.Ordinal).Count() !=
+                setup.Participants.Count ||
+            setup.Participants.Select(item => item.SlotIndex).Distinct().Count() !=
+                setup.Participants.Count)
+            return false;
+
+        int teamCount = request.MatchSize / request.GroupSize;
+        if (setup.Participants.Any(item => item.TeamIndex < 0 || item.TeamIndex >= teamCount) ||
+            setup.Participants.GroupBy(item => item.TeamIndex).Any(team =>
+                team.Count() != request.GroupSize))
+            return false;
+
+        bool randomCards = WDMatchSetup.IsRandomCardsRule(request.CardRuleId);
+        string expectedDeckId = $"deck_{expectedDeckIndex + 1}";
+        return setup.Participants.All(item =>
+            IsPlayableSnapshot(item.WeaponLoadout, randomCards, catalog) &&
+            (randomCards
+                ? string.IsNullOrEmpty(item.DeckId) &&
+                  string.IsNullOrEmpty(item.WeaponLoadout.DeckId)
+                : item.DeckId == expectedDeckId &&
+                  item.WeaponLoadout.DeckId == expectedDeckId));
+    }
+
+    private static bool IsPlayableSnapshot(WDMatchWeaponLoadoutSnapshot snapshot,
+        bool randomCards, WDArmoryCatalogConfig catalog)
+    {
+        if (snapshot == null) return false;
+        if (snapshot.IsValid) return true;
+        // O Arsenal permite slots vazios: eles não tornam inválidas as armas equipadas.
+        if (randomCards || snapshot.Status != WDMatchWeaponSnapshotStatus.IncompleteDeck ||
+            catalog == null || snapshot.MainSlots.Count != WDSavedWeaponDeck.MainSlotCount ||
+            snapshot.SupportSlots.Count != WDSavedWeaponDeck.SupportSlotCount ||
+            snapshot.UniversalWeapons.Count != 1 || snapshot.UniversalWeapons[0].Level < 1)
+            return false;
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (WDMatchWeaponSlotSnapshot slot in snapshot.MainSlots.Concat(snapshot.SupportSlots))
+        {
+            if (string.IsNullOrWhiteSpace(slot.WeaponId)) continue;
+            WDWeaponDefinition weapon = catalog.FindWeapon(slot.WeaponId);
+            if (weapon == null || (slot.WeaponId == WDMatchWeaponSnapshotFactory.UniversalEnergyPlantId &&
+                slot.Kind != WDMatchWeaponSlotKind.Main) ||
+                !seen.Add(slot.WeaponId) || slot.Level < 1 || slot.Level > weapon.MaximumLevel ||
+                slot.Kind == WDMatchWeaponSlotKind.Support && !catalog.IsSupportEligible(weapon))
+                return false;
+        }
+        return true;
+    }
 
     private static string GetMetadata(DefinicaoMapa map, string key)
     {

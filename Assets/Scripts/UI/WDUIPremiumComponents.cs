@@ -1,3 +1,4 @@
+using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -74,9 +75,11 @@ public sealed class WDUIPremiumButton : MonoBehaviour,
     private bool selected;
     private bool hovered;
     private bool pressed;
+    private bool hoverFeedbackEnabled = true;
     private bool useCustomColors;
     private Color customNormal;
     private Color customHover;
+    private Coroutine deniedFeedback;
 
     public void Build(WarDominionUITheme newTheme, string text, UnityAction action)
     {
@@ -108,6 +111,14 @@ public sealed class WDUIPremiumButton : MonoBehaviour,
         AtualizarVisual();
     }
     public void SetSelected(bool value) { selected = value; AtualizarVisual(); }
+    public bool HoverFeedbackEnabled => hoverFeedbackEnabled;
+    public void SetHoverFeedbackEnabled(bool value)
+    {
+        hoverFeedbackEnabled = value;
+        if (!value)
+            hovered = false;
+        AtualizarVisual();
+    }
     public void SetPersistentColors(Color normal, Color hover)
     {
         useCustomColors = true;
@@ -116,7 +127,30 @@ public sealed class WDUIPremiumButton : MonoBehaviour,
         AtualizarVisual();
     }
 
-    public void OnPointerEnter(PointerEventData eventData) { hovered = true; AtualizarVisual(); }
+    public void PlayDeniedFeedback()
+    {
+        if (!isActiveAndEnabled)
+            return;
+        if (deniedFeedback != null)
+            StopCoroutine(deniedFeedback);
+        deniedFeedback = StartCoroutine(AnimateDeniedFeedback());
+    }
+
+    private IEnumerator AnimateDeniedFeedback()
+    {
+        transform.localScale = Vector3.one * 0.96f;
+        yield return new WaitForSecondsRealtime(0.08f);
+        transform.localScale = Vector3.one;
+        deniedFeedback = null;
+    }
+
+    public void OnPointerEnter(PointerEventData eventData)
+    {
+        if (!hoverFeedbackEnabled)
+            return;
+        hovered = true;
+        AtualizarVisual();
+    }
     public void OnPointerExit(PointerEventData eventData) { hovered = false; pressed = false; AtualizarVisual(); }
     public void OnPointerDown(PointerEventData eventData) { pressed = true; AtualizarVisual(); }
     public void OnPointerUp(PointerEventData eventData) { pressed = false; AtualizarVisual(); }

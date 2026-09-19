@@ -143,7 +143,7 @@ MonoBehaviour:
   - id: 3x3
     displayName: BATALHA 3V3
     description: "Estrat\xE9gia com tr\xEAs jogadores por equipe"
-    availability: 0
+    availability: 1
     showInStandardPlaySelection: 1
     destination: 1
     groupSize: 3
@@ -158,7 +158,7 @@ MonoBehaviour:
     - id: normal
       displayName: NORMAL
       description: "Cada jogador utiliza seu deck padr\xE3o"
-      availability: 0
+      availability: 1
       destination: 2
       cardRuleId: standard_deck
       deckSelectionEnabled: 0

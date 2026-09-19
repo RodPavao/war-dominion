@@ -15,45 +15,89 @@ public sealed class WDHomeArmoryPanel : MonoBehaviour
     private WarDominionUITheme theme;
     private WDArmoryService service;
     private IWDArmoryRepository repository;
+    private WDNavigationStack navigation;
     private Action lockedDeckAction;
     private readonly WDArmoryVipNavigation vipNavigation = new();
     private RectTransform deckTabs;
     private RectTransform mainSlots;
     private RectTransform supportSlots;
     private RectTransform collectionContent;
+    private TextMeshProUGUI activeDeckLabel;
     private TextMeshProUGUI currencyLabel;
     private TextMeshProUGUI statusLabel;
     private TMP_InputField deckNameInput;
-    private WDUIPremiumButton vipButton;
+    private RectTransform weaponTab;
+    private RectTransform deckTab;
+    private RectTransform weaponView;
+    private RectTransform deckView;
+    private RectTransform weaponFilters;
+    private RectTransform weaponList;
+    private TextMeshProUGUI weaponDetail;
+    private WDUIPremiumButton selectedUpgrade;
+    private string categoryFilter;
+    private string selectedWeaponId;
+    private bool showingDecks;
     private int selectedDeckIndex;
     private bool editingSupport;
     private int selectedSlot;
 
     public bool IsOpen => gameObject.activeSelf;
     public WDArmoryVipNavigation VipNavigation => vipNavigation;
+    public WDArmoryService Service => service;
+    public bool ShowingDecks => showingDecks;
+    public string SelectedWeaponId => selectedWeaponId;
+    public string CategoryFilter => categoryFilter;
+    public int SelectedDeckIndex => selectedDeckIndex;
 
     public void Build(
         WarDominionUITheme newTheme, WDArmoryCatalogConfig catalog,
-        IWDArmoryRepository newRepository, Action onLockedDeck)
+        IWDArmoryRepository newRepository, Action onLockedDeck,
+        WDNavigationStack navigationStack = null)
     {
         theme = newTheme;
         repository = newRepository;
+        navigation = navigationStack;
         lockedDeckAction = onLockedDeck;
         WDArmoryProfile profile = repository.Load(catalog);
         service = new WDArmoryService(catalog, profile);
+        selectedWeaponId = catalog.Weapons.FirstOrDefault()?.Id;
         BuildSurface();
         gameObject.SetActive(false);
     }
 
     public void Open()
     {
+        // 02. Trocas do Clã podem atualizar os tokens enquanto o Arsenal está fechado.
+        service = new WDArmoryService(service.Catalog, repository.Load(service.Catalog));
+        if (navigation != null)
+        {
+            navigation.Push(new WDNavigationContext("armory", _ => RestoreFromNavigation()));
+            return;
+        }
+        RestoreFromNavigation();
+    }
+
+    private void RestoreFromNavigation()
+    {
         vipNavigation.ReturnToArmory();
         gameObject.SetActive(true);
         selectedDeckIndex = Mathf.Clamp(selectedDeckIndex, 0, WDArmoryProfile.SavedDeckCount - 1);
+        if (!service.Profile.IsDeckUnlocked(selectedDeckIndex)) selectedDeckIndex = 0;
+        transform.SetAsLastSibling();
         RebuildAll();
     }
 
     public void Close()
+    {
+        if (navigation != null && navigation.CurrentId == "armory")
+        {
+            navigation.TryBack();
+            return;
+        }
+        HideFromNavigation();
+    }
+
+    public void HideFromNavigation()
     {
         Persist();
         gameObject.SetActive(false);
@@ -85,27 +129,35 @@ public sealed class WDHomeArmoryPanel : MonoBehaviour
         surface.color = theme.BackgroundElevated;
 
         TextMeshProUGUI title = WDHomeUIFactory.Text(
-            "Title", panel, theme, "ARMAS", theme.TypeDisplay,
+            "Title", panel, theme, "ARSENAL", theme.TypeDisplay,
             theme.TextoPrincipal, TextAlignmentOptions.Left);
         title.fontStyle = FontStyles.Bold;
-        SetAnchored(title.rectTransform, new Vector2(0f, 0.91f), new Vector2(0.5f, 1f), 24f, 8f, -8f, -8f);
+        SetAnchored(title.rectTransform, new Vector2(0.16f, 0.91f), new Vector2(0.48f, 1f), 0f, 8f, -8f, -8f);
 
         currencyLabel = WDHomeUIFactory.Text(
             "Currencies", panel, theme, string.Empty, theme.TypeBody,
             theme.TextoSecundario, TextAlignmentOptions.Right);
         SetAnchored(currencyLabel.rectTransform, new Vector2(0.48f, 0.92f), new Vector2(0.84f, 1f), 0f, 8f, -8f, -8f);
 
-        RectTransform vipRect = WDHomeUIFactory.Rect("DevelopmentVip", panel);
-        SetAnchored(vipRect, new Vector2(0.84f, 0.92f), new Vector2(0.95f, 0.99f), 4f, 0f, -4f, 0f);
-        vipButton = vipRect.gameObject.AddComponent<WDUIPremiumButton>();
-        vipButton.Build(theme, string.Empty, ToggleDevelopmentVip);
+        RectTransform closeRect = WDHomeUIFactory.Rect("Back", panel);
+        SetAnchored(closeRect, new Vector2(0.02f, 0.90f), new Vector2(0.13f, 0.98f), 0f, 0f, 0f, 0f);
+        closeRect.gameObject.AddComponent<WDUIPremiumButton>().Build(theme, "<  VOLTAR", Close);
 
-        RectTransform closeRect = WDHomeUIFactory.Rect("Close", panel);
-        SetAnchored(closeRect, new Vector2(0.95f, 0.92f), Vector2.one, 5f, 0f, -5f, 0f);
-        closeRect.gameObject.AddComponent<WDUIPremiumButton>().Build(theme, "X", Close);
+        weaponTab = WDHomeUIFactory.Rect("WeaponsTab", panel);
+        SetAnchored(weaponTab, new Vector2(0.38f, 0.85f), new Vector2(0.49f, 0.92f), 0f, 0f, 0f, 0f);
+        weaponTab.gameObject.AddComponent<WDUIPremiumButton>().Build(theme, "ARMAS", () => SelectTab(false));
+        deckTab = WDHomeUIFactory.Rect("DecksTab", panel);
+        SetAnchored(deckTab, new Vector2(0.50f, 0.85f), new Vector2(0.61f, 0.92f), 0f, 0f, 0f, 0f);
+        deckTab.gameObject.AddComponent<WDUIPremiumButton>().Build(theme, "DECKS", () => SelectTab(true));
 
-        deckTabs = WDHomeUIFactory.Rect("DeckTabs", panel);
-        SetAnchored(deckTabs, new Vector2(0f, 0.82f), new Vector2(1f, 0.91f), 22f, 2f, -22f, -2f);
+        weaponView = WDHomeUIFactory.Rect("WeaponsView", panel);
+        SetAnchored(weaponView, new Vector2(0f, 0.08f), new Vector2(1f, 0.84f), 8f, 0f, -8f, 0f);
+        BuildWeaponsView();
+        deckView = WDHomeUIFactory.Rect("DecksView", panel);
+        SetAnchored(deckView, new Vector2(0f, 0.08f), new Vector2(1f, 0.84f), 8f, 0f, -8f, 0f);
+
+        deckTabs = WDHomeUIFactory.Rect("DeckTabs", deckView);
+        SetAnchored(deckTabs, new Vector2(0f, 0.86f), new Vector2(1f, 1f), 22f, 2f, -22f, -2f);
         HorizontalLayoutGroup tabsLayout = deckTabs.gameObject.AddComponent<HorizontalLayoutGroup>();
         tabsLayout.spacing = 10f;
         tabsLayout.childControlWidth = true;
@@ -113,10 +165,23 @@ public sealed class WDHomeArmoryPanel : MonoBehaviour
         tabsLayout.childForceExpandWidth = true;
         tabsLayout.childForceExpandHeight = true;
 
-        RectTransform composition = CreateSection("DeckComposition", panel, new Vector2(0f, 0.08f), new Vector2(0.56f, 0.81f));
+        activeDeckLabel = WDHomeUIFactory.Text("ActiveDeck", deckView, theme,
+            string.Empty, theme.TypeMicro, theme.Acento);
+        SetAnchored(activeDeckLabel.rectTransform, new Vector2(0.02f, 0.79f),
+            new Vector2(0.35f, 0.85f), 0f, 0f, 0f, 0f);
+        RectTransform activate = WDHomeUIFactory.Rect("ActivateDeck", deckView);
+        SetAnchored(activate, new Vector2(0.37f, 0.78f), new Vector2(0.57f, 0.85f),
+            0f, 0f, 0f, 0f);
+        activate.gameObject.AddComponent<WDUIPremiumButton>().Build(theme, "ATIVAR DECK", ActivateDeck);
+        RectTransform save = WDHomeUIFactory.Rect("SaveDeck", deckView);
+        SetAnchored(save, new Vector2(0.78f, 0.78f), new Vector2(0.98f, 0.85f),
+            0f, 0f, 0f, 0f);
+        save.gameObject.AddComponent<WDUIPremiumButton>().Build(theme, "SALVAR DECK", SaveDeck);
+
+        RectTransform composition = CreateSection("DeckComposition", deckView, new Vector2(0f, 0f), new Vector2(0.56f, 0.76f));
         BuildComposition(composition);
 
-        RectTransform collection = CreateSection("Collection", panel, new Vector2(0.565f, 0.08f), new Vector2(1f, 0.81f));
+        RectTransform collection = CreateSection("Collection", deckView, new Vector2(0.565f, 0f), new Vector2(1f, 0.76f));
         BuildCollection(collection);
 
         statusLabel = WDHomeUIFactory.Text(
@@ -199,6 +264,117 @@ public sealed class WDHomeArmoryPanel : MonoBehaviour
         scroll.movementType = ScrollRect.MovementType.Clamped;
     }
 
+    // ============================================================
+    // 03. CATÁLOGO CANÔNICO, FILTROS E DETALHE DA ARMA
+    // ============================================================
+
+    private void BuildWeaponsView()
+    {
+        weaponFilters = WDHomeUIFactory.Rect("WeaponFilters", weaponView);
+        SetAnchored(weaponFilters, new Vector2(0f, 0.87f), Vector2.one, 12f, 0f, -12f, 0f);
+        HorizontalLayoutGroup filters = weaponFilters.gameObject.AddComponent<HorizontalLayoutGroup>();
+        filters.spacing = 8f; filters.childControlWidth = true; filters.childControlHeight = true;
+        filters.childForceExpandWidth = true; filters.childForceExpandHeight = true;
+
+        RectTransform list = CreateSection("WeaponCatalogue", weaponView,
+            new Vector2(0f, 0f), new Vector2(0.66f, 0.85f));
+        RectTransform viewport = WDHomeUIFactory.Rect("Viewport", list);
+        WDHomeUIFactory.Stretch(viewport, 12f, 12f, 12f, 12f);
+        Image mask = viewport.gameObject.AddComponent<Image>(); mask.color = theme.BackgroundPrimary;
+        viewport.gameObject.AddComponent<Mask>().showMaskGraphic = false;
+        weaponList = WDHomeUIFactory.Rect("Content", viewport);
+        weaponList.anchorMin = weaponList.anchorMax = new Vector2(0.5f, 1f);
+        weaponList.pivot = new Vector2(0.5f, 1f);
+        weaponList.sizeDelta = Vector2.zero;
+        GridLayoutGroup grid = weaponList.gameObject.AddComponent<GridLayoutGroup>();
+        grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount; grid.constraintCount = 3;
+        grid.cellSize = new Vector2(190f, 92f); grid.spacing = new Vector2(10f, 10f);
+        ContentSizeFitter fitter = weaponList.gameObject.AddComponent<ContentSizeFitter>();
+        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+        ScrollRect scroll = list.gameObject.AddComponent<ScrollRect>();
+        scroll.viewport = viewport; scroll.content = weaponList;
+        scroll.horizontal = false; scroll.movementType = ScrollRect.MovementType.Clamped;
+
+        RectTransform detail = CreateSection("WeaponDetail", weaponView,
+            new Vector2(0.67f, 0f), new Vector2(1f, 0.85f));
+        weaponDetail = WDHomeUIFactory.Text("Detail", detail, theme, string.Empty,
+            theme.TypeBody, theme.TextoPrincipal);
+        SetAnchored(weaponDetail.rectTransform, new Vector2(0.06f, 0.20f),
+            new Vector2(0.94f, 0.95f), 0f, 0f, 0f, 0f);
+        RectTransform upgrade = WDHomeUIFactory.Rect("Evolve", detail);
+        SetAnchored(upgrade, new Vector2(0.06f, 0.04f), new Vector2(0.94f, 0.16f), 0f, 0f, 0f, 0f);
+        selectedUpgrade = upgrade.gameObject.AddComponent<WDUIPremiumButton>();
+        selectedUpgrade.Build(theme, "EVOLUIR", () => Upgrade(selectedWeaponId));
+    }
+
+    private void SelectTab(bool decks)
+    {
+        showingDecks = decks;
+        RebuildAll();
+    }
+
+    private void SelectWeapon(string weaponId)
+    {
+        selectedWeaponId = weaponId;
+        RebuildWeapons();
+    }
+
+    private void SelectCategory(string categoryId)
+    {
+        categoryFilter = categoryId;
+        RebuildWeapons();
+    }
+
+    private void RebuildWeapons()
+    {
+        ClearChildren(weaponFilters);
+        AddCategoryButton("TODAS", null);
+        foreach (WDWeaponCategoryDefinition category in service.Catalog.Categories)
+            AddCategoryButton(category.DisplayName, category.Id);
+        ClearChildren(weaponList);
+        foreach (WDWeaponDefinition weapon in service.Catalog.Weapons.Where(item =>
+            string.IsNullOrEmpty(categoryFilter) || item.CategoryId == categoryFilter))
+        {
+            WDWeaponProgress progress = service.Profile.GetProgress(weapon.Id);
+            RectTransform cell = WDHomeUIFactory.Rect($"Weapon_{weapon.Id}", weaponList);
+            WDUIPremiumButton button = cell.gameObject.AddComponent<WDUIPremiumButton>();
+            button.Build(theme, $"{weapon.DisplayName}\n" +
+                (progress?.Obtained == true ? $"NÍVEL {progress.Level}" : "NÃO OBTIDA"),
+                () => SelectWeapon(weapon.Id));
+            button.SetSelected(weapon.Id == selectedWeaponId);
+        }
+
+        WDWeaponDefinition selected = service.Catalog.FindWeapon(selectedWeaponId);
+        WDWeaponProgress selectedProgress = service.Profile.GetProgress(selectedWeaponId);
+        if (selected == null)
+        {
+            weaponDetail.text = "NENHUMA ARMA DISPONÍVEL";
+            selectedUpgrade.SetInteractable(false);
+            return;
+        }
+        WDWeaponCollectionState state = service.GetCollectionState(selected.Id);
+        string categoryName = service.Catalog.Categories.FirstOrDefault(item =>
+            item.Id == selected.CategoryId)?.DisplayName ?? selected.CategoryId;
+        WDWeaponLevelDefinition next = service.Catalog.FindUpgrade(selected,
+            (selectedProgress?.Level ?? 1) + 1);
+        weaponDetail.text = $"{selected.DisplayName}\n{categoryName}\n\n{selected.Description}\n\n" +
+            $"NÍVEL {(selectedProgress?.Level ?? 1)} / {selected.MaximumLevel}\n" +
+            $"{FormatProgress(selected, selectedProgress, state)}\n" +
+            (next == null ? string.Empty : $"PRÓXIMA EVOLUÇÃO: {next.RequiredTokens} TOKENS " +
+                $"DA ARMA + {next.CoinCost} MOEDAS");
+        selectedUpgrade.SetLabel(state == WDWeaponCollectionState.MaxLevel ? "NÍVEL MÁXIMO" :
+            state == WDWeaponCollectionState.UpgradeAvailable ? "EVOLUIR" : "RECURSOS INSUFICIENTES");
+        selectedUpgrade.SetInteractable(state == WDWeaponCollectionState.UpgradeAvailable);
+    }
+
+    private void AddCategoryButton(string label, string categoryId)
+    {
+        RectTransform rect = WDHomeUIFactory.Rect(categoryId ?? "All", weaponFilters);
+        WDUIPremiumButton button = rect.gameObject.AddComponent<WDUIPremiumButton>();
+        button.Build(theme, label, () => SelectCategory(categoryId));
+        button.SetSelected(categoryFilter == categoryId);
+    }
+
     private TMP_InputField CreateDeckNameInput(Transform parent)
     {
         RectTransform rect = WDHomeUIFactory.Rect("DeckName", parent);
@@ -222,11 +398,16 @@ public sealed class WDHomeArmoryPanel : MonoBehaviour
 
     private void RebuildAll()
     {
+        weaponView.gameObject.SetActive(!showingDecks);
+        deckView.gameObject.SetActive(showingDecks);
+        weaponTab.GetComponent<WDUIPremiumButton>().SetSelected(!showingDecks);
+        deckTab.GetComponent<WDUIPremiumButton>().SetSelected(showingDecks);
+        RebuildWeapons();
         RebuildTabs();
         RebuildComposition();
         RebuildCollection();
+        activeDeckLabel.text = $"DECK ATIVO: {service.Profile.GetDeck(service.Profile.ActiveDeckIndex).Name}";
         currencyLabel.text = $"MOEDAS {service.Profile.Coins}   TOKENS POR ARMA   ESMERALDAS {service.Profile.Emeralds}";
-        vipButton.SetLabel(service.Profile.IsVip ? "VIP DEV: ON" : "VIP DEV: OFF");
     }
 
     private void RebuildTabs()
@@ -239,7 +420,7 @@ public sealed class WDHomeArmoryPanel : MonoBehaviour
             WDSavedWeaponDeck deck = service.Profile.GetDeck(i);
             RectTransform rect = WDHomeUIFactory.Rect($"Deck_{i + 1}", deckTabs);
             WDUIPremiumButton button = rect.gameObject.AddComponent<WDUIPremiumButton>();
-            button.Build(theme, unlocked ? deck.Name : $"DECK {i + 1} · BLOQUEADO", () => SelectDeck(deckIndex));
+            button.Build(theme, unlocked ? deck.Name : $"DECK {i + 1} · VIP · VER VIP", () => SelectDeck(deckIndex));
             button.SetSelected(i == selectedDeckIndex);
         }
     }
@@ -315,7 +496,7 @@ public sealed class WDHomeArmoryPanel : MonoBehaviour
         if (progress == null || !progress.Obtained)
             return "NÃO OBTIDA";
         if (state == WDWeaponCollectionState.MaxLevel)
-            return $"NÍVEL {WDWeaponDefinition.MaxLevel} · MAX";
+            return $"NÍVEL {weapon.MaximumLevel} · MAX";
         WDWeaponLevelDefinition next = weapon.GetUpgradeToLevel(progress.Level + 1);
         string costs = next == null
             ? "CONFIGURAÇÃO PENDENTE"
@@ -346,6 +527,20 @@ public sealed class WDHomeArmoryPanel : MonoBehaviour
         editingSupport = false;
         selectedSlot = 0;
         RebuildAll();
+    }
+
+    private void ActivateDeck()
+    {
+        if (!service.Profile.SetActiveDeck(selectedDeckIndex)) return;
+        statusLabel.text = "Deck ativo atualizado.";
+        PersistAndRefresh();
+    }
+
+    private void SaveDeck()
+    {
+        if (!service.Profile.IsDeckUnlocked(selectedDeckIndex)) return;
+        Persist();
+        statusLabel.text = "Deck salvo localmente.";
     }
 
     private void SelectOrRemoveSlot(bool support, int slot, string weaponId)
@@ -395,17 +590,6 @@ public sealed class WDHomeArmoryPanel : MonoBehaviour
     {
         WDArmoryEditResult result = service.Upgrade(weaponId);
         ShowResult(result, "Upgrade realizado.");
-        PersistAndRefresh();
-    }
-
-    private void ToggleDevelopmentVip()
-    {
-        service.SetVipForDevelopment(!service.Profile.IsVip);
-        if (!service.Profile.IsDeckUnlocked(selectedDeckIndex))
-            selectedDeckIndex = 0;
-        statusLabel.text = service.Profile.IsVip
-            ? "Estado VIP de desenvolvimento ativado: cinco decks disponíveis."
-            : "Estado VIP de desenvolvimento desativado: decks 3–5 bloqueados sem apagar dados.";
         PersistAndRefresh();
     }
 
@@ -462,6 +646,11 @@ public sealed class WDHomeArmoryPanel : MonoBehaviour
     private static void ClearChildren(Transform parent)
     {
         for (int i = parent.childCount - 1; i >= 0; i--)
-            Destroy(parent.GetChild(i).gameObject);
+        {
+            GameObject child = parent.GetChild(i).gameObject;
+            child.transform.SetParent(null, false);
+            if (Application.isPlaying) Destroy(child);
+            else DestroyImmediate(child);
+        }
     }
 }

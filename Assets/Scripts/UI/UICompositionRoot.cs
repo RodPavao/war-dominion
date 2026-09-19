@@ -1,4 +1,6 @@
 using TMPro;
+using System;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
@@ -14,22 +16,32 @@ public sealed class UICompositionRoot : MonoBehaviour
 
     private const string CaminhoTema = "UI/WarDominionUITheme";
     public const string ChaveHUDNovo = "WarDominion.UI.HUDNovoAtivo";
+    public static bool IsNewHudSelected() => PlayerPrefs.GetInt(ChaveHUDNovo, 1) == 1;
     private MatchUIPresenter presenter;
     private RectTransform safeArea;
     private RoundAnnouncementView roundAnnouncement;
     private ResolutionSequenceController resolutionSequence;
     private AttackResolutionPresenter attackResolutionPresenter;
+    private RegionConquestResolutionPresenter regionConquestResolutionPresenter;
     private ReinforcementResolutionPresenter reinforcementResolutionPresenter;
     private TransferResolutionPresenter transferResolutionPresenter;
+    private WeaponResolutionPresenter weaponResolutionPresenter;
     private ResolutionVisualStateCoordinator resolutionVisualStateCoordinator;
     private PreparedActionsOverlayController preparedActionsOverlay;
     private WarDominionMatchHUD matchHUD;
+    private WDWeaponMatchUIController weaponUI;
+    private WDWeaponInstallationMapPresenter weaponInstallationPresenter;
+    private WDMatchInformationalOverlayController informationalOverlay;
     private WDInitialTerritorySelectionView initialTerritorySelectionView;
+    private WDMatchResultView resultView;
+    private WDLocalMatchResultService matchResults;
+    private string presentedResultId;
     private bool possuiFaseAnterior;
     private GameManager.FaseTurno faseAnterior;
     private string ultimoCicloResolucaoAnunciado = string.Empty;
     private Rect ultimaAreaSegura;
     private Vector2Int ultimaResolucao;
+    private string activeChatMatchId;
 
     private void Awake()
     {
@@ -40,6 +52,8 @@ public sealed class UICompositionRoot : MonoBehaviour
 
     private void OnDestroy()
     {
+        if (!string.IsNullOrEmpty(activeChatMatchId))
+            WDChatRuntime.Current?.EndMatch(activeChatMatchId);
         DesconectarPresenter();
     }
 
@@ -155,6 +169,7 @@ public sealed class UICompositionRoot : MonoBehaviour
         RectTransform mapOverlayLayer = CriarCamada("MapOverlayLayer", raizRect);
         RectTransform notificationLayer = CriarCamada("NotificationLayer", raizRect);
         RectTransform modalLayer = CriarCamada("ModalLayer", raizRect);
+        RectTransform regionInfoOverlay = CriarCamada("RegionInfoOverlay", safeArea);
 
         RectTransform anuncioRect = CriarCamada("RoundAnnouncement", notificationLayer);
         roundAnnouncement = anuncioRect.gameObject.AddComponent<RoundAnnouncementView>();
@@ -164,6 +179,9 @@ public sealed class UICompositionRoot : MonoBehaviour
             mapOverlayLayer.gameObject.AddComponent<AttackResolutionPresenter>();
         attackResolutionPresenter.Configure(tema);
 
+        regionConquestResolutionPresenter =
+            mapOverlayLayer.gameObject.AddComponent<RegionConquestResolutionPresenter>();
+
         reinforcementResolutionPresenter =
             mapOverlayLayer.gameObject.AddComponent<ReinforcementResolutionPresenter>();
         reinforcementResolutionPresenter.Configure(tema);
@@ -171,6 +189,10 @@ public sealed class UICompositionRoot : MonoBehaviour
         transferResolutionPresenter =
             mapOverlayLayer.gameObject.AddComponent<TransferResolutionPresenter>();
         transferResolutionPresenter.Configure(tema);
+
+        weaponResolutionPresenter =
+            mapOverlayLayer.gameObject.AddComponent<WeaponResolutionPresenter>();
+        weaponResolutionPresenter.Configure(tema);
 
         resolutionVisualStateCoordinator =
             mapOverlayLayer.gameObject.AddComponent<ResolutionVisualStateCoordinator>();
@@ -185,15 +207,64 @@ public sealed class UICompositionRoot : MonoBehaviour
             GetComponent<MatchUIPresenter>(), mapOverlayLayer, tema);
 
         RectTransform finalHUD = CriarCamada("FinalMatchHUD", safeArea);
+        weaponUI = GetComponent<WDWeaponMatchUIController>() ??
+            gameObject.AddComponent<WDWeaponMatchUIController>();
+        weaponUI.Configure(GetComponent<GameManager>());
+        weaponInstallationPresenter =
+            mapOverlayLayer.gameObject.AddComponent<WDWeaponInstallationMapPresenter>();
+        weaponInstallationPresenter.Configure(mapOverlayLayer, tema, weaponUI);
+        informationalOverlay = mapOverlayLayer.gameObject.AddComponent<WDMatchInformationalOverlayController>();
+        informationalOverlay.Configure(mapOverlayLayer, tema, regionInfoOverlay);
+        RectTransform chatLayer = CriarCamada("SharedChatHub", modalLayer);
+        WDChatRepository chatRepository = EnsureChatRuntime();
+        WDChatHubPanel chatPanel = chatLayer.gameObject.AddComponent<WDChatHubPanel>();
+        chatPanel.Build(tema, chatRepository, chatRepository.Social, chatRepository.Profiles);
+        WDChatChannel matchChat = CreateMatchChat(chatRepository, GetComponent<GameManager>()?.MatchSetupAtual);
         matchHUD = finalHUD.gameObject.AddComponent<WarDominionMatchHUD>();
-        matchHUD.Build(tema, GetComponent<MatchUIPresenter>()?.Comandos);
+        matchHUD.Build(tema, GetComponent<MatchUIPresenter>()?.Comandos, weaponUI,
+            resolutionSequence, informationalOverlay,
+            () => chatPanel.OpenLocal(chatPanel.HideFromNavigation, matchChat),
+            chatRepository, matchChat?.Id);
 
         RectTransform initialSelectionRect = CriarCamada("InitialTerritorySelection", modalLayer);
         initialTerritorySelectionView =
             initialSelectionRect.gameObject.AddComponent<WDInitialTerritorySelectionView>();
         initialTerritorySelectionView.Build(tema, GetComponent<GameManager>());
-        DefinirHUDNovoAtivo(PlayerPrefs.GetInt(ChaveHUDNovo, 1) == 1);
+        RectTransform resultRect = CriarCamada("MatchResult", modalLayer);
+        resultView = resultRect.gameObject.AddComponent<WDMatchResultView>();
+        resultView.Build(tema);
+        DefinirHUDNovoAtivo(IsNewHudSelected());
         AtualizarSafeArea(true);
+    }
+
+    // ============================================================
+    // 04. CHAT COMPARTILHADO E CONTEXTO TEMPORÁRIO DA PARTIDA
+    // ============================================================
+
+    private static WDChatRepository EnsureChatRuntime()
+    {
+        if (WDChatRuntime.Current != null)
+            return WDChatRuntime.Current;
+        WarDominionHomeData homeData = Resources.Load<WarDominionHomeData>(
+            "UI/Home/WarDominionHomeMockData");
+        var profiles = new WDProfileRepository(homeData);
+        var social = new WDSocialRepository(profiles);
+        var repository = new WDChatRepository(profiles, social);
+        WDChatRuntime.Initialize(repository);
+        return repository;
+    }
+
+    private WDChatChannel CreateMatchChat(WDChatRepository repository, WDMatchSetup setup)
+    {
+        if (setup == null)
+            return null;
+        activeChatMatchId = setup.DeterministicSeed.ToString();
+        WDMatchParticipant local = setup.Participants.FirstOrDefault(participant =>
+            participant.Kind == WDMatchParticipantKind.Local) ?? setup.Participants.FirstOrDefault();
+        if (local == null)
+            return null;
+        return repository.CreateMatchTeamChannel(activeChatMatchId, local.PlayerId,
+            setup.Participants.Select(participant => (participant.PlayerId, participant.TeamIndex)));
     }
 
     private static RectTransform CriarCamada(string nome, Transform pai)
@@ -259,6 +330,8 @@ public sealed class UICompositionRoot : MonoBehaviour
         matchHUD?.BindCommands(presenter?.Comandos);
 
         matchHUD?.Present(state);
+        informationalOverlay?.Present(state);
+        PresentMatchResult(state);
 
         bool entrouEmResolucao =
             possuiFaseAnterior &&
@@ -280,6 +353,25 @@ public sealed class UICompositionRoot : MonoBehaviour
 
         ultimoCicloResolucaoAnunciado = cicloResolucao;
         roundAnnouncement?.ExibirResolucao(state);
+    }
+
+    // 04. O resultado fechado do GameManager é publicado uma vez e apenas apresentado aqui.
+    private void PresentMatchResult(MatchUIState state)
+    {
+        if (state.Resultado?.Encerrada != true || resultView == null ||
+            WDMatchSetupContext.Current == null) return;
+        WDMatchSetup setup = WDMatchSetupContext.Current;
+        if (presentedResultId == setup.MatchId) return;
+        var counts = state.Jogadores.ToDictionary(item => (int)item.Jogador - 1,
+            item => item.TerritoriosControlados);
+        WDMatchCompletion outcome = WDMatchCompletion.Create(setup,
+            GetComponent<GameManager>()?.ResultadoPartidaAtual, counts, DateTime.UtcNow.Ticks);
+        if (outcome == null) return;
+        matchResults ??= new WDLocalMatchResultService(
+            new WDPlayerPrefsLocalMatchProgressStore());
+        matchResults.TryApply(outcome);
+        resultView.Present(outcome, matchResults.Progress.trophies);
+        presentedResultId = outcome.ResultId;
     }
 
     public void ExibirInicioRound(int round, System.Action concluir)
@@ -307,11 +399,17 @@ public sealed class UICompositionRoot : MonoBehaviour
     {
         PlayerPrefs.SetInt(ChaveHUDNovo, ativo ? 1 : 0);
         PlayerPrefs.Save();
-        if (matchHUD != null)
-            matchHUD.gameObject.SetActive(ativo);
-        HUDPreparacao legado = GetComponent<HUDPreparacao>();
-        if (legado != null)
-            legado.enabled = !ativo;
+        ApplyHudMode(matchHUD != null ? matchHUD.gameObject : null,
+            GetComponent<HUDPreparacao>(), ativo);
+    }
+
+    public static void ApplyHudMode(GameObject newHud, Behaviour legacyHud, bool useNewHud)
+    {
+        // 02. Uma seleção controla ambas as composições, inclusive no modo de desenvolvimento.
+        if (legacyHud != null)
+            legacyHud.enabled = !useNewHud;
+        if (newHud != null)
+            newHud.SetActive(useNewHud);
     }
 }
 

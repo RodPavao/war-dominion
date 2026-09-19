@@ -4,6 +4,7 @@ using System.Reflection;
 using NUnit.Framework;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 public sealed class WDNeutralTerritoryTests
 {
@@ -404,20 +405,23 @@ public sealed class WDNeutralTerritoryTests
     }
 
     [Test]
-    public void NewCounterHasTransparentRevealWithoutOwnerColorDependency()
+    public void NewCounterTintsManualBodyWithoutTintingTroopText()
     {
         TerritorioClique territory = CreateTerritoryWithTroops();
-        var counterObject = new GameObject("NewCounterStructureTest");
-        counterObject.transform.SetParent(territory.transform);
-        WDArmyCounterView view = counterObject.AddComponent<WDArmyCounterView>();
-        view.Configurar(territory);
-        Transform root = counterObject.transform.Find("WDArmyCounter");
-        Assert.That(root.Find("TerritoryReveal"), Is.Not.Null);
-        Assert.That(root.Find("TerritoryReveal").GetComponent<SpriteRenderer>(), Is.Null);
-        Assert.That(root.Find("OuterFrame"), Is.Not.Null);
-        Assert.That(root.Find("CenterBackground"), Is.Not.Null);
-        Assert.That(root.Find("TroopNumber"), Is.Not.Null);
-        Object.DestroyImmediate(territory.gameObject);
+        try
+        {
+            var counterObject = new GameObject("NewCounterStructureTest");
+            counterObject.transform.SetParent(territory.transform);
+            WDArmyCounterView view = counterObject.AddComponent<WDArmyCounterView>();
+            view.Configurar(territory);
+            view.Exibir(1, new Color(0.1f, 0.4f, 0.8f, 1f));
+            Color first = view.BodyRenderer.color;
+            view.Exibir(1, new Color(0.8f, 0.2f, 0.1f, 1f));
+            Assert.That(view.BodyRenderer.color, Is.Not.EqualTo(first));
+            Assert.That(view.TroopText.color, Is.EqualTo(Color.white));
+            Assert.That(view.VisualRoot.GetComponentsInChildren<SpriteRenderer>(), Has.Length.EqualTo(1));
+        }
+        finally { Object.DestroyImmediate(territory.gameObject); }
     }
 
     // ============================================================
@@ -462,15 +466,20 @@ public sealed class WDNeutralTerritoryTests
         ContadorTropas counter = counterObject.AddComponent<ContadorTropas>();
         counter.Configurar(territory);
         WDArmyCounterView currentView = counterObject.GetComponent<WDArmyCounterView>();
-        Transform currentRoot = counterObject.transform.Find("WDArmyCounter");
+        Transform currentRoot = counterObject.transform.Find("ArmyCounterSpriteRoot");
         SpriteRenderer legacyArc = counterObject.transform.Find("Borda")
             .GetComponent<SpriteRenderer>();
 
         Assert.That(currentView, Is.Not.Null);
         Assert.That(currentView.Territorio, Is.SameAs(territory));
         Assert.That(currentRoot, Is.Not.Null);
-        Assert.That(currentRoot.Find("OuterFrame").GetComponent<SpriteRenderer>().enabled,
-            Is.True);
+        Assert.That(currentRoot.gameObject.activeSelf, Is.True);
+        Assert.That(currentRoot.GetComponentsInChildren<SpriteRenderer>(), Has.Length.EqualTo(1));
+        Assert.That(currentView.BodyRenderer.enabled, Is.True);
+        Assert.That(currentRoot.GetComponentsInChildren<TextMeshPro>(), Has.Length.EqualTo(1));
+        Assert.That(counterObject.GetComponents<WDArmyCounterView>(), Has.Length.EqualTo(1));
+        Transform oldRoot = counterObject.transform.Find("ArmyCounterRoot");
+        Assert.That(oldRoot == null || !oldRoot.gameObject.activeSelf, Is.True);
         Assert.That(legacyArc.enabled, Is.False);
         Assert.That(counterObject.transform.Find("Fundo").GetComponent<SpriteRenderer>().enabled,
             Is.False);

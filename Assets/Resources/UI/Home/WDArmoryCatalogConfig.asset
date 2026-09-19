@@ -84,8 +84,8 @@ MonoBehaviour:
     displayName: Infiltrado
     categoryId: special
     maximumLevel: 1
-    energyCost: 25
-    cooldownRounds: 3
+    energyCost: 20
+    cooldownRounds: 4
     behaviorType: 4
     resolutionPhase: 5
     costTiming: 0

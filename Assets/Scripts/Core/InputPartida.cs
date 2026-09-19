@@ -4,6 +4,8 @@ using UnityEngine.InputSystem;
 
 public class InputPartida : MonoBehaviour
 {
+    public const float SensibilidadeZoomPorPasso = 0.055f;
+    public const float DivisorDeltaRodaLegado = 120f;
     // =====================================================
     // 1. REFERÊNCIAS E ESTADO
     // =====================================================
@@ -34,6 +36,8 @@ public class InputPartida : MonoBehaviour
             if (cameraPrincipal == null)
                 return;
         }
+
+        ProcessarZoomDoMapa();
 
         // =================================================
         // 3. SOLTOU O CONTADOR
@@ -110,7 +114,17 @@ public class InputPartida : MonoBehaviour
         }
 
         // =================================================
-        // 6. PRIORIDADE NORMAL: CONTADOR
+        // 7. TARGETING DE ARMA TEM PRIORIDADE SOBRE O CONTADOR
+        // =================================================
+
+        if (GameManager.instance.TemTargetingArmaTerritorialAtivo &&
+            TentarSelecionarTerritorioContextual(atingidos))
+        {
+            return;
+        }
+
+        // =================================================
+        // 8. PRIORIDADE NORMAL: CONTADOR
         // =================================================
 
         foreach (Collider2D collider in atingidos)
@@ -139,7 +153,7 @@ public class InputPartida : MonoBehaviour
         }
 
         // =================================================
-        // 7. SEGUNDA PRIORIDADE: TERRITÓRIO
+        // 9. SEGUNDA PRIORIDADE: TERRITÓRIO
         // =================================================
 
         foreach (Collider2D collider in atingidos)
@@ -166,24 +180,68 @@ public class InputPartida : MonoBehaviour
         }
     }
 
-    private static bool TentarSelecionarTerritorioInicial(Collider2D[] atingidos)
+    private void ProcessarZoomDoMapa()
+    {
+        Vector2 scroll = Mouse.current != null
+            ? Mouse.current.scroll.ReadValue()
+            : Vector2.zero;
+        if (Mathf.Approximately(scroll.y, 0f) ||
+            MapaAtivo.Instance == null ||
+            EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
+            return;
+
+        Vector2 posicaoTela = Pointer.current.position.ReadValue();
+        if (!cameraPrincipal.pixelRect.Contains(posicaoTela))
+            return;
+
+        float tamanhoBase = MapaAtivo.Instance.TamanhoOrtograficoEnquadrado;
+        if (tamanhoBase <= 0f)
+            return;
+
+        cameraPrincipal.orthographicSize = CalcularTamanhoZoom(
+            cameraPrincipal.orthographicSize, scroll.y, tamanhoBase);
+    }
+
+    public static float CalcularTamanhoZoom(float tamanhoAtual, float deltaRoda,
+        float tamanhoBase)
+    {
+        if (tamanhoBase <= 0f || Mathf.Approximately(deltaRoda, 0f))
+            return tamanhoAtual;
+        float deltaNormalizado = Mathf.Abs(deltaRoda) >= 10f
+            ? deltaRoda / DivisorDeltaRodaLegado
+            : deltaRoda;
+        float fator = Mathf.Exp(-deltaNormalizado * SensibilidadeZoomPorPasso);
+        return Mathf.Clamp(tamanhoAtual * fator, tamanhoBase * 0.25f,
+            tamanhoBase);
+    }
+
+    public static bool TentarObterTerritorio(
+        Collider2D collider, out TerritorioClique territorio)
+    {
+        territorio = collider?.GetComponent<TerritorioClique>() ??
+            collider?.GetComponentInParent<TerritorioClique>();
+        if (territorio != null)
+            return true;
+        ContadorTropas contador = collider?.GetComponent<ContadorTropas>() ??
+            collider?.GetComponentInParent<ContadorTropas>();
+        territorio = contador?.Territorio;
+        return territorio != null;
+    }
+
+    private static bool TentarSelecionarTerritorioContextual(Collider2D[] atingidos)
     {
         foreach (Collider2D collider in atingidos)
-        {
-            TerritorioClique territorio = collider.GetComponent<TerritorioClique>() ??
-                collider.GetComponentInParent<TerritorioClique>();
-            if (territorio == null)
+            if (TentarObterTerritorio(collider, out TerritorioClique territorio))
             {
-                ContadorTropas contador = collider.GetComponent<ContadorTropas>() ??
-                    collider.GetComponentInParent<ContadorTropas>();
-                territorio = contador != null ? contador.Territorio : null;
+                territorio.Clicar();
+                return true;
             }
-            if (territorio == null)
-                continue;
-            territorio.Clicar();
-            return true;
-        }
         return false;
+    }
+
+    private static bool TentarSelecionarTerritorioInicial(Collider2D[] atingidos)
+    {
+        return TentarSelecionarTerritorioContextual(atingidos);
     }
 
     // =====================================================
@@ -195,25 +253,7 @@ public class InputPartida : MonoBehaviour
     {
         foreach (Collider2D collider in atingidos)
         {
-            TerritorioClique territorio =
-                collider.GetComponent<TerritorioClique>();
-
-            if (territorio == null)
-                territorio = collider.GetComponentInParent<TerritorioClique>();
-
-            if (territorio == null)
-            {
-                ContadorTropas contador =
-                    collider.GetComponent<ContadorTropas>();
-
-                if (contador == null)
-                    contador = collider.GetComponentInParent<ContadorTropas>();
-
-                if (contador != null)
-                    territorio = contador.Territorio;
-            }
-
-            if (territorio == null)
+            if (!TentarObterTerritorio(collider, out TerritorioClique territorio))
                 continue;
 
             territorio.Clicar();

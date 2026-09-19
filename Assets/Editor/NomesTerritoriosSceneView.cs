@@ -8,13 +8,11 @@ public static class NomesTerritoriosSceneView
 {
     private const string MenuMostrar = "War Dominion/Ferramentas de Desenvolvimento/Visualização/Mostrar Nomes dos Territórios";
     private const string MenuEditar = "War Dominion/Ferramentas de Desenvolvimento/Visualização/Editar Posições dos Nomes";
-    private const string ChaveMostrar = "WarGame.Visualizacao.MostrarNomesTerritorios";
     private const string ChaveEditar = "WarGame.Visualizacao.EditarPosicoesNomesTerritorios";
     internal const int TamanhoFonteMinimo = 8;
     internal const int TamanhoFonteMaximo = 32;
     private const int TamanhoFonteAutomatico = 10;
     private const int TamanhoFonteAutomaticoReduzido = 9;
-    private const float ProporcaoZoomParaExibir = 0.72f;
 
     private static GUIStyle estiloNome;
     private static string territorioEmArraste;
@@ -34,17 +32,19 @@ public static class NomesTerritoriosSceneView
         Undo.undoRedoPerformed += AoDesfazerOuRefazer;
     }
 
-    internal static bool NomesAtivos => SessionState.GetBool(ChaveMostrar, false);
+    internal static bool NomesAtivos =>
+        PlayerPrefs.GetInt(MapaAtivo.ChaveMostrarNomesTerritorios, 0) != 0;
     internal static bool EdicaoAtiva => SessionState.GetBool(ChaveEditar, false);
 
     [MenuItem(MenuMostrar)]
     private static void AlternarNomes()
     {
         bool estado = !NomesAtivos;
-        SessionState.SetBool(ChaveMostrar, estado);
+        MapaAtivo.DefinirNomesTerritoriaisHabilitados(estado);
         if (!estado)
             SessionState.SetBool(ChaveEditar, false);
         AtualizarMenusEView();
+        AtualizarOverlayRuntimeSeExistir();
     }
 
     [MenuItem(MenuMostrar, true)]
@@ -60,8 +60,18 @@ public static class NomesTerritoriosSceneView
         bool estado = !EdicaoAtiva;
         SessionState.SetBool(ChaveEditar, estado);
         if (estado)
-            SessionState.SetBool(ChaveMostrar, true);
+        {
+            MapaAtivo.DefinirNomesTerritoriaisHabilitados(true);
+        }
         AtualizarMenusEView();
+        AtualizarOverlayRuntimeSeExistir();
+    }
+
+    private static void AtualizarOverlayRuntimeSeExistir()
+    {
+        MapaAtivo mapaAtivo = MapaAtivo.Instance;
+        if (mapaAtivo != null)
+            mapaAtivo.AtualizarVisibilidadeNomesTerritoriais();
     }
 
     [MenuItem(MenuEditar, true)]
@@ -88,6 +98,9 @@ public static class NomesTerritoriosSceneView
     {
         if (!NomesAtivos)
             return;
+        // Em Play Mode, o TMP runtime é a única apresentação canônica.
+        if (EditorApplication.isPlaying)
+            return;
 
         GUIStyle estilo = ObterEstiloNome();
         DefinicaoMapa mapa = ObterMapaAtivo();
@@ -96,6 +109,8 @@ public static class NomesTerritoriosSceneView
         if (!EdicaoAtiva && !ZoomPermiteExibirNomes(sceneView, mapa))
             return;
 
+        Transform arte = ObterTransformArte(mapa);
+        bool mapaIntegral16x9 = LayoutPartida.EhArteIntegral16x9(mapa) && arte != null;
         TerritorioClique[] territorios = UnityEngine.Object.FindObjectsByType<TerritorioClique>(FindObjectsInactive.Include);
         foreach (TerritorioClique territorio in territorios)
         {
@@ -106,11 +121,15 @@ public static class NomesTerritoriosSceneView
             if (dadosMapa == null)
                 continue;
 
-            string nomeExibido = ConverterNomeTecnico(territorio.idTerritorio);
-            DadosLabel dadosLabel = ObterDadosLabel(territorio, dadosMapa, nomeExibido);
+            string nomeExibido = string.IsNullOrWhiteSpace(dadosMapa.nomeExibido)
+                ? ConverterNomeTecnico(territorio.idTerritorio)
+                : dadosMapa.nomeExibido;
+            DadosLabel dadosLabel = ObterDadosLabel(territorio, dadosMapa,
+                nomeExibido, arte, mapaIntegral16x9);
             estilo.fontSize = dadosLabel.FontSize;
             Vector3 posicao = EdicaoAtiva
-                ? DesenharHandle(mapa, territorio, dadosMapa, dadosLabel.Posicao)
+                ? DesenharHandle(mapa, territorio, dadosMapa, dadosLabel.Posicao,
+                    arte, mapaIntegral16x9)
                 : dadosLabel.Posicao;
 
             if (Event.current.type == EventType.Repaint)
@@ -121,7 +140,7 @@ public static class NomesTerritoriosSceneView
             FinalizarArraste();
     }
 
-    private static Vector3 DesenharHandle(DefinicaoMapa mapa, TerritorioClique territorio, DefinicaoTerritorioMapa dadosMapa, Vector3 posicao)
+    private static Vector3 DesenharHandle(DefinicaoMapa mapa, TerritorioClique territorio, DefinicaoTerritorioMapa dadosMapa, Vector3 posicao, Transform arte, bool mapaIntegral16x9)
     {
         float tamanho = HandleUtility.GetHandleSize(posicao) * 0.11f;
         Color corAnterior = Handles.color;
@@ -139,7 +158,11 @@ public static class NomesTerritoriosSceneView
             Undo.RecordObject(mapa, "Mover nome de " + dadosMapa.id);
             territorioEmArraste = dadosMapa.id;
         }
-        dadosMapa.posicaoNomeManual = territorio.transform.InverseTransformPoint(novaPosicao);
+        bool usaArte = MapaAtivo.PosicaoNomeManualUsaEspacoDaArte(arte,
+            territorio.transform, dadosMapa.posicaoNomeManual, mapaIntegral16x9);
+        dadosMapa.posicaoNomeManual = usaArte
+            ? (Vector2)arte.InverseTransformPoint(novaPosicao)
+            : (Vector2)territorio.transform.InverseTransformPoint(novaPosicao);
         dadosMapa.possuiPosicaoNomeManual = true;
         EditorUtility.SetDirty(mapa);
         mapaPendenteSalvar = mapa;
@@ -180,7 +203,8 @@ public static class NomesTerritoriosSceneView
         if (sceneView == null)
             return false;
         float tamanhoMapa = Mathf.Max(0.01f, mapa.TamanhoOrtografico);
-        return sceneView.size <= tamanhoMapa * ProporcaoZoomParaExibir;
+        return sceneView.size <= tamanhoMapa *
+            MapaAtivo.ProporcaoZoomParaExibirNomes;
     }
 
     private static void AplicarCorPreta(GUIStyleState estado) => estado.textColor = Color.black;
@@ -196,7 +220,7 @@ public static class NomesTerritoriosSceneView
         }
     }
 
-    internal static DadosLabel ObterDadosLabel(TerritorioClique territorio, DefinicaoTerritorioMapa dadosMapa, string nomeExibido)
+    internal static DadosLabel ObterDadosLabel(TerritorioClique territorio, DefinicaoTerritorioMapa dadosMapa, string nomeExibido, Transform arte = null, bool mapaIntegral16x9 = false)
     {
         PolygonCollider2D collider = territorio.GetComponent<PolygonCollider2D>();
         Vector2[] maiorPath = ObterMaiorPath(collider);
@@ -208,7 +232,9 @@ public static class NomesTerritoriosSceneView
             : automatico;
 
         if (dadosMapa.possuiPosicaoNomeManual)
-            return new DadosLabel(territorio.transform.TransformPoint(dadosMapa.posicaoNomeManual), tamanho);
+            return new DadosLabel(MapaAtivo.ResolverPosicaoNomeManualParaMundo(
+                arte, territorio.transform, dadosMapa.posicaoNomeManual,
+                mapaIntegral16x9), tamanho);
         if (maiorPath == null || maiorPath.Length < 3)
             return new DadosLabel(territorio.transform.position, tamanho);
 
@@ -239,6 +265,18 @@ public static class NomesTerritoriosSceneView
 
         CatalogoMapas catalogo = AssetDatabase.LoadAssetAtPath<CatalogoMapas>("Assets/Resources/Mapas/CatalogoMapas.asset");
         return catalogo != null ? catalogo.MapaPadrao : null;
+    }
+
+    private static Transform ObterTransformArte(DefinicaoMapa mapa)
+    {
+        if (mapa?.ArteBase == null)
+            return null;
+        foreach (SpriteRenderer visual in
+            UnityEngine.Object.FindObjectsByType<SpriteRenderer>(FindObjectsInactive.Include))
+            if (visual != null && visual.gameObject.scene.IsValid() &&
+                visual.sprite == mapa.ArteBase)
+                return visual.transform;
+        return null;
     }
 
     internal static DefinicaoTerritorioMapa EncontrarDadosTerritorio(DefinicaoMapa mapa, string id)
@@ -478,9 +516,25 @@ public sealed class ConfiguradorNomesTerritoriosWindow : EditorWindow
         using (new EditorGUI.DisabledScope(true))
         {
             EditorGUILayout.TextField("ID técnico", dados.id);
-            EditorGUILayout.TextField("Nome exibido", NomesTerritoriosSceneView.ConverterNomeTecnico(dados.id));
+            EditorGUILayout.TextField(
+                "Nome exibido",
+                string.IsNullOrWhiteSpace(dados.nomeExibido)
+                    ? NomesTerritoriosSceneView.ConverterNomeTecnico(dados.id)
+                    : dados.nomeExibido);
             EditorGUILayout.TextField("Posicionamento", dados.possuiPosicaoNomeManual ? "Manual" : "Automático");
-            EditorGUILayout.Vector2Field("Posição manual", dados.posicaoNomeManual);
+        }
+
+        EditorGUI.BeginChangeCheck();
+        Vector2 novaPosicaoManual = EditorGUILayout.Vector2Field(
+            "Posição manual", dados.posicaoNomeManual);
+        if (EditorGUI.EndChangeCheck())
+        {
+            Undo.RecordObject(mapa, "Alterar posição do nome de " + dados.id);
+            dados.posicaoNomeManual = novaPosicaoManual;
+            dados.possuiPosicaoNomeManual = true;
+            EditorUtility.SetDirty(mapa);
+            AssetDatabase.SaveAssetIfDirty(mapa);
+            SceneView.RepaintAll();
         }
 
         EditorGUI.BeginChangeCheck();

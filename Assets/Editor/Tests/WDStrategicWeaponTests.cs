@@ -15,8 +15,8 @@ public sealed class WDStrategicWeaponTests
     public void EnergyPlantProductionMatchesLevels(int level,int expected)=>Assert.That(WDStrategicWeaponTables.EnergyProduction(level),Is.EqualTo(expected));
     [TestCase(1,2)] [TestCase(2,3)] [TestCase(3,4)] [TestCase(4,5)] [TestCase(5,6)] [TestCase(6,7)]
     public void LongRangeBombDamageMatchesLevels(int level,int expected)=>Assert.That(WDStrategicWeaponTables.LongRangeBombDamage(level),Is.EqualTo(expected));
-    [TestCase(1,1,2)] [TestCase(2,2,2)] [TestCase(3,2,3)] [TestCase(4,3,3)]
-    public void ArtilleryStatsMatchLevels(int level,int damage,int duration){Assert.That(WDStrategicWeaponTables.ArtilleryDamage(level),Is.EqualTo(damage));Assert.That(WDStrategicWeaponTables.ArtilleryDuration(level),Is.EqualTo(duration));}
+    [TestCase(1,1,6)] [TestCase(2,2,6)] [TestCase(3,2,9)] [TestCase(4,3,9)]
+    public void ArtilleryStatsMatchLevels(int level,int damage,int ammunition){Assert.That(WDStrategicWeaponTables.ArtilleryDamage(level),Is.EqualTo(damage));Assert.That(WDStrategicWeaponTables.ArtilleryAmmunition(level),Is.EqualTo(ammunition));}
     [TestCase(1,2)] [TestCase(2,3)] [TestCase(3,4)] [TestCase(4,5)] [TestCase(5,6)] [TestCase(6,7)]
     public void RocketDamageMatchesLevels(int level,int expected)=>Assert.That(WDStrategicWeaponTables.RocketDamage(level),Is.EqualTo(expected));
 
@@ -101,28 +101,28 @@ public sealed class WDStrategicWeaponTests
 
     [Test]
     public void SniperImmobilizationPreventsShotWithoutConsumingOperation()
-    {var c=Context();var o=Territory(c,"o","p1",1);var t=Territory(c,"t","p2",4);Link(o,t);o.Immobilize();var art=Installation("a",WDStrategicWeaponIds.Artillery,"o","p1",2);o.AddInstallation(art);Pipeline().Resolve(Array.Empty<WDWeaponAction>(),c);Assert.That(t.Troops,Is.EqualTo(4));Assert.That(art.DurationRemaining,Is.EqualTo(2));}
+    {var c=Context();var o=Territory(c,"o","p1",1);var t=Territory(c,"t","p2",4);Link(o,t);o.Immobilize();var art=Installation("a",WDStrategicWeaponIds.Artillery,"o","p1",2);o.AddInstallation(art);Pipeline().Resolve(Array.Empty<WDWeaponAction>(),c);Assert.That(t.Troops,Is.EqualTo(4));Assert.That(art.ChargesRemaining,Is.EqualTo(6));}
 
     [Test]
     public void FutureInfiltratorImmobilizationPreventsShotWithoutConsumingOperation()
-    {var c=Context();var o=Territory(c,"o","p1",1);var t=Territory(c,"t","p2",4);Link(o,t);o.Immobilize();var art=Installation("a",WDStrategicWeaponIds.Artillery,"o","p1",3);o.AddInstallation(art);new WDArtilleryOperationHandler().Execute(c);Assert.That(t.Troops,Is.EqualTo(4));Assert.That(art.DurationRemaining,Is.EqualTo(3));}
+    {var c=Context();var o=Territory(c,"o","p1",1);var t=Territory(c,"t","p2",4);Link(o,t);o.Immobilize();var art=Installation("a",WDStrategicWeaponIds.Artillery,"o","p1",3);o.AddInstallation(art);new WDArtilleryOperationHandler().Execute(c);Assert.That(t.Troops,Is.EqualTo(4));Assert.That(art.ChargesRemaining,Is.EqualTo(9));}
 
     [Test]
     public void AlliedNeighboursDoNotConsumeArtilleryOperation()
-    {var c=Context();c.SetAllied("p1","p2");var o=Territory(c,"o","p1",1);var t=Territory(c,"t","p2",4);Link(o,t);var art=Installation("a",WDStrategicWeaponIds.Artillery,"o","p1",2);o.AddInstallation(art);new WDArtilleryOperationHandler().Execute(c);Assert.That(t.Troops,Is.EqualTo(4));Assert.That(art.DurationRemaining,Is.EqualTo(2));}
+    {var c=Context();c.SetAllied("p1","p2");var o=Territory(c,"o","p1",1);var t=Territory(c,"t","p2",4);Link(o,t);var art=Installation("a",WDStrategicWeaponIds.Artillery,"o","p1",2);o.AddInstallation(art);new WDArtilleryOperationHandler().Execute(c);Assert.That(t.Troops,Is.EqualTo(4));Assert.That(art.ChargesRemaining,Is.EqualTo(6));}
 
     [Test]
     public void PeaceProtectedOnlyNeighbourDoesNotConsumeArtilleryOperation()
-    {var c=Context();var o=Territory(c,"o","p1",1);var t=Territory(c,"t","p2",4);Link(o,t);c.EstablishPeace("p1","p2");var art=Installation("a",WDStrategicWeaponIds.Artillery,"o","p1",2);o.AddInstallation(art);new WDArtilleryOperationHandler().Execute(c);Assert.That(t.Troops,Is.EqualTo(4));Assert.That(art.DurationRemaining,Is.EqualTo(2));}
+    {var c=Context();var o=Territory(c,"o","p1",1);var t=Territory(c,"t","p2",4);Link(o,t);c.EstablishPeace("p1","p2");var art=Installation("a",WDStrategicWeaponIds.Artillery,"o","p1",2);o.AddInstallation(art);new WDArtilleryOperationHandler().Execute(c);Assert.That(t.Troops,Is.EqualTo(4));Assert.That(art.ChargesRemaining,Is.EqualTo(6));}
 
     [TestCase(WDWeaponTerritoryStateKind.Neutral,1)]
     [TestCase(WDWeaponTerritoryStateKind.Empty,0)]
     public void NeutralOrEmptyNeighbourConsumesOperation(WDWeaponTerritoryStateKind state,int troops)
-    {var c=Context();var o=Territory(c,"o","p1",1);var t=new WDWeaponTerritoryState("t","",troops,state);c.AddTerritory(t);Link(o,t);var art=Installation("a",WDStrategicWeaponIds.Artillery,"o","p1",2);o.AddInstallation(art);new WDArtilleryOperationHandler().Execute(c);Assert.That(art.DurationRemaining,Is.EqualTo(1));Assert.That(t.State,Is.EqualTo(WDWeaponTerritoryStateKind.Empty));}
+    {var c=Context();var o=Territory(c,"o","p1",1);var t=new WDWeaponTerritoryState("t","",troops,state);c.AddTerritory(t);Link(o,t);var art=Installation("a",WDStrategicWeaponIds.Artillery,"o","p1",2);o.AddInstallation(art);new WDArtilleryOperationHandler().Execute(c);Assert.That(art.ChargesRemaining,Is.EqualTo(5));Assert.That(t.State,Is.EqualTo(WDWeaponTerritoryStateKind.Empty));}
 
     [Test]
     public void ArtilleryCardCooldownIsIndependentFromOperationalDuration()
-    {var c=Context();c.FindPlayer("p1").GetWeapon(WDStrategicWeaponIds.Artillery).SetLevel(4,4);var o=Territory(c,"o","p1",1);var t=Territory(c,"t","p2",10);Link(o,t);var p=Pipeline();p.Resolve(new[]{Action(WDStrategicWeaponIds.Artillery,target:"o",installation:"art")},c);var entry=c.FindPlayer("p1").GetWeapon(WDStrategicWeaponIds.Artillery);var art=o.FindInstallation(WDStrategicWeaponIds.Artillery);Assert.That(entry.CooldownRemaining,Is.EqualTo(3));Assert.That(art.DurationRemaining,Is.EqualTo(2));o.Immobilize();for(int round=2;round<=4;round++){c.Round=round;entry.AdvanceRound();p.Resolve(Array.Empty<WDWeaponAction>(),c);}Assert.That(entry.CooldownRemaining,Is.Zero);Assert.That(art.DurationRemaining,Is.EqualTo(2));o.ClearImmobilization();c.Round=5;p.Resolve(Array.Empty<WDWeaponAction>(),c);Assert.That(t.Troops,Is.EqualTo(4));Assert.That(art.DurationRemaining,Is.EqualTo(1));}
+    {var c=Context();c.FindPlayer("p1").GetWeapon(WDStrategicWeaponIds.Artillery).SetLevel(4,4);var o=Territory(c,"o","p1",1);var t=Territory(c,"t","p2",10);Link(o,t);var p=Pipeline();p.Resolve(new[]{Action(WDStrategicWeaponIds.Artillery,target:"o",installation:"art")},c);var entry=c.FindPlayer("p1").GetWeapon(WDStrategicWeaponIds.Artillery);var art=o.FindInstallation(WDStrategicWeaponIds.Artillery);Assert.That(entry.CooldownRemaining,Is.EqualTo(3));Assert.That(art.ChargesRemaining,Is.EqualTo(8));o.Immobilize();for(int round=2;round<=4;round++){c.Round=round;entry.AdvanceRound();p.Resolve(Array.Empty<WDWeaponAction>(),c);}Assert.That(entry.CooldownRemaining,Is.Zero);Assert.That(art.ChargesRemaining,Is.EqualTo(8));o.ClearImmobilization();c.Round=5;p.Resolve(Array.Empty<WDWeaponAction>(),c);Assert.That(t.Troops,Is.EqualTo(4));Assert.That(art.ChargesRemaining,Is.EqualTo(7));}
 
     [Test]
     public void ArtilleryRespectsPeaceAndBunker()
@@ -153,7 +153,7 @@ public sealed class WDStrategicWeaponTests
     private static WDWeaponDefinition Make(string id,int levels,int energy,int cooldown,int uses,WDWeaponBehaviorType behavior,WDWeaponResolutionPhase phase,bool origin=false,bool target=false,bool player=false){var d=new WDWeaponDefinition(id,id,"strategic",null);d.ConfigureRuntime(levels,energy,cooldown,uses,behavior,phase,WDWeaponCostTiming.OnExecution,origin,target,player,id==WDStrategicWeaponIds.LongRangeBomb,id==WDStrategicWeaponIds.EnergyPlant||id==WDStrategicWeaponIds.Artillery||id==WDStrategicWeaponIds.Rockets);return d;}
     private static TestContext Context(double roll=.99){var c=new TestContext(Definitions(),roll);c.AddPlayer("p1",100,1);c.AddPlayer("p2",100,1);c.AddPlayer("p3",100,1);return c;}
     private static WDWeaponAction Action(string id,string origin="",string target="",string installation="",string author="p1",string targetPlayer="",string actionId="action",WDWeaponResolutionPhase? phase=null){var d=Definition(id);return new WDWeaponAction(actionId,author,id,1,phase??d.ResolutionPhase,0,origin,target,targetPlayer,installation);}
-    private static WDWeaponTerritoryState Territory(TestContext c,string id,string owner,int troops){var t=new WDWeaponTerritoryState(id,owner,troops);c.AddTerritory(t);return t;}private static void Link(WDWeaponTerritoryState a,WDWeaponTerritoryState b){a.AddNeighbour(b.TerritoryId);b.AddNeighbour(a.TerritoryId);}private static WDWeaponInstallationState Installation(string id,string weapon,string territory,string owner,int level,int barrier=0,int charges=0,int payments=0){int duration=weapon==WDStrategicWeaponIds.Artillery?WDStrategicWeaponTables.ArtilleryDuration(level):3;return new(id,weapon,territory,owner,duration,barrier,charges,payments,level,true,1);}
+    private static WDWeaponTerritoryState Territory(TestContext c,string id,string owner,int troops){var t=new WDWeaponTerritoryState(id,owner,troops);c.AddTerritory(t);return t;}private static void Link(WDWeaponTerritoryState a,WDWeaponTerritoryState b){a.AddNeighbour(b.TerritoryId);b.AddNeighbour(a.TerritoryId);}private static WDWeaponInstallationState Installation(string id,string weapon,string territory,string owner,int level,int barrier=0,int charges=0,int payments=0){int duration=weapon==WDStrategicWeaponIds.Artillery?0:3;if(weapon==WDStrategicWeaponIds.Artillery&&charges==0)charges=WDStrategicWeaponTables.ArtilleryAmmunition(level);return new(id,weapon,territory,owner,duration,barrier,charges,payments,level,true,1);}
     private static WDWeaponResolutionPipeline Pipeline(){var p=new WDWeaponResolutionPipeline();p.RegisterSupportWeapons();p.RegisterTacticalWeapons();p.RegisterStrategicWeapons();return p;}private static WDWeaponActionResult Resolve(TestContext c,WDWeaponAction a,int level){c.FindPlayer(a.AuthorPlayerId).GetWeapon(a.WeaponId).SetLevel(level,6);return Pipeline().Resolve(new[]{a},c).Single();}
     private static void AdvanceCooldown(TestContext c,string player,string weapon,int rounds){for(int i=0;i<rounds;i++)c.FindPlayer(player).GetWeapon(weapon).AdvanceRound();}
     private sealed class FixedRandom:IWDWeaponRandomSource{readonly double v;public FixedRandom(double v)=>this.v=v;public double NextUnit(string key)=>v;}

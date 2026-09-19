@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 47de22390a760834d8b14cc07dd913d0
+guid: b3c8ffc5e0e80604dbfb02ab50447a51
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 4915449502434844706
-    second: NGay_0
+      213: -9206105136370293320
+    second: FlathiaIsland_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -49,8 +49,8 @@ TextureImporter:
   spriteMode: 1
   spriteExtrude: 1
   spriteMeshType: 1
-  alignment: 0
-  spritePivot: {x: 0.5, y: 0.5}
+  alignment: 9
+  spritePivot: {x: 0, y: 0}
   spritePixelsToUnits: 100
   spriteBorder: {x: 0, y: 0, z: 0, w: 0}
   spriteGenerateFallbackPhysicsShape: 1
@@ -113,44 +113,44 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: NGay_0
+      name: FlathiaIsland_0
       rect:
         serializedVersion: 2
-        x: 1
-        y: 1
-        width: 144
-        height: 101
+        x: 0
+        y: 0
+        width: 111
+        height: 128
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
-      customData:
+      customData: 
       outline: []
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 220efff774f273440800000000000000
-      internalID: 4915449502434844706
+      spriteID: 8b5efbd87285d3080800000000000000
+      internalID: -9206105136370293320
       vertices: []
-      indices:
+      indices: 
       edges: []
       weights: []
     outline: []
-    customData:
+    customData: 
     physicsShape: []
     bones: []
     spriteID: 5e97eb03825dee720800000000000000
     internalID: 0
     vertices: []
-    indices:
+    indices: 
     edges: []
     weights: []
     secondaryTextures: []
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      NGay_0: 4915449502434844706
-  mipmapLimitGroupName:
+      FlathiaIsland_0: -9206105136370293320
+  mipmapLimitGroupName: 
   pSDRemoveMatte: 0
-  userData:
-  assetBundleName:
-  assetBundleVariant:
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

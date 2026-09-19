@@ -9,15 +9,18 @@ public sealed class DistribuicaoReforco
     public int Id { get; }
     public TerritorioClique Territorio { get; }
     public int Quantidade { get; }
+    public string AcaoOrigemId { get; }
 
     public DistribuicaoReforco(
         int id,
         TerritorioClique territorio,
-        int quantidade)
+        int quantidade,
+        string acaoOrigemId = "")
     {
         Id = id;
         Territorio = territorio;
         Quantidade = quantidade;
+        AcaoOrigemId = acaoOrigemId ?? string.Empty;
     }
 }
 
@@ -37,7 +40,8 @@ public sealed class HistoricoReforcos
 
     public DistribuicaoReforco Registrar(
         TerritorioClique territorio,
-        int quantidade)
+        int quantidade,
+        string acaoOrigemId = "")
     {
         if (territorio == null || quantidade <= 0)
             return null;
@@ -48,13 +52,15 @@ public sealed class HistoricoReforcos
             DistribuicaoReforco ultima =
                 distribuicoes[ultimoIndice];
 
-            if (ultima.Territorio == territorio)
+            if (ultima.Territorio == territorio &&
+                ultima.AcaoOrigemId == (acaoOrigemId ?? string.Empty))
             {
                 DistribuicaoReforco agregada =
                     new DistribuicaoReforco(
                         ultima.Id,
                         territorio,
-                        ultima.Quantidade + quantidade
+                        ultima.Quantidade + quantidade,
+                        acaoOrigemId
                     );
 
                 distribuicoes[ultimoIndice] = agregada;
@@ -66,7 +72,8 @@ public sealed class HistoricoReforcos
             new DistribuicaoReforco(
                 proximoId++,
                 territorio,
-                quantidade
+                quantidade,
+                acaoOrigemId
             );
 
         distribuicoes.Add(distribuicao);
@@ -104,6 +111,9 @@ public sealed class HistoricoReforcos
 
         return false;
     }
+
+    public IReadOnlyList<DistribuicaoReforco> ObterPorAcao(string acaoOrigemId) =>
+        distribuicoes.FindAll(item => item.AcaoOrigemId == (acaoOrigemId ?? string.Empty));
 
     public void Limpar()
     {

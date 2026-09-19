@@ -105,6 +105,9 @@ public class GerenciadorRodada : MonoBehaviour
         PrepararReforcos();
 
         AtualizarPrioridadeJogadores();
+
+        // Publica a Preparação somente após as autoridades da rodada estarem prontas.
+        gameManager.GetComponent<MatchUIPresenter>()?.SolicitarSnapshotAtual();
     }
 
     public void NotificarInicioResolucao()

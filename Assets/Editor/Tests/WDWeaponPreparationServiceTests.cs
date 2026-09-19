@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using NUnit.Framework;
+using UnityEngine;
 
 public sealed class WDWeaponPreparationServiceTests
 {
@@ -41,6 +43,66 @@ public sealed class WDWeaponPreparationServiceTests
     // ============================================================
     // 01. DISPONIBILIDADE E IDENTIDADE CANÔNICA
     // ============================================================
+
+    [Test]
+    public void InfiltratorUnlocksOnRoundThreeWithVisibleTwoOneCountdown()
+    {
+        service.BeginRound(1);
+        WDWeaponAvailability roundOne = service.GetOption(
+            "p1", WDSpecialWeaponIds.Infiltrator).Availability;
+        service.BeginRound(2);
+        WDWeaponAvailability roundTwo = service.GetOption(
+            "p1", WDSpecialWeaponIds.Infiltrator).Availability;
+        service.BeginRound(3);
+        WDWeaponAvailability roundThree = service.GetOption(
+            "p1", WDSpecialWeaponIds.Infiltrator).Availability;
+
+        Assert.That(roundOne.Reason, Is.EqualTo(WDWeaponAvailabilityReason.InitialRoundLock));
+        Assert.That(roundOne.CooldownRemaining, Is.EqualTo(2));
+        Assert.That(roundTwo.Reason, Is.EqualTo(WDWeaponAvailabilityReason.InitialRoundLock));
+        Assert.That(roundTwo.CooldownRemaining, Is.EqualTo(1));
+        Assert.That(roundThree.IsAvailable, Is.True);
+    }
+
+    [Test]
+    public void InfiltratorRequiresTwentyEnergyWithoutCreatingResidualIntentOrCooldown()
+    {
+        WDWeaponMatchRuntime lowRuntime = RuntimeWithEnergy(19);
+        WDWeaponPreparationService lowService = Service(lowRuntime, 3);
+        var request = new WDWeaponProgrammingRequest(
+            "p1", WDSpecialWeaponIds.Infiltrator,
+            targetPlayerId: "p2",
+            parameters: new[]
+            {
+                new WDWeaponActionParameter(
+                    "targetWeaponId", WDSupportWeaponIds.AirStrike)
+            });
+
+        WDWeaponProgrammingResult denied = lowService.Program(request);
+
+        Assert.That(denied.Succeeded, Is.False);
+        Assert.That(denied.Availability.Reason,
+            Is.EqualTo(WDWeaponAvailabilityReason.InsufficientEnergy));
+        Assert.That(denied.Availability.EnergyCost, Is.EqualTo(20));
+        Assert.That(denied.Action, Is.Null);
+        Assert.That(lowService.GetPlayerActions("p1", 3), Is.Empty);
+        Assert.That(lowRuntime.FindPlayer("p1").Energy, Is.EqualTo(19));
+        Assert.That(lowRuntime.FindPlayer("p1").GetWeapon(
+            WDSpecialWeaponIds.Infiltrator).CooldownRemaining, Is.Zero);
+
+        WDWeaponMatchRuntime exactRuntime = RuntimeWithEnergy(20);
+        WDWeaponPreparationService exactService = Service(exactRuntime, 3);
+        WDWeaponProgrammingResult accepted = exactService.Program(request);
+
+        Assert.That(accepted.Succeeded, Is.True);
+        Assert.That(accepted.Action, Is.Not.Null);
+        Assert.That(exactRuntime.FindPlayer("p1").Energy, Is.EqualTo(20));
+        Assert.That(exactService.Cancel("p1", accepted.Action.ActionId).Succeeded,
+            Is.True);
+        Assert.That(exactRuntime.FindPlayer("p1").Energy, Is.EqualTo(20));
+        Assert.That(exactRuntime.FindPlayer("p1").GetWeapon(
+            WDSpecialWeaponIds.Infiltrator).CooldownRemaining, Is.Zero);
+    }
 
     [Test]
     public void WeaponOutsideLoadoutDoesNotProgram()
@@ -205,22 +267,23 @@ public sealed class WDWeaponPreparationServiceTests
     }
 
     [Test]
-    public void InfiltratorTargetQueryExposesOnlyCanonicalActionIdentity()
+    public void InfiltratorTargetQueryExposesCanonicalOpponentDeckWeapons()
     {
         WDWeaponProgrammingResult target = service.Program(Request("p2",
             WDStrategicWeaponIds.Peace, targetPlayer: "p1"));
         Assert.That(target.Succeeded, Is.True);
 
-        WDPreparedWeaponActionIdentity option = service
-            .GetEligibleInfiltratorTargets("p1", "p2").Single();
+        IReadOnlyList<WDInfiltratorWeaponTarget> options = service
+            .GetEligibleInfiltratorWeapons("p1", "p2");
 
-        Assert.That(option.ActionId, Is.EqualTo(target.Action.ActionId));
-        Assert.That(option.WeaponId, Is.EqualTo(WDStrategicWeaponIds.Peace));
-        Assert.That(option.DisplayName, Is.EqualTo("Paz"));
+        Assert.That(options.Select(item => item.WeaponId),
+            Does.Contain(WDStrategicWeaponIds.Peace));
+        Assert.That(options.Single(item => item.WeaponId == WDStrategicWeaponIds.Peace)
+            .DisplayName, Is.EqualTo("Paz"));
     }
 
     [Test]
-    public void InfiltratorTargetQueryExcludesPersistentInstallationOperations()
+    public void InfiltratorTargetQueryDoesNotDependOnProgrammedOperations()
     {
         WDWeaponProgrammingResult droneShot = service.Program(new WDWeaponProgrammingRequest(
             "p2", WDSpecialWeaponIds.Drone, WDWeaponIntentKind.DroneShot,
@@ -229,13 +292,14 @@ public sealed class WDWeaponPreparationServiceTests
         WDWeaponProgrammingResult peace = service.Program(Request("p2",
             WDStrategicWeaponIds.Peace, targetPlayer: "p1"));
 
-        IReadOnlyList<WDPreparedWeaponActionIdentity> options = service
-            .GetEligibleInfiltratorTargets("p1", "p2");
+        IReadOnlyList<WDInfiltratorWeaponTarget> options = service
+            .GetEligibleInfiltratorWeapons("p1", "p2");
 
         Assert.That(droneShot.Succeeded, Is.True);
         Assert.That(peace.Succeeded, Is.True);
-        Assert.That(options.Select(item => item.ActionId),
-            Is.EqualTo(new[] { peace.Action.ActionId }));
+        Assert.That(options.Select(item => item.WeaponId),
+            Does.Contain(WDStrategicWeaponIds.Peace));
+        Assert.That(options.All(item => !string.IsNullOrEmpty(item.WeaponId)), Is.True);
     }
 
     // ============================================================
@@ -243,30 +307,81 @@ public sealed class WDWeaponPreparationServiceTests
     // ============================================================
 
     [Test]
-    public void ValidActionHasStableUniqueIdentityAndImmutablePayload()
+    public void ValidActionsHaveStableIdentityAndRemainIndependentByWeapon()
     {
         WDWeaponProgrammingResult first = service.Program(Request(
             "p1", WDStrategicWeaponIds.LongRangeBomb, target: "p2_a"));
         WDWeaponProgrammingResult second = service.Program(Request(
-            "p1", WDStrategicWeaponIds.LongRangeBomb, target: "neutral"));
+            "p1", WDSupportWeaponIds.AirStrike, origin: "p1_a", target: "p2_a"));
 
         Assert.That(first.Action.ActionId, Is.Not.EqualTo(second.Action.ActionId));
         Assert.That(first.Action.AuthorPlayerId, Is.EqualTo("p1"));
         Assert.That(first.Action.WeaponId, Is.EqualTo(WDStrategicWeaponIds.LongRangeBomb));
         Assert.That(first.Action.Round, Is.EqualTo(2));
         Assert.That(first.Action.State, Is.EqualTo(WDWeaponActionState.Programmed));
+        Assert.That(second.Succeeded, Is.True);
     }
 
     [Test]
-    public void ExactDuplicateIntentIsRejectedWithoutUniversalOnePerRoundLimit()
+    public void SameCardCannotBeProgrammedTwiceInOnePreparation()
     {
         Assert.That(service.Program(Request("p1", WDStrategicWeaponIds.LongRangeBomb,
             target: "p2_a")).Succeeded, Is.True);
         Assert.That(service.Program(Request("p1", WDStrategicWeaponIds.LongRangeBomb,
             target: "p2_a")).Reason,
-            Is.EqualTo(WDWeaponProgrammingReason.DuplicateIntent));
+            Is.EqualTo(WDWeaponProgrammingReason.ProgrammingUsageLimit));
+        WDWeaponProgrammingResult secondTarget = service.Program(Request(
+            "p1", WDStrategicWeaponIds.LongRangeBomb, target: "neutral"));
+        Assert.That(secondTarget.Reason,
+            Is.EqualTo(WDWeaponProgrammingReason.ProgrammingUsageLimit));
+        Assert.That(secondTarget.Availability.Reason,
+            Is.EqualTo(WDWeaponAvailabilityReason.AlreadyProgrammedThisPreparation));
+        Assert.That(service.GetOption("p1", WDStrategicWeaponIds.LongRangeBomb)
+            .Availability.Reason,
+            Is.EqualTo(WDWeaponAvailabilityReason.AlreadyProgrammedThisPreparation));
+    }
+
+    [Test]
+    public void CancellingCardProgrammingAllowsItAgainInSamePreparation()
+    {
+        WDWeaponProgrammingResult first = service.Program(Request(
+            "p1", WDStrategicWeaponIds.LongRangeBomb, target: "p2_a"));
+
+        Assert.That(service.Cancel("p1", first.Action.ActionId).Succeeded, Is.True);
+        Assert.That(service.GetOption("p1", WDStrategicWeaponIds.LongRangeBomb)
+            .Availability.IsAvailable, Is.True);
         Assert.That(service.Program(Request("p1", WDStrategicWeaponIds.LongRangeBomb,
             target: "neutral")).Succeeded, Is.True);
+    }
+
+    [Test]
+    public void EnergyPlantMatchLimitDoesNotPermitTwoInSamePreparation()
+    {
+        Assert.That(service.Program(Request("p1", WDStrategicWeaponIds.EnergyPlant,
+            target: "p1_a", installation: "central-a")).Succeeded, Is.True);
+        WDWeaponProgrammingResult second = service.Program(Request("p1",
+            WDStrategicWeaponIds.EnergyPlant, target: "p3_a",
+            installation: "central-b"));
+
+        Assert.That(second.Reason,
+            Is.EqualTo(WDWeaponProgrammingReason.ProgrammingUsageLimit));
+        Assert.That(runtime.FindPlayer("p1").GetWeapon(
+            WDStrategicWeaponIds.EnergyPlant).Uses, Is.Zero);
+    }
+
+    [Test]
+    public void PersistentInstallationOperationsDoNotCountAsSecondCardProgramming()
+    {
+        WDWeaponProgrammingResult drone = service.Program(Request("p1",
+            WDSpecialWeaponIds.Drone, target: "p1_a", installation: "drone-pending"));
+        WDWeaponProgrammingResult shot = service.Program(new WDWeaponProgrammingRequest(
+            "p1", WDSpecialWeaponIds.Drone, WDWeaponIntentKind.DroneShot,
+            targetTerritoryId: "empty", installationId: "drone-pending",
+            parameters: new[] { new WDWeaponActionParameter("mode", "shot") }));
+
+        Assert.That(drone.Succeeded, Is.True);
+        Assert.That(shot.Succeeded, Is.True);
+        Assert.That(service.GetPlayerActions("p1", 2).Count, Is.EqualTo(2));
     }
 
     [Test]
@@ -293,6 +408,174 @@ public sealed class WDWeaponPreparationServiceTests
         Assert.That(service.Cancel("p1", action.ActionId).Succeeded, Is.True);
         Assert.That(service.GetPlayerActions("p1", 2), Is.Empty);
         Assert.That(runtime.FindPlayer("p1").Energy, Is.EqualTo(energy));
+    }
+
+    [TestCase(WDTacticalWeaponIds.Blitzkrieg, "")]
+    [TestCase(WDSupportWeaponIds.ReserveTroops, "")]
+    [TestCase(WDSupportWeaponIds.TroopRecovery, "p1_a")]
+    public void CancellingProvisionalBenefitLeavesNoRuntimeOrBoardResidue(
+        string weaponId, string targetTerritoryId)
+    {
+        string boardBefore = state.Fingerprint();
+        WDWeaponPlayerRuntimeState player = runtime.FindPlayer("p1");
+        int energyBefore = player.Energy;
+        WDWeaponRuntimeEntry entry = player.GetWeapon(weaponId);
+        int cooldownBefore = entry.CooldownRemaining;
+        int usesBefore = entry.Uses;
+        WDWeaponProgrammingResult programmed = service.Program(
+            Request("p1", weaponId, target: targetTerritoryId));
+
+        Assert.That(programmed.Succeeded, Is.True);
+        Assert.That(service.Cancel("p1", programmed.Action.ActionId).Succeeded, Is.True);
+        Assert.That(service.GetPlayerActions("p1", 2), Is.Empty);
+        Assert.That(state.Fingerprint(), Is.EqualTo(boardBefore));
+        Assert.That(player.Energy, Is.EqualTo(energyBefore));
+        Assert.That(entry.CooldownRemaining, Is.EqualTo(cooldownBefore));
+        Assert.That(entry.Uses, Is.EqualTo(usesBefore));
+    }
+
+    [Test]
+    public void CancellingInstallationRemovesDependentOperationByInstallationId()
+    {
+        WDWeaponProgrammingResult installation = service.Program(Request("p1",
+            WDSpecialWeaponIds.Drone, target: "p1_a", installation: "drone-pending"));
+        WDWeaponProgrammingResult shot = service.Program(new WDWeaponProgrammingRequest(
+            "p1", WDSpecialWeaponIds.Drone, WDWeaponIntentKind.DroneShot,
+            targetTerritoryId: "p2_a", installationId: "drone-pending"));
+
+        Assert.That(installation.Succeeded, Is.True);
+        Assert.That(shot.Succeeded, Is.True);
+        Assert.That(service.Cancel("p1", installation.Action.ActionId).Succeeded, Is.True);
+        Assert.That(service.GetPlayerActions("p1", 2), Is.Empty);
+    }
+
+    [Test]
+    public void IrreversibleRadarScanProtectsParentInstallationFromCancellation()
+    {
+        WDWeaponProgrammingResult radar = service.Program(Request("p1",
+            WDTacticalWeaponIds.Radar, target: "p1_a", installation: "radar-pending"));
+
+        Assert.That(radar.Succeeded, Is.True);
+        Assert.That(service.MarkIrreversible(radar.Action.ActionId), Is.True);
+        Assert.That(service.Cancel("p1", radar.Action.ActionId).Reason,
+            Is.EqualTo(WDWeaponProgrammingReason.IrreversibleAction));
+        Assert.That(service.GetPlayerActions("p1", 2).Single().ActionId,
+            Is.EqualTo(radar.Action.ActionId));
+    }
+
+    [Test]
+    public void BlitzkriegExpandsPreparationLimitAndCancellationRemovesDependentOrders()
+    {
+        GameObject managerObject = new("PreparationBenefitsManager");
+        var territoryObjects = new List<GameObject>();
+        try
+        {
+            GameManager manager = ConfigureManager(managerObject, out FilaAcoes queue);
+            int normalLimit = manager.LimiteAcoesPorRodada;
+            WDWeaponProgrammingResult programmed = manager.ProgramarArma(
+                Request("p1", WDTacticalWeaponIds.Blitzkrieg));
+
+            Assert.That(programmed.Succeeded, Is.True);
+            Assert.That(normalLimit, Is.EqualTo(3));
+            Assert.That(manager.LimiteAcoesPorRodada, Is.EqualTo(7));
+            for (int i = 0; i < manager.LimiteAcoesPorRodada; i++)
+            {
+                GameObject originObject = new("Origin" + i);
+                GameObject targetObject = new("Target" + i);
+                territoryObjects.Add(originObject); territoryObjects.Add(targetObject);
+                TerritorioClique origin = originObject.AddComponent<TerritorioClique>();
+                TerritorioClique target = targetObject.AddComponent<TerritorioClique>();
+                Assert.That(queue.Adicionar(new OrdemTerrestre(origin, target, 1,
+                    TerritorioClique.Dono.Jogador1, i + 1), manager.LimiteAcoesPorRodada),
+                    Is.True);
+            }
+
+            Assert.That(manager.CancelarAcaoArma("p1", programmed.Action.ActionId).Succeeded,
+                Is.True);
+            Assert.That(manager.LimiteAcoesPorRodada, Is.EqualTo(3));
+            Assert.That(queue.QuantidadePara(TerritorioClique.Dono.Jogador1), Is.EqualTo(3));
+        }
+        finally
+        {
+            foreach (GameObject item in territoryObjects) UnityEngine.Object.DestroyImmediate(item);
+            UnityEngine.Object.DestroyImmediate(managerObject);
+        }
+    }
+
+    [Test]
+    public void ReserveTroopsAreUsableDuringPreparationAndCancelWithoutResidue()
+    {
+        GameObject managerObject = new("ReserveBenefitsManager");
+        GameObject territoryObject = new("ReserveTerritory");
+        try
+        {
+            GameManager manager = ConfigureManager(managerObject, out _);
+            WDWeaponRoundRuntime round = GetPrivate<WDWeaponRoundRuntime>(manager,
+                "weaponRoundRuntime");
+            round.CaptureOwnershipSnapshot(new[]
+            {
+                View("lost-a", "p1", 2), View("lost-b", "p1", 2)
+            });
+            round.ObserveOwnershipChanges(1, new[]
+            {
+                View("lost-a", "p2", 2), View("lost-b", "p2", 2)
+            });
+            round.BeginRound(2);
+            manager.DefinirReforcos(2);
+            TerritorioClique territory = CreateOwnedTerritory(territoryObject, "reserve-target", 1);
+            WDWeaponProgrammingResult programmed = manager.ProgramarArma(
+                Request("p1", WDSupportWeaponIds.ReserveTroops));
+
+            Assert.That(programmed.Succeeded, Is.True);
+            Assert.That(manager.reforcosDisponiveis, Is.EqualTo(4));
+            Assert.That(manager.DistribuirReforcos(territory, 4), Is.EqualTo(4));
+            Assert.That(territory.Tropas, Is.EqualTo(5));
+            Assert.That(manager.CancelarAcaoArma("p1", programmed.Action.ActionId).Succeeded,
+                Is.True);
+            Assert.That(territory.Tropas, Is.EqualTo(3));
+            Assert.That(manager.reforcosDisponiveis, Is.Zero);
+            Assert.That(manager.DistribuicoesReforcos.Sum(item => item.Quantidade), Is.EqualTo(2));
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(territoryObject);
+            UnityEngine.Object.DestroyImmediate(managerObject);
+        }
+    }
+
+    [Test]
+    public void TroopRecoveryIsUsableDuringPreparationAndCancellationRemovesAllocation()
+    {
+        GameObject managerObject = new("RecoveryBenefitsManager");
+        GameObject territoryObject = new("RecoveryTerritory");
+        try
+        {
+            GameManager manager = ConfigureManager(managerObject, out _);
+            WDWeaponRoundRuntime round = GetPrivate<WDWeaponRoundRuntime>(manager,
+                "weaponRoundRuntime");
+            round.CaptureTerritorySnapshot(new[] { View("p1_a", "p1", 5) });
+            round.ObserveTerritoryHistory(1, new[] { View("p1_a", "p1", 2) });
+            round.BeginRound(2);
+            manager.DefinirReforcos(0);
+            TerritorioClique territory = CreateOwnedTerritory(territoryObject, "p1_a", 2);
+            WDWeaponProgrammingResult programmed = manager.ProgramarArma(
+                Request("p1", WDSupportWeaponIds.TroopRecovery, target: "p1_a"));
+
+            Assert.That(programmed.Succeeded, Is.True);
+            Assert.That(manager.reforcosDisponiveis, Is.EqualTo(3));
+            Assert.That(manager.DistribuirReforcos(territory, 3), Is.EqualTo(3));
+            Assert.That(territory.Tropas, Is.EqualTo(5));
+            Assert.That(manager.CancelarAcaoArma("p1", programmed.Action.ActionId).Succeeded,
+                Is.True);
+            Assert.That(territory.Tropas, Is.EqualTo(2));
+            Assert.That(manager.reforcosDisponiveis, Is.Zero);
+            Assert.That(manager.DistribuicoesReforcos, Is.Empty);
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(territoryObject);
+            UnityEngine.Object.DestroyImmediate(managerObject);
+        }
     }
 
     [Test]
@@ -410,6 +693,45 @@ public sealed class WDWeaponPreparationServiceTests
         new(player, weapon, originTerritoryId: origin,
             targetTerritoryId: target, targetPlayerId: targetPlayer,
             installationId: installation);
+
+    private GameManager ConfigureManager(GameObject gameObject, out FilaAcoes queue)
+    {
+        GameManager manager = gameObject.AddComponent<GameManager>();
+        queue = gameObject.AddComponent<FilaAcoes>();
+        SetPrivate(manager, "filaAcoes", queue);
+        SetPrivate(manager, "weaponPreparation", service);
+        var round = new WDWeaponRoundRuntime();
+        SetPrivate(manager, "weaponRoundRuntime", round);
+        SetPrivate(manager, "bloqueioInicioPartida", false);
+        manager.faseAtual = GameManager.FaseTurno.Preparacao;
+        manager.estadoPreparacao = GameManager.EstadoPreparacao.Preparando;
+        manager.jogadorLocal = TerritorioClique.Dono.Jogador1;
+        return manager;
+    }
+
+    private static WDGameWeaponTerritoryView View(string id, string owner, int troops) =>
+        new(id, owner, troops, WDWeaponTerritoryStateKind.Occupied);
+
+    private static TerritorioClique CreateOwnedTerritory(
+        GameObject gameObject, string id, int troops)
+    {
+        gameObject.AddComponent<TerritorioTropas>();
+        gameObject.AddComponent<TerritorioFronteiras>();
+        TerritorioClique territory = gameObject.AddComponent<TerritorioClique>();
+        territory.idTerritorio = id;
+        Assert.That(territory.TentarAplicarEstadoAutoritativo(
+            TerritorioClique.Dono.Jogador1, troops,
+            TerritorioClique.EstadoTerritorial.Ocupado), Is.True);
+        return territory;
+    }
+
+    private static void SetPrivate(object target, string name, object value) =>
+        target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)
+            ?.SetValue(target, value);
+
+    private static T GetPrivate<T>(object target, string name) where T : class =>
+        target.GetType().GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)
+            ?.GetValue(target) as T;
 
     private sealed class TestLoadoutSource : IWDMatchWeaponLoadoutSource
     {

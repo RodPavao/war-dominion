@@ -6,8 +6,23 @@ public enum WDLanguage
     Portuguese,
     English,
     Spanish,
+    French,
     Italian,
     German
+}
+
+public readonly struct WDLanguageOption
+{
+    public WDLanguage Language { get; }
+    public string Label { get; }
+    public bool IsAvailable { get; }
+
+    public WDLanguageOption(WDLanguage language, string label, bool isAvailable)
+    {
+        Language = language;
+        Label = label;
+        IsAvailable = isAvailable;
+    }
 }
 
 [Serializable]
@@ -21,6 +36,7 @@ public sealed class WDLocalizedText
     [SerializeField, TextArea] private string portuguese;
     [SerializeField, TextArea] private string english;
     [SerializeField, TextArea] private string spanish;
+    [SerializeField, TextArea] private string french;
     [SerializeField, TextArea] private string italian;
     [SerializeField, TextArea] private string german;
 
@@ -32,6 +48,7 @@ public sealed class WDLocalizedText
         {
             WDLanguage.English => english,
             WDLanguage.Spanish => spanish,
+            WDLanguage.French => french,
             WDLanguage.Italian => italian,
             WDLanguage.German => german,
             _ => portuguese
@@ -158,14 +175,34 @@ public static class WDRegionalPreferences
     private const string AutomaticTimeZoneKey = "WD.Regional.AutomaticTimeZone";
     private static WDRegionalPreferenceState current;
 
+    public static readonly WDLanguageOption[] PlannedLanguages =
+    {
+        new WDLanguageOption(WDLanguage.Portuguese, "Português (Brasil)", true),
+        new WDLanguageOption(WDLanguage.English, "English", false),
+        new WDLanguageOption(WDLanguage.Spanish, "Español", false),
+        new WDLanguageOption(WDLanguage.French, "Français", false),
+        new WDLanguageOption(WDLanguage.German, "Deutsch", false),
+        new WDLanguageOption(WDLanguage.Italian, "Italiano", false)
+    };
+
     public static WDRegionalPreferenceState Current => current ??= Load();
 
-    public static void SetLanguage(WDLanguage language)
+    public static bool TrySetLanguage(WDLanguage language)
     {
+        bool available = false;
+        foreach (WDLanguageOption option in PlannedLanguages)
+            if (option.Language == language)
+                available = option.IsAvailable;
+        if (!available)
+            return false;
+
         Current.SetLanguage(language);
         PlayerPrefs.SetInt(LanguageKey, (int)language);
         PlayerPrefs.Save();
+        return true;
     }
+
+    public static void SetLanguage(WDLanguage language) => TrySetLanguage(language);
 
     public static bool TrySetManualTimeZone(string timeZoneId)
     {
@@ -181,6 +218,10 @@ public static class WDRegionalPreferences
         Current.UseAutomaticTimeZone();
         SaveTimeZone();
     }
+
+    public static void RestoreTimeZoneDefault() => UseAutomaticTimeZone();
+
+    public static void RestoreLanguageDefault() => TrySetLanguage(WDLanguage.Portuguese);
 
     public static DateTimeOffset ConvertEventUtcToLocal(
         DateTimeOffset absoluteUtcTime) =>

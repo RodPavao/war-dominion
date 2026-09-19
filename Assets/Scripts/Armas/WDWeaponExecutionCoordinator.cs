@@ -14,7 +14,9 @@ public sealed class WDWeaponRoundRuntime
     private readonly HashSet<string> blockedWeaponActions = new(StringComparer.Ordinal);
     private readonly HashSet<string> claimedInfiltratorTargets = new(StringComparer.Ordinal);
     private readonly HashSet<string> peace = new(StringComparer.Ordinal);
-    private readonly HashSet<string> programmedSnipers = new(StringComparer.Ordinal);
+    private readonly HashSet<string> preparationBenefitsApplied = new(StringComparer.Ordinal);
+    private readonly HashSet<string> scheduledEnergyCreditIds = new(StringComparer.Ordinal);
+    private readonly List<WDPendingEnergyCredit> pendingEnergyCredits = new();
     private readonly List<WDMercenaryPayment> mercenaryPayments = new();
     private readonly Dictionary<int, Dictionary<string, WDPreviousRoundTerritoryRecord>> territoryHistory = new();
     private Dictionary<string, (string owner, int troops)> territorySnapshot = new(StringComparer.Ordinal);
@@ -30,7 +32,7 @@ public sealed class WDWeaponRoundRuntime
         ActiveRound = normalized; transferBlocked.Clear();
         terrestrialLimits.Clear(); blockedOrigins.Clear(); radarResults.Clear(); peace.Clear();
         blockedWeaponActions.Clear(); claimedInfiltratorTargets.Clear();
-        programmedSnipers.Clear();
+        preparationBenefitsApplied.Clear();
     }
     public bool ApplySabotage(string id, double rate)
     { rate=Math.Clamp(rate,0d,1d); if(sabotage.TryGetValue(id,out double old)&&old>=rate)return false;sabotage[id]=rate;return true; }
@@ -58,23 +60,81 @@ public sealed class WDWeaponRoundRuntime
     public WDRadarRevealResult GetRadarResult(string commandId, string requestingPlayerId) =>
         radarResults.TryGetValue(commandId ?? "", out WDRadarRevealResult value) &&
         value.CanBeReadBy(requestingPlayerId) ? value : null;
-    public bool TryBlockWeaponAction(string targetActionId) =>
-        claimedInfiltratorTargets.Add(targetActionId ?? "") &&
-        blockedWeaponActions.Add(targetActionId ?? "");
-    public bool IsInfiltratorTargetClaimed(string targetActionId) =>
-        claimedInfiltratorTargets.Contains(targetActionId ?? "");
+    public bool TryClaimInfiltratorTarget(string targetPlayerId, string targetWeaponId) =>
+        claimedInfiltratorTargets.Add((targetPlayerId ?? "") + "|" +
+            (targetWeaponId ?? ""));
+    public void BlockWeaponAction(string actionId) =>
+        blockedWeaponActions.Add(actionId ?? "");
     public bool IsWeaponActionBlocked(string actionId) =>
         blockedWeaponActions.Contains(actionId ?? "");
     public bool EstablishPeace(string a,string b)=>peace.Add(Pair(a,b));
     public bool HasPeace(string a,string b)=>peace.Contains(Pair(a,b));
-    public void RegisterProgrammedSniper(string p,string t)=>programmedSnipers.Add((p??"")+"|"+(t??""));
-    public bool HasProgrammedSniper(string p,string t)=>programmedSnipers.Contains((p??"")+"|"+(t??""));
+    public void MarkPreparationBenefitApplied(string actionId)
+    { if (!string.IsNullOrWhiteSpace(actionId)) preparationBenefitsApplied.Add(actionId); }
+    public bool WasPreparationBenefitApplied(string actionId) =>
+        preparationBenefitsApplied.Contains(actionId ?? "");
+    public bool ScheduleAttackEnergy(
+        string creditId, string playerId, int resolvedRound, int amount = 5)
+    {
+        if (string.IsNullOrWhiteSpace(creditId) || string.IsNullOrWhiteSpace(playerId) ||
+            amount <= 0 || !scheduledEnergyCreditIds.Add(creditId))
+            return false;
+        pendingEnergyCredits.Add(new WDPendingEnergyCredit(
+            creditId, playerId, Math.Max(1, resolvedRound) + 1, amount));
+        return true;
+    }
+    public int ScheduleEnergyFromTerrestrialResults(
+        string resolutionId, int resolvedRound,
+        IEnumerable<ResultadoAcaoTerrestre> results,
+        Func<TerritorioClique.Dono, string> resolvePlayerId)
+    {
+        if (results == null || resolvePlayerId == null)
+            return 0;
+        int scheduled = 0;
+        foreach (ResultadoAcaoTerrestre result in results)
+        {
+            if (result?.Ordem == null || !result.Executada ||
+                result.Tipo != ResultadoAcaoTerrestre.TipoResultado.Ataque ||
+                result.Combate?.Valido != true || result.Combate.Conquistou != true)
+                continue;
+            string playerId = resolvePlayerId(result.Ordem.Jogador);
+            string creditId = $"energy:attack:{resolutionId}:{result.Ordem.PosicaoNaFila}:" +
+                $"{result.Ordem.IdOrigem}:{result.Ordem.IdDestino}";
+            if (ScheduleAttackEnergy(creditId, playerId, resolvedRound))
+                scheduled++;
+        }
+        return scheduled;
+    }
+    public IReadOnlyList<WDPendingEnergyCredit> GetDueEnergyCredits(int round) =>
+        pendingEnergyCredits.Where(item => item.DueRound <= Math.Max(1, round))
+            .OrderBy(item => item.DueRound)
+            .ThenBy(item => item.PlayerId, StringComparer.Ordinal)
+            .ThenBy(item => item.CreditId, StringComparer.Ordinal).ToArray();
+    public void MarkEnergyCreditApplied(string creditId) =>
+        pendingEnergyCredits.RemoveAll(item => item.CreditId == creditId);
     public void AddMercenaryPayments(IEnumerable<WDMercenaryPayment> values)=>mercenaryPayments.AddRange(values);
     public int PayMercenaries(int round){int paid=0;foreach(var p in mercenaryPayments.Where(x=>!x.Paid&&x.DueRound<=round).OrderBy(x=>x.DueRound).ThenBy(x=>x.PlayerId,StringComparer.Ordinal)){AddReinforcementPool(p.PlayerId,p.Amount);p.MarkPaid();paid++;}return paid;}
     public void CaptureTerritorySnapshot(IEnumerable<WDGameWeaponTerritoryView> values)=>territorySnapshot=(values??Array.Empty<WDGameWeaponTerritoryView>()).ToDictionary(x=>x.TerritoryId,x=>(x.OwnerPlayerId,x.Troops),StringComparer.Ordinal);
     public void ObserveTerritoryHistory(int round,IEnumerable<WDGameWeaponTerritoryView> values){var records=new Dictionary<string,WDPreviousRoundTerritoryRecord>(StringComparer.Ordinal);foreach(var t in values??Array.Empty<WDGameWeaponTerritoryView>())if(territorySnapshot.TryGetValue(t.TerritoryId,out var b)){int c=Math.Max(0,b.troops-t.Troops);records[t.TerritoryId]=new WDPreviousRoundTerritoryRecord(t.TerritoryId,b.owner,t.OwnerPlayerId,c,c>0);}territoryHistory[round]=records;territorySnapshot.Clear();}
     public WDPreviousRoundTerritoryRecord FindPreviousRoundRecord(string t)=>territoryHistory.TryGetValue(ActiveRound-1,out var records)&&records.TryGetValue(t??"",out var value)?value:null;
     private static string Pair(string a,string b)=>string.CompareOrdinal(a,b)<=0?(a??"")+"|"+(b??""):(b??"")+"|"+(a??"");
+}
+
+public sealed class WDPendingEnergyCredit
+{
+    public string CreditId { get; }
+    public string PlayerId { get; }
+    public int DueRound { get; }
+    public int Amount { get; }
+
+    public WDPendingEnergyCredit(
+        string creditId, string playerId, int dueRound, int amount)
+    {
+        CreditId = creditId ?? string.Empty;
+        PlayerId = playerId ?? string.Empty;
+        DueRound = Math.Max(1, dueRound);
+        Amount = Math.Max(0, amount);
+    }
 }
 
 public enum WDIntegratedWeaponExecutionStatus
@@ -200,8 +260,6 @@ public sealed class WDWeaponExecutionCoordinator
                 ? order : int.MaxValue)
             .ThenBy(action => action.ProgramOrder)
             .ThenBy(action => action.ActionId, StringComparer.Ordinal).ToArray();
-        foreach (WDWeaponAction sniper in ordered.Where(x => x.WeaponId == WDTacticalWeaponIds.Sniper))
-            roundRuntime.RegisterProgrammedSniper(sniper.AuthorPlayerId, sniper.TargetTerritoryId);
         frozenById = ordered.ToDictionary(action => action.ActionId, StringComparer.Ordinal);
         return ordered;
     }
@@ -300,10 +358,10 @@ public sealed class WDWeaponExecutionCoordinator
             WDStrategicWeaponIds.EnergyPlant => Install(action, availability.Level,
                 duration: 0, barrier: 0, payments: 3, transportable: true),
             WDStrategicWeaponIds.Rockets => Install(action, availability.Level,
-                duration: 0, barrier: 0, payments: 0, transportable: false, charges: 2),
+                duration: 0, barrier: 0, payments: 0, transportable: true, charges: 2),
             WDStrategicWeaponIds.Artillery => Install(action, availability.Level,
-                duration: WDStrategicWeaponTables.ArtilleryDuration(availability.Level),
-                barrier: 0, payments: 0, transportable: false),
+                duration: 0, barrier: 0, payments: 0, transportable: true,
+                charges: WDStrategicWeaponTables.ArtilleryAmmunition(availability.Level)),
             WDTacticalWeaponIds.Radar => Install(action, availability.Level,
                 duration: 0, barrier: 0, payments: 0, transportable: true, charges: 1),
             _ => default
@@ -355,13 +413,15 @@ public sealed class WDWeaponExecutionCoordinator
         return mutations.Install(Mutation(action, "effect"), installation);
     }
 
-    private void CommitCosts(WDWeaponAction action, WDWeaponDefinition definition)
+    private void CommitCosts(WDWeaponAction action, WDWeaponDefinition definition,
+        int? cooldownOverride = null)
     {
         if (definition.EnergyCost > 0)
             mutations.ConsumeEnergy(Mutation(action, "energy"),
                 action.AuthorPlayerId, definition.EnergyCost);
         mutations.StartCooldown(Mutation(action, "cooldown"),
-            action.AuthorPlayerId, action.WeaponId, definition.CooldownRounds);
+            action.AuthorPlayerId, action.WeaponId,
+            cooldownOverride ?? definition.CooldownRounds);
         mutations.RegisterUse(Mutation(action, "use"),
             action.AuthorPlayerId, action.WeaponId);
         action.MarkCostCommitted();
@@ -473,14 +533,29 @@ public sealed class WDWeaponExecutionCoordinator
     // 05. FASE 0: LIFECYCLE, PAGAMENTOS E ARTILHARIA AUTOMÁTICA
     // ============================================================
 
-    public void ProcessRoundStart(int round)
+    public int ProcessRoundStart(int round)
     {
         roundRuntime.BeginRound(round);
         roundRuntime.PayMercenaries(round);
         foreach (WDWeaponInstallationState item in installations.GetAll())
             item.SetTemporarilyDisabled(false);
         lifecycle.AdvanceFlakLifecycle(round);
-        ProcessEnergyPlantPayments(round);
+        return ProcessPendingAttackEnergy(round) + ProcessEnergyPlantPayments(round);
+    }
+
+    public int ProcessPendingAttackEnergy(int round)
+    {
+        int credited = 0;
+        foreach (WDPendingEnergyCredit credit in roundRuntime.GetDueEnergyCredits(round))
+        {
+            WDGameWeaponMutationResult result = mutations.AddEnergy(
+                credit.CreditId, credit.PlayerId, credit.Amount);
+            if (!result.Succeeded)
+                continue;
+            roundRuntime.MarkEnergyCreditApplied(credit.CreditId);
+            credited++;
+        }
+        return credited;
     }
 
     public int ProcessArtillery(int round)
@@ -488,7 +563,7 @@ public sealed class WDWeaponExecutionCoordinator
         int operated = 0;
         foreach (WDWeaponInstallationState artillery in installations.GetAll()
             .Where(x => x.WeaponId == WDStrategicWeaponIds.Artillery && !x.IsAbandoned &&
-                x.DurationRemaining > 0 && x.InstalledRound <= round)
+                x.ChargesRemaining > 0 && x.InstalledRound <= round)
             .OrderBy(x => x.OwnerPlayerId, StringComparer.Ordinal)
             .ThenBy(x => x.InstallationId, StringComparer.Ordinal).ToArray())
         {
@@ -504,11 +579,15 @@ public sealed class WDWeaponExecutionCoordinator
                 .Take(3).Select(x => x.TerritoryId).ToArray();
             if (targets.Length == 0) continue;
             artillery.TryMarkAutomaticRound(round);
-            foreach (string target in targets)
+            int shots = Math.Min(3, Math.Min(targets.Length, artillery.ChargesRemaining));
+            foreach (string target in targets.Take(shots))
+            {
                 damage.Apply($"artillery:{artillery.InstallationId}:{round}:{target}", target,
                     WDStrategicWeaponTables.ArtilleryDamage(artillery.Level), false, true);
-            artillery.ConsumeDuration(); operated++;
-            if (artillery.DurationRemaining == 0)
+                artillery.ConsumeCharge();
+            }
+            operated++;
+            if (artillery.ChargesRemaining == 0)
                 mutations.RemoveInstallation($"artillery:{artillery.InstallationId}:complete", artillery.InstallationId);
         }
         return operated;
@@ -611,6 +690,8 @@ public sealed class WDWeaponExecutionCoordinator
         if (action.WeaponId == WDTacticalWeaponIds.Sniper)
         {
             if (!IsEnemy(action.AuthorPlayerId, target)) return Invalid(action);
+            if (roundRuntime.HasPeace(action.AuthorPlayerId, target.OwnerPlayerId))
+                return Invalid(action);
             damage.Apply(action.ActionId, target.TerritoryId, 1, false, false);
             roundRuntime.BlockOrigin(target.TerritoryId);
         }
@@ -636,10 +717,12 @@ public sealed class WDWeaponExecutionCoordinator
             if (!roundRuntime.TryBlockTransfer(action.TargetPlayerId))
                 return Remember(action, WDIntegratedWeaponExecutionStatus.Superseded);
         }
-        else if (action.WeaponId == WDTacticalWeaponIds.Blitzkrieg)
+        else if (action.WeaponId == WDTacticalWeaponIds.Blitzkrieg &&
+            !roundRuntime.WasPreparationBenefitApplied(action.ActionId))
             roundRuntime.SetTerrestrialLimit(action.AuthorPlayerId,
                 WDTacticalWeaponTables.BlitzkriegLimit(availability.Level));
-        else if (action.WeaponId == WDSupportWeaponIds.ReserveTroops)
+        else if (action.WeaponId == WDSupportWeaponIds.ReserveTroops &&
+            !roundRuntime.WasPreparationBenefitApplied(action.ActionId))
         {
             int lost = roundRuntime.GetTerritoriesLostPreviousRound(action.AuthorPlayerId);
             int amount = WDSupportWeaponTables.ReserveTroops(availability.Level, lost);
@@ -728,22 +811,27 @@ public sealed class WDWeaponExecutionCoordinator
         WDRadarRevealResult prior = roundRuntime.GetRadarResult(commandId, authorPlayerId);
         if (prior != null) return new WDRadarUseResult(WDRadarUseStatus.AlreadyProcessed, prior);
         WDWeaponInstallationState radar = installations.Find(installationId);
+        WDWeaponAction programmedInstallation = (currentlyProgrammedActions ??
+            Array.Empty<WDWeaponAction>()).FirstOrDefault(item => item != null &&
+                item.WeaponId == WDTacticalWeaponIds.Radar &&
+                item.AuthorPlayerId == authorPlayerId &&
+                item.InstallationId == installationId);
+        if (radar == null && programmedInstallation != null)
+        {
+            WDIntegratedWeaponExecutionResult installationResult = Execute(programmedInstallation);
+            if (installationResult.Status == WDIntegratedWeaponExecutionStatus.Executed ||
+                installationResult.Status == WDIntegratedWeaponExecutionStatus.AlreadyProcessed)
+                radar = installations.Find(installationId);
+        }
         WDGameWeaponTerritoryView target = context.FindTerritory(targetTerritoryId);
         if (string.IsNullOrWhiteSpace(commandId) || radar == null ||
             radar.WeaponId != WDTacticalWeaponIds.Radar || radar.IsAbandoned ||
             radar.OwnerPlayerId != authorPlayerId || radar.ChargesRemaining != 1 ||
-            radar.InstalledRound >= context.CurrentRound || target == null ||
+            target == null ||
             target.State == WDWeaponTerritoryStateKind.Occupied &&
             (target.OwnerPlayerId == authorPlayerId || context.AreAllied(authorPlayerId,
                 target.OwnerPlayerId)))
             return new WDRadarUseResult(WDRadarUseStatus.Invalid);
-        bool sniperProgrammed = (currentlyProgrammedActions ?? Array.Empty<WDWeaponAction>())
-            .Any(item => item != null && item.Round == context.CurrentRound &&
-                item.WeaponId == WDTacticalWeaponIds.Sniper &&
-                item.TargetTerritoryId == radar.TerritoryId);
-        if (sniperProgrammed)
-            return new WDRadarUseResult(WDRadarUseStatus.BlockedBySniper);
-
         bool hasCoverage = damage.SelectCoveringFlak(targetTerritoryId) != null;
         var reveal = new WDRadarRevealResult(context.CurrentRound, targetTerritoryId,
             hasCoverage, authorPlayerId, commandId);
@@ -803,8 +891,9 @@ public sealed class WDWeaponExecutionCoordinator
             if(target==null||record==null||!record.WasAttacked||record.Casualties<=0||
                 record.OwnerAtStart!=action.AuthorPlayerId||record.OwnerAtEnd!=action.AuthorPlayerId||
                 target.OwnerPlayerId!=action.AuthorPlayerId) return Invalid(action);
-            mutations.AddTroops(Mutation(action,"recovery"),target.TerritoryId,
-                Math.Min(record.Casualties,WDSupportWeaponTables.RecoveryLimit(availability.Level)));
+            if (!roundRuntime.WasPreparationBenefitApplied(action.ActionId))
+                mutations.AddTroops(Mutation(action,"recovery"),target.TerritoryId,
+                    Math.Min(record.Casualties,WDSupportWeaponTables.RecoveryLimit(availability.Level)));
         }
         else if (action.WeaponId == WDSupportWeaponIds.Mercenaries)
         {
@@ -821,23 +910,27 @@ public sealed class WDWeaponExecutionCoordinator
         WDWeaponAction action, WDWeaponDefinition definition,
         WDWeaponAvailability availability)
     {
-        string targetActionId = WDSpecialWeaponParameters.Get(action, "targetActionId");
-        if (definition == null || !frozenById.TryGetValue(targetActionId,
-                out WDWeaponAction targetAction) ||
-            targetAction.Round != action.Round ||
-            targetAction.AuthorPlayerId != action.TargetPlayerId ||
-            targetAction.WeaponId == WDSpecialWeaponIds.Infiltrator ||
-            WDWeaponActionSemantics.IsPersistentInstallationOperation(targetAction) ||
-            roundRuntime.HasPeace(action.AuthorPlayerId, targetAction.AuthorPlayerId) ||
-            !IsOpponent(action.AuthorPlayerId, targetAction.AuthorPlayerId))
+        string targetWeaponId = WDSpecialWeaponParameters.Get(action, "targetWeaponId");
+        WDWeaponRuntimeEntry targetWeapon = runtime.FindPlayer(action.TargetPlayerId)?
+            .GetWeapon(targetWeaponId);
+        if (definition == null || action.Round < 3 ||
+            string.IsNullOrWhiteSpace(targetWeaponId) || targetWeapon == null ||
+            !targetWeapon.Available ||
+            roundRuntime.HasPeace(action.AuthorPlayerId, action.TargetPlayerId) ||
+            !IsOpponent(action.AuthorPlayerId, action.TargetPlayerId))
             return Invalid(action);
-        if (roundRuntime.IsInfiltratorTargetClaimed(targetActionId))
+        if (!roundRuntime.TryClaimInfiltratorTarget(action.TargetPlayerId, targetWeaponId))
             return Remember(action, WDIntegratedWeaponExecutionStatus.Superseded);
         if (action.Round != context.CurrentRound || !availability.IsAvailable)
             return Invalid(action);
-        if (!roundRuntime.TryBlockWeaponAction(targetActionId))
-            return Remember(action, WDIntegratedWeaponExecutionStatus.Superseded);
-        CommitCosts(action, definition); action.MarkValidated(); action.MarkExecuted();
+        foreach (WDWeaponAction targetAction in frozenById.Values.Where(item =>
+            item.Round == action.Round && item.AuthorPlayerId == action.TargetPlayerId &&
+            item.WeaponId == targetWeaponId &&
+            !WDWeaponActionSemantics.IsPersistentInstallationOperation(item)))
+            roundRuntime.BlockWeaponAction(targetAction.ActionId);
+        if (!runtime.ForceCooldown(action.TargetPlayerId, targetWeaponId, 3))
+            return Invalid(action);
+        CommitCosts(action, definition, 4); action.MarkValidated(); action.MarkExecuted();
         return Remember(action, WDIntegratedWeaponExecutionStatus.Executed);
     }
 

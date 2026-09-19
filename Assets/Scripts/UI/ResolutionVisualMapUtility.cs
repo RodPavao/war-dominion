@@ -41,8 +41,7 @@ public static class ResolutionVisualMapUtility
         if (territory == null || context == null)
             return false;
 
-        ContadorTropas counter = territory.GetComponentInChildren<ContadorTropas>(true);
-        Vector3 world = counter != null ? counter.transform.position : territory.transform.position;
+        Vector3 world = MapOverlayProjection.GetTerritoryWorldAnchor(territory);
         Camera camera = Camera.main != null ? Camera.main : Object.FindAnyObjectByType<Camera>();
         return context.TryWorldToOverlay(world, camera, out position);
     }

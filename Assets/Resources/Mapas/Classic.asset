@@ -18,7 +18,7 @@ MonoBehaviour:
   descricao: "Mapa cl\xE1ssico migrado da cena WarGame sem altera\xE7\xE3o de layout."
   temaId: classic
   versao: 1
-  arteBase: {fileID: 5559561540143506820, guid: f328fe402440c014b88800328223fa03, type: 3}
+  arteBase: {fileID: 3801641741836963537, guid: a364317755254adfa65d5e9e9a1ea5de, type: 3}
   centroCamera: {x: -0.0234, y: 0.0257}
   tamanhoOrtografico: 5.12
   deslocamentoEnquadramento: {x: 0, y: 0}
@@ -27,7 +27,7 @@ MonoBehaviour:
     nomeExibido: Afghanistan
     chaveTraducao: territory_afghanistan
     regiaoId: asia
-    posicaoContador: {x: 2.73, y: 2}
+    posicaoContador: {x: 2.9483228, y: 1.8338977}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 2.520014, y: 2.25718}
     possuiPosicaoNomeManual: 1
@@ -37,7 +37,7 @@ MonoBehaviour:
     nomeExibido: Alaska
     chaveTraducao: territory_alaska
     regiaoId: america_norte
-    posicaoContador: {x: -5.15, y: 3.72}
+    posicaoContador: {x: -2.7806072, y: 2.6626446}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: -5.501643, y: 3.5222223}
     possuiPosicaoNomeManual: 1
@@ -47,7 +47,7 @@ MonoBehaviour:
     nomeExibido: Alberta
     chaveTraducao: territory_alberta
     regiaoId: america_norte
-    posicaoContador: {x: -4.212, y: 2.898}
+    posicaoContador: {x: -4.2174354, y: 3.5639367}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: -4.3960786, y: 3.1638932}
     possuiPosicaoNomeManual: 1
@@ -57,7 +57,7 @@ MonoBehaviour:
     nomeExibido: Algeria
     chaveTraducao: territory_algeria
     regiaoId: africa
-    posicaoContador: {x: -0.07, y: 0.36004}
+    posicaoContador: {x: -0.05736294, y: 0.18896313}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0.09494025, y: 0.036272693}
     possuiPosicaoNomeManual: 1
@@ -67,9 +67,9 @@ MonoBehaviour:
     nomeExibido: Arabia
     chaveTraducao: territory_arabia
     regiaoId: asia
-    posicaoContador: {x: 1.77, y: 1.08}
+    posicaoContador: {x: 1.9942372, y: 0.90432376}
     possuiPosicaoContador: 1
-    posicaoNomeManual: {x: 1.961646, y: 0.75475717}
+    posicaoNomeManual: {x: 2.1697016, y: 0.5129004}
     possuiPosicaoNomeManual: 1
     tamanhoFonteNome: 0
     metadados: []
@@ -77,7 +77,7 @@ MonoBehaviour:
     nomeExibido: Argentina
     chaveTraducao: territory_argentina
     regiaoId: america_sul
-    posicaoContador: {x: -2.73, y: -1.88}
+    posicaoContador: {x: -2.8533697, y: -2.2422838}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: -2.620536, y: -1.5740476}
     possuiPosicaoNomeManual: 1
@@ -87,7 +87,7 @@ MonoBehaviour:
     nomeExibido: Brazil
     chaveTraducao: territory_brazil
     regiaoId: america_sul
-    posicaoContador: {x: -2.07, y: -0.58}
+    posicaoContador: {x: -2.3114886, y: -0.8062347}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: -2.2516012, y: -0.28688744}
     possuiPosicaoNomeManual: 1
@@ -97,7 +97,7 @@ MonoBehaviour:
     nomeExibido: China
     chaveTraducao: territory_china
     regiaoId: asia
-    posicaoContador: {x: 4.04, y: 1.52}
+    posicaoContador: {x: 4.4380126, y: 1.3375256}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 4.2666216, y: 1.236547}
     possuiPosicaoNomeManual: 1
@@ -107,9 +107,9 @@ MonoBehaviour:
     nomeExibido: Congo
     chaveTraducao: territory_congo
     regiaoId: africa
-    posicaoContador: {x: 0.74833333, y: -0.67809516}
+    posicaoContador: {x: 0.9034143, y: -1.0217524}
     possuiPosicaoContador: 1
-    posicaoNomeManual: {x: 0.90052986, y: -0.95706135}
+    posicaoNomeManual: {x: 0.92794424, y: -1.2552541}
     possuiPosicaoNomeManual: 1
     tamanhoFonteNome: 0
     metadados: []
@@ -117,7 +117,7 @@ MonoBehaviour:
     nomeExibido: EastAustralia
     chaveTraducao: territory_east_australia
     regiaoId: oceania
-    posicaoContador: {x: 6.02, y: -1.98}
+    posicaoContador: {x: 5.79381, y: -2.2360969}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 6.043873, y: -2.2338467}
     possuiPosicaoNomeManual: 1
@@ -127,7 +127,7 @@ MonoBehaviour:
     nomeExibido: EastUSA
     chaveTraducao: territory_east_usa
     regiaoId: america_norte
-    posicaoContador: {x: -3.32, y: 1.97}
+    posicaoContador: {x: -3.545691, y: 1.8034741}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: -3.4267507, y: 1.7045814}
     possuiPosicaoNomeManual: 1
@@ -137,9 +137,9 @@ MonoBehaviour:
     nomeExibido: Egypt
     chaveTraducao: territory_egypt
     regiaoId: africa
-    posicaoContador: {x: 0.87, y: 0.68}
+    posicaoContador: {x: 1.026554, y: 0.39716554}
     possuiPosicaoContador: 1
-    posicaoNomeManual: {x: 1.2119442, y: 0.6283729}
+    posicaoNomeManual: {x: 0.81996465, y: 0.6208784}
     possuiPosicaoNomeManual: 1
     tamanhoFonteNome: 0
     metadados: []
@@ -147,9 +147,9 @@ MonoBehaviour:
     nomeExibido: Ethiopia
     chaveTraducao: territory_ethiopia
     regiaoId: africa
-    posicaoContador: {x: 1.44, y: -0.35}
+    posicaoContador: {x: 1.5931408, y: -0.6100104}
     possuiPosicaoContador: 1
-    posicaoNomeManual: {x: 1.3117068, y: 0.0009541819}
+    posicaoNomeManual: {x: 1.778278, y: -0.5938842}
     possuiPosicaoNomeManual: 1
     tamanhoFonteNome: 0
     metadados: []
@@ -157,7 +157,7 @@ MonoBehaviour:
     nomeExibido: Germany
     chaveTraducao: territory_germany
     regiaoId: europa
-    posicaoContador: {x: 0.4742307, y: 2.4853845}
+    posicaoContador: {x: 0.58345884, y: 2.2881658}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0.8556589, y: 2.2943254}
     possuiPosicaoNomeManual: 1
@@ -167,7 +167,7 @@ MonoBehaviour:
     nomeExibido: Greenland
     chaveTraducao: territory_greenland
     regiaoId: america_norte
-    posicaoContador: {x: -1.8289472, y: 4.019211}
+    posicaoContador: {x: -1.9703381, y: 3.9832525}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: -1.8555291, y: 3.754261}
     possuiPosicaoNomeManual: 1
@@ -177,7 +177,7 @@ MonoBehaviour:
     nomeExibido: Iceland
     chaveTraducao: territory_iceland
     regiaoId: europa
-    posicaoContador: {x: -1.045, y: 3.34}
+    posicaoContador: {x: -1.1024798, y: 3.236548}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: -0.70242053, y: 3.2984974}
     possuiPosicaoNomeManual: 1
@@ -187,7 +187,7 @@ MonoBehaviour:
     nomeExibido: India
     chaveTraducao: territory_india
     regiaoId: asia
-    posicaoContador: {x: 3.38, y: 0.85}
+    posicaoContador: {x: 3.690304, y: 0.5715735}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 3.4049914, y: 0.48731905}
     possuiPosicaoNomeManual: 1
@@ -197,7 +197,7 @@ MonoBehaviour:
     nomeExibido: Indochina
     chaveTraducao: territory_indochina
     regiaoId: asia
-    posicaoContador: {x: 4.32, y: 0.51987}
+    posicaoContador: {x: 4.7233067, y: 0.22725464}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 4.205591, y: 0.7537825}
     possuiPosicaoNomeManual: 1
@@ -207,7 +207,7 @@ MonoBehaviour:
     nomeExibido: Indonesia
     chaveTraducao: territory_indonesia
     regiaoId: oceania
-    posicaoContador: {x: 4.915, y: -0.55}
+    posicaoContador: {x: 4.9636564, y: -0.9313182}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 4.6257014, y: -0.8124652}
     possuiPosicaoNomeManual: 1
@@ -217,7 +217,7 @@ MonoBehaviour:
     nomeExibido: Irkutsk
     chaveTraducao: territory_irkutsk
     regiaoId: asia
-    posicaoContador: {x: 4.28, y: 3.12}
+    posicaoContador: {x: 4.715156, y: 2.9906933}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 4.2283525, y: 2.7317722}
     possuiPosicaoNomeManual: 1
@@ -227,7 +227,7 @@ MonoBehaviour:
     nomeExibido: Italy
     chaveTraducao: territory_italy
     regiaoId: europa
-    posicaoContador: {x: 0.60822576, y: 1.7567743}
+    posicaoContador: {x: 0.698489, y: 1.7411594}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0.30725384, y: 2.0169976}
     possuiPosicaoNomeManual: 1
@@ -237,7 +237,7 @@ MonoBehaviour:
     nomeExibido: Japan
     chaveTraducao: territory_japan
     regiaoId: asia
-    posicaoContador: {x: 5.745, y: 1.81}
+    posicaoContador: {x: 6.313393, y: 1.5791911}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 5.5883636, y: 1.5987145}
     possuiPosicaoNomeManual: 1
@@ -247,7 +247,7 @@ MonoBehaviour:
     nomeExibido: Kamchatka
     chaveTraducao: territory_kamchatka
     regiaoId: asia
-    posicaoContador: {x: 5.38, y: 3.79}
+    posicaoContador: {x: 5.840986, y: 3.7117753}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 5.13391, y: 3.5736659}
     possuiPosicaoNomeManual: 1
@@ -257,9 +257,9 @@ MonoBehaviour:
     nomeExibido: Madagascar
     chaveTraducao: territory_madagascar
     regiaoId: africa
-    posicaoContador: {x: 1.965, y: -1.55}
+    posicaoContador: {x: 2.2317982, y: -1.9092926}
     possuiPosicaoContador: 1
-    posicaoNomeManual: {x: 2.189176, y: -1.2976131}
+    posicaoNomeManual: {x: 2.2911782, y: -2.2810547}
     possuiPosicaoNomeManual: 1
     tamanhoFonteNome: 0
     metadados: []
@@ -267,7 +267,7 @@ MonoBehaviour:
     nomeExibido: Mexico
     chaveTraducao: territory_mexico
     regiaoId: america_norte
-    posicaoContador: {x: -4.025, y: 1.08}
+    posicaoContador: {x: -4.390018, y: 0.8098415}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: -4.2555294, y: 1.3951147}
     possuiPosicaoNomeManual: 1
@@ -277,7 +277,7 @@ MonoBehaviour:
     nomeExibido: Mongolia
     chaveTraducao: territory_mongolia
     regiaoId: asia
-    posicaoContador: {x: 4.66, y: 2.34}
+    posicaoContador: {x: 5.014132, y: 2.1812317}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 4.5333962, y: 2.0861201}
     possuiPosicaoNomeManual: 1
@@ -287,7 +287,7 @@ MonoBehaviour:
     nomeExibido: NewGuinea
     chaveTraducao: territory_new_guinea
     regiaoId: oceania
-    posicaoContador: {x: 5.885, y: -0.92}
+    posicaoContador: {x: 6.5043383, y: -1.2631799}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 5.7705517, y: -0.70158327}
     possuiPosicaoNomeManual: 1
@@ -297,7 +297,7 @@ MonoBehaviour:
     nomeExibido: Ontario
     chaveTraducao: territory_ontario
     regiaoId: america_norte
-    posicaoContador: {x: -3.37, y: 2.81}
+    posicaoContador: {x: -4.5566382, y: 2.825819}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: -3.5550666, y: 3.0698552}
     possuiPosicaoNomeManual: 1
@@ -307,7 +307,7 @@ MonoBehaviour:
     nomeExibido: Peru
     chaveTraducao: territory_peru
     regiaoId: america_sul
-    posicaoContador: {x: -2.7679412, y: -0.95027}
+    posicaoContador: {x: -2.871789, y: -1.2759417}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: -2.9283032, y: -0.6662214}
     possuiPosicaoNomeManual: 1
@@ -317,7 +317,7 @@ MonoBehaviour:
     nomeExibido: Quebec
     chaveTraducao: territory_quebec
     regiaoId: america_norte
-    posicaoContador: {x: -2.5318964, y: 2.7903442}
+    posicaoContador: {x: -3.6533723, y: 2.7068505}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: -2.6933346, y: 2.5223718}
     possuiPosicaoNomeManual: 1
@@ -327,7 +327,7 @@ MonoBehaviour:
     nomeExibido: Russia
     chaveTraducao: territory_russia
     regiaoId: europa
-    posicaoContador: {x: 1.54, y: 2.68}
+    posicaoContador: {x: 1.7565576, y: 2.7024114}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 1.7155359, y: 2.9953575}
     possuiPosicaoNomeManual: 1
@@ -337,7 +337,7 @@ MonoBehaviour:
     nomeExibido: Scandinavia
     chaveTraducao: territory_scandinavia
     regiaoId: europa
-    posicaoContador: {x: 0.51, y: 3.36}
+    posicaoContador: {x: 0.53651965, y: 3.3203511}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0.64542335, y: 3.6197836}
     possuiPosicaoNomeManual: 1
@@ -347,7 +347,7 @@ MonoBehaviour:
     nomeExibido: Siberia
     chaveTraducao: territory_siberia
     regiaoId: asia
-    posicaoContador: {x: 3.47, y: 3.27}
+    posicaoContador: {x: 3.8239758, y: 3.303615}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 3.3961296, y: 3.6223543}
     possuiPosicaoNomeManual: 1
@@ -357,9 +357,9 @@ MonoBehaviour:
     nomeExibido: SouthAfrica
     chaveTraducao: territory_south_africa
     regiaoId: africa
-    posicaoContador: {x: 0.9853571, y: -1.65}
+    posicaoContador: {x: 1.1485363, y: -1.9833618}
     possuiPosicaoContador: 1
-    posicaoNomeManual: {x: 1.0157758, y: -1.3838387}
+    posicaoNomeManual: {x: 1.0764153, y: -2.3350434}
     possuiPosicaoNomeManual: 1
     tamanhoFonteNome: 0
     metadados: []
@@ -367,7 +367,7 @@ MonoBehaviour:
     nomeExibido: Spain
     chaveTraducao: territory_spain
     regiaoId: europa
-    posicaoContador: {x: -0.38166663, y: 1.8438}
+    posicaoContador: {x: -0.3764514, y: 1.5111835}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: -0.47833288, y: 1.5630999}
     possuiPosicaoNomeManual: 1
@@ -377,7 +377,7 @@ MonoBehaviour:
     nomeExibido: UnitedKingdom
     chaveTraducao: territory_united_kingdom
     regiaoId: europa
-    posicaoContador: {x: -0.435, y: 2.66}
+    posicaoContador: {x: -0.41649964, y: 2.5293946}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: -0.39175567, y: 2.4421387}
     possuiPosicaoNomeManual: 1
@@ -387,7 +387,7 @@ MonoBehaviour:
     nomeExibido: Ural
     chaveTraducao: territory_ural
     regiaoId: asia
-    posicaoContador: {x: 2.68, y: 3.2}
+    posicaoContador: {x: 2.925696, y: 3.1637316}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 2.6077535, y: 3.5422394}
     possuiPosicaoNomeManual: 1
@@ -397,7 +397,7 @@ MonoBehaviour:
     nomeExibido: Venezuela
     chaveTraducao: territory_venezuela
     regiaoId: america_sul
-    posicaoContador: {x: -3.08, y: 0.1}
+    posicaoContador: {x: -3.391213, y: -0.21595763}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: -2.9905353, y: 0.3911216}
     possuiPosicaoNomeManual: 1
@@ -407,7 +407,7 @@ MonoBehaviour:
     nomeExibido: WestAustralia
     chaveTraducao: territory_west_australia
     regiaoId: oceania
-    posicaoContador: {x: 5.276111, y: -1.8462961}
+    posicaoContador: {x: 6.601128, y: -2.461267}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 5.1866193, y: -2.1080177}
     possuiPosicaoNomeManual: 1
@@ -417,7 +417,7 @@ MonoBehaviour:
     nomeExibido: WestUSA
     chaveTraducao: territory_west_usa
     regiaoId: america_norte
-    posicaoContador: {x: -4.22, y: 2.06}
+    posicaoContador: {x: -4.533405, y: 1.9022784}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: -4.0722613, y: 2.362782}
     possuiPosicaoNomeManual: 1
@@ -427,7 +427,7 @@ MonoBehaviour:
     nomeExibido: Yakutsk
     chaveTraducao: territory_yakutsk
     regiaoId: asia
-    posicaoContador: {x: 4.3810863, y: 3.8465214}
+    posicaoContador: {x: 4.7741747, y: 3.788424}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 4.1766944, y: 3.6094954}
     possuiPosicaoNomeManual: 1
@@ -437,7 +437,7 @@ MonoBehaviour:
     nomeExibido: Yukon
     chaveTraducao: territory_yukon
     regiaoId: america_norte
-    posicaoContador: {x: -3.89, y: 3.64}
+    posicaoContador: {x: -5.534399, y: 3.5617993}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: -3.4433608, y: 3.569118}
     possuiPosicaoNomeManual: 1
@@ -451,6 +451,8 @@ MonoBehaviour:
     bonus: 5
     ordemExibicao: 0
     corDestaque: {r: 0.25, g: 0.65, b: 1, a: 1}
+    possuiDeslocamentoLabelManual: 1
+    deslocamentoLabelManual: {x: -0.3325169, y: -0.4335947}
     territorioIds:
     - Alaska
     - Yukon
@@ -469,6 +471,8 @@ MonoBehaviour:
     bonus: 2
     ordemExibicao: 1
     corDestaque: {r: 0.3, g: 0.85, b: 0.35, a: 1}
+    possuiDeslocamentoLabelManual: 1
+    deslocamentoLabelManual: {x: 0.39116287, y: 0.29291296}
     territorioIds:
     - Venezuela
     - Brazil
@@ -482,6 +486,8 @@ MonoBehaviour:
     bonus: 3
     ordemExibicao: 2
     corDestaque: {r: 1, g: 0.65, b: 0.2, a: 1}
+    possuiDeslocamentoLabelManual: 1
+    deslocamentoLabelManual: {x: 0.40471977, y: 0.21280146}
     territorioIds:
     - Algeria
     - Egypt
@@ -497,6 +503,8 @@ MonoBehaviour:
     bonus: 5
     ordemExibicao: 3
     corDestaque: {r: 0.65, g: 0.4, b: 1, a: 1}
+    possuiDeslocamentoLabelManual: 1
+    deslocamentoLabelManual: {x: 0.08980167, y: -0.15826797}
     territorioIds:
     - Iceland
     - UnitedKingdom
@@ -513,6 +521,8 @@ MonoBehaviour:
     bonus: 7
     ordemExibicao: 4
     corDestaque: {r: 1, g: 0.35, b: 0.35, a: 1}
+    possuiDeslocamentoLabelManual: 1
+    deslocamentoLabelManual: {x: -1.0646076, y: 0.10689688}
     territorioIds:
     - Ural
     - Siberia
@@ -534,6 +544,8 @@ MonoBehaviour:
     bonus: 2
     ordemExibicao: 5
     corDestaque: {r: 0.2, g: 0.85, b: 0.85, a: 1}
+    possuiDeslocamentoLabelManual: 1
+    deslocamentoLabelManual: {x: 0.46019077, y: 0.07548094}
     territorioIds:
     - Indonesia
     - NewGuinea
@@ -561,24 +573,8 @@ MonoBehaviour:
     destinoId: Ural
     tipo: 0
     bidirecional: 1
-  - origemId: Alaska
-    destinoId: Alberta
-    tipo: 0
-    bidirecional: 1
-  - origemId: Alaska
-    destinoId: Kamchatka
-    tipo: 0
-    bidirecional: 1
-  - origemId: Alaska
-    destinoId: Yukon
-    tipo: 0
-    bidirecional: 1
   - origemId: Alberta
     destinoId: Ontario
-    tipo: 0
-    bidirecional: 1
-  - origemId: Alberta
-    destinoId: WestUSA
     tipo: 0
     bidirecional: 1
   - origemId: Alberta
@@ -678,10 +674,6 @@ MonoBehaviour:
     tipo: 0
     bidirecional: 1
   - origemId: EastUSA
-    destinoId: Ontario
-    tipo: 0
-    bidirecional: 1
-  - origemId: EastUSA
     destinoId: Quebec
     tipo: 0
     bidirecional: 1
@@ -729,14 +721,6 @@ MonoBehaviour:
     destinoId: Iceland
     tipo: 0
     bidirecional: 1
-  - origemId: Greenland
-    destinoId: Quebec
-    tipo: 0
-    bidirecional: 1
-  - origemId: Greenland
-    destinoId: Yukon
-    tipo: 0
-    bidirecional: 1
   - origemId: Iceland
     destinoId: Scandinavia
     tipo: 0
@@ -755,10 +739,6 @@ MonoBehaviour:
     bidirecional: 1
   - origemId: Indonesia
     destinoId: NewGuinea
-    tipo: 0
-    bidirecional: 1
-  - origemId: Indonesia
-    destinoId: WestAustralia
     tipo: 0
     bidirecional: 1
   - origemId: Irkutsk
@@ -857,8 +837,32 @@ MonoBehaviour:
     destinoId: Siberia
     tipo: 0
     bidirecional: 1
-  - origemId: UnitedKingdom
-    destinoId: Spain
+  - origemId: Alberta
+    destinoId: Greenland
+    tipo: 0
+    bidirecional: 1
+  - origemId: Alaska
+    destinoId: EastUSA
+    tipo: 0
+    bidirecional: 1
+  - origemId: Alberta
+    destinoId: Quebec
+    tipo: 0
+    bidirecional: 1
+  - origemId: Kamchatka
+    destinoId: Yukon
+    tipo: 0
+    bidirecional: 1
+  - origemId: EastAustralia
+    destinoId: Indonesia
+    tipo: 0
+    bidirecional: 1
+  - origemId: Alaska
+    destinoId: Greenland
+    tipo: 0
+    bidirecional: 1
+  - origemId: Alaska
+    destinoId: Quebec
     tipo: 0
     bidirecional: 1
   condicoesEstrategicas: []

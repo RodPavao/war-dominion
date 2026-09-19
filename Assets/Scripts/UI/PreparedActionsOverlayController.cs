@@ -186,10 +186,7 @@ public sealed class PreparedActionsOverlayController : MonoBehaviour
         if (!TryGetTerritory(territoryId, out TerritorioClique territory))
             return false;
 
-        ContadorTropas counter = territory.GetComponentInChildren<ContadorTropas>(true);
-        Vector3 worldPosition = counter != null
-            ? counter.transform.position
-            : territory.transform.position;
+        Vector3 worldPosition = MapOverlayProjection.GetTerritoryWorldAnchor(territory);
 
         Camera worldCamera = Camera.main != null
             ? Camera.main

@@ -90,7 +90,7 @@ public sealed class WDArmoryCatalogCanonicalTests
     [TestCase("atomic_bomb", 40, 3, 6)]
     [TestCase("war_propaganda", 25, 3, 6)]
     [TestCase("chemical_bomb", 25, 3, 6)]
-    [TestCase("infiltrator", 25, 3, 1)]
+    [TestCase("infiltrator", 20, 4, 1)]
     [TestCase("sabotage", 20, 3, 6)]
     [TestCase("energy_plant", 0, 5, 4)]
     [TestCase("long_range_bomb", 25, 3, 6)]

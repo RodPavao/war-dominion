@@ -56,7 +56,8 @@ public class SistemaAcoesTerrestres : MonoBehaviour
         TerritorioClique origem,
         TerritorioClique destino,
         int quantidade,
-        TerritorioClique.Dono jogador)
+        TerritorioClique.Dono jogador,
+        int limite = FilaAcoes.MaximoAcoesPorRodada)
     {
         if (filaAcoes == null)
         {
@@ -67,9 +68,10 @@ public class SistemaAcoesTerrestres : MonoBehaviour
         if (!PodePreparar(origem, destino, jogador))
             return false;
 
-        if (filaAcoes.EstaCheiaPara(jogador))
+        if (filaAcoes.EstaCheiaPara(jogador, limite))
         {
-            Debug.Log("Máximo de 3 ações terrestres por jogador e rodada.");
+            Debug.Log("Limite atual de " + limite +
+                " ações terrestres por jogador e rodada.");
             return false;
         }
 
@@ -96,7 +98,7 @@ public class SistemaAcoesTerrestres : MonoBehaviour
             jogador,
             filaAcoes.ProximaPosicaoPara(jogador));
 
-        return filaAcoes.Adicionar(ordem);
+        return filaAcoes.Adicionar(ordem, limite);
     }
 
     // =====================================================

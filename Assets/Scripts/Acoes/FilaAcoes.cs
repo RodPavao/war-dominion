@@ -30,6 +30,9 @@ public class FilaAcoes : MonoBehaviour
     public bool EstaCheiaPara(TerritorioClique.Dono jogador) =>
         QuantidadePara(jogador) >= MaximoAcoesPorRodada;
 
+    public bool EstaCheiaPara(TerritorioClique.Dono jogador, int limite) =>
+        QuantidadePara(jogador) >= Mathf.Max(0, limite);
+
     public int ProximaPosicaoPara(TerritorioClique.Dono jogador)
     {
         int maiorPosicao = 0;
@@ -48,11 +51,14 @@ public class FilaAcoes : MonoBehaviour
     // =====================================================
 
     public bool Adicionar(OrdemTerrestre ordem)
+        => Adicionar(ordem, MaximoAcoesPorRodada);
+
+    public bool Adicionar(OrdemTerrestre ordem, int limite)
     {
         if (ordem == null)
             return false;
 
-        if (EstaCheiaPara(ordem.Jogador) ||
+        if (EstaCheiaPara(ordem.Jogador, limite) ||
             ContemPar(ordem.Jogador, ordem.Origem, ordem.Destino))
             return false;
 
@@ -145,6 +151,15 @@ public class FilaAcoes : MonoBehaviour
     {
         int indice = ordens.IndexOf(ordem);
         return RemoverNoIndice(indice);
+    }
+
+    public int RemoverExcedentes(TerritorioClique.Dono jogador, int limite)
+    {
+        int removidas = 0;
+        while (QuantidadePara(jogador) > Mathf.Max(0, limite) &&
+               RemoverUltima(jogador))
+            removidas++;
+        return removidas;
     }
 
     private bool RemoverNoIndice(int indice)

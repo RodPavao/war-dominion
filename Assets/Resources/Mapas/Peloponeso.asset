@@ -18,7 +18,7 @@ MonoBehaviour:
   descricao: "Mapa completo da Guerra do Peloponeso com 82 territ\xF3rios."
   temaId: peloponeso
   versao: 1
-  arteBase: {fileID: 21300000, guid: 0306bcfaf8cad64468a7e54b6eb38f14, type: 3}
+  arteBase: {fileID: -3528049289365042055, guid: f7239c9798a7cfd458f5b266e753e9c5, type: 3}
   centroCamera: {x: 0, y: 0}
   tamanhoOrtografico: 5.25
   deslocamentoEnquadramento: {x: 0, y: 0}
@@ -27,7 +27,7 @@ MonoBehaviour:
     nomeExibido: Amyclae
     chaveTraducao: territory_amyclae
     regiaoId: laconia
-    posicaoContador: {x: -3.8249998, y: 2.755}
+    posicaoContador: {x: -4.5028834, y: 2.654287}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -37,7 +37,7 @@ MonoBehaviour:
     nomeExibido: Sparta
     chaveTraducao: territory_sparta
     regiaoId: laconia
-    posicaoContador: {x: -4.845, y: 2.6149998}
+    posicaoContador: {x: -3.5596302, y: 2.140974}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -47,7 +47,7 @@ MonoBehaviour:
     nomeExibido: Sellasia
     chaveTraducao: territory_sellasia
     regiaoId: laconia
-    posicaoContador: {x: -4.8999996, y: 2.1499999}
+    posicaoContador: {x: -3.5706146, y: 2.7803185}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -57,7 +57,7 @@ MonoBehaviour:
     nomeExibido: Gythium
     chaveTraducao: territory_gythium
     regiaoId: laconia
-    posicaoContador: {x: -3.815, y: 2.03}
+    posicaoContador: {x: -4.563369, y: 2.2160308}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -67,7 +67,7 @@ MonoBehaviour:
     nomeExibido: Helos
     chaveTraducao: territory_helos
     regiaoId: laconia
-    posicaoContador: {x: -4.3199997, y: 1.56}
+    posicaoContador: {x: -5.2830725, y: 1.2342187}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -77,7 +77,7 @@ MonoBehaviour:
     nomeExibido: Therapne
     chaveTraducao: territory_therapne
     regiaoId: laconia
-    posicaoContador: {x: -4.9300003, y: 1.5350001}
+    posicaoContador: {x: -4.6065383, y: 1.6332432}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -87,7 +87,7 @@ MonoBehaviour:
     nomeExibido: Zarax
     chaveTraducao: territory_zarax
     regiaoId: laconia
-    posicaoContador: {x: -5.7249994, y: 1.04}
+    posicaoContador: {x: -4.6864305, y: 0.061326906}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -97,7 +97,7 @@ MonoBehaviour:
     nomeExibido: Bryseae
     chaveTraducao: territory_bryseae
     regiaoId: laconia
-    posicaoContador: {x: -4.495, y: 0.82000005}
+    posicaoContador: {x: -5.61875, y: 0.8648437}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -107,7 +107,7 @@ MonoBehaviour:
     nomeExibido: Epidauros Limera
     chaveTraducao: territory_epidauroslimera
     regiaoId: laconia
-    posicaoContador: {x: -6.23, y: 0.77}
+    posicaoContador: {x: -3.9446075, y: 1.6548282}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -117,7 +117,7 @@ MonoBehaviour:
     nomeExibido: Boeae
     chaveTraducao: territory_boeae
     regiaoId: laconia
-    posicaoContador: {x: -5.33, y: 0.36000004}
+    posicaoContador: {x: -5.894427, y: 0.100728326}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -127,7 +127,7 @@ MonoBehaviour:
     nomeExibido: Kardamyle
     chaveTraducao: territory_kardamyle
     regiaoId: laconia
-    posicaoContador: {x: -4.3599997, y: 0.24}
+    posicaoContador: {x: -4.9959307, y: 0.57061094}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -137,7 +137,7 @@ MonoBehaviour:
     nomeExibido: Oetylus
     chaveTraducao: territory_oetylus
     regiaoId: laconia
-    posicaoContador: {x: -6.355, y: -0.060000002}
+    posicaoContador: {x: -4.1815977, y: 1.0259118}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -147,7 +147,7 @@ MonoBehaviour:
     nomeExibido: Tegea
     chaveTraducao: territory_tegea
     regiaoId: laconia
-    posicaoContador: {x: -5.0299997, y: -0.21499997}
+    posicaoContador: {x: -5.4373264, y: -0.43210083}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -157,7 +157,7 @@ MonoBehaviour:
     nomeExibido: Mantinea
     chaveTraducao: territory_mantinea
     regiaoId: laconia
-    posicaoContador: {x: -5.8599997, y: -0.75000006}
+    posicaoContador: {x: -2.9217103, y: 0.42642334}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -167,7 +167,7 @@ MonoBehaviour:
     nomeExibido: Aegiae
     chaveTraducao: territory_aegiae
     regiaoId: laconia
-    posicaoContador: {x: -4.575, y: -0.885}
+    posicaoContador: {x: -5.196521, y: -1.0720409}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -177,7 +177,7 @@ MonoBehaviour:
     nomeExibido: Caryae
     chaveTraducao: territory_caryae
     regiaoId: laconia
-    posicaoContador: {x: -5.5299997, y: -1.48}
+    posicaoContador: {x: -0.6449097, y: 0.17228699}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -187,7 +187,7 @@ MonoBehaviour:
     nomeExibido: Asine
     chaveTraducao: territory_asine
     regiaoId: laconia
-    posicaoContador: {x: -4.095, y: -1.4699999}
+    posicaoContador: {x: -4.5853896, y: -1.7540125}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -197,7 +197,7 @@ MonoBehaviour:
     nomeExibido: Las
     chaveTraducao: territory_las
     regiaoId: laconia
-    posicaoContador: {x: -3.79, y: -2.235}
+    posicaoContador: {x: -3.9698095, y: -2.4048254}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -207,7 +207,7 @@ MonoBehaviour:
     nomeExibido: Pitane
     chaveTraducao: territory_pitane
     regiaoId: laconia
-    posicaoContador: {x: -4.92, y: -2.225}
+    posicaoContador: {x: -4.077175, y: -1.9346386}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -217,7 +217,7 @@ MonoBehaviour:
     nomeExibido: Thalamae
     chaveTraducao: territory_thalamae
     regiaoId: laconia
-    posicaoContador: {x: -4.3450003, y: -2.405}
+    posicaoContador: {x: -3.7907813, y: -1.1362475}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -227,7 +227,7 @@ MonoBehaviour:
     nomeExibido: Alagonia
     chaveTraducao: territory_alagonia
     regiaoId: laconia
-    posicaoContador: {x: -4.265, y: -2.915}
+    posicaoContador: {x: -3.5484118, y: -1.756228}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -237,7 +237,7 @@ MonoBehaviour:
     nomeExibido: Kea
     chaveTraducao: territory_kea
     regiaoId: cyclades_islands
-    posicaoContador: {x: 0.53, y: 2.6799998}
+    posicaoContador: {x: 0.3691681, y: 2.7449133}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -247,7 +247,7 @@ MonoBehaviour:
     nomeExibido: Ios
     chaveTraducao: territory_ios
     regiaoId: cyclades_islands
-    posicaoContador: {x: -0.36, y: 2.55}
+    posicaoContador: {x: -0.45, y: 2.6894531}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -257,7 +257,7 @@ MonoBehaviour:
     nomeExibido: Gavrio
     chaveTraducao: territory_gavrio
     regiaoId: cyclades_islands
-    posicaoContador: {x: -1.17, y: 2.335}
+    posicaoContador: {x: -1.131399, y: 2.4534624}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -267,7 +267,7 @@ MonoBehaviour:
     nomeExibido: Chora
     chaveTraducao: territory_chora
     regiaoId: cyclades_islands
-    posicaoContador: {x: 1.4849999, y: 2.1950002}
+    posicaoContador: {x: 1.151681, y: 2.3112633}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -277,7 +277,7 @@ MonoBehaviour:
     nomeExibido: Serifos
     chaveTraducao: territory_serifos
     regiaoId: cyclades_islands
-    posicaoContador: {x: -1.9100001, y: 2.225}
+    posicaoContador: {x: -1.8239349, y: 2.3007398}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -287,7 +287,7 @@ MonoBehaviour:
     nomeExibido: Amorgos
     chaveTraducao: territory_amorgos
     regiaoId: cyclades_islands
-    posicaoContador: {x: 0.53999996, y: 2.1}
+    posicaoContador: {x: 0.39392054, y: 2.1728616}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -297,7 +297,7 @@ MonoBehaviour:
     nomeExibido: Batsi
     chaveTraducao: territory_batsi
     regiaoId: cyclades_islands
-    posicaoContador: {x: -0.42999998, y: 1.875}
+    posicaoContador: {x: -0.5375, y: 1.9775391}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -307,7 +307,7 @@ MonoBehaviour:
     nomeExibido: Kythnos
     chaveTraducao: territory_kythnos
     regiaoId: cyclades_islands
-    posicaoContador: {x: -2.205, y: 1.6099999}
+    posicaoContador: {x: -2.1257234, y: 1.7727667}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -317,7 +317,7 @@ MonoBehaviour:
     nomeExibido: Folegandros
     chaveTraducao: territory_folegandros
     regiaoId: cyclades_islands
-    posicaoContador: {x: -1.175, y: 1.5299999}
+    posicaoContador: {x: -1.1643909, y: 1.6912513}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -327,7 +327,7 @@ MonoBehaviour:
     nomeExibido: Sikinos
     chaveTraducao: territory_sikinos
     regiaoId: cyclades_islands
-    posicaoContador: {x: 1.25, y: 1.3299999}
+    posicaoContador: {x: 0.9746619, y: 1.559889}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -337,7 +337,7 @@ MonoBehaviour:
     nomeExibido: Anafi
     chaveTraducao: territory_anafi
     regiaoId: cyclades_islands
-    posicaoContador: {x: -1.7199999, y: 1.305}
+    posicaoContador: {x: -1.6601684, y: 1.4410437}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -347,7 +347,7 @@ MonoBehaviour:
     nomeExibido: Ormos
     chaveTraducao: territory_ormos
     regiaoId: cyclades_islands
-    posicaoContador: {x: -0.655, y: 0.90999997}
+    posicaoContador: {x: -0.6571118, y: 1.1102381}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -357,7 +357,7 @@ MonoBehaviour:
     nomeExibido: Andros City
     chaveTraducao: territory_androscity
     regiaoId: cyclades_islands
-    posicaoContador: {x: 0.505, y: 0.93500006}
+    posicaoContador: {x: 0.3236444, y: 1.0966766}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -367,7 +367,7 @@ MonoBehaviour:
     nomeExibido: Naousa
     chaveTraducao: territory_naousa
     regiaoId: cyclades_islands
-    posicaoContador: {x: 2.555, y: 0.43499994}
+    posicaoContador: {x: 3.7107732, y: 0.61876184}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -377,7 +377,7 @@ MonoBehaviour:
     nomeExibido: Paros
     chaveTraducao: territory_paros
     regiaoId: cyclades_islands
-    posicaoContador: {x: -3.115, y: 0.19500002}
+    posicaoContador: {x: -4.102849, y: 0.48949462}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -387,7 +387,7 @@ MonoBehaviour:
     nomeExibido: Lefkes
     chaveTraducao: territory_lefkes
     regiaoId: cyclades_islands
-    posicaoContador: {x: -2.215, y: 0}
+    posicaoContador: {x: -2.620744, y: -0.09353367}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -397,7 +397,7 @@ MonoBehaviour:
     nomeExibido: Marpissa
     chaveTraducao: territory_marpissa
     regiaoId: cyclades_islands
-    posicaoContador: {x: -0.545, y: -0.105000004}
+    posicaoContador: {x: -0.1985791, y: -0.10492981}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -407,7 +407,7 @@ MonoBehaviour:
     nomeExibido: Portara
     chaveTraducao: territory_portara
     regiaoId: cyclades_islands
-    posicaoContador: {x: 0.5750001, y: -0.155}
+    posicaoContador: {x: 0.71875, y: -0.16347656}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -417,7 +417,7 @@ MonoBehaviour:
     nomeExibido: Naxos City
     chaveTraducao: territory_naxoscity
     regiaoId: cyclades_islands
-    posicaoContador: {x: -0.110000014, y: -0.445}
+    posicaoContador: {x: 0.19965822, y: -0.52522814}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -427,7 +427,7 @@ MonoBehaviour:
     nomeExibido: Melanes
     chaveTraducao: territory_melanes
     regiaoId: cyclades_islands
-    posicaoContador: {x: 0.95, y: -0.45999998}
+    posicaoContador: {x: 1.1875, y: -0.48515624}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -437,7 +437,7 @@ MonoBehaviour:
     nomeExibido: Aperanthos
     chaveTraducao: territory_aperanthos
     regiaoId: cyclades_islands
-    posicaoContador: {x: -2.745, y: -0.48}
+    posicaoContador: {x: -4.33193, y: -0.53757995}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -447,7 +447,7 @@ MonoBehaviour:
     nomeExibido: Sangri
     chaveTraducao: territory_sangri
     regiaoId: cyclades_islands
-    posicaoContador: {x: -0.69499993, y: -0.595}
+    posicaoContador: {x: -0.4585901, y: -0.86339295}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -457,7 +457,7 @@ MonoBehaviour:
     nomeExibido: Filoti
     chaveTraducao: territory_filoti
     regiaoId: cyclades_islands
-    posicaoContador: {x: -2.0349998, y: -0.64}
+    posicaoContador: {x: -1.9644946, y: -0.3104651}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -467,7 +467,7 @@ MonoBehaviour:
     nomeExibido: Tinos
     chaveTraducao: territory_tinos
     regiaoId: cyclades_islands
-    posicaoContador: {x: 0.32000002, y: -0.83}
+    posicaoContador: {x: 0.4, y: -0.87539065}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -477,7 +477,7 @@ MonoBehaviour:
     nomeExibido: Milos
     chaveTraducao: territory_milos
     regiaoId: cyclades_islands
-    posicaoContador: {x: 1.275, y: -0.905}
+    posicaoContador: {x: 2.3567505, y: -1.1984112}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -487,7 +487,7 @@ MonoBehaviour:
     nomeExibido: Syros
     chaveTraducao: territory_syros
     regiaoId: cyclades_islands
-    posicaoContador: {x: -0.41999996, y: -1.2099999}
+    posicaoContador: {x: -2.1363635, y: 0.23000793}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -497,7 +497,7 @@ MonoBehaviour:
     nomeExibido: Delos
     chaveTraducao: territory_delos
     regiaoId: cyclades_islands
-    posicaoContador: {x: 0.77500004, y: -1.3299999}
+    posicaoContador: {x: -0.7798407, y: -0.28969544}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -507,7 +507,7 @@ MonoBehaviour:
     nomeExibido: Marathon
     chaveTraducao: territory_marathon
     regiaoId: atica
-    posicaoContador: {x: 4.045, y: 2.885}
+    posicaoContador: {x: 3.5015845, y: 2.8789513}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -517,7 +517,7 @@ MonoBehaviour:
     nomeExibido: Piraeus
     chaveTraducao: territory_piraeus
     regiaoId: atica
-    posicaoContador: {x: 3.115, y: 2.4899998}
+    posicaoContador: {x: 4.007861, y: 2.3438342}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -527,7 +527,7 @@ MonoBehaviour:
     nomeExibido: Eleusis
     chaveTraducao: territory_eleusis
     regiaoId: atica
-    posicaoContador: {x: 4.56, y: 2.2699997}
+    posicaoContador: {x: 3.175642, y: 2.3200781}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -537,7 +537,7 @@ MonoBehaviour:
     nomeExibido: Acharnae
     chaveTraducao: territory_acharnae
     regiaoId: atica
-    posicaoContador: {x: 3.6499999, y: 2.23}
+    posicaoContador: {x: 4.6173306, y: 2.266395}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -547,7 +547,7 @@ MonoBehaviour:
     nomeExibido: Brauron
     chaveTraducao: territory_brauron
     regiaoId: atica
-    posicaoContador: {x: 5.035, y: 2.255}
+    posicaoContador: {x: 2.6553845, y: 2.5503187}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -557,7 +557,7 @@ MonoBehaviour:
     nomeExibido: Thorikos
     chaveTraducao: territory_thorikos
     regiaoId: atica
-    posicaoContador: {x: 3.38, y: 1.6949999}
+    posicaoContador: {x: 3.6755629, y: 1.7331762}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -567,7 +567,7 @@ MonoBehaviour:
     nomeExibido: Rhamnous
     chaveTraducao: territory_rhamnous
     regiaoId: atica
-    posicaoContador: {x: 4.1800003, y: 1.605}
+    posicaoContador: {x: 4.5838513, y: 1.4472924}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -577,7 +577,7 @@ MonoBehaviour:
     nomeExibido: Sounion
     chaveTraducao: territory_sounion
     regiaoId: atica
-    posicaoContador: {x: 5.1549997, y: 1.25}
+    posicaoContador: {x: 5.491243, y: 1.3671582}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -587,7 +587,7 @@ MonoBehaviour:
     nomeExibido: Athens
     chaveTraducao: territory_athens
     regiaoId: atica
-    posicaoContador: {x: 6.2200003, y: 1.165}
+    posicaoContador: {x: 4.5440636, y: 0.71912473}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -597,7 +597,7 @@ MonoBehaviour:
     nomeExibido: Kolonos
     chaveTraducao: territory_kolonos
     regiaoId: atica
-    posicaoContador: {x: 6.38, y: 0.5850001}
+    posicaoContador: {x: 2.8910377, y: 1.8097571}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -607,7 +607,7 @@ MonoBehaviour:
     nomeExibido: Laurion
     chaveTraducao: territory_laurion
     regiaoId: atica
-    posicaoContador: {x: 5.105, y: 0.53}
+    posicaoContador: {x: 5.7087073, y: 0.7567401}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -617,7 +617,7 @@ MonoBehaviour:
     nomeExibido: Phyle
     chaveTraducao: territory_phyle
     regiaoId: atica
-    posicaoContador: {x: 4.2949996, y: 0.53499997}
+    posicaoContador: {x: 4.912737, y: 0.055684205}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -627,7 +627,7 @@ MonoBehaviour:
     nomeExibido: Sphettos
     chaveTraducao: territory_sphettos
     regiaoId: atica
-    posicaoContador: {x: 5.5299997, y: -0.20999998}
+    posicaoContador: {x: 2.1945813, y: 0.68855715}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -637,7 +637,7 @@ MonoBehaviour:
     nomeExibido: Kifisia
     chaveTraducao: territory_kifisia
     regiaoId: atica
-    posicaoContador: {x: 3.4450002, y: -0.25}
+    posicaoContador: {x: 3.9154518, y: -0.006480713}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -647,7 +647,7 @@ MonoBehaviour:
     nomeExibido: Salamis
     chaveTraducao: territory_salamis
     regiaoId: atica
-    posicaoContador: {x: 4.42, y: -0.29000002}
+    posicaoContador: {x: 5.152356, y: -0.70608336}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -657,7 +657,7 @@ MonoBehaviour:
     nomeExibido: Anaphlystos
     chaveTraducao: territory_anaphlystos
     regiaoId: atica
-    posicaoContador: {x: 3.27, y: -0.86499995}
+    posicaoContador: {x: 4.2144165, y: -0.7986348}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -667,7 +667,7 @@ MonoBehaviour:
     nomeExibido: Icaria
     chaveTraducao: territory_icaria
     regiaoId: atica
-    posicaoContador: {x: 5.785, y: -1.0699999}
+    posicaoContador: {x: 3.038313, y: 0.010151978}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -677,7 +677,7 @@ MonoBehaviour:
     nomeExibido: Oropus
     chaveTraducao: territory_oropus
     regiaoId: atica
-    posicaoContador: {x: 4.7200003, y: -1.125}
+    posicaoContador: {x: 5.1760473, y: -1.319817}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -687,7 +687,7 @@ MonoBehaviour:
     nomeExibido: Deceleia
     chaveTraducao: territory_deceleia
     regiaoId: atica
-    posicaoContador: {x: 3.81, y: -1.4749999}
+    posicaoContador: {x: 4.394734, y: -1.8780506}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -697,7 +697,7 @@ MonoBehaviour:
     nomeExibido: Aphidnae
     chaveTraducao: territory_aphidnae
     regiaoId: atica
-    posicaoContador: {x: 2.7399998, y: -1.595}
+    posicaoContador: {x: 3.902334, y: -1.5396435}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -707,7 +707,7 @@ MonoBehaviour:
     nomeExibido: Paiania
     chaveTraducao: territory_paiania
     regiaoId: atica
-    posicaoContador: {x: 5.7799997, y: -1.745}
+    posicaoContador: {x: 2.8626952, y: -0.52788514}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -717,7 +717,7 @@ MonoBehaviour:
     nomeExibido: Myrrhinous
     chaveTraducao: territory_myrrhinous
     regiaoId: atica
-    posicaoContador: {x: 4.3950005, y: -1.9899999}
+    posicaoContador: {x: 0.34972352, y: 0.1637494}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -727,7 +727,7 @@ MonoBehaviour:
     nomeExibido: Lamptrai
     chaveTraducao: territory_lamptrai
     regiaoId: atica
-    posicaoContador: {x: 2.7099998, y: -2.235}
+    posicaoContador: {x: 3.0152721, y: -1.8909832}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -737,7 +737,7 @@ MonoBehaviour:
     nomeExibido: Euonymon
     chaveTraducao: territory_euonymon
     regiaoId: atica
-    posicaoContador: {x: 4.86, y: -2.32}
+    posicaoContador: {x: 2.3281384, y: -1.7732147}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -747,7 +747,7 @@ MonoBehaviour:
     nomeExibido: Halai Aixonides
     chaveTraducao: territory_halaiaixonides
     regiaoId: atica
-    posicaoContador: {x: 3.36, y: -2.285}
+    posicaoContador: {x: 3.3723133, y: -1.0896014}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -757,7 +757,7 @@ MonoBehaviour:
     nomeExibido: Heraklion
     chaveTraducao: territory_heraklion
     regiaoId: creta
-    posicaoContador: {x: -1.725, y: -2.93}
+    posicaoContador: {x: -1.8724743, y: -3.223318}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -767,7 +767,7 @@ MonoBehaviour:
     nomeExibido: Knossos
     chaveTraducao: territory_knossos
     regiaoId: creta
-    posicaoContador: {x: -2.225, y: -3.135}
+    posicaoContador: {x: -2.1624975, y: -2.6458807}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -777,7 +777,7 @@ MonoBehaviour:
     nomeExibido: Chania
     chaveTraducao: territory_chania
     regiaoId: creta
-    posicaoContador: {x: 1.315, y: -3.425}
+    posicaoContador: {x: 0.98104614, y: -3.374281}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -787,7 +787,7 @@ MonoBehaviour:
     nomeExibido: Rethymno
     chaveTraducao: territory_rethymno
     regiaoId: creta
-    posicaoContador: {x: 0.41500002, y: -3.6049998}
+    posicaoContador: {x: 0.18711364, y: -3.430421}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -797,7 +797,7 @@ MonoBehaviour:
     nomeExibido: Kissamos
     chaveTraducao: territory_kissamos
     regiaoId: creta
-    posicaoContador: {x: -0.89000005, y: -3.75}
+    posicaoContador: {x: -0.6004083, y: -3.6406164}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -807,7 +807,7 @@ MonoBehaviour:
     nomeExibido: Ierapetra
     chaveTraducao: territory_ierapetra
     regiaoId: creta
-    posicaoContador: {x: -1.9399998, y: -3.8549998}
+    posicaoContador: {x: -1.6576843, y: -2.394937}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -817,7 +817,7 @@ MonoBehaviour:
     nomeExibido: Phaistos
     chaveTraducao: territory_phaistos
     regiaoId: creta
-    posicaoContador: {x: 1.2349999, y: -4}
+    posicaoContador: {x: 1.1497302, y: -2.867288}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -827,7 +827,7 @@ MonoBehaviour:
     nomeExibido: Malia
     chaveTraducao: territory_malia
     regiaoId: creta
-    posicaoContador: {x: 0.25, y: -4.05}
+    posicaoContador: {x: 0.32197154, y: -2.9930813}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -837,7 +837,7 @@ MonoBehaviour:
     nomeExibido: Gortyna
     chaveTraducao: territory_gortyna
     regiaoId: creta
-    posicaoContador: {x: -0.62, y: -4.23}
+    posicaoContador: {x: -1.0097576, y: -3.0686388}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -851,6 +851,8 @@ MonoBehaviour:
     bonus: 10
     ordemExibicao: 0
     corDestaque: {r: 0.85, g: 0.35, b: 0.25, a: 1}
+    possuiDeslocamentoLabelManual: 1
+    deslocamentoLabelManual: {x: -0.54042387, y: 0.23561554}
     territorioIds:
     - Amyclae
     - Sparta
@@ -881,6 +883,8 @@ MonoBehaviour:
     bonus: 12
     ordemExibicao: 1
     corDestaque: {r: 0.3, g: 0.7, b: 1, a: 1}
+    possuiDeslocamentoLabelManual: 1
+    deslocamentoLabelManual: {x: 0.30280617, y: -0.38138038}
     territorioIds:
     - Kea
     - Ios
@@ -917,6 +921,8 @@ MonoBehaviour:
     bonus: 12
     ordemExibicao: 2
     corDestaque: {r: 0.35, g: 0.8, b: 0.35, a: 1}
+    possuiDeslocamentoLabelManual: 1
+    deslocamentoLabelManual: {x: 0.3733375, y: -0.11499567}
     territorioIds:
     - Marathon
     - Piraeus
@@ -951,6 +957,8 @@ MonoBehaviour:
     bonus: 4
     ordemExibicao: 3
     corDestaque: {r: 0.8, g: 0.7, b: 0.25, a: 1}
+    possuiDeslocamentoLabelManual: 1
+    deslocamentoLabelManual: {x: 0.52047807, y: -0.21122003}
     territorioIds:
     - Heraklion
     - Knossos
@@ -981,10 +989,6 @@ MonoBehaviour:
     bidirecional: 1
   - origemId: Amyclae
     destinoId: Gythium
-    tipo: 0
-    bidirecional: 1
-  - origemId: Amyclae
-    destinoId: Sparta
     tipo: 0
     bidirecional: 1
   - origemId: Ios
@@ -1039,14 +1043,6 @@ MonoBehaviour:
     destinoId: Thorikos
     tipo: 0
     bidirecional: 1
-  - origemId: Brauron
-    destinoId: Sounion
-    tipo: 0
-    bidirecional: 1
-  - origemId: Brauron
-    destinoId: Rhamnous
-    tipo: 0
-    bidirecional: 1
   - origemId: Amorgos
     destinoId: Chora
     tipo: 0
@@ -1063,28 +1059,12 @@ MonoBehaviour:
     destinoId: Serifos
     tipo: 0
     bidirecional: 1
-  - origemId: Sellasia
-    destinoId: Therapne
-    tipo: 0
-    bidirecional: 1
-  - origemId: Helos
-    destinoId: Sellasia
-    tipo: 0
-    bidirecional: 1
-  - origemId: Gythium
-    destinoId: Sellasia
-    tipo: 0
-    bidirecional: 1
   - origemId: Amorgos
     destinoId: Batsi
     tipo: 0
     bidirecional: 1
   - origemId: Amorgos
     destinoId: Sikinos
-    tipo: 0
-    bidirecional: 1
-  - origemId: Gythium
-    destinoId: Helos
     tipo: 0
     bidirecional: 1
   - origemId: Batsi
@@ -1119,20 +1099,8 @@ MonoBehaviour:
     destinoId: Helos
     tipo: 0
     bidirecional: 1
-  - origemId: Bryseae
-    destinoId: Therapne
-    tipo: 0
-    bidirecional: 1
-  - origemId: Therapne
-    destinoId: Zarax
-    tipo: 0
-    bidirecional: 1
   - origemId: AndrosCity
     destinoId: Sikinos
-    tipo: 0
-    bidirecional: 1
-  - origemId: Phyle
-    destinoId: Sounion
     tipo: 0
     bidirecional: 1
   - origemId: Athens
@@ -1144,22 +1112,10 @@ MonoBehaviour:
     tipo: 0
     bidirecional: 1
   - origemId: Athens
-    destinoId: Kolonos
-    tipo: 0
-    bidirecional: 1
-  - origemId: Athens
     destinoId: Laurion
     tipo: 0
     bidirecional: 1
-  - origemId: EpidaurosLimera
-    destinoId: Zarax
-    tipo: 0
-    bidirecional: 1
   - origemId: Boeae
-    destinoId: Zarax
-    tipo: 0
-    bidirecional: 1
-  - origemId: Bryseae
     destinoId: Zarax
     tipo: 0
     bidirecional: 1
@@ -1179,28 +1135,12 @@ MonoBehaviour:
     destinoId: Oetylus
     tipo: 0
     bidirecional: 1
-  - origemId: Boeae
-    destinoId: EpidaurosLimera
-    tipo: 0
-    bidirecional: 1
   - origemId: Kolonos
-    destinoId: Laurion
-    tipo: 0
-    bidirecional: 1
-  - origemId: Kolonos
-    destinoId: Sphettos
-    tipo: 0
-    bidirecional: 1
-  - origemId: Laurion
     destinoId: Sphettos
     tipo: 0
     bidirecional: 1
   - origemId: Laurion
     destinoId: Phyle
-    tipo: 0
-    bidirecional: 1
-  - origemId: Laurion
-    destinoId: Salamis
     tipo: 0
     bidirecional: 1
   - origemId: Phyle
@@ -1219,22 +1159,6 @@ MonoBehaviour:
     destinoId: Kardamyle
     tipo: 0
     bidirecional: 1
-  - origemId: Boeae
-    destinoId: Oetylus
-    tipo: 0
-    bidirecional: 1
-  - origemId: Kardamyle
-    destinoId: Tegea
-    tipo: 0
-    bidirecional: 1
-  - origemId: Lefkes
-    destinoId: Paros
-    tipo: 0
-    bidirecional: 1
-  - origemId: Aperanthos
-    destinoId: Paros
-    tipo: 0
-    bidirecional: 1
   - origemId: Aperanthos
     destinoId: Lefkes
     tipo: 0
@@ -1247,20 +1171,8 @@ MonoBehaviour:
     destinoId: Oetylus
     tipo: 0
     bidirecional: 1
-  - origemId: Oetylus
-    destinoId: Tegea
-    tipo: 0
-    bidirecional: 1
   - origemId: Marpissa
     destinoId: NaxosCity
-    tipo: 0
-    bidirecional: 1
-  - origemId: Marpissa
-    destinoId: Portara
-    tipo: 0
-    bidirecional: 1
-  - origemId: Marpissa
-    destinoId: Sangri
     tipo: 0
     bidirecional: 1
   - origemId: NaxosCity
@@ -1275,24 +1187,8 @@ MonoBehaviour:
     destinoId: Tegea
     tipo: 0
     bidirecional: 1
-  - origemId: Mantinea
-    destinoId: Tegea
-    tipo: 0
-    bidirecional: 1
-  - origemId: Salamis
-    destinoId: Sphettos
-    tipo: 0
-    bidirecional: 1
   - origemId: Icaria
     destinoId: Sphettos
-    tipo: 0
-    bidirecional: 1
-  - origemId: Oropus
-    destinoId: Sphettos
-    tipo: 0
-    bidirecional: 1
-  - origemId: Kifisia
-    destinoId: Salamis
     tipo: 0
     bidirecional: 1
   - origemId: Anaphlystos
@@ -1316,74 +1212,18 @@ MonoBehaviour:
     tipo: 0
     bidirecional: 1
   - origemId: Melanes
-    destinoId: Milos
-    tipo: 0
-    bidirecional: 1
-  - origemId: Melanes
     destinoId: Tinos
-    tipo: 0
-    bidirecional: 1
-  - origemId: Aperanthos
-    destinoId: Filoti
-    tipo: 0
-    bidirecional: 1
-  - origemId: Sangri
-    destinoId: Syros
-    tipo: 0
-    bidirecional: 1
-  - origemId: Caryae
-    destinoId: Mantinea
-    tipo: 0
-    bidirecional: 1
-  - origemId: Aegiae
-    destinoId: Mantinea
-    tipo: 0
-    bidirecional: 1
-  - origemId: Anaphlystos
-    destinoId: Deceleia
     tipo: 0
     bidirecional: 1
   - origemId: Anaphlystos
     destinoId: Aphidnae
     tipo: 0
     bidirecional: 1
-  - origemId: Milos
-    destinoId: Tinos
-    tipo: 0
-    bidirecional: 1
-  - origemId: Delos
-    destinoId: Tinos
-    tipo: 0
-    bidirecional: 1
-  - origemId: Syros
-    destinoId: Tinos
-    tipo: 0
-    bidirecional: 1
-  - origemId: Aegiae
-    destinoId: Caryae
-    tipo: 0
-    bidirecional: 1
   - origemId: Aegiae
     destinoId: Asine
     tipo: 0
     bidirecional: 1
-  - origemId: Delos
-    destinoId: Milos
-    tipo: 0
-    bidirecional: 1
   - origemId: Icaria
-    destinoId: Oropus
-    tipo: 0
-    bidirecional: 1
-  - origemId: Icaria
-    destinoId: Paiania
-    tipo: 0
-    bidirecional: 1
-  - origemId: Myrrhinous
-    destinoId: Oropus
-    tipo: 0
-    bidirecional: 1
-  - origemId: Oropus
     destinoId: Paiania
     tipo: 0
     bidirecional: 1
@@ -1395,24 +1235,8 @@ MonoBehaviour:
     destinoId: Syros
     tipo: 0
     bidirecional: 1
-  - origemId: Asine
-    destinoId: Caryae
-    tipo: 0
-    bidirecional: 1
-  - origemId: Caryae
-    destinoId: Pitane
-    tipo: 0
-    bidirecional: 1
-  - origemId: Deceleia
-    destinoId: Myrrhinous
-    tipo: 0
-    bidirecional: 1
   - origemId: Aphidnae
     destinoId: Deceleia
-    tipo: 0
-    bidirecional: 1
-  - origemId: Deceleia
-    destinoId: HalaiAixonides
     tipo: 0
     bidirecional: 1
   - origemId: Asine
@@ -1435,26 +1259,6 @@ MonoBehaviour:
     destinoId: HalaiAixonides
     tipo: 0
     bidirecional: 1
-  - origemId: Euonymon
-    destinoId: Paiania
-    tipo: 0
-    bidirecional: 1
-  - origemId: Myrrhinous
-    destinoId: Paiania
-    tipo: 0
-    bidirecional: 1
-  - origemId: Euonymon
-    destinoId: Myrrhinous
-    tipo: 0
-    bidirecional: 1
-  - origemId: HalaiAixonides
-    destinoId: Myrrhinous
-    tipo: 0
-    bidirecional: 1
-  - origemId: Las
-    destinoId: Thalamae
-    tipo: 0
-    bidirecional: 1
   - origemId: Pitane
     destinoId: Thalamae
     tipo: 0
@@ -1467,10 +1271,6 @@ MonoBehaviour:
     destinoId: Lamptrai
     tipo: 0
     bidirecional: 1
-  - origemId: Euonymon
-    destinoId: HalaiAixonides
-    tipo: 0
-    bidirecional: 1
   - origemId: Alagonia
     destinoId: Thalamae
     tipo: 0
@@ -1479,15 +1279,7 @@ MonoBehaviour:
     destinoId: Knossos
     tipo: 0
     bidirecional: 1
-  - origemId: Heraklion
-    destinoId: Kissamos
-    tipo: 0
-    bidirecional: 1
   - origemId: Ierapetra
-    destinoId: Knossos
-    tipo: 0
-    bidirecional: 1
-  - origemId: Kissamos
     destinoId: Knossos
     tipo: 0
     bidirecional: 1
@@ -1503,24 +1295,12 @@ MonoBehaviour:
     destinoId: Rethymno
     tipo: 0
     bidirecional: 1
-  - origemId: Phaistos
-    destinoId: Rethymno
-    tipo: 0
-    bidirecional: 1
   - origemId: Kissamos
     destinoId: Rethymno
-    tipo: 0
-    bidirecional: 1
-  - origemId: Ierapetra
-    destinoId: Kissamos
     tipo: 0
     bidirecional: 1
   - origemId: Gortyna
     destinoId: Kissamos
-    tipo: 0
-    bidirecional: 1
-  - origemId: Kissamos
-    destinoId: Malia
     tipo: 0
     bidirecional: 1
   - origemId: Malia
@@ -1529,30 +1309,6 @@ MonoBehaviour:
     bidirecional: 1
   - origemId: Gortyna
     destinoId: Malia
-    tipo: 0
-    bidirecional: 1
-  - origemId: Gavrio
-    destinoId: Gythium
-    tipo: 0
-    bidirecional: 1
-  - origemId: Bryseae
-    destinoId: Paros
-    tipo: 0
-    bidirecional: 1
-  - origemId: Sikinos
-    destinoId: Thorikos
-    tipo: 0
-    bidirecional: 1
-  - origemId: Anaphlystos
-    destinoId: Delos
-    tipo: 0
-    bidirecional: 1
-  - origemId: Serifos
-    destinoId: Amyclae
-    tipo: 0
-    bidirecional: 1
-  - origemId: Kythnos
-    destinoId: Gythium
     tipo: 0
     bidirecional: 1
   - origemId: Ormos
@@ -1563,36 +1319,8 @@ MonoBehaviour:
     destinoId: Syros
     tipo: 0
     bidirecional: 1
-  - origemId: Lefkes
-    destinoId: Sangri
-    tipo: 0
-    bidirecional: 1
-  - origemId: Lefkes
-    destinoId: Marpissa
-    tipo: 0
-    bidirecional: 1
-  - origemId: Ormos
-    destinoId: Marpissa
-    tipo: 0
-    bidirecional: 1
-  - origemId: Sikinos
-    destinoId: Naousa
-    tipo: 0
-    bidirecional: 1
-  - origemId: Chora
-    destinoId: Piraeus
-    tipo: 0
-    bidirecional: 1
   - origemId: Naousa
     destinoId: Rhamnous
-    tipo: 0
-    bidirecional: 1
-  - origemId: Lamptrai
-    destinoId: Chania
-    tipo: 0
-    bidirecional: 1
-  - origemId: HalaiAixonides
-    destinoId: Chania
     tipo: 0
     bidirecional: 1
   - origemId: Las
@@ -1603,20 +1331,276 @@ MonoBehaviour:
     destinoId: Knossos
     tipo: 0
     bidirecional: 1
-  - origemId: Asine
-    destinoId: Aperanthos
-    tipo: 0
-    bidirecional: 1
   - origemId: Aegiae
     destinoId: Aperanthos
     tipo: 0
     bidirecional: 1
   - origemId: Naousa
-    destinoId: Melanes
+    destinoId: Kifisia
+    tipo: 0
+    bidirecional: 1
+  - origemId: Heraklion
+    destinoId: Gortyna
+    tipo: 0
+    bidirecional: 1
+  - origemId: Ierapetra
+    destinoId: Gortyna
+    tipo: 0
+    bidirecional: 1
+  - origemId: Euonymon
+    destinoId: Phaistos
+    tipo: 0
+    bidirecional: 1
+  - origemId: Rethymno
+    destinoId: Gortyna
+    tipo: 0
+    bidirecional: 1
+  - origemId: Lamptrai
+    destinoId: Euonymon
+    tipo: 0
+    bidirecional: 1
+  - origemId: Milos
+    destinoId: Euonymon
+    tipo: 0
+    bidirecional: 1
+  - origemId: Milos
+    destinoId: Lamptrai
+    tipo: 0
+    bidirecional: 1
+  - origemId: Anaphlystos
+    destinoId: Oropus
+    tipo: 0
+    bidirecional: 1
+  - origemId: Deceleia
+    destinoId: Lamptrai
+    tipo: 0
+    bidirecional: 1
+  - origemId: Milos
+    destinoId: HalaiAixonides
+    tipo: 0
+    bidirecional: 1
+  - origemId: Milos
+    destinoId: Paiania
+    tipo: 0
+    bidirecional: 1
+  - origemId: Paiania
+    destinoId: HalaiAixonides
+    tipo: 0
+    bidirecional: 1
+  - origemId: Kifisia
+    destinoId: Icaria
+    tipo: 0
+    bidirecional: 1
+  - origemId: Anaphlystos
+    destinoId: Paiania
+    tipo: 0
+    bidirecional: 1
+  - origemId: Anaphlystos
+    destinoId: HalaiAixonides
+    tipo: 0
+    bidirecional: 1
+  - origemId: Melanes
+    destinoId: Paiania
+    tipo: 0
+    bidirecional: 1
+  - origemId: Phyle
+    destinoId: Anaphlystos
+    tipo: 0
+    bidirecional: 1
+  - origemId: Thorikos
+    destinoId: Kolonos
+    tipo: 0
+    bidirecional: 1
+  - origemId: Eleusis
+    destinoId: Kolonos
+    tipo: 0
+    bidirecional: 1
+  - origemId: Sikinos
+    destinoId: Kolonos
     tipo: 0
     bidirecional: 1
   - origemId: Naousa
+    destinoId: Icaria
+    tipo: 0
+    bidirecional: 1
+  - origemId: Athens
     destinoId: Kifisia
+    tipo: 0
+    bidirecional: 1
+  - origemId: Athens
+    destinoId: Phyle
+    tipo: 0
+    bidirecional: 1
+  - origemId: Naousa
+    destinoId: Athens
+    tipo: 0
+    bidirecional: 1
+  - origemId: Kifisia
+    destinoId: Paiania
+    tipo: 0
+    bidirecional: 1
+  - origemId: Acharnae
+    destinoId: Rhamnous
+    tipo: 0
+    bidirecional: 1
+  - origemId: Thorikos
+    destinoId: Rhamnous
+    tipo: 0
+    bidirecional: 1
+  - origemId: Rhamnous
+    destinoId: Athens
+    tipo: 0
+    bidirecional: 1
+  - origemId: Chora
+    destinoId: Brauron
+    tipo: 0
+    bidirecional: 1
+  - origemId: Sikinos
+    destinoId: Sphettos
+    tipo: 0
+    bidirecional: 1
+  - origemId: Portara
+    destinoId: Sphettos
+    tipo: 0
+    bidirecional: 1
+  - origemId: Portara
+    destinoId: Myrrhinous
+    tipo: 0
+    bidirecional: 1
+  - origemId: Marpissa
+    destinoId: Myrrhinous
+    tipo: 0
+    bidirecional: 1
+  - origemId: Caryae
+    destinoId: Myrrhinous
+    tipo: 0
+    bidirecional: 1
+  - origemId: Caryae
+    destinoId: Ormos
+    tipo: 0
+    bidirecional: 1
+  - origemId: Las
+    destinoId: Pitane
+    tipo: 0
+    bidirecional: 1
+  - origemId: Thalamae
+    destinoId: Aperanthos
+    tipo: 0
+    bidirecional: 1
+  - origemId: Sangri
+    destinoId: Filoti
+    tipo: 0
+    bidirecional: 1
+  - origemId: Sangri
+    destinoId: Delos
+    tipo: 0
+    bidirecional: 1
+  - origemId: Caryae
+    destinoId: Delos
+    tipo: 0
+    bidirecional: 1
+  - origemId: Caryae
+    destinoId: Marpissa
+    tipo: 0
+    bidirecional: 1
+  - origemId: Sangri
+    destinoId: Tinos
+    tipo: 0
+    bidirecional: 1
+  - origemId: Mantinea
+    destinoId: Syros
+    tipo: 0
+    bidirecional: 1
+  - origemId: Mantinea
+    destinoId: Lefkes
+    tipo: 0
+    bidirecional: 1
+  - origemId: Thalamae
+    destinoId: Lefkes
+    tipo: 0
+    bidirecional: 1
+  - origemId: Zarax
+    destinoId: Aperanthos
+    tipo: 0
+    bidirecional: 1
+  - origemId: Oetylus
+    destinoId: Paros
+    tipo: 0
+    bidirecional: 1
+  - origemId: Zarax
+    destinoId: Paros
+    tipo: 0
+    bidirecional: 1
+  - origemId: Kardamyle
+    destinoId: Oetylus
+    tipo: 0
+    bidirecional: 1
+  - origemId: Zarax
+    destinoId: Kardamyle
+    tipo: 0
+    bidirecional: 1
+  - origemId: Gythium
+    destinoId: Therapne
+    tipo: 0
+    bidirecional: 1
+  - origemId: Amyclae
+    destinoId: Sellasia
+    tipo: 0
+    bidirecional: 1
+  - origemId: Sparta
+    destinoId: Gythium
+    tipo: 0
+    bidirecional: 1
+  - origemId: Therapne
+    destinoId: EpidaurosLimera
+    tipo: 0
+    bidirecional: 1
+  - origemId: Sparta
+    destinoId: EpidaurosLimera
+    tipo: 0
+    bidirecional: 1
+  - origemId: Sparta
+    destinoId: Kythnos
+    tipo: 0
+    bidirecional: 1
+  - origemId: Sellasia
+    destinoId: Serifos
+    tipo: 0
+    bidirecional: 1
+  - origemId: Brauron
+    destinoId: Kolonos
+    tipo: 0
+    bidirecional: 1
+  - origemId: Zarax
+    destinoId: Tegea
+    tipo: 0
+    bidirecional: 1
+  - origemId: Tegea
+    destinoId: Aperanthos
+    tipo: 0
+    bidirecional: 1
+  - origemId: Caryae
+    destinoId: Syros
+    tipo: 0
+    bidirecional: 1
+  - origemId: Gythium
+    destinoId: EpidaurosLimera
+    tipo: 0
+    bidirecional: 1
+  - origemId: Therapne
+    destinoId: Oetylus
+    tipo: 0
+    bidirecional: 1
+  - origemId: Helos
+    destinoId: Oetylus
+    tipo: 0
+    bidirecional: 1
+  - origemId: Kardamyle
+    destinoId: Paros
+    tipo: 0
+    bidirecional: 1
+  - origemId: Aegiae
+    destinoId: Thalamae
     tipo: 0
     bidirecional: 1
   condicoesEstrategicas: []

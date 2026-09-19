@@ -20,13 +20,27 @@ public sealed class WarDominionHomeController : MonoBehaviour
     private WDHomeMatchFlowPanel matchFlowPanel;
     private WDHomeArmoryPanel armoryPanel;
     private WDHomeProfilePanel profilePanel;
+    private WDHomeSettingsPanel settingsPanel;
+    private WDHomeFriendsPanel friendsPanel;
+    private WDChatHubPanel chatPanel;
+    private WDHomeRankingPanel rankingPanel;
+    private WDHomeMissionsPanel missionsPanel;
+    private WDHomeClanPanel clanPanel;
+    private WDHomeStorePanel storePanel;
     private WDProfileRepository profileRepository;
+    private WDSocialRepository socialRepository;
+    private WDChatRepository chatRepository;
+    private WDMissionRepository missionRepository;
+    private WDLocalMatchResultService matchResults;
+    private WDClanRepository clanRepository;
     private WDNavigationStack navigationStack;
     private WDNavigationBackRouter navigationBackRouter;
     private RectTransform safeArea;
     private GameObject homeUIRoot;
     private EventSystem homeEventSystem;
     private TextMeshProUGUI homeNicknameLabel;
+    private RectTransform chatCardRect;
+    private GameObject chatBadge;
     private Rect lastSafeArea;
     private Vector2Int lastResolution;
 
@@ -91,7 +105,23 @@ public sealed class WarDominionHomeController : MonoBehaviour
         AddAmbientAccents(background);
 
         safeArea = WDHomeUIFactory.Rect("SafeArea", root.transform);
-        profileRepository = new WDProfileRepository(mockData);
+        chatRepository = WDChatRuntime.Current;
+        if (chatRepository == null)
+        {
+            profileRepository = new WDProfileRepository(mockData);
+            socialRepository = new WDSocialRepository(profileRepository);
+            chatRepository = new WDChatRepository(profileRepository, socialRepository);
+            WDChatRuntime.Initialize(chatRepository);
+        }
+        else
+        {
+            profileRepository = chatRepository.Profiles;
+            socialRepository = chatRepository.Social;
+        }
+        matchResults = new WDLocalMatchResultService(new WDPlayerPrefsLocalMatchProgressStore());
+        profileRepository.ApplyLocalMatchProgress(matchResults.Progress);
+        chatRepository.Changed += RefreshChatBadge;
+        missionRepository = matchResults.Missions;
         RectTransform content = WDHomeUIFactory.Rect("HomeContent", safeArea);
         WDHomeUIFactory.Stretch(content, 44f, 34f, 44f, 34f);
         BuildHeader(content);
@@ -106,7 +136,14 @@ public sealed class WarDominionHomeController : MonoBehaviour
             Resources.Load<WarDominionMatchFlowConfig>("UI/Home/WarDominionMatchFlowConfig");
         WDArmoryCatalogConfig armoryCatalog =
             Resources.Load<WDArmoryCatalogConfig>("UI/Home/WDArmoryCatalogConfig");
-        var armoryRepository = new WDPlayerPrefsArmoryRepository();
+        WDVipEntitlement vipEntitlement = new WDVipEntitlement(
+            new WDSystemStoreClock(), new WDPlayerPrefsVipStateStore());
+        var armoryRepository = new WDPlayerPrefsArmoryRepository(vipEntitlement);
+        WDStoreCatalogConfig storeCatalog =
+            Resources.Load<WDStoreCatalogConfig>("UI/Home/WDStoreCatalogConfig");
+        WDStoreService storeService = storeCatalog == null ? null :
+            new WDStoreService(storeCatalog, armoryCatalog, armoryRepository,
+                profileRepository, vipEntitlement);
         RectTransform matchFlowLayer = WDHomeUIFactory.Rect("MatchFlowLayer", root.transform);
         WDHomeUIFactory.Stretch(matchFlowLayer);
         matchFlowPanel = matchFlowLayer.gameObject.AddComponent<WDHomeMatchFlowPanel>();
@@ -116,25 +153,83 @@ public sealed class WarDominionHomeController : MonoBehaviour
             {
                 matchFlowPanel?.HideFromNavigation();
                 profilePanel?.HideFromNavigation();
+                settingsPanel?.HideFromNavigation();
+                friendsPanel?.HideFromNavigation();
+                chatPanel?.HideFromNavigation();
+                rankingPanel?.HideFromNavigation();
+                missionsPanel?.HideFromNavigation();
+                armoryPanel?.HideFromNavigation();
+                clanPanel?.HideFromNavigation();
+                storePanel?.HideFromNavigation();
             }));
         matchFlowPanel.Build(
             theme, matchConfig, mockData, armoryCatalog, armoryRepository,
-            navigationStack);
+            navigationStack, profileRepository, playerId => profilePanel?.OpenPublicProfile(playerId));
         navigationBackRouter = new WDNavigationBackRouter(
             navigationStack, TryHandleCancelableContext);
 
         RectTransform profileLayer = WDHomeUIFactory.Rect("ProfileLayer", root.transform);
         WDHomeUIFactory.Stretch(profileLayer);
         profilePanel = profileLayer.gameObject.AddComponent<WDHomeProfilePanel>();
-        profilePanel.Build(theme, profileRepository, navigationStack,
-            OpenModal, RefreshHomeIdentity);
+        profilePanel.Build(theme, profileRepository, socialRepository, navigationStack,
+            OpenModal, RefreshHomeIdentity, OpenDirectChat, OpenSocialConfirmation,
+            item => { if (storePanel != null && storePanel.CatalogReady)
+                storePanel.Open(item.Category == WDProfileCosmeticCategory.Avatar ? 2 : 0);
+                else OpenModal("LOJA INDISPONÍVEL", "Catálogo local não encontrado."); });
+
+        RectTransform friendsLayer = WDHomeUIFactory.Rect("FriendsLayer", root.transform);
+        WDHomeUIFactory.Stretch(friendsLayer);
+        friendsPanel = friendsLayer.gameObject.AddComponent<WDHomeFriendsPanel>();
+        friendsPanel.Build(theme, socialRepository, navigationStack,
+            profilePanel.OpenPublicProfile, OpenDirectChat, OpenSocialConfirmation);
+
+        RectTransform chatLayer = WDHomeUIFactory.Rect("ChatLayer", root.transform);
+        WDHomeUIFactory.Stretch(chatLayer);
+        chatPanel = chatLayer.gameObject.AddComponent<WDChatHubPanel>();
+        chatPanel.Build(theme, chatRepository, socialRepository, profileRepository,
+            navigationStack, profilePanel.OpenPublicProfile, OpenSocialConfirmation);
+
+        RectTransform rankingLayer = WDHomeUIFactory.Rect("RankingLayer", root.transform);
+        WDHomeUIFactory.Stretch(rankingLayer);
+        rankingPanel = rankingLayer.gameObject.AddComponent<WDHomeRankingPanel>();
+        rankingPanel.Build(theme, new WDRankingRepository(profileRepository), navigationStack,
+            profilePanel.OpenPublicProfile);
+
+        RectTransform missionsLayer = WDHomeUIFactory.Rect("MissionsLayer", root.transform);
+        WDHomeUIFactory.Stretch(missionsLayer);
+        missionsPanel = missionsLayer.gameObject.AddComponent<WDHomeMissionsPanel>();
+        missionsPanel.Build(theme, missionRepository, navigationStack);
+
+        RectTransform settingsLayer = WDHomeUIFactory.Rect("SettingsLayer", root.transform);
+        WDHomeUIFactory.Stretch(settingsLayer);
+        settingsPanel = settingsLayer.gameObject.AddComponent<WDHomeSettingsPanel>();
+        settingsPanel.Build(theme, profileRepository, navigationStack);
 
         RectTransform armoryLayer = WDHomeUIFactory.Rect("ArmoryLayer", root.transform);
         WDHomeUIFactory.Stretch(armoryLayer);
         armoryPanel = armoryLayer.gameObject.AddComponent<WDHomeArmoryPanel>();
         armoryPanel.Build(
             theme, armoryCatalog, armoryRepository,
-            OpenLockedDeckPopup);
+            OpenLockedDeckPopup, navigationStack);
+
+        RectTransform storeLayer = WDHomeUIFactory.Rect("StoreLayer", root.transform);
+        WDHomeUIFactory.Stretch(storeLayer);
+        storePanel = storeLayer.gameObject.AddComponent<WDHomeStorePanel>();
+        if (storeService != null) storePanel.Build(theme, storeService, navigationStack);
+        else storeLayer.gameObject.SetActive(false);
+
+        // 03. Membership único de sessão, projetado no Perfil e no Chat existentes.
+        clanRepository = new WDClanRepository(profileRepository, armoryCatalog,
+            new WDClanArmoryProfiles(profileRepository.LocalProfile.PlayerId,
+                armoryCatalog, armoryRepository));
+        clanRepository.Changed += SyncClanMembership;
+        chatRepository.SyncClanMembership(clanRepository.LocalClan);
+        RectTransform clanLayer = WDHomeUIFactory.Rect("ClanLayer", root.transform);
+        WDHomeUIFactory.Stretch(clanLayer);
+        clanPanel = clanLayer.gameObject.AddComponent<WDHomeClanPanel>();
+        clanPanel.Build(theme, clanRepository, profileRepository, socialRepository,
+            navigationStack, profilePanel.OpenPublicProfile, OpenDirectChat,
+            OpenSocialConfirmation);
     }
 
     private void AddAmbientAccents(Transform parent)
@@ -229,10 +324,49 @@ public sealed class WarDominionHomeController : MonoBehaviour
         lowerElement.preferredHeight = 352f;
         WDHomeUIFactory.VerticalLayout(
             lowerGroup.gameObject, 14f, new RectOffset(0, 0, 0, 0));
-        CreateCard(lowerGroup, "M", "MISSÕES", "Objetivos e recompensas provisórias", "MISSÕES", MissionBody());
-        CreateCard(lowerGroup, "R", "RANKING", "Classificação competitiva", "RANKING", RankingBody());
-        CreateCard(lowerGroup, "C", "CHAT", "Mensagens", "CHAT", ChatBody(), 132f);
+        RectTransform missionsRect = WDHomeUIFactory.Rect("MissionsCard", lowerGroup);
+        missionsRect.gameObject.AddComponent<WDHomeCard>().Build(
+            theme, "M", "MISSÕES", MissionSummary(), OpenMissions);
+        RectTransform rankingRect = WDHomeUIFactory.Rect("RankingCard", lowerGroup);
+        rankingRect.gameObject.AddComponent<WDHomeCard>().Build(
+            theme, "R", "RANKING", "Classificação competitiva", OpenRanking);
+        chatCardRect = WDHomeUIFactory.Rect("ChatCard", lowerGroup);
+        chatCardRect.gameObject.AddComponent<WDHomeCard>().Build(
+            theme, "C", "CHAT", "Mensagens", () => chatPanel.OpenFromHome(), 132f);
+        RefreshChatBadge();
     }
+
+    private void RefreshChatBadge()
+    {
+        if (chatCardRect == null || chatRepository == null)
+            return;
+        if (chatBadge != null)
+        {
+            if (Application.isPlaying) Destroy(chatBadge); else DestroyImmediate(chatBadge);
+            chatBadge = null;
+        }
+        int count = chatRepository.ExternalUnreadConversationCount;
+        if (count <= 0)
+            return;
+        RectTransform badgeRect = WDHomeUIFactory.Rect("UnreadBadge", chatCardRect);
+        badgeRect.anchorMin = badgeRect.anchorMax = new Vector2(1f, 1f);
+        badgeRect.pivot = new Vector2(1f, 1f);
+        badgeRect.anchoredPosition = new Vector2(-12f, -12f);
+        badgeRect.sizeDelta = new Vector2(34f, 28f);
+        chatBadge = badgeRect.gameObject;
+        chatBadge.AddComponent<WDHomeNotificationBadge>().Build(theme, count);
+    }
+
+    private void OnDestroy()
+    {
+        if (chatRepository != null)
+            chatRepository.Changed -= RefreshChatBadge;
+        if (clanRepository != null)
+            clanRepository.Changed -= SyncClanMembership;
+    }
+
+    private void SyncClanMembership() =>
+        chatRepository?.SyncClanMembership(clanRepository?.LocalClan);
 
     private void BuildIdentity(RectTransform parent)
     {
@@ -293,14 +427,14 @@ public sealed class WarDominionHomeController : MonoBehaviour
         LayoutElement element = league.gameObject.AddComponent<LayoutElement>();
         element.preferredHeight = 112f;
         TextMeshProUGUI leagueText = WDHomeUIFactory.Text(
-            "League", league, theme, mockData.League.ToUpperInvariant(), theme.TypeTitle,
+            "League", league, theme, profileRepository.LocalProfile.Division, theme.TypeTitle,
             theme.TextoPrincipal, TextAlignmentOptions.Center);
         leagueText.fontStyle = FontStyles.Bold;
         leagueText.rectTransform.anchorMin = new Vector2(0f, 0.38f);
         leagueText.rectTransform.anchorMax = Vector2.one;
         leagueText.rectTransform.offsetMin = leagueText.rectTransform.offsetMax = Vector2.zero;
         TextMeshProUGUI trophyText = WDHomeUIFactory.Text(
-            "Trophies", league, theme, $"*  {mockData.Trophies} TROFÉUS",
+            "Trophies", league, theme, $"*  {matchResults.Progress.trophies} TROFÉUS",
             theme.TypeBody, theme.Acento, TextAlignmentOptions.Center);
         trophyText.rectTransform.anchorMin = Vector2.zero;
         trophyText.rectTransform.anchorMax = new Vector2(1f, 0.43f);
@@ -321,9 +455,11 @@ public sealed class WarDominionHomeController : MonoBehaviour
         lowerLayout.childForceExpandHeight = true;
         RectTransform armoryRect = WDHomeUIFactory.Rect("ArmoryCard", lower);
         armoryRect.gameObject.AddComponent<WDHomeCard>().Build(
-            theme, "A", "ARMAS", "Decks, coleção e progressão",
+            theme, "A", "ARSENAL", "Decks, coleção e progressão",
             OpenArmory, 140f);
-        CreateCard(lower, "C", "CLAN", "Comunidade competitiva", "CLAN", ClanBody(), 140f);
+        RectTransform clanRect = WDHomeUIFactory.Rect("ClanCard", lower);
+        clanRect.gameObject.AddComponent<WDHomeCard>().Build(
+            theme, "C", "CLÃ", "Comunidade competitiva", OpenClan, 140f);
     }
 
     private void BuildRight(RectTransform parent)
@@ -331,10 +467,17 @@ public sealed class WarDominionHomeController : MonoBehaviour
         RectTransform profileRect = WDHomeUIFactory.Rect("ProfileCard", parent);
         profileRect.gameObject.AddComponent<WDHomeCard>().Build(
             theme, "P", "PERFIL", "Identidade e personalização", OpenMyProfile, 112f);
-        CreateCard(parent, "A", "AMIGOS", "Lista, presença e convites", "AMIGOS", FriendsBody(), 104f);
+        RectTransform friendsRect = WDHomeUIFactory.Rect("FriendsCard", parent);
+        friendsRect.gameObject.AddComponent<WDHomeCard>().Build(
+            theme, "A", "AMIGOS", "Lista, presença e convites", OpenFriends, 104f);
 
-        CreateCard(parent, "L", "LOJA", "Ofertas exclusivas", "LOJA", StoreBody(), 106f);
-        CreateCard(parent, "S", "CONFIGURAÇÕES", "Som, gráficos e sistema", "CONFIGURAÇÕES", SettingsBody(), 106f);
+        RectTransform storeRect = WDHomeUIFactory.Rect("StoreCard", parent);
+        storeRect.gameObject.AddComponent<WDHomeCard>().Build(
+            theme, "L", "LOJA", "Coleções, avatares e VIP", OpenStore, 106f);
+        RectTransform settingsRect = WDHomeUIFactory.Rect("SettingsCard", parent);
+        settingsRect.gameObject.AddComponent<WDHomeCard>().Build(
+            theme, "S", "CONFIGURAÇÕES", "Som, gráficos, privacidade e sistema",
+            OpenSettings, 106f);
     }
 
     private RectTransform CreateRow(string name, Transform parent, float height)
@@ -391,6 +534,24 @@ public sealed class WarDominionHomeController : MonoBehaviour
         if (profilePanel != null && profilePanel.IsOpen && profilePanel.TryHandleModalBack())
             return true;
 
+        if (friendsPanel != null && friendsPanel.IsOpen && friendsPanel.TryHandleLocalBack())
+            return true;
+
+        if (chatPanel != null && chatPanel.IsOpen && chatPanel.TryHandleLocalBack())
+            return true;
+
+        if (rankingPanel != null && rankingPanel.IsOpen && rankingPanel.TryHandleLocalBack())
+            return true;
+
+        if (missionsPanel != null && missionsPanel.IsOpen && missionsPanel.TryHandleLocalBack())
+            return true;
+
+        if (storePanel != null && storePanel.IsOpen && storePanel.TryHandleLocalBack())
+            return true;
+
+        if (clanPanel != null && clanPanel.IsOpen && clanPanel.TryHandleLocalBack())
+            return true;
+
         return matchFlowPanel != null &&
             matchFlowPanel.IsOpen &&
             matchFlowPanel.TryHandleLocalBack();
@@ -405,6 +566,37 @@ public sealed class WarDominionHomeController : MonoBehaviour
 
     private void OpenMyProfile() => profilePanel.OpenMyProfile();
 
+    private void OpenSettings() => settingsPanel.OpenGeneral();
+
+    private void OpenFriends() => friendsPanel.Open();
+
+    private void OpenRanking() => rankingPanel.Open();
+
+    private void OpenMissions() => missionsPanel.Open();
+
+    private void OpenClan() => clanPanel.Open();
+
+    private void OpenDirectChat(string playerId)
+    {
+        if (chatRepository.OpenPrivate(playerId) == null)
+        {
+            OpenModal("CHAT INDISPONÍVEL", "O relacionamento atual não permite iniciar esta conversa.");
+            return;
+        }
+        chatPanel.OpenFromHome(playerId);
+    }
+
+    private void OpenSocialConfirmation(string title, string body, System.Action confirmed)
+    {
+        modal.transform.SetAsLastSibling();
+        modal.OpenChoices(title, body, new[] { "CANCELAR", "CONFIRMAR" }, choice =>
+        {
+            modal.Close();
+            if (choice == 1)
+                confirmed?.Invoke();
+        });
+    }
+
     private void RefreshHomeIdentity()
     {
         if (homeNicknameLabel != null)
@@ -412,6 +604,8 @@ public sealed class WarDominionHomeController : MonoBehaviour
     }
 
     private void OpenArmory() => armoryPanel.Open();
+    private void OpenStore() { if (storePanel != null && storePanel.CatalogReady) storePanel.Open();
+        else OpenModal("LOJA INDISPONÍVEL", "Catálogo local não encontrado."); }
 
     private void OpenLockedDeckPopup()
     {
@@ -438,22 +632,23 @@ public sealed class WarDominionHomeController : MonoBehaviour
     {
         armoryPanel.NavigateToStoreVip();
         modal.Close();
-        OpenModal(
-            "LOJA / VIP",
-            "Destino funcional provisório da subseção VIP da Loja. Assinatura, pagamento e benefícios adicionais ainda não foram implementados.");
+        if (storePanel != null && storePanel.CatalogReady) storePanel.Open(3);
+        else OpenModal("LOJA INDISPONÍVEL", "Catálogo local não encontrado.");
     }
 
     private string ProfileBody() =>
-        $"{mockData.Nickname}\nStatus: {mockData.Status}\nLiga: {mockData.League}\nTroféus: {mockData.Trophies}\n\n" +
+        $"{profileRepository.LocalProfile.Nickname}\nStatus: {mockData.Status}\nLiga: {mockData.League}\nTroféus: {profileRepository.LocalProfile.DivisionPoints}\n\n" +
         "Avatar, skin, cor e demais opções de personalização serão centralizados aqui.";
 
-    private string MissionBody() => "Objetivos e recompensas demonstrativos.\n\nO catálogo definitivo de missões permanece pendente.";
-    private string RankingBody() => $"Posição competitiva provisória.\nLiga atual: {mockData.League}\n\nThresholds e matchmaking não foram definidos.";
+    private string MissionSummary() => missionRepository == null
+        ? "COLEÇÃO PERMANENTE"
+        : $"DESCOBERTAS {missionRepository.DiscoveredCount}/{missionRepository.TotalCount}";
+    private string RankingBody() =>
+        $"Posição competitiva provisória.\nDivisão atual: {profileRepository.LocalProfile.Division}" +
+        "\n\nThresholds e matchmaking não foram definidos.";
     private string EventBody() => $"PRÓXIMO: {mockData.NextEvent}\n{mockData.RegistrationState}\nCountdown: {mockData.Countdown}\n\nAGORA: {mockData.LiveEvent}";
-    private string ClanBody() => "Fundação para identidade, membros e atividades do Clan.";
     private string FriendsBody() => "Lista de amigos, presença, convites e ações sociais — dados mock nesta etapa.";
     private string ChatBody() => "Painel contextual de chat.\n\nBackend e persistência não fazem parte desta etapa.";
-    private string SettingsBody() => "Preferências de áudio, vídeo, interface e controles serão centralizadas aqui.";
     private string StoreBody() => "Modelo da Loja pendente.\n\nNenhuma vantagem competitiva comprável será introduzida.";
     private string VipBody() => "Benefícios e limites de VIP ainda não definidos.\n\nWar Dominion não será pay-to-win.";
     private string DiscordBody() => "Ação externa provisória para a futura comunidade oficial do War Dominion.";

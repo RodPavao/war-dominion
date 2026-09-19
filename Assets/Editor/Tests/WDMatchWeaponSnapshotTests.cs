@@ -106,6 +106,45 @@ public sealed class WDMatchWeaponSnapshotTests
     }
 
     [Test]
+    public void ArsenalClassicDeckWithEnergyPlantEntersOneVsOneNormalUnchanged()
+    {
+        WDArmoryProfile profile = ProfileWithAllWeapons(true);
+        WDSavedWeaponDeck deck = profile.GetDeck(0);
+        deck.Rename("Clássico");
+        var arsenal = new WDArmoryService(catalog, profile);
+        string[] main =
+        {
+            "drone", "atomic_bomb", "war_propaganda", "chemical_bomb",
+            "infiltrator", "sabotage", "energy_plant", "long_range_bomb"
+        };
+        string[] support = { "reserve_troops", "mercenaries" };
+        for (int i = 0; i < main.Length; i++)
+            Assert.That(arsenal.AssignMain(0, i, main[i]), Is.EqualTo(WDArmoryEditResult.Success));
+        for (int i = 0; i < support.Length; i++)
+            Assert.That(arsenal.AssignSupport(0, i, support[i]), Is.EqualTo(WDArmoryEditResult.Success));
+
+        WarDominionMatchFlowConfig flow = Resources.Load<WarDominionMatchFlowConfig>(
+            "UI/Home/WarDominionMatchFlowConfig");
+        WDMatchModeDefinition mode = flow.Modes.Single(item => item.Id == "1x1");
+        WDMatchSubmodeDefinition normal = mode.Submodes.Single(item => item.Id == "normal");
+        var request = new WDMatchmakingRequest(mode, normal, string.Empty);
+        WDMatchSetup setup = WDMatchSetupFactory.Create(request,
+            Resources.Load<DefinicaoMapa>("Mapas/Classic"),
+            Resources.Load<WarDominionHomeData>("UI/Home/WarDominionHomeMockData"),
+            0, 33, catalog, profile);
+
+        Assert.That(setup.Participants.All(item => item.WeaponLoadout.Status ==
+            WDMatchWeaponSnapshotStatus.Valid), Is.True);
+        Assert.That(WDMatchSetupFactory.IsReadyForEntry(setup, request, "classic", 0, catalog),
+            Is.True);
+        Assert.That(setup.Participants[0].WeaponLoadout.MainSlots.Select(slot => slot.WeaponId),
+            Is.EqualTo(main));
+        Assert.That(setup.Participants[0].WeaponLoadout.SupportSlots.Select(slot => slot.WeaponId),
+            Is.EqualTo(support));
+        Assert.That(deck.Name, Is.EqualTo("Clássico"));
+    }
+
+    [Test]
     public void NormalSnapshotKeepsPermanentLevelsAndDoesNotFollowLaterProfileChanges()
     {
         WDArmoryProfile profile = ValidNormalProfile(out int deckIndex);
@@ -205,6 +244,121 @@ public sealed class WDMatchWeaponSnapshotTests
     }
 
     [Test]
+    public void FixedMapUsesPersistedActiveDeckInsteadOfMockDefault()
+    {
+        WDArmoryProfile armory = ValidNormalProfile(out _);
+        CopyDeck(armory, 0, 1);
+        Assert.That(armory.SetActiveDeck(1), Is.True);
+        WarDominionMatchFlowConfig flow = Resources.Load<WarDominionMatchFlowConfig>(
+            "UI/Home/WarDominionMatchFlowConfig");
+        WDMatchModeDefinition mode = flow.Modes.Single(item => item.Id == "ffa");
+        var request = new WDMatchmakingRequest(mode, null, string.Empty);
+        WDMatchSetup setup = WDMatchSetupFactory.Create(request,
+            Resources.Load<DefinicaoMapa>("Mapas/Classic"),
+            Resources.Load<WarDominionHomeData>("UI/Home/WarDominionHomeMockData"),
+            0, 27, catalog, armory);
+
+        Assert.That(setup.Participants.All(item => item.DeckId == "deck_2" &&
+            item.WeaponLoadout.DeckId == "deck_2"), Is.True);
+        Assert.That(setup.Participants[0].WeaponLoadout.MainSlots[0].WeaponId,
+            Is.EqualTo(armory.GetDeck(1).GetMain(0)));
+        Assert.That(WDMatchSetupFactory.IsReadyForEntry(setup, request, "classic", 1), Is.True);
+    }
+
+    [Test]
+    public void VotingDeckSelectionCarriesSelectedSavedDeckWithoutChangingActiveDeck()
+    {
+        WDArmoryProfile armory = ValidNormalProfile(out _);
+        CopyDeck(armory, 0, 1);
+        WarDominionMatchFlowConfig flow = Resources.Load<WarDominionMatchFlowConfig>(
+            "UI/Home/WarDominionMatchFlowConfig");
+        WDMatchModeDefinition mode = flow.Modes.Single(item => item.Id == "1x1");
+        WDMatchSubmodeDefinition normal = mode.Submodes.Single(item => item.Id == "normal");
+        var request = new WDMatchmakingRequest(mode, normal, string.Empty);
+        WDMatchSetup setup = WDMatchSetupFactory.Create(request,
+            Resources.Load<DefinicaoMapa>("Mapas/Classic"),
+            Resources.Load<WarDominionHomeData>("UI/Home/WarDominionHomeMockData"),
+            1, 28, catalog, armory);
+
+        Assert.That(armory.ActiveDeckIndex, Is.Zero);
+        Assert.That(setup.Participants[0].DeckId, Is.EqualTo("deck_2"));
+        Assert.That(setup.Participants[0].WeaponLoadout.MainSlots[0].WeaponId,
+            Is.EqualTo(armory.GetDeck(1).GetMain(0)));
+        Assert.That(WDMatchSetupFactory.IsReadyForEntry(setup, request, "classic", 1), Is.True);
+        Assert.That(WDMatchSetupFactory.IsReadyForEntry(setup, request, "classic", 0), Is.False);
+    }
+
+    [Test]
+    public void EntryRejectsWrongMapAndUnavailableSnapshot()
+    {
+        WDArmoryProfile armory = ValidNormalProfile(out _);
+        WarDominionMatchFlowConfig flow = Resources.Load<WarDominionMatchFlowConfig>(
+            "UI/Home/WarDominionMatchFlowConfig");
+        WDMatchModeDefinition mode = flow.Modes.Single(item => item.Id == "1x1");
+        WDMatchSubmodeDefinition normal = mode.Submodes.Single(item => item.Id == "normal");
+        var request = new WDMatchmakingRequest(mode, normal, string.Empty);
+        DefinicaoMapa map = Resources.Load<DefinicaoMapa>("Mapas/Classic");
+        WarDominionHomeData home = Resources.Load<WarDominionHomeData>(
+            "UI/Home/WarDominionHomeMockData");
+        WDMatchSetup valid = WDMatchSetupFactory.Create(request, map, home, 0, 29,
+            catalog, armory);
+        WDMatchSetup missingSource = WDMatchSetupFactory.Create(request, map, home, 0, 29,
+            null, armory);
+
+        Assert.That(WDMatchSetupFactory.IsReadyForEntry(valid, request, "classic", 0), Is.True);
+        Assert.That(WDMatchSetupFactory.IsReadyForEntry(valid, request, "riachuelo", 0), Is.False);
+        Assert.That(WDMatchSetupFactory.IsReadyForEntry(missingSource, request, "classic", 0),
+            Is.False);
+    }
+
+    [Test]
+    public void EntryAllowsEmptySavedSlotsButRejectsInvalidEquippedIdentity()
+    {
+        WDArmoryProfile armory = ProfileWithAllWeapons(true);
+        WarDominionMatchFlowConfig flow = Resources.Load<WarDominionMatchFlowConfig>(
+            "UI/Home/WarDominionMatchFlowConfig");
+        WDMatchModeDefinition mode = flow.Modes.Single(item => item.Id == "ffa");
+        var request = new WDMatchmakingRequest(mode, null, string.Empty);
+        DefinicaoMapa map = Resources.Load<DefinicaoMapa>("Mapas/Classic");
+        WarDominionHomeData home = Resources.Load<WarDominionHomeData>(
+            "UI/Home/WarDominionHomeMockData");
+        WDMatchSetup partial = WDMatchSetupFactory.Create(request, map, home, 0, 30,
+            catalog, armory);
+        armory.GetDeck(0).SetMain(0, "artillery");
+        armory.GetDeck(0).SetSupport(0, "artillery");
+        WDMatchSetup duplicate = WDMatchSetupFactory.Create(request, map, home, 0, 31,
+            catalog, armory);
+
+        Assert.That(partial.Participants[0].WeaponLoadout.Status,
+            Is.EqualTo(WDMatchWeaponSnapshotStatus.IncompleteDeck));
+        Assert.That(WDMatchSetupFactory.IsReadyForEntry(partial, request, "classic", 0,
+            catalog), Is.True);
+        Assert.That(WDMatchSetupFactory.IsReadyForEntry(duplicate, request, "classic", 0,
+            catalog), Is.False);
+    }
+
+    [Test]
+    public void TeamRandomCardsEntryCarriesRuleAndDoesNotRequireSavedDeck()
+    {
+        WDArmoryProfile armory = ProfileWithAllWeapons(false);
+        WarDominionMatchFlowConfig flow = Resources.Load<WarDominionMatchFlowConfig>(
+            "UI/Home/WarDominionMatchFlowConfig");
+        WDMatchModeDefinition mode = flow.Modes.Single(item => item.Id == "2x2");
+        WDMatchSubmodeDefinition random = mode.Submodes.Single(item =>
+            item.Id == "random_cards");
+        var request = new WDMatchmakingRequest(mode, random, "random_teammate");
+        WDMatchSetup setup = WDMatchSetupFactory.Create(request,
+            Resources.Load<DefinicaoMapa>("Mapas/Classic"),
+            Resources.Load<WarDominionHomeData>("UI/Home/WarDominionHomeMockData"),
+            0, 32, catalog, armory);
+
+        Assert.That(setup.UsesSymmetricRandomCards, Is.True);
+        Assert.That(setup.SubmodeId, Is.EqualTo("random_cards"));
+        Assert.That(setup.Participants.All(item => item.DeckId == string.Empty), Is.True);
+        Assert.That(WDMatchSetupFactory.IsReadyForEntry(setup, request, "classic", 0), Is.True);
+    }
+
+    [Test]
     public void LegacyCardPlaceholdersAreRejectedWithoutInventedMapping()
     {
         var profile = new WDArmoryProfile();
@@ -277,6 +431,16 @@ public sealed class WDMatchWeaponSnapshotTests
         for (int i = 0; i < main.Length; i++) deck.SetMain(i, main[i]);
         for (int i = 0; i < support.Length; i++) deck.SetSupport(i, support[i]);
         return profile;
+    }
+
+    private static void CopyDeck(WDArmoryProfile profile, int sourceIndex, int targetIndex)
+    {
+        WDSavedWeaponDeck source = profile.GetDeck(sourceIndex);
+        WDSavedWeaponDeck target = profile.GetDeck(targetIndex);
+        for (int i = 0; i < WDSavedWeaponDeck.MainSlotCount; i++)
+            target.SetMain(i, source.GetMain(i));
+        for (int i = 0; i < WDSavedWeaponDeck.SupportSlotCount; i++)
+            target.SetSupport(i, source.GetSupport(i));
     }
 
     private WDArmoryProfile ProfileWithAllWeapons(bool obtained)

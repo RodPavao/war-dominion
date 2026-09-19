@@ -10,6 +10,9 @@ public sealed class MapaAtivo : MonoBehaviour
     // ============================================================
 
     private const string CaminhoCatalogo = "Mapas/CatalogoMapas";
+    public const string ChaveMostrarNomesTerritorios =
+        "WarGame.Visualizacao.MostrarNomesTerritorios";
+    public const float ProporcaoZoomParaExibirNomes = 0.72f;
 #if UNITY_EDITOR
     public const string ChaveMapaTesteEditor = "WarGame.MapaSelecionadoEditor";
 #endif
@@ -21,10 +24,20 @@ public sealed class MapaAtivo : MonoBehaviour
     private readonly Dictionary<string, TerritorioClique> territorioPorId = new Dictionary<string, TerritorioClique>(StringComparer.Ordinal);
     private readonly Dictionary<string, DefinicaoRegiaoMapa> regiaoPorId = new Dictionary<string, DefinicaoRegiaoMapa>(StringComparer.Ordinal);
     private SpriteRenderer visualMapa;
+    private float tamanhoOrtograficoEnquadrado;
+    private WDTerritoryNameRuntimeOverlay territoryNameOverlay;
 
-    public static MapaAtivo Instance => instance;
+    public static MapaAtivo Instance => instance != null ? instance : null;
     public DefinicaoMapa Definicao => definicao;
     public IReadOnlyList<TerritorioClique> TerritoriosRuntime => territoriosRuntime;
+    public static bool NomesTerritoriaisHabilitados =>
+        PlayerPrefs.GetInt(ChaveMostrarNomesTerritorios, 0) != 0;
+
+    public static void DefinirNomesTerritoriaisHabilitados(bool habilitados)
+    {
+        PlayerPrefs.SetInt(ChaveMostrarNomesTerritorios, habilitados ? 1 : 0);
+        PlayerPrefs.Save();
+    }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void CriarServico()
@@ -71,6 +84,7 @@ public sealed class MapaAtivo : MonoBehaviour
 
         instance = this;
         DontDestroyOnLoad(gameObject);
+        GarantirOverlayNomesTerritoriais();
     }
 
     private void OnEnable()
@@ -82,6 +96,12 @@ public sealed class MapaAtivo : MonoBehaviour
     private void OnDisable()
     {
         SceneManager.sceneLoaded -= AoCarregarCena;
+    }
+
+    private void OnDestroy()
+    {
+        if (instance == this)
+            instance = null;
     }
 
     private void AoCarregarCena(Scene cena, LoadSceneMode modo)
@@ -134,8 +154,163 @@ public sealed class MapaAtivo : MonoBehaviour
             }
         }
 
+        AplicarApresentacaoTerritorialDaDefinicao();
+        GarantirOverlayNomesTerritoriais().RebuildForMap(this);
+
         if (territoriosRuntime.Count != definicao.Territorios.Count)
             Debug.LogError($"Mapa {definicao.MapaId}: esperados {definicao.Territorios.Count} territórios, encontrados {territoriosRuntime.Count} na cena.");
+    }
+
+    private void AplicarApresentacaoTerritorialDaDefinicao()
+    {
+        if (visualMapa == null || definicao == null)
+            return;
+
+        foreach (DefinicaoTerritorioMapa dados in definicao.Territorios)
+        {
+            if (dados == null ||
+                !territorioPorId.TryGetValue(dados.id, out TerritorioClique territorio))
+                continue;
+
+            Transform contador = territorio.transform.Find("ContadorModerno");
+            if (contador != null && dados.possuiPosicaoContador)
+            {
+                Vector2 local = ConverterPosicaoArteParaLocalTerritorio(
+                    visualMapa.transform, territorio.transform, dados.posicaoContador);
+                contador.localPosition = new Vector3(local.x, local.y,
+                    contador.localPosition.z);
+            }
+
+        }
+    }
+
+    public void AtualizarVisibilidadeNomesTerritoriais()
+    {
+        GarantirOverlayNomesTerritoriais().RefreshVisibility();
+    }
+
+    public static Vector2 ConverterPosicaoArteParaLocalTerritorio(
+        Transform arte, Transform territorio, Vector2 posicaoNaArte)
+    {
+        if (arte == null || territorio == null)
+            return posicaoNaArte;
+        Vector3 world = arte.TransformPoint(posicaoNaArte);
+        return territorio.InverseTransformPoint(world);
+    }
+
+    public static Vector3 ConverterPosicaoNomeManualParaMundo(Transform arte,
+        Transform territorio, Vector2 posicaoSalva, bool mapaIntegral16x9)
+    {
+        if (mapaIntegral16x9 && arte != null)
+            return arte.TransformPoint(posicaoSalva);
+        return territorio != null
+            ? territorio.TransformPoint(posicaoSalva)
+            : (Vector3)posicaoSalva;
+    }
+
+    public static Vector3 ResolverPosicaoNomeManualParaMundo(Transform arte,
+        Transform territorio, Vector2 posicaoSalva, bool mapaIntegral16x9)
+    {
+        if (!mapaIntegral16x9 || arte == null || territorio == null)
+            return ConverterPosicaoNomeManualParaMundo(arte, territorio,
+                posicaoSalva, mapaIntegral16x9);
+
+        Vector3 pelaArte = arte.TransformPoint(posicaoSalva);
+        Vector3 peloTerritorio = territorio.TransformPoint(posicaoSalva);
+        Collider2D collider = territorio.GetComponent<Collider2D>();
+        if (collider == null)
+            return pelaArte;
+
+        float distanciaArte = Vector2.Distance(pelaArte, collider.ClosestPoint(pelaArte));
+        float distanciaTerritorio = Vector2.Distance(peloTerritorio,
+            collider.ClosestPoint(peloTerritorio));
+        return distanciaTerritorio + 0.0001f < distanciaArte
+            ? peloTerritorio
+            : pelaArte;
+    }
+
+    public static bool PosicaoNomeManualUsaEspacoDaArte(Transform arte,
+        Transform territorio, Vector2 posicaoSalva, bool mapaIntegral16x9)
+    {
+        if (!mapaIntegral16x9 || arte == null || territorio == null)
+            return false;
+        Vector3 resolvida = ResolverPosicaoNomeManualParaMundo(arte, territorio,
+            posicaoSalva, true);
+        return Vector2.SqrMagnitude(resolvida - arte.TransformPoint(posicaoSalva)) <
+            0.000001f;
+    }
+
+    public static bool ZoomPermiteExibirNomes(Camera camera, DefinicaoMapa mapa)
+    {
+        return ZoomPermiteExibirNomes(camera, mapa, 0f);
+    }
+
+    public static bool ZoomPermiteExibirNomes(Camera camera, DefinicaoMapa mapa,
+        float tamanhoOrtograficoEnquadrado)
+    {
+        return camera != null && mapa != null &&
+            camera.orthographicSize <= ResolverTamanhoBaseDoZoom(
+                mapa, tamanhoOrtograficoEnquadrado) *
+                ProporcaoZoomParaExibirNomes;
+    }
+
+    public static float ResolverTamanhoBaseDoZoom(DefinicaoMapa mapa,
+        float tamanhoOrtograficoEnquadrado)
+    {
+        return tamanhoOrtograficoEnquadrado > 0f
+            ? tamanhoOrtograficoEnquadrado
+            : (mapa != null ? mapa.TamanhoOrtografico : 0f);
+    }
+
+    public void RegistrarTamanhoOrtograficoEnquadrado(float tamanho)
+    {
+        tamanhoOrtograficoEnquadrado = Mathf.Max(0f, tamanho);
+        if (territoryNameOverlay != null)
+            territoryNameOverlay.SetInitialFramingSize(
+                TamanhoOrtograficoEnquadrado);
+    }
+
+    public float TamanhoOrtograficoEnquadrado => ResolverTamanhoBaseDoZoom(
+        definicao, tamanhoOrtograficoEnquadrado);
+
+    public Vector3 ConverterDeslocamentoArteParaMundo(Vector2 deslocamento)
+    {
+        return visualMapa != null
+            ? visualMapa.transform.TransformVector(deslocamento)
+            : (Vector3)deslocamento;
+    }
+
+    public Vector3 ConverterPosicaoArteParaMundo(Vector2 posicao)
+    {
+        return visualMapa != null
+            ? visualMapa.transform.TransformPoint(posicao)
+            : (Vector3)posicao;
+    }
+
+    public Vector2 ConverterPosicaoMundoParaArte(Vector3 posicao)
+    {
+        return visualMapa != null
+            ? (Vector2)visualMapa.transform.InverseTransformPoint(posicao)
+            : (Vector2)posicao;
+    }
+
+    public Transform TransformArte => visualMapa != null
+        ? visualMapa.transform
+        : null;
+
+    public static Vector3 ConverterDeslocamentoArteParaMundo(Transform arte,
+        Vector2 deslocamento)
+    {
+        return arte != null ? arte.TransformVector(deslocamento) :
+            (Vector3)deslocamento;
+    }
+
+    private WDTerritoryNameRuntimeOverlay GarantirOverlayNomesTerritoriais()
+    {
+        if (territoryNameOverlay == null)
+            territoryNameOverlay = GetComponent<WDTerritoryNameRuntimeOverlay>() ??
+                gameObject.AddComponent<WDTerritoryNameRuntimeOverlay>();
+        return territoryNameOverlay;
     }
 
     private bool SincronizarDefinicaoComCena()
@@ -238,12 +413,34 @@ public sealed class MapaAtivo : MonoBehaviour
 
     public int CalcularBonusRegioes(TerritorioClique.Dono jogador)
     {
-        int total = 0;
         if (definicao == null)
-            return total;
-        foreach (DefinicaoRegiaoMapa regiao in definicao.Regioes)
-            if (JogadorControlaRegiao(jogador, regiao))
-                total += regiao.bonus;
+            return 0;
+        return CalcularBonusRegioesControladas(
+            definicao.Regioes, id => territorioPorId.TryGetValue(
+                id, out TerritorioClique territorio) && territorio.dono == jogador);
+    }
+
+    public static int CalcularBonusRegioesControladas(
+        IEnumerable<DefinicaoRegiaoMapa> regioes,
+        Func<string, bool> controlaTerritorio)
+    {
+        if (regioes == null || controlaTerritorio == null)
+            return 0;
+        int total = 0;
+        foreach (DefinicaoRegiaoMapa regiao in regioes)
+        {
+            if (regiao?.territorioIds == null || regiao.territorioIds.Count == 0)
+                continue;
+            bool completa = true;
+            foreach (string territorioId in regiao.territorioIds)
+                if (!controlaTerritorio(territorioId))
+                {
+                    completa = false;
+                    break;
+                }
+            if (completa)
+                total += Mathf.Max(0, regiao.bonus);
+        }
         return total;
     }
 

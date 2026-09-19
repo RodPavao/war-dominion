@@ -175,6 +175,81 @@ public sealed class WDWeaponExecutionCoordinatorTests
     }
 
     [Test]
+    public void RoundStartPaymentImmediatelyChangesCanonicalCardAvailability()
+    {
+        SetLevel("p1", WDStrategicWeaponIds.EnergyPlant, 1);
+        Assert.That(runtime.TrySpendEnergy("p1", 200), Is.True);
+        AssertExecuted(Action(WDStrategicWeaponIds.EnergyPlant, "owned",
+            installationId: "central-hud"));
+        Assert.That(runtime.GetAvailability("p1", WDSupportWeaponIds.FlakTower).Reason,
+            Is.EqualTo(WDWeaponAvailabilityReason.InsufficientEnergy));
+
+        source.CurrentRound = 2;
+        runtime.AdvanceCooldownsForRound(2);
+        Assert.That(coordinator.ProcessRoundStart(2), Is.EqualTo(1));
+
+        Assert.That(runtime.FindPlayer("p1").Energy, Is.EqualTo(5));
+        Assert.That(runtime.GetAvailability("p1", WDSupportWeaponIds.FlakTower)
+            .IsAvailable, Is.True);
+    }
+
+    [Test]
+    public void SuccessfulTerrestrialAttackEnergyIsDeferredAndIdempotent()
+    {
+        ResultadoAcaoTerrestre success = TerrestrialResult(
+            ResultadoAcaoTerrestre.TipoResultado.Ataque, true);
+
+        Assert.That(roundState.ScheduleEnergyFromTerrestrialResults(
+            "resolution-1", 1, new[] { success }, OwnerPlayerId), Is.EqualTo(1));
+        Assert.That(roundState.ScheduleEnergyFromTerrestrialResults(
+            "resolution-1", 1, new[] { success }, OwnerPlayerId), Is.Zero);
+        Assert.That(runtime.FindPlayer("p1").Energy, Is.EqualTo(200));
+        Assert.That(coordinator.ProcessPendingAttackEnergy(1), Is.Zero);
+        Assert.That(runtime.FindPlayer("p1").Energy, Is.EqualTo(200));
+
+        Assert.That(coordinator.ProcessPendingAttackEnergy(2), Is.EqualTo(1));
+        Assert.That(runtime.FindPlayer("p1").Energy, Is.EqualTo(205));
+        Assert.That(coordinator.ProcessPendingAttackEnergy(2), Is.Zero);
+        Assert.That(runtime.FindPlayer("p1").Energy, Is.EqualTo(205));
+    }
+
+    [Test]
+    public void OnlySuccessfulAttacksAccumulateFiveEnergyEach()
+    {
+        ResultadoAcaoTerrestre successA = TerrestrialResult(
+            ResultadoAcaoTerrestre.TipoResultado.Ataque, true, 1);
+        ResultadoAcaoTerrestre successB = TerrestrialResult(
+            ResultadoAcaoTerrestre.TipoResultado.Ataque, true, 2);
+        ResultadoAcaoTerrestre failed = TerrestrialResult(
+            ResultadoAcaoTerrestre.TipoResultado.Ataque, false, 3);
+        ResultadoAcaoTerrestre movement = TerrestrialResult(
+            ResultadoAcaoTerrestre.TipoResultado.OcupacaoVazio, true, 4);
+
+        Assert.That(roundState.ScheduleEnergyFromTerrestrialResults(
+            "resolution-2", 1, new[] { successA, successB, failed, movement },
+            OwnerPlayerId), Is.EqualTo(2));
+        Assert.That(coordinator.ProcessPendingAttackEnergy(2), Is.EqualTo(2));
+        Assert.That(runtime.FindPlayer("p1").Energy, Is.EqualTo(210));
+    }
+
+    [Test]
+    public void AttackEnergyAndEnergyPlantPaymentSumAtNextPreparation()
+    {
+        SetLevel("p1", WDStrategicWeaponIds.EnergyPlant, 1);
+        AssertExecuted(Action(WDStrategicWeaponIds.EnergyPlant, "owned",
+            installationId: "central-sum"));
+        Assert.That(roundState.ScheduleEnergyFromTerrestrialResults(
+            "resolution-sum", 1,
+            new[] { TerrestrialResult(ResultadoAcaoTerrestre.TipoResultado.Ataque, true) },
+            OwnerPlayerId), Is.EqualTo(1));
+
+        source.CurrentRound = 2;
+        runtime.AdvanceCooldownsForRound(2);
+        Assert.That(coordinator.ProcessRoundStart(2), Is.EqualTo(2));
+        Assert.That(runtime.FindPlayer("p1").Energy, Is.EqualTo(210));
+    }
+
+    [Test]
     public void EnergyPlantThirdOwnActivationIsRejectedWithoutCost()
     {
         ExecuteCentralAtRound("owned", "central-1", 1);
@@ -480,11 +555,12 @@ public sealed class WDWeaponExecutionCoordinatorTests
     [Test]
     public void InfiltratorBlocksExactProgrammedActionBeforePeaceWithoutChargingTarget()
     {
+        EnterRoundThree();
         WDWeaponAction peace = Action(WDStrategicWeaponIds.Peace, "", "p3",
             targetPlayer: "p1");
         WDWeaponAction infiltrator = Action(WDSpecialWeaponIds.Infiltrator, "",
             targetPlayer: "p3", phase: WDWeaponResolutionPhase.Infiltration,
-            parameters: new[] { new WDWeaponActionParameter("targetActionId", peace.ActionId) });
+            parameters: new[] { new WDWeaponActionParameter("targetWeaponId", peace.WeaponId) });
 
         WDIntegratedWeaponExecutionResult[] results = coordinator
             .ExecuteFrozenActions(new[] { peace, infiltrator }).ToArray();
@@ -493,7 +569,7 @@ public sealed class WDWeaponExecutionCoordinatorTests
             Is.EqualTo(WDIntegratedWeaponExecutionStatus.Executed));
         Assert.That(results.Single(x => x.ActionId == peace.ActionId).Status,
             Is.EqualTo(WDIntegratedWeaponExecutionStatus.BlockedByInfiltrator));
-        AssertRuntime("p3", WDStrategicWeaponIds.Peace, 200, 0, 0);
+        AssertRuntime("p3", WDStrategicWeaponIds.Peace, 200, 3, 0);
     }
 
     [Test]
@@ -520,24 +596,67 @@ public sealed class WDWeaponExecutionCoordinatorTests
     }
 
     [Test]
-    public void RadarInstalledThisRoundIsInvalidAndProgrammedSniperBlocksWithoutConsumption()
+    public void RadarInstalledThisRoundScansRegardlessOfProgrammedSniper()
     {
         var newRadar = new WDWeaponInstallationState("radar-new", WDTacticalWeaponIds.Radar,
             "owned", "p1", 0, 0, 1, 0, 1, true, 1);
         Assert.That(mutations.Install("install-radar-new", newRadar).Succeeded, Is.True);
         Assert.That(coordinator.UseRadarDuringPreparation("scan-new", "p1", "radar-new",
             "enemy", Array.Empty<WDWeaponAction>()).Status,
-            Is.EqualTo(WDRadarUseStatus.Invalid));
+            Is.EqualTo(WDRadarUseStatus.Used));
 
         mutations.RemoveInstallation("remove-new", "radar-new");
         var oldRadar = new WDWeaponInstallationState("radar-old", WDTacticalWeaponIds.Radar,
             "owned", "p1", 0, 0, 1, 0, 1, true, 0);
         Assert.That(mutations.Install("install-radar-old", oldRadar).Succeeded, Is.True);
         WDWeaponAction sniper = Action(WDTacticalWeaponIds.Sniper, "owned", "p3");
-        Assert.That(coordinator.UseRadarDuringPreparation("scan-blocked", "p1", "radar-old",
-            "enemy", new[] { sniper }).Status, Is.EqualTo(WDRadarUseStatus.BlockedBySniper));
-        Assert.That(oldRadar.ChargesRemaining, Is.EqualTo(1));
-        Assert.That(registry.Find("radar-old"), Is.SameAs(oldRadar));
+        WDRadarUseResult result = coordinator.UseRadarDuringPreparation(
+            "scan-with-sniper", "p1", "radar-old", "enemy", new[] { sniper });
+        Assert.That(result.Status, Is.EqualTo(WDRadarUseStatus.Used));
+        Assert.That(result.Reveal.CanBeReadBy("p1"), Is.True);
+        Assert.That(oldRadar.ChargesRemaining, Is.Zero);
+        Assert.That(registry.Find("radar-old"), Is.Null);
+    }
+
+    [Test]
+    public void PeaceBlocksSniperWithoutDamageCostOrResidualOriginBlock()
+    {
+        WDWeaponAction peace = Action(WDStrategicWeaponIds.Peace, "",
+            targetPlayer: "p3");
+        WDWeaponAction sniper = Action(WDTacticalWeaponIds.Sniper, "enemy");
+        var pipeline = new WDWeaponResolutionPipeline();
+
+        WDGlobalResolutionResult result = pipeline.ResolveRound(
+            new WDGlobalResolutionRequest("peace-sniper", 1,
+                new[] { sniper, peace }, coordinator));
+
+        Assert.That(result.Entries.Single(entry => entry.StableId == sniper.ActionId)
+            .WeaponStatus, Is.EqualTo(WDIntegratedWeaponExecutionStatus.Invalidated));
+        Assert.That(context.FindTerritory("enemy").Troops, Is.EqualTo(4));
+        Assert.That(roundState.IsOriginBlocked("enemy"), Is.False);
+        AssertRuntime("p1", WDTacticalWeaponIds.Sniper, 185, 0, 0);
+    }
+
+    [Test]
+    public void InfiltratorBlockedSniperProducesNoDamageOrResidualOriginBlock()
+    {
+        EnterRoundThree();
+        WDWeaponAction sniper = Action(WDTacticalWeaponIds.Sniper, "owned", "p3");
+        WDWeaponAction infiltrator = InfiltratorAction(
+            "infiltrator-blocks-sniper", "p1", "p3",
+            WDTacticalWeaponIds.Sniper, 1);
+        var pipeline = new WDWeaponResolutionPipeline();
+
+        WDGlobalResolutionResult result = pipeline.ResolveRound(
+            new WDGlobalResolutionRequest("infiltrator-sniper", 3,
+                new[] { sniper, infiltrator }, coordinator));
+
+        Assert.That(result.Entries.Single(entry => entry.StableId == sniper.ActionId)
+            .WeaponStatus,
+            Is.EqualTo(WDIntegratedWeaponExecutionStatus.BlockedByInfiltrator));
+        Assert.That(context.FindTerritory("owned").Troops, Is.EqualTo(5));
+        Assert.That(roundState.IsOriginBlocked("owned"), Is.False);
+        AssertRuntime("p3", WDTacticalWeaponIds.Sniper, 200, 3, 0);
     }
 
     [Test]
@@ -561,17 +680,18 @@ public sealed class WDWeaponExecutionCoordinatorTests
     [Test]
     public void InfiltratorMissingTargetIsInvalidAndDuplicateTargetIsSuperseded()
     {
+        EnterRoundThree();
         WDWeaponAction peace = Action(WDStrategicWeaponIds.Peace, "", "p3",
             targetPlayer: "p1");
         WDWeaponAction first = Action(WDSpecialWeaponIds.Infiltrator, "", "p1",
             targetPlayer: "p3", phase: WDWeaponResolutionPhase.Infiltration,
-            parameters: new[] { new WDWeaponActionParameter("targetActionId", peace.ActionId) });
+            parameters: new[] { new WDWeaponActionParameter("targetWeaponId", peace.WeaponId) });
         WDWeaponAction second = Action(WDSpecialWeaponIds.Infiltrator, "", "p2",
             targetPlayer: "p3", phase: WDWeaponResolutionPhase.Infiltration,
-            parameters: new[] { new WDWeaponActionParameter("targetActionId", peace.ActionId) });
+            parameters: new[] { new WDWeaponActionParameter("targetWeaponId", peace.WeaponId) });
         WDWeaponAction missing = Action(WDSpecialWeaponIds.Infiltrator, "", "p2",
             targetPlayer: "p3", phase: WDWeaponResolutionPhase.Infiltration,
-            parameters: new[] { new WDWeaponActionParameter("targetActionId", "cancelled") });
+            parameters: new[] { new WDWeaponActionParameter("targetWeaponId", "unknown") });
 
         WDIntegratedWeaponExecutionResult[] results = coordinator
             .ExecuteFrozenActions(new[] { second, peace, first, missing }).ToArray();
@@ -582,20 +702,21 @@ public sealed class WDWeaponExecutionCoordinatorTests
             Is.EqualTo(WDIntegratedWeaponExecutionStatus.Superseded));
         Assert.That(results.Single(x => x.ActionId == missing.ActionId).Status,
             Is.EqualTo(WDIntegratedWeaponExecutionStatus.Invalidated));
-        AssertRuntime("p1", WDSpecialWeaponIds.Infiltrator, 175, 3, 1);
+        AssertRuntime("p1", WDSpecialWeaponIds.Infiltrator, 180, 4, 1);
         AssertRuntime("p2", WDSpecialWeaponIds.Infiltrator, 200, 0, 0);
-        AssertRuntime("p3", WDStrategicWeaponIds.Peace, 200, 0, 0);
+        AssertRuntime("p3", WDStrategicWeaponIds.Peace, 200, 3, 0);
     }
 
     [Test]
     public void InfiltratorDuplicateTargetUsesProgramOrderBeforeActionId()
     {
+        EnterRoundThree();
         WDWeaponAction peace = Action(WDStrategicWeaponIds.Peace, "", "p3",
             targetPlayer: "p1");
         WDWeaponAction earlier = InfiltratorAction(
-            "infiltrator-z", "p1", "p3", peace.ActionId, 10);
+            "infiltrator-z", "p1", "p3", peace.WeaponId, 10);
         WDWeaponAction later = InfiltratorAction(
-            "infiltrator-a", "p1", "p3", peace.ActionId, 20);
+            "infiltrator-a", "p1", "p3", peace.WeaponId, 20);
 
         WDIntegratedWeaponExecutionResult[] results = coordinator
             .ExecuteFrozenActions(new[] { later, peace, earlier }).ToArray();
@@ -604,18 +725,19 @@ public sealed class WDWeaponExecutionCoordinatorTests
             Is.EqualTo(WDIntegratedWeaponExecutionStatus.Executed));
         Assert.That(results.Single(x => x.ActionId == later.ActionId).Status,
             Is.EqualTo(WDIntegratedWeaponExecutionStatus.Superseded));
-        AssertRuntime("p1", WDSpecialWeaponIds.Infiltrator, 175, 3, 1);
+        AssertRuntime("p1", WDSpecialWeaponIds.Infiltrator, 180, 4, 1);
     }
 
     [Test]
     public void InfiltratorDuplicateTargetUsesActionIdAsFinalTieBreaker()
     {
+        EnterRoundThree();
         WDWeaponAction peace = Action(WDStrategicWeaponIds.Peace, "", "p3",
             targetPlayer: "p1");
         WDWeaponAction firstId = InfiltratorAction(
-            "infiltrator-a", "p1", "p3", peace.ActionId, 10);
+            "infiltrator-a", "p1", "p3", peace.WeaponId, 10);
         WDWeaponAction lastId = InfiltratorAction(
-            "infiltrator-z", "p1", "p3", peace.ActionId, 10);
+            "infiltrator-z", "p1", "p3", peace.WeaponId, 10);
 
         WDIntegratedWeaponExecutionResult[] results = coordinator
             .ExecuteFrozenActions(new[] { lastId, peace, firstId }).ToArray();
@@ -624,25 +746,87 @@ public sealed class WDWeaponExecutionCoordinatorTests
             Is.EqualTo(WDIntegratedWeaponExecutionStatus.Executed));
         Assert.That(results.Single(x => x.ActionId == lastId.ActionId).Status,
             Is.EqualTo(WDIntegratedWeaponExecutionStatus.Superseded));
-        AssertRuntime("p1", WDSpecialWeaponIds.Infiltrator, 175, 3, 1);
+        AssertRuntime("p1", WDSpecialWeaponIds.Infiltrator, 180, 4, 1);
     }
 
     [Test]
-    public void InfiltratorCannotBlockPersistentDroneOperation()
+    public void InfiltratorForcesCooldownOnWeaponThatWasNotProgrammed()
     {
+        EnterRoundThree();
+        WDWeaponAction infiltrator = InfiltratorAction(
+            "infiltrator-unprogrammed", "p1", "p3",
+            WDSupportWeaponIds.AirStrike, 10);
+
+        WDIntegratedWeaponExecutionResult result = coordinator.ExecuteFrozenActions(
+            new[] { infiltrator }).Single();
+
+        Assert.That(result.Status, Is.EqualTo(WDIntegratedWeaponExecutionStatus.Executed));
+        AssertRuntime("p1", WDSpecialWeaponIds.Infiltrator, 180, 4, 1);
+        AssertRuntime("p3", WDSupportWeaponIds.AirStrike, 200, 3, 0);
+    }
+
+    [Test]
+    public void MutualInfiltratorsUseOfficialPlayerOrderWithoutRetroactivity()
+    {
+        EnterRoundThree();
+        WDWeaponAction first = InfiltratorAction(
+            "infiltrator-p1", "p1", "p3", WDSpecialWeaponIds.Infiltrator, 10);
+        WDWeaponAction second = InfiltratorAction(
+            "infiltrator-p3", "p3", "p1", WDSpecialWeaponIds.Infiltrator, 10);
+
+        WDIntegratedWeaponExecutionResult[] results = coordinator
+            .ExecuteFrozenActions(new[] { second, first }).ToArray();
+
+        Assert.That(results.Single(x => x.ActionId == first.ActionId).Status,
+            Is.EqualTo(WDIntegratedWeaponExecutionStatus.Executed));
+        Assert.That(results.Single(x => x.ActionId == second.ActionId).Status,
+            Is.EqualTo(WDIntegratedWeaponExecutionStatus.BlockedByInfiltrator));
+        AssertRuntime("p1", WDSpecialWeaponIds.Infiltrator, 180, 4, 1);
+        AssertRuntime("p3", WDSpecialWeaponIds.Infiltrator, 200, 3, 0);
+    }
+
+    [Test]
+    public void InfiltratorDoesNotBlockPersistentDroneOperation()
+    {
+        EnterRoundThree();
         WDWeaponAction shot = Action(WDSpecialWeaponIds.Drone, "enemy", "p3",
             installationId: "enemy-drone",
             phase: WDWeaponResolutionPhase.ProgrammedOffense,
             parameters: new[] { new WDWeaponActionParameter("mode", "shot") });
         WDWeaponAction infiltrator = Action(WDSpecialWeaponIds.Infiltrator, "", "p1",
             targetPlayer: "p3", phase: WDWeaponResolutionPhase.Infiltration,
-            parameters: new[] { new WDWeaponActionParameter("targetActionId", shot.ActionId) });
+            parameters: new[] { new WDWeaponActionParameter("targetWeaponId", shot.WeaponId) });
 
         WDIntegratedWeaponExecutionResult result = coordinator
             .ExecuteFrozenActions(new[] { shot, infiltrator })
             .Single(item => item.ActionId == infiltrator.ActionId);
 
-        Assert.That(result.Status, Is.EqualTo(WDIntegratedWeaponExecutionStatus.Invalidated));
+        Assert.That(result.Status, Is.EqualTo(WDIntegratedWeaponExecutionStatus.Executed));
+    }
+
+    [Test]
+    public void InfiltratorBlocksNewInstallationButNotExistingInstallationOperation()
+    {
+        EnterRoundThree();
+        var existing = new WDWeaponInstallationState("existing-rockets",
+            WDStrategicWeaponIds.Rockets, "enemy", "p3", 0, 0, 2, 0, 2, true, 1);
+        Assert.That(mutations.Install("existing-rockets-fixture", existing).Succeeded,
+            Is.True);
+        WDWeaponAction install = Action(WDStrategicWeaponIds.Rockets, "enemy", "p3",
+            installationId: "new-rockets");
+        WDWeaponAction launch = Action(WDStrategicWeaponIds.Rockets, "owned", "p3",
+            installationId: existing.InstallationId, origin: "enemy",
+            phase: WDWeaponResolutionPhase.ProgrammedOffense);
+        WDWeaponAction infiltrator = InfiltratorAction(
+            "infiltrator-rockets", "p1", "p3", WDStrategicWeaponIds.Rockets, 1);
+
+        WDIntegratedWeaponExecutionResult[] results = coordinator.ExecuteFrozenActions(
+            new[] { launch, install, infiltrator }).ToArray();
+
+        Assert.That(results.Single(item => item.ActionId == install.ActionId).Status,
+            Is.EqualTo(WDIntegratedWeaponExecutionStatus.BlockedByInfiltrator));
+        Assert.That(results.Single(item => item.ActionId == launch.ActionId).Status,
+            Is.Not.EqualTo(WDIntegratedWeaponExecutionStatus.BlockedByInfiltrator));
     }
 
     [TestCase("owned")]
@@ -754,6 +938,189 @@ public sealed class WDWeaponExecutionCoordinatorTests
         Assert.That(context.FindTerritory("ally").Troops,Is.EqualTo(7));
         Assert.That(registry.Find("flak").TerritoryId,Is.EqualTo("ally"));
         Assert.That(registry.Find("flak").DurationRemaining,Is.EqualTo(2));
+    }
+
+    [Test]
+    public void SniperAndFlakDoNotBlockAirTransport()
+    {
+        mutations.Install("transport-flak", new WDWeaponInstallationState(
+            "transport-flak", WDSupportWeaponIds.FlakTower, "owned", "p1",
+            2, 0, 0, 0, 3, true, 1));
+        WDWeaponAction transport = Action(WDSupportWeaponIds.AirTransport, "ally",
+            origin: "owned", installationId: "transport-flak",
+            parameters: new[] { new WDWeaponActionParameter("troops", "2") });
+        WDWeaponAction sniper = Action(WDTacticalWeaponIds.Sniper, "owned", "p3");
+        var pipeline = new WDWeaponResolutionPipeline();
+
+        WDGlobalResolutionResult result = pipeline.ResolveRound(
+            new WDGlobalResolutionRequest("transport-sniper-flak", 1,
+                new[] { sniper, transport }, coordinator));
+
+        Assert.That(result.Entries.Single(entry => entry.StableId == transport.ActionId)
+            .WeaponStatus, Is.EqualTo(WDIntegratedWeaponExecutionStatus.Executed));
+        Assert.That(context.FindTerritory("ally").Troops, Is.EqualTo(6));
+        Assert.That(registry.Find("transport-flak").TerritoryId, Is.EqualTo("ally"));
+        Assert.That(registry.Find("transport-flak").DurationRemaining, Is.EqualTo(2));
+    }
+
+    [TestCase(WDSupportWeaponIds.FlakTower, 2, 0, 0, 0)]
+    [TestCase(WDStrategicWeaponIds.EnergyPlant, 0, 0, 0, 2)]
+    [TestCase(WDStrategicWeaponIds.Artillery, 0, 0, 5, 0)]
+    [TestCase(WDStrategicWeaponIds.Rockets, 0, 0, 2, 0)]
+    [TestCase(WDSpecialWeaponIds.Drone, 0, 0, 2, 0)]
+    [TestCase(WDTacticalWeaponIds.Radar, 0, 0, 1, 0)]
+    public void AirTransportPreservesCanonicalInstallationState(
+        string weaponId, int duration, int barrier, int charges, int payments)
+    {
+        string id = "transport-" + weaponId;
+        var installation = new WDWeaponInstallationState(id, weaponId, "owned", "p1",
+            duration, barrier, charges, payments, 3, true, 0);
+        installation.TryMarkAutomaticRound(0);
+        Assert.That(mutations.Install("fixture-" + id, installation).Succeeded, Is.True);
+
+        AssertExecuted(Action(WDSupportWeaponIds.AirTransport, "ally", origin: "owned",
+            installationId: id,
+            parameters: new[] { new WDWeaponActionParameter("troops", "1") }));
+
+        WDWeaponInstallationState moved = registry.Find(id);
+        Assert.That(moved.OwnerPlayerId, Is.EqualTo("p2"));
+        Assert.That(moved.TerritoryId, Is.EqualTo("ally"));
+        Assert.That(moved.Level, Is.EqualTo(3));
+        Assert.That(moved.DurationRemaining, Is.EqualTo(duration));
+        Assert.That(moved.BarrierRemaining, Is.EqualTo(barrier));
+        Assert.That(moved.ChargesRemaining, Is.EqualTo(charges));
+        Assert.That(moved.PaymentsRemaining, Is.EqualTo(payments));
+        Assert.That(moved.LastAutomaticRound, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void TransportedEnergyPlantPaysNewOwnerOnceWithoutRestartingSchedule()
+    {
+        var plant = new WDWeaponInstallationState("moving-plant",
+            WDStrategicWeaponIds.EnergyPlant, "owned", "p1", 0, 0, 0, 3,
+            1, true, 0);
+        Assert.That(mutations.Install("moving-plant-fixture", plant).Succeeded, Is.True);
+        AssertExecuted(Action(WDSupportWeaponIds.AirTransport, "ally", origin: "owned",
+            installationId: plant.InstallationId,
+            parameters: new[] { new WDWeaponActionParameter("troops", "1") }));
+        int before = runtime.FindPlayer("p2").Energy;
+
+        source.CurrentRound = 2;
+        Assert.That(coordinator.ProcessEnergyPlantPayments(2), Is.EqualTo(1));
+        Assert.That(coordinator.ProcessEnergyPlantPayments(2), Is.Zero);
+
+        Assert.That(runtime.FindPlayer("p2").Energy - before, Is.EqualTo(5));
+        Assert.That(plant.PaymentsRemaining, Is.EqualTo(2));
+    }
+
+    [Test]
+    public void RadarHistoryRemainsPrivateAfterUnusedRadarIsTransported()
+    {
+        var radar = new WDWeaponInstallationState("moving-radar", WDTacticalWeaponIds.Radar,
+            "owned", "p1", 0, 0, 1, 0, 1, true, 0);
+        Assert.That(mutations.Install("moving-radar-fixture", radar).Succeeded, Is.True);
+        Assert.That(roundState.StoreRadarResult(new WDRadarRevealResult(
+            1, "enemy", true, "p1", "historic-scan")), Is.True);
+
+        AssertExecuted(Action(WDSupportWeaponIds.AirTransport, "ally", origin: "owned",
+            installationId: radar.InstallationId,
+            parameters: new[] { new WDWeaponActionParameter("troops", "1") }));
+
+        Assert.That(radar.OwnerPlayerId, Is.EqualTo("p2"));
+        Assert.That(roundState.GetRadarResult("historic-scan", "p1"), Is.Not.Null);
+        Assert.That(roundState.GetRadarResult("historic-scan", "p2"), Is.Null);
+    }
+
+    [TestCase(WDSupportWeaponIds.Bunker, 0, 7, 0, 0)]
+    [TestCase(WDSupportWeaponIds.FlakTower, 2, 0, 0, 0)]
+    [TestCase(WDStrategicWeaponIds.EnergyPlant, 0, 0, 0, 2)]
+    [TestCase(WDStrategicWeaponIds.Artillery, 0, 0, 5, 0)]
+    [TestCase(WDStrategicWeaponIds.Rockets, 0, 0, 2, 0)]
+    [TestCase(WDSpecialWeaponIds.Drone, 0, 0, 2, 0)]
+    [TestCase(WDTacticalWeaponIds.Radar, 0, 0, 1, 0)]
+    public void NeutralThenCapturePreservesCanonicalInstallationState(
+        string weaponId, int duration, int barrier, int charges, int payments)
+    {
+        string id = "captured-" + weaponId;
+        var installation = new WDWeaponInstallationState(id, weaponId, "owned", "p1",
+            duration, barrier, charges, payments, 3,
+            WDWeaponInstallationRegistry.IsAirTransportAllowed(weaponId), 0);
+        installation.TryMarkAutomaticRound(0);
+        Assert.That(mutations.Install("fixture-" + id, installation).Succeeded, Is.True);
+
+        Assert.That(mutations.MakeNeutral("neutral-" + id, "owned", 1).Succeeded, Is.True);
+        Assert.That(installation.IsAbandoned, Is.True);
+        Assert.That(mutations.MakeOccupied("capture-" + id, "owned", "p2", 3).Succeeded,
+            Is.True);
+
+        Assert.That(installation.OwnerPlayerId, Is.EqualTo("p2"));
+        Assert.That(installation.Level, Is.EqualTo(3));
+        Assert.That(installation.DurationRemaining, Is.EqualTo(duration));
+        Assert.That(installation.BarrierRemaining, Is.EqualTo(barrier));
+        Assert.That(installation.ChargesRemaining, Is.EqualTo(charges));
+        Assert.That(installation.PaymentsRemaining, Is.EqualTo(payments));
+        Assert.That(installation.LastAutomaticRound, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void AirTransportRejectsQuantityAboveLevelCapacityWithoutMutation()
+    {
+        source.TryApplyTerritory("owned", "p1", 20, WDWeaponTerritoryStateKind.Occupied);
+        SetLevel("p1", WDSupportWeaponIds.AirTransport, 1);
+        WDWeaponAction action = Action(WDSupportWeaponIds.AirTransport, "ally",
+            origin: "owned", parameters: new[]
+            {
+                new WDWeaponActionParameter("troops", "6")
+            });
+
+        Assert.That(coordinator.Execute(action).Status,
+            Is.EqualTo(WDIntegratedWeaponExecutionStatus.Invalidated));
+        Assert.That(context.FindTerritory("owned").Troops, Is.EqualTo(20));
+        Assert.That(context.FindTerritory("ally").Troops, Is.EqualTo(4));
+    }
+
+    [Test]
+    public void AirTransportRejectsQuantityThatWouldEmptyOriginWithoutMutation()
+    {
+        SetLevel("p1", WDSupportWeaponIds.AirTransport, 6);
+        WDWeaponAction action = Action(WDSupportWeaponIds.AirTransport, "ally",
+            origin: "owned", parameters: new[]
+            {
+                new WDWeaponActionParameter("troops", "5")
+            });
+
+        Assert.That(coordinator.Execute(action).Status,
+            Is.EqualTo(WDIntegratedWeaponExecutionStatus.Invalidated));
+        Assert.That(context.FindTerritory("owned").Troops, Is.EqualTo(5));
+        Assert.That(context.FindTerritory("ally").Troops, Is.EqualTo(4));
+    }
+
+    [Test]
+    public void AirTransportUsesSelectedQuantityAndLeavesOneAtOrigin()
+    {
+        SetLevel("p1", WDSupportWeaponIds.AirTransport, 1);
+        AssertExecuted(Action(WDSupportWeaponIds.AirTransport, "ally",
+            origin: "owned", parameters: new[]
+            {
+                new WDWeaponActionParameter("troops", "4")
+            }));
+
+        Assert.That(context.FindTerritory("owned").Troops, Is.EqualTo(1));
+        Assert.That(context.FindTerritory("ally").Troops, Is.EqualTo(8));
+    }
+
+    [TestCase(WDSupportWeaponIds.Minefield)]
+    [TestCase(WDSupportWeaponIds.FlakTower)]
+    public void HiddenInstallationVisibilityExcludesEnemyAndSpectator(string weaponId)
+    {
+        Assert.That(WDWeaponMatchUIController.IsInstallationVisibleTo(
+            weaponId, "p1", "p1", false), Is.True);
+        Assert.That(WDWeaponMatchUIController.IsInstallationVisibleTo(
+            weaponId, "p1", "p2", true), Is.True);
+        Assert.That(WDWeaponMatchUIController.IsInstallationVisibleTo(
+            weaponId, "p1", "p3", false), Is.False);
+        Assert.That(WDWeaponMatchUIController.IsInstallationVisibleTo(
+            weaponId, "p1", string.Empty, false), Is.False);
     }
 
     [TestCase(1,2)] [TestCase(2,3)] [TestCase(3,4)] [TestCase(4,5)]
@@ -1058,14 +1425,22 @@ public sealed class WDWeaponExecutionCoordinatorTests
 
     private static WDWeaponAction InfiltratorAction(
         string actionId, string author, string targetPlayer,
-        string targetActionId, int programOrder) =>
-        new(actionId, author, WDSpecialWeaponIds.Infiltrator, 1,
+        string targetWeaponId, int programOrder) =>
+        new(actionId, author, WDSpecialWeaponIds.Infiltrator, 3,
             WDWeaponResolutionPhase.Infiltration, programOrder,
             targetPlayerId: targetPlayer,
             parameters: new[]
             {
-                new WDWeaponActionParameter("targetActionId", targetActionId)
+                new WDWeaponActionParameter("targetWeaponId", targetWeaponId)
             });
+
+    private void EnterRoundThree()
+    {
+        source.CurrentRound = 3;
+        runtime.AdvanceCooldownsForRound(2);
+        runtime.AdvanceCooldownsForRound(3);
+        roundState.BeginRound(3);
+    }
 
     private void AssertExecuted(WDWeaponAction action) => Assert.That(
         coordinator.Execute(action).Status,
@@ -1084,6 +1459,24 @@ public sealed class WDWeaponExecutionCoordinatorTests
     private void SetLevel(string playerId, string weaponId, int level) =>
         runtime.FindPlayer(playerId).GetWeapon(weaponId).SetLevel(
             level, catalog.FindWeapon(weaponId).MaximumLevel);
+
+    private static string OwnerPlayerId(TerritorioClique.Dono owner) =>
+        owner == TerritorioClique.Dono.Jogador1 ? "p1" : string.Empty;
+
+    private static ResultadoAcaoTerrestre TerrestrialResult(
+        ResultadoAcaoTerrestre.TipoResultado type, bool successful,
+        int position = 1)
+    {
+        var order = new OrdemTerrestre(
+            null, null, 3, TerritorioClique.Dono.Jogador1, position);
+        ResultadoCombate combat = type == ResultadoAcaoTerrestre.TipoResultado.Ataque
+            ? new ResultadoCombate(
+                true, successful, 3, 2, successful ? 1 : 0,
+                successful ? 0 : 1, successful ? "Conquista" : "Defesa")
+            : null;
+        return new ResultadoAcaoTerrestre(
+            true, type, 3, string.Empty, combat, order);
+    }
 
     // ============================================================
     // 08. FIXTURE DA PORTA DE ENTRADA HOSTIL EM TERRITÓRIO VAZIO
@@ -1169,6 +1562,616 @@ public sealed class WDWeaponExecutionCoordinatorTests
             return weapon != null;
         }
     }
+
+    [Test]
+    public void HudCardInteractivityUsesCanonicalAvailability()
+    {
+        var available = new WDWeaponHudCardState("radar", "Radar", 1, 25, 0,
+            WDWeaponAvailabilityReason.Available, false, false);
+        var insufficient = new WDWeaponHudCardState("radar", "Radar", 1, 25, 0,
+            WDWeaponAvailabilityReason.InsufficientEnergy, false, false);
+        var cooldown = new WDWeaponHudCardState("radar", "Radar", 1, 25, 2,
+            WDWeaponAvailabilityReason.Cooldown, false, false);
+
+        Assert.That(WarDominionMatchHUD.IsCardInteractable(available, true), Is.True);
+        Assert.That(WarDominionMatchHUD.IsCardInteractable(insufficient, true), Is.False);
+        Assert.That(WarDominionMatchHUD.IsCardInteractable(cooldown, true), Is.False);
+        Assert.That(WarDominionMatchHUD.IsCardInteractable(available, false), Is.False);
+        Assert.That(WarDominionMatchHUD.ShouldAcceptInsufficientEnergyClick(
+            insufficient, true), Is.True);
+        Assert.That(WarDominionMatchHUD.ShouldAcceptInsufficientEnergyClick(
+            cooldown, true), Is.False);
+        Assert.That(WarDominionMatchHUD.ShouldAcceptInsufficientEnergyClick(
+            insufficient, false), Is.False);
+    }
+
+    [Test]
+    public void WeaponCardIgnoresHoverButKeepsPressFeedback()
+    {
+        var cardObject = new GameObject("TouchFirstWeaponCard");
+        WarDominionUITheme testTheme = ScriptableObject.CreateInstance<WarDominionUITheme>();
+        try
+        {
+            WDUIPremiumButton card = cardObject.AddComponent<WDUIPremiumButton>();
+            card.Build(testTheme, "INFILTRADO", null);
+            card.SetHoverFeedbackEnabled(false);
+            Color normal = cardObject.GetComponent<UnityEngine.UI.Image>().color;
+
+            card.OnPointerEnter(null);
+            Color afterHover = cardObject.GetComponent<UnityEngine.UI.Image>().color;
+            card.OnPointerDown(null);
+            Color whilePressed = cardObject.GetComponent<UnityEngine.UI.Image>().color;
+
+            Assert.That(card.HoverFeedbackEnabled, Is.False);
+            Assert.That(afterHover, Is.EqualTo(normal));
+            Assert.That(whilePressed, Is.Not.EqualTo(normal));
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(cardObject);
+            UnityEngine.Object.DestroyImmediate(testTheme);
+        }
+    }
+
+    [Test]
+    public void WeaponCardStatusKeepsEnergyCostVisibleAcrossLockAndAvailability()
+    {
+        var lockedRoundOne = new WDWeaponHudCardState(
+            WDSpecialWeaponIds.Infiltrator, "Infiltrado", 1, 20, 2,
+            WDWeaponAvailabilityReason.InitialRoundLock, false, false);
+        var lockedRoundTwo = new WDWeaponHudCardState(
+            WDSpecialWeaponIds.Infiltrator, "Infiltrado", 1, 20, 1,
+            WDWeaponAvailabilityReason.InitialRoundLock, false, false);
+        var insufficient = new WDWeaponHudCardState(
+            WDSpecialWeaponIds.Infiltrator, "Infiltrado", 1, 20, 0,
+            WDWeaponAvailabilityReason.InsufficientEnergy, false, false);
+        var cooldown = new WDWeaponHudCardState(
+            WDSpecialWeaponIds.Infiltrator, "Infiltrado", 1, 20, 4,
+            WDWeaponAvailabilityReason.Cooldown, false, false);
+
+        Assert.That(WarDominionMatchHUD.FormatCardStatus(lockedRoundOne, 0),
+            Is.EqualTo("BLOQUEADA 2  |  E 20"));
+        Assert.That(WarDominionMatchHUD.FormatCardStatus(lockedRoundTwo, 0),
+            Is.EqualTo("BLOQUEADA 1  |  E 20"));
+        Assert.That(WarDominionMatchHUD.FormatCardStatus(insufficient, 0),
+            Is.EqualTo("ENERGIA 0/20"));
+        Assert.That(WarDominionMatchHUD.FormatCardStatus(cooldown, 0),
+            Is.EqualTo("CD 4  |  E 20"));
+    }
+
+    [Test]
+    public void ActionsControlOccupiesCompactPositionWithOrWithoutTeams()
+    {
+        Assert.That(WarDominionMatchHUD.ActionsControlTop(false), Is.EqualTo(-616f));
+        Assert.That(WarDominionMatchHUD.ActionsControlTop(true), Is.EqualTo(-672f));
+        Assert.That(WarDominionMatchHUD.ActionsControlTop(true) -
+            WarDominionMatchHUD.ActionsControlTop(false), Is.EqualTo(-56f));
+    }
+
+    // 01. A mesma seleção deve ativar somente uma das duas composições de HUD.
+    [Test]
+    public void MatchHudSelectionKeepsNewAndLegacyModesExclusive()
+    {
+        var newHud = new GameObject("FinalMatchHUD");
+        var legacyHud = new GameObject("LegacyHUD");
+        Canvas legacy = legacyHud.AddComponent<Canvas>();
+        try
+        {
+            UICompositionRoot.ApplyHudMode(newHud, legacy, true);
+            Assert.That(newHud.activeSelf, Is.True);
+            Assert.That(legacy.enabled, Is.False);
+
+            UICompositionRoot.ApplyHudMode(newHud, legacy, false);
+            Assert.That(newHud.activeSelf, Is.False);
+            Assert.That(legacy.enabled, Is.True);
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(legacyHud);
+            UnityEngine.Object.DestroyImmediate(newHud);
+        }
+    }
+
+    [Test]
+    public void TacticalPingIsPrivateToTeamAndCarriesNoGameplayMutation()
+    {
+        var ping = new WDTacticalPing(WDTacticalPingKind.Focus, "owned",
+            TerritorioClique.Dono.Jogador1, TerritorioClique.Dono.Jogador3);
+
+        Assert.That(WDMatchInformationalOverlayController.IsVisibleTo(
+            ping, TerritorioClique.Dono.Jogador1, false, false), Is.True);
+        Assert.That(WDMatchInformationalOverlayController.IsVisibleTo(
+            ping, TerritorioClique.Dono.Jogador3, false, true), Is.True);
+        Assert.That(WDMatchInformationalOverlayController.IsVisibleTo(
+            ping, TerritorioClique.Dono.Jogador2, false, false), Is.False);
+        Assert.That(WDMatchInformationalOverlayController.IsVisibleTo(
+            ping, TerritorioClique.Dono.Jogador3, true, true), Is.False);
+        Assert.That(ping.TerritoryId, Is.EqualTo("owned"));
+    }
+
+    [Test]
+    public void RegionOverlayDescriptionUsesCanonicalNameAndBonus()
+    {
+        var region = new DefinicaoRegiaoMapa { nomeExibido = "Norte", bonus = 5 };
+        Assert.That(WDMatchInformationalOverlayController.DescribeRegion(region),
+            Is.EqualTo("Norte\nBÔNUS +5"));
+        Assert.That(WDMatchInformationalOverlayController.DescribeRegionBonus(region),
+            Is.EqualTo("+5"));
+    }
+
+    [Test]
+    public void CompleteRegionsAddTroopBonusesWithoutChangingEnergy()
+    {
+        var regions = new[]
+        {
+            new DefinicaoRegiaoMapa
+            {
+                bonus = 3,
+                territorioIds = new List<string> { "a", "b" }
+            },
+            new DefinicaoRegiaoMapa
+            {
+                bonus = 5,
+                territorioIds = new List<string> { "c", "d" }
+            }
+        };
+        var owned = new HashSet<string>(new[] { "a", "b", "c", "d" });
+        int energyBefore = runtime.FindPlayer("p1").Energy;
+
+        Assert.That(MapaAtivo.CalcularBonusRegioesControladas(
+            regions, owned.Contains), Is.EqualTo(8));
+        owned.Remove("d");
+        Assert.That(MapaAtivo.CalcularBonusRegioesControladas(
+            regions, owned.Contains), Is.EqualTo(3));
+        Assert.That(runtime.FindPlayer("p1").Energy, Is.EqualTo(energyBefore));
+    }
+
+    [Test]
+    public void RegionOverlayHidesAndRestoresCountersWithoutChangingTroops()
+    {
+        var territoryObject = new GameObject("RegionTerritory");
+        var counterObject = new GameObject("Counter");
+        var overlayObject = new GameObject("RegionOverlay");
+        try
+        {
+            territoryObject.AddComponent<TerritorioTropas>();
+            TerritorioClique territory = territoryObject.AddComponent<TerritorioClique>();
+            Assert.That(territory.TentarAplicarEstadoAutoritativo(
+                TerritorioClique.Dono.Jogador1, 7,
+                TerritorioClique.EstadoTerritorial.Ocupado), Is.True);
+            counterObject.transform.SetParent(territoryObject.transform);
+            counterObject.AddComponent<ContadorTropas>();
+            WDMatchInformationalOverlayController overlay =
+                overlayObject.AddComponent<WDMatchInformationalOverlayController>();
+
+            overlay.SetTerritoryCountersForRegions(new[] { territory }, true);
+            Assert.That(counterObject.activeSelf, Is.False);
+            Assert.That(territory.Tropas, Is.EqualTo(7));
+            Assert.That(territory.dono, Is.EqualTo(TerritorioClique.Dono.Jogador1));
+            Assert.That(territory.Estado,
+                Is.EqualTo(TerritorioClique.EstadoTerritorial.Ocupado));
+
+            overlay.SetTerritoryCountersForRegions(null, false);
+            Assert.That(counterObject.activeSelf, Is.True);
+            Assert.That(territory.Tropas, Is.EqualTo(7));
+            Assert.That(territory.dono, Is.EqualTo(TerritorioClique.Dono.Jogador1));
+            Assert.That(territory.Estado,
+                Is.EqualTo(TerritorioClique.EstadoTerritorial.Ocupado));
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(overlayObject);
+            UnityEngine.Object.DestroyImmediate(territoryObject);
+        }
+    }
+
+    [Test]
+    public void ConquestPresentationUsesCanonicalEventAndOnePointFiveSeconds()
+    {
+        ResolutionVisualEvent visual = ResolutionVisualEvent.Attack(
+            TerritorioClique.Dono.Jogador1, "owned", "enemy", 4,
+            5, 1, 2, 3, true, TerritorioClique.Dono.Jogador2,
+            TerritorioClique.Dono.Jogador1);
+
+        Assert.That(visual.Conquered, Is.True);
+        Assert.That(visual.Result, Is.EqualTo(ResolutionVisualResult.TerritoryConquered));
+        Assert.That(TerritorioVisual.DuracaoDestaqueConquista, Is.EqualTo(1.5f));
+    }
+
+    [Test]
+    public void EmptyOccupationMovementIsCanonicalConquestEvent()
+    {
+        ResolutionVisualEvent visual = ResolutionVisualEvent.Movement(
+            TerritorioClique.Dono.Jogador1, "owned", "empty", 2,
+            4, 2, 0, 2, TerritorioClique.Dono.Neutro,
+            TerritorioClique.Dono.Jogador1);
+
+        Assert.That(visual.Conquered, Is.True);
+        Assert.That(visual.Result, Is.EqualTo(ResolutionVisualResult.TerritoryConquered));
+        Assert.That(visual.PreviousOwner, Is.EqualTo(TerritorioClique.Dono.Neutro));
+        Assert.That(visual.NewOwner, Is.EqualTo(TerritorioClique.Dono.Jogador1));
+    }
+
+    [Test]
+    public void TerritoryTargetingResolvesClicksOriginatingOnArmyCounter()
+    {
+        var territoryObject = new GameObject("TargetTerritory");
+        var counterObject = new GameObject("Counter");
+        try
+        {
+            territoryObject.AddComponent<TerritorioTropas>();
+            TerritorioClique territory = territoryObject.AddComponent<TerritorioClique>();
+            counterObject.transform.SetParent(territoryObject.transform);
+            ContadorTropas counter = counterObject.AddComponent<ContadorTropas>();
+            counter.Configurar(territory);
+            BoxCollider2D collider = counterObject.AddComponent<BoxCollider2D>();
+
+            Assert.That(InputPartida.TentarObterTerritorio(collider, out TerritorioClique result),
+                Is.True);
+            Assert.That(result, Is.SameAs(territory));
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(territoryObject);
+        }
+    }
+
+    [Test]
+    public void RegionCenterUsesAllCanonicalTerritoryPositions()
+    {
+        Vector3[] positions =
+        {
+            new Vector3(-3f, 2f, 0f),
+            new Vector3(3f, 4f, 0f),
+            new Vector3(0f, 0f, 0f)
+        };
+
+        Assert.That(WDMatchInformationalOverlayController.TryCalculateRegionCenter(
+            positions, out Vector3 center), Is.True);
+        Assert.That(center, Is.EqualTo(new Vector3(0f, 2f, 0f)));
+        Assert.That(WDMatchInformationalOverlayController.TryCalculateRegionCenter(
+            Array.Empty<Vector3>(), out _), Is.False);
+    }
+
+    [Test]
+    public void SelectionRaisePersistsUntilCleanupWithoutMovingTerritory()
+    {
+        var territoryObject = new GameObject("RaisedTerritory");
+        try
+        {
+            territoryObject.AddComponent<SpriteRenderer>();
+            territoryObject.AddComponent<TerritorioTropas>();
+            TerritorioClique territory = territoryObject.AddComponent<TerritorioClique>();
+            TerritorioVisual visual = territoryObject.AddComponent<TerritorioVisual>();
+            Assert.That(territory.TentarAplicarEstadoAutoritativo(
+                TerritorioClique.Dono.Jogador1, 6,
+                TerritorioClique.EstadoTerritorial.Ocupado), Is.True);
+            Vector3 position = territoryObject.transform.localPosition;
+            Vector3 worldPosition = territoryObject.transform.position;
+            Vector3 baseScale = territoryObject.transform.localScale;
+
+            territory.DestacarSelecao();
+            float selectedVisualScale = visual.SelectionVisualScale;
+            for (int index = 0; index < 10; index++)
+                territory.DestacarSelecao();
+
+            Assert.That(visual.SelectionRaised, Is.True);
+            Assert.That(territoryObject.transform.localPosition, Is.EqualTo(position));
+            Assert.That(territoryObject.transform.position, Is.EqualTo(worldPosition));
+            Assert.That(territoryObject.transform.localScale, Is.EqualTo(baseScale));
+            Assert.That(visual.SelectionVisualScale, Is.EqualTo(selectedVisualScale));
+            Assert.That(selectedVisualScale, Is.EqualTo(1.055f).Within(0.0001f));
+            Assert.That(territory.dono, Is.EqualTo(TerritorioClique.Dono.Jogador1));
+            Assert.That(territory.Tropas, Is.EqualTo(6));
+            Assert.That(territory.Estado,
+                Is.EqualTo(TerritorioClique.EstadoTerritorial.Ocupado));
+
+            territory.RemoverDestaqueSelecao();
+            Assert.That(visual.SelectionRaised, Is.False);
+            Assert.That(territoryObject.transform.localPosition, Is.EqualTo(position));
+            Assert.That(territoryObject.transform.position, Is.EqualTo(worldPosition));
+            Assert.That(territoryObject.transform.localScale, Is.EqualTo(baseScale));
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(territoryObject);
+        }
+    }
+
+    [Test]
+    public void SelectionScaleUsesOffCenterSpriteVisualCenterWithoutTranslation()
+    {
+        var territoryObject = new GameObject("OffCenterTerritory");
+        var texture = new Texture2D(20, 10);
+        Sprite sprite = Sprite.Create(texture, new Rect(0f, 0f, 20f, 10f),
+            new Vector2(0.1f, 0.8f), 10f);
+        try
+        {
+            SpriteRenderer renderer = territoryObject.AddComponent<SpriteRenderer>();
+            renderer.sprite = sprite;
+            territoryObject.AddComponent<TerritorioTropas>();
+            TerritorioClique territory = territoryObject.AddComponent<TerritorioClique>();
+            TerritorioVisual visual = territoryObject.AddComponent<TerritorioVisual>();
+            territoryObject.transform.position = new Vector3(4f, -3f, 0f);
+            Vector3 rootPosition = territoryObject.transform.position;
+            Vector3 visualCenter = renderer.bounds.center;
+
+            territory.DestacarSelecao();
+            SpriteRenderer proxy = territoryObject.transform
+                .Find("SelectionScaleRoot/SelectionSprite")
+                .GetComponent<SpriteRenderer>();
+
+            Assert.That(territoryObject.transform.position, Is.EqualTo(rootPosition));
+            Assert.That(visual.SelectionVisualCenterWorld, Is.EqualTo(visualCenter));
+            Assert.That(proxy.bounds.center.x, Is.EqualTo(visualCenter.x).Within(0.0001f));
+            Assert.That(proxy.bounds.center.y, Is.EqualTo(visualCenter.y).Within(0.0001f));
+            Assert.That(visual.SelectionVisualScale, Is.EqualTo(1.055f).Within(0.0001f));
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(territoryObject);
+            UnityEngine.Object.DestroyImmediate(sprite);
+            UnityEngine.Object.DestroyImmediate(texture);
+        }
+    }
+
+    [Test]
+    public void SelectionCenterRemainsInvariantAtLeftCenterAndRightMapPositions()
+    {
+        var texture = new Texture2D(400, 100);
+        Sprite mapSizedMask = Sprite.Create(texture,
+            new Rect(0f, 0f, 400f, 100f), new Vector2(0.5f, 0.5f), 10f);
+        var territoryObjects = new List<GameObject>();
+        try
+        {
+            foreach (float centerX in new[] { -12f, 0f, 12f })
+            {
+                var territoryObject = new GameObject($"Territory-{centerX}");
+                territoryObjects.Add(territoryObject);
+                SpriteRenderer renderer = territoryObject.AddComponent<SpriteRenderer>();
+                renderer.sprite = mapSizedMask;
+                PolygonCollider2D collider = territoryObject.AddComponent<PolygonCollider2D>();
+                collider.SetPath(0, new[]
+                {
+                    new Vector2(centerX - 0.8f, -0.6f),
+                    new Vector2(centerX + 0.8f, -0.6f),
+                    new Vector2(centerX + 0.8f, 0.6f),
+                    new Vector2(centerX - 0.8f, 0.6f)
+                });
+                territoryObject.AddComponent<TerritorioTropas>();
+                TerritorioClique territory = territoryObject.AddComponent<TerritorioClique>();
+                TerritorioVisual visual = territoryObject.AddComponent<TerritorioVisual>();
+                Vector3 before = collider.bounds.center;
+                Vector3 rootBefore = territoryObject.transform.position;
+
+                territory.DestacarSelecao();
+                Vector3 after = visual.SelectionVisualCenterWorld;
+                territory.DestacarSelecao();
+
+                Assert.That(Vector3.Distance(before, after), Is.LessThan(0.0001f),
+                    $"Selection center moved at map X={centerX}.");
+                Assert.That(territoryObject.transform.position, Is.EqualTo(rootBefore));
+                Assert.That(visual.SelectionVisualScale, Is.EqualTo(1.055f).Within(0.0001f));
+            }
+        }
+        finally
+        {
+            foreach (GameObject item in territoryObjects)
+                UnityEngine.Object.DestroyImmediate(item);
+            UnityEngine.Object.DestroyImmediate(mapSizedMask);
+            UnityEngine.Object.DestroyImmediate(texture);
+        }
+    }
+
+    [Test]
+    public void OriginAndDestinationSelectionKeepBothTerritoryTransformsFixed()
+    {
+        var originObject = new GameObject("Origin");
+        var destinationObject = new GameObject("Destination");
+        try
+        {
+            TerritorioClique origin = CreateSelectableTerritory(originObject);
+            TerritorioClique destination = CreateSelectableTerritory(destinationObject);
+            originObject.transform.position = new Vector3(-4f, 2f, 0f);
+            destinationObject.transform.position = new Vector3(3f, -1f, 0f);
+            Vector3 originPosition = originObject.transform.position;
+            Vector3 destinationPosition = destinationObject.transform.position;
+
+            origin.DestacarSelecao();
+            destination.DestacarSelecao();
+
+            Assert.That(originObject.transform.position, Is.EqualTo(originPosition));
+            Assert.That(destinationObject.transform.position, Is.EqualTo(destinationPosition));
+            Assert.That(originObject.GetComponent<TerritorioVisual>().SelectionRaised, Is.True);
+            Assert.That(destinationObject.GetComponent<TerritorioVisual>().SelectionRaised, Is.True);
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(originObject);
+            UnityEngine.Object.DestroyImmediate(destinationObject);
+        }
+    }
+
+    [Test]
+    public void RegionLabelPositionIsClampedInsideItsViewport()
+    {
+        Rect viewport = new Rect(-500f, -300f, 1000f, 600f);
+        Vector2 size = new Vector2(250f, 64f);
+
+        Vector2 result = WDMatchInformationalOverlayController.ClampToViewport(
+            new Vector2(900f, -900f), viewport, size);
+
+        Assert.That(result.x, Is.EqualTo(375f));
+        Assert.That(result.y, Is.EqualTo(-268f));
+    }
+
+    [Test]
+    public void RegionLabelUsesInlineContentAndGrowsOnlyWithPreferredText()
+    {
+        DefinicaoRegiaoMapa shortRegion = Region("asia", "a");
+        shortRegion.nomeExibido = "ÁSIA";
+        shortRegion.bonus = 3;
+
+        Assert.That(WDMatchInformationalOverlayController.DescribeRegionInline(shortRegion),
+            Is.EqualTo("ÁSIA +3"));
+        Vector2 shortSize = WDMatchInformationalOverlayController.CalculateRegionBadgeSize(
+            new Vector2(62f, 20f));
+        Vector2 longSize = WDMatchInformationalOverlayController.CalculateRegionBadgeSize(
+            new Vector2(148f, 20f));
+
+        Assert.That(shortSize, Is.EqualTo(new Vector2(90f, 34f)));
+        Assert.That(longSize, Is.EqualTo(new Vector2(176f, 34f)));
+        Assert.That(longSize.x, Is.GreaterThan(shortSize.x));
+        Assert.That(longSize.y, Is.EqualTo(shortSize.y));
+    }
+
+    private static TerritorioClique CreateSelectableTerritory(GameObject target)
+    {
+        target.AddComponent<SpriteRenderer>();
+        target.AddComponent<TerritorioTropas>();
+        target.AddComponent<TerritorioVisual>();
+        TerritorioClique territory = target.AddComponent<TerritorioClique>();
+        Assert.That(territory.TentarAplicarEstadoAutoritativo(
+            TerritorioClique.Dono.Jogador1, 3,
+            TerritorioClique.EstadoTerritorial.Ocupado), Is.True);
+        return territory;
+    }
+
+    [Test]
+    public void CompletingLastTerritoryEmitsOneCanonicalRegionEvent()
+    {
+        DefinicaoRegiaoMapa region = Region("south", "a", "b", "c");
+        var owners = new Dictionary<string, TerritorioClique.Dono>
+        {
+            ["a"] = TerritorioClique.Dono.Jogador1,
+            ["b"] = TerritorioClique.Dono.Jogador1,
+            ["c"] = TerritorioClique.Dono.Jogador2
+        };
+
+        IReadOnlyList<ResolutionVisualEvent> events =
+            WDRegionConquestVisualDetector.Detect(new[] { region }, owners,
+                new[]
+                {
+                    new WDTerritoryOwnershipChange("c",
+                        TerritorioClique.Dono.Jogador2,
+                        TerritorioClique.Dono.Jogador1)
+                });
+
+        Assert.That(events.Count, Is.EqualTo(1));
+        Assert.That(events[0].Type, Is.EqualTo(ResolutionVisualEventType.RegionConquest));
+        Assert.That(events[0].Result, Is.EqualTo(ResolutionVisualResult.RegionConquered));
+        Assert.That(events[0].RegionId, Is.EqualTo("south"));
+        Assert.That(events[0].RegionTerritoryIds, Is.EquivalentTo(new[] { "a", "b", "c" }));
+        Assert.That(events[0].Player, Is.EqualTo(TerritorioClique.Dono.Jogador1));
+    }
+
+    [Test]
+    public void RegionConquestIsInterleavedBeforeTheNextTerritoryAction()
+    {
+        DefinicaoRegiaoMapa region = Region("south", "a", "b");
+        var owners = new Dictionary<string, TerritorioClique.Dono>
+        {
+            ["a"] = TerritorioClique.Dono.Jogador1,
+            ["b"] = TerritorioClique.Dono.Jogador2,
+            ["c"] = TerritorioClique.Dono.Jogador2
+        };
+        ResolutionVisualEvent conquering = ResolutionVisualEvent.Attack(
+            TerritorioClique.Dono.Jogador1, "a", "b", 3, 4, 1, 2, 1,
+            true, TerritorioClique.Dono.Jogador2, TerritorioClique.Dono.Jogador1);
+        ResolutionVisualEvent next = ResolutionVisualEvent.Attack(
+            TerritorioClique.Dono.Jogador1, "b", "c", 1, 1, 1, 3, 2,
+            false, TerritorioClique.Dono.Jogador2, TerritorioClique.Dono.Jogador2);
+
+        IReadOnlyList<ResolutionVisualEvent> ordered =
+            WDRegionConquestVisualDetector.InterleaveWithTerritoryResults(
+                new[] { region }, owners, new[] { conquering, next });
+
+        Assert.That(ordered.Count, Is.EqualTo(3));
+        Assert.That(ordered[0], Is.SameAs(conquering));
+        Assert.That(ordered[1].Type, Is.EqualTo(ResolutionVisualEventType.RegionConquest));
+        Assert.That(ordered[1].RegionId, Is.EqualTo("south"));
+        Assert.That(ordered[2], Is.SameAs(next));
+    }
+
+    [Test]
+    public void OneTerritoryActionCompletingMultipleRegionsUsesDefinitionOrder()
+    {
+        DefinicaoRegiaoMapa first = Region("first", "shared", "a");
+        DefinicaoRegiaoMapa second = Region("second", "shared", "b");
+        var owners = new Dictionary<string, TerritorioClique.Dono>
+        {
+            ["shared"] = TerritorioClique.Dono.Jogador2,
+            ["a"] = TerritorioClique.Dono.Jogador1,
+            ["b"] = TerritorioClique.Dono.Jogador1
+        };
+        ResolutionVisualEvent conquering = ResolutionVisualEvent.Attack(
+            TerritorioClique.Dono.Jogador1, "a", "shared", 3, 4, 1, 2, 1,
+            true, TerritorioClique.Dono.Jogador2, TerritorioClique.Dono.Jogador1);
+
+        IReadOnlyList<ResolutionVisualEvent> ordered =
+            WDRegionConquestVisualDetector.InterleaveWithTerritoryResults(
+                new[] { first, second }, owners, new[] { conquering });
+
+        Assert.That(ordered.Select(item => item.RegionId),
+            Is.EqualTo(new[] { string.Empty, "first", "second" }));
+    }
+
+    [Test]
+    public void IncompleteOrAlliedRegionDoesNotEmitRegionEvent()
+    {
+        DefinicaoRegiaoMapa region = Region("north", "a", "b", "c");
+        var owners = new Dictionary<string, TerritorioClique.Dono>
+        {
+            ["a"] = TerritorioClique.Dono.Jogador1,
+            ["b"] = TerritorioClique.Dono.Jogador3,
+            ["c"] = TerritorioClique.Dono.Jogador2
+        };
+
+        IReadOnlyList<ResolutionVisualEvent> events =
+            WDRegionConquestVisualDetector.Detect(new[] { region }, owners,
+                new[]
+                {
+                    new WDTerritoryOwnershipChange("c",
+                        TerritorioClique.Dono.Jogador2,
+                        TerritorioClique.Dono.Jogador1)
+                });
+
+        Assert.That(events, Is.Empty);
+        Assert.That(owners["b"], Is.EqualTo(TerritorioClique.Dono.Jogador3));
+    }
+
+    [Test]
+    public void AlreadyControlledRegionIsNotReemittedAndDetectionDoesNotMutateGameplay()
+    {
+        DefinicaoRegiaoMapa region = Region("west", "a", "b");
+        var owners = new Dictionary<string, TerritorioClique.Dono>
+        {
+            ["a"] = TerritorioClique.Dono.Jogador1,
+            ["b"] = TerritorioClique.Dono.Jogador1,
+            ["outside"] = TerritorioClique.Dono.Jogador2
+        };
+
+        IReadOnlyList<ResolutionVisualEvent> events =
+            WDRegionConquestVisualDetector.Detect(new[] { region }, owners,
+                new[]
+                {
+                    new WDTerritoryOwnershipChange("outside",
+                        TerritorioClique.Dono.Jogador2,
+                        TerritorioClique.Dono.Jogador1)
+                });
+
+        Assert.That(events, Is.Empty);
+        Assert.That(owners["outside"], Is.EqualTo(TerritorioClique.Dono.Jogador2));
+    }
+
+    private static DefinicaoRegiaoMapa Region(string id, params string[] territories) =>
+        new DefinicaoRegiaoMapa
+        {
+            id = id,
+            nomeExibido = id,
+            bonus = 2,
+            territorioIds = territories.ToList()
+        };
 
     private sealed class TestSource :
         IWDGameWeaponMutableStateSource, IWDGameWeaponStateSource

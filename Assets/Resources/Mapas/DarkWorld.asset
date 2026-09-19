@@ -18,7 +18,7 @@ MonoBehaviour:
   descricao: "Dark World com 43 territ\xF3rios e sete regi\xF5es."
   temaId: dark_world
   versao: 1
-  arteBase: {fileID: 21300000, guid: 8ab3ee3ef8ada2d4693357b10698ae97, type: 3}
+  arteBase: {fileID: 1019065987795459516, guid: 3f0ad453916d0eb4795b432fe351c9aa, type: 3}
   centroCamera: {x: 0, y: 0}
   tamanhoOrtografico: 5.2
   deslocamentoEnquadramento: {x: 0, y: 0}
@@ -27,7 +27,7 @@ MonoBehaviour:
     nomeExibido: Lai
     chaveTraducao: territory_lai
     regiaoId: agla
-    posicaoContador: {x: 0.02, y: -0.01}
+    posicaoContador: {x: 2.7249463, y: 3.3311126}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -37,7 +37,7 @@ MonoBehaviour:
     nomeExibido: Hevll
     chaveTraducao: territory_hevll
     regiaoId: agla
-    posicaoContador: {x: 0.015, y: -0.015}
+    posicaoContador: {x: 1.7018956, y: 3.380379}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -47,7 +47,7 @@ MonoBehaviour:
     nomeExibido: Sodher Noor
     chaveTraducao: territory_sodhernoor
     regiaoId: flathia
-    posicaoContador: {x: 0.1, y: 0.035}
+    posicaoContador: {x: -5.0323033, y: 3.1947875}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -57,7 +57,7 @@ MonoBehaviour:
     nomeExibido: Valeria Heart
     chaveTraducao: territory_valeriaheart
     regiaoId: agla
-    posicaoContador: {x: 0.085, y: 0.035}
+    posicaoContador: {x: 3.6781347, y: 3.0534797}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -67,7 +67,7 @@ MonoBehaviour:
     nomeExibido: Spear of the gods
     chaveTraducao: territory_spearofthegods
     regiaoId: flathia
-    posicaoContador: {x: -0.075, y: 0.045}
+    posicaoContador: {x: -3.6049182, y: 2.925191}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -77,7 +77,7 @@ MonoBehaviour:
     nomeExibido: Talisporto
     chaveTraducao: territory_talisporto
     regiaoId: agla
-    posicaoContador: {x: 0.06, y: -0.04}
+    posicaoContador: {x: 2.6757443, y: 2.7342677}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -87,7 +87,7 @@ MonoBehaviour:
     nomeExibido: White Wall
     chaveTraducao: territory_whitewall
     regiaoId: vorlia
-    posicaoContador: {x: 0.295, y: 0.055}
+    posicaoContador: {x: -0.4332245, y: 2.4217858}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -97,7 +97,7 @@ MonoBehaviour:
     nomeExibido: Marcias
     chaveTraducao: territory_marcias
     regiaoId: akani
-    posicaoContador: {x: 0.115, y: -0.02}
+    posicaoContador: {x: 5.364042, y: 2.0300164}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -107,7 +107,7 @@ MonoBehaviour:
     nomeExibido: Flathia Island
     chaveTraducao: territory_flathiaisland
     regiaoId: flathia
-    posicaoContador: {x: 0.055, y: -0.005}
+    posicaoContador: {x: -3.4108117, y: -2.3409832}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -117,7 +117,7 @@ MonoBehaviour:
     nomeExibido: Cube
     chaveTraducao: territory_cube
     regiaoId: flathia
-    posicaoContador: {x: -0.08, y: -0.035}
+    posicaoContador: {x: -6.485652, y: 1.8656244}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -127,7 +127,7 @@ MonoBehaviour:
     nomeExibido: Crows Home
     chaveTraducao: territory_crowshome
     regiaoId: flathia
-    posicaoContador: {x: 0, y: 0.045}
+    posicaoContador: {x: -3.6917298, y: 1.4420451}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -137,7 +137,7 @@ MonoBehaviour:
     nomeExibido: Babushka
     chaveTraducao: territory_babushka
     regiaoId: vorlia
-    posicaoContador: {x: 0.05, y: -0.02}
+    posicaoContador: {x: 0.45649225, y: 1.2922226}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -147,7 +147,7 @@ MonoBehaviour:
     nomeExibido: Fantasy Room
     chaveTraducao: territory_fantasyroom
     regiaoId: vorlia
-    posicaoContador: {x: -0.03, y: -0.06}
+    posicaoContador: {x: -1.013645, y: 1.2828584}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -157,7 +157,7 @@ MonoBehaviour:
     nomeExibido: Nai
     chaveTraducao: territory_nai
     regiaoId: akani
-    posicaoContador: {x: 0.045, y: 0.055}
+    posicaoContador: {x: 4.0045824, y: 1.0675714}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -167,7 +167,7 @@ MonoBehaviour:
     nomeExibido: Peach Land
     chaveTraducao: territory_peachland
     regiaoId: akani
-    posicaoContador: {x: 0.105, y: 0.055}
+    posicaoContador: {x: 6.1216717, y: 0.76784265}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -177,7 +177,7 @@ MonoBehaviour:
     nomeExibido: Tigershitman
     chaveTraducao: territory_tigershitman
     regiaoId: vorlia
-    posicaoContador: {x: 0.085, y: -0.145}
+    posicaoContador: {x: 1.4865246, y: 0.8427542}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -187,7 +187,7 @@ MonoBehaviour:
     nomeExibido: Palm Towner
     chaveTraducao: territory_palmtowner
     regiaoId: flathia
-    posicaoContador: {x: -0.04, y: -0.01}
+    posicaoContador: {x: -5.090639, y: 1.5521997}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -197,7 +197,7 @@ MonoBehaviour:
     nomeExibido: New Sahara
     chaveTraducao: territory_newsahara
     regiaoId: flathia
-    posicaoContador: {x: 0.03, y: -0.06}
+    posicaoContador: {x: -5.2086873, y: 0.131095}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -207,7 +207,7 @@ MonoBehaviour:
     nomeExibido: Putfire District
     chaveTraducao: territory_putfiredistrict
     regiaoId: akani
-    posicaoContador: {x: 0.065, y: -0.04}
+    posicaoContador: {x: 6.533685, y: -0.54310775}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -217,7 +217,7 @@ MonoBehaviour:
     nomeExibido: Widows
     chaveTraducao: territory_widows
     regiaoId: birfani
-    posicaoContador: {x: 0.005, y: 0.06}
+    posicaoContador: {x: -1.9400916, y: -0.5140332}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -227,7 +227,7 @@ MonoBehaviour:
     nomeExibido: Sheppard
     chaveTraducao: territory_sheppard
     regiaoId: akani
-    posicaoContador: {x: 0.08, y: 0.06}
+    posicaoContador: {x: 5.2471004, y: -0.41841817}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -237,7 +237,7 @@ MonoBehaviour:
     nomeExibido: Rebecca Island
     chaveTraducao: territory_rebeccaisland
     regiaoId: akani
-    posicaoContador: {x: 0.005, y: -0.02}
+    posicaoContador: {x: 3.7837536, y: -0.6746399}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -247,7 +247,7 @@ MonoBehaviour:
     nomeExibido: Mariliand
     chaveTraducao: territory_mariliand
     regiaoId: birfani
-    posicaoContador: {x: -0.03, y: -0.035}
+    posicaoContador: {x: -0.2950946, y: -0.70480835}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -257,7 +257,7 @@ MonoBehaviour:
     nomeExibido: Baden Baden
     chaveTraducao: territory_badenbaden
     regiaoId: birfani
-    posicaoContador: {x: -0.035, y: 0.035}
+    posicaoContador: {x: 1.5146165, y: -0.82402545}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -267,7 +267,7 @@ MonoBehaviour:
     nomeExibido: Val Bay
     chaveTraducao: territory_valbay
     regiaoId: flathia
-    posicaoContador: {x: -0.02, y: 0.01}
+    posicaoContador: {x: -4.2044806, y: 0.0045581055}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -277,7 +277,7 @@ MonoBehaviour:
     nomeExibido: Potros
     chaveTraducao: territory_potros
     regiaoId: makatanga_islands
-    posicaoContador: {x: 0.005, y: 0.025}
+    posicaoContador: {x: 2.7532067, y: -1.7505237}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -287,7 +287,7 @@ MonoBehaviour:
     nomeExibido: Braveland
     chaveTraducao: territory_braveland
     regiaoId: flathia
-    posicaoContador: {x: 0.015, y: 0.01}
+    posicaoContador: {x: -5.2461433, y: -1.1143082}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -297,7 +297,7 @@ MonoBehaviour:
     nomeExibido: T A Land
     chaveTraducao: territory_taland
     regiaoId: birfani
-    posicaoContador: {x: 0.14, y: 0.05}
+    posicaoContador: {x: 0.10066338, y: -1.8166031}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -307,7 +307,7 @@ MonoBehaviour:
     nomeExibido: Maki
     chaveTraducao: territory_maki
     regiaoId: makatanga_islands
-    posicaoContador: {x: -0.06, y: 0.075}
+    posicaoContador: {x: 5.1435704, y: -2.1026447}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -317,7 +317,7 @@ MonoBehaviour:
     nomeExibido: Milla Sunderland
     chaveTraducao: territory_millasunderland
     regiaoId: birfani
-    posicaoContador: {x: 0.085, y: 0.005}
+    posicaoContador: {x: 1.1587876, y: -2.2192516}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -327,7 +327,7 @@ MonoBehaviour:
     nomeExibido: Putfire
     chaveTraducao: territory_putfire
     regiaoId: flathia
-    posicaoContador: {x: 0.015, y: -0.035}
+    posicaoContador: {x: -4.4792356, y: -1.7677753}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -337,7 +337,7 @@ MonoBehaviour:
     nomeExibido: Central Base
     chaveTraducao: territory_centralbase
     regiaoId: makatanga_islands
-    posicaoContador: {x: 0.01, y: -0.015}
+    posicaoContador: {x: 3.4422815, y: -2.4226978}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -347,7 +347,7 @@ MonoBehaviour:
     nomeExibido: Montreux
     chaveTraducao: territory_montreux
     regiaoId: flathia
-    posicaoContador: {x: 0.025, y: -0.045}
+    posicaoContador: {x: -4.806038, y: -2.3597105}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -357,7 +357,7 @@ MonoBehaviour:
     nomeExibido: Darkness Room
     chaveTraducao: territory_darknessroom
     regiaoId: south_pole
-    posicaoContador: {x: 0, y: -0.035}
+    posicaoContador: {x: -1.1634676, y: -3.0713692}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -367,7 +367,7 @@ MonoBehaviour:
     nomeExibido: Haeox
     chaveTraducao: territory_haeox
     regiaoId: makatanga_islands
-    posicaoContador: {x: 0.05, y: -0.055}
+    posicaoContador: {x: 2.422918, y: -3.1931007}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -377,7 +377,7 @@ MonoBehaviour:
     nomeExibido: Lineker
     chaveTraducao: territory_lineker
     regiaoId: makatanga_islands
-    posicaoContador: {x: -0.02, y: -0.015}
+    posicaoContador: {x: 4.1540737, y: -3.2477088}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -387,7 +387,7 @@ MonoBehaviour:
     nomeExibido: Cold Coast
     chaveTraducao: territory_coldcoast
     regiaoId: south_pole
-    posicaoContador: {x: 0.09, y: 0.045}
+    posicaoContador: {x: 0.5839111, y: -4.7322865}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -397,7 +397,7 @@ MonoBehaviour:
     nomeExibido: Trinit
     chaveTraducao: territory_trinit
     regiaoId: south_pole
-    posicaoContador: {x: 0.05, y: 0.04}
+    posicaoContador: {x: 1.8329899, y: -4.869244}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -407,7 +407,7 @@ MonoBehaviour:
     nomeExibido: Garin
     chaveTraducao: territory_garin
     regiaoId: south_pole
-    posicaoContador: {x: 0.015, y: 0.045}
+    posicaoContador: {x: -3.55021, y: -4.742052}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -417,7 +417,7 @@ MonoBehaviour:
     nomeExibido: Tarantula
     chaveTraducao: territory_tarantula
     regiaoId: south_pole
-    posicaoContador: {x: 0.005, y: -0.01}
+    posicaoContador: {x: -1.0987573, y: -4.901864}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -427,7 +427,7 @@ MonoBehaviour:
     nomeExibido: Demetrius
     chaveTraducao: territory_demetrius
     regiaoId: south_pole
-    posicaoContador: {x: 0.09, y: -0.03}
+    posicaoContador: {x: -2.2871408, y: -4.897336}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -437,7 +437,7 @@ MonoBehaviour:
     nomeExibido: Off Road
     chaveTraducao: territory_offroad
     regiaoId: south_pole
-    posicaoContador: {x: 0.02, y: -0.01}
+    posicaoContador: {x: 4.2676105, y: -4.9254274}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -447,7 +447,7 @@ MonoBehaviour:
     nomeExibido: Ks Island
     chaveTraducao: territory_ksisland
     regiaoId: south_pole
-    posicaoContador: {x: 0.15, y: 0.02}
+    posicaoContador: {x: 3.0877569, y: -4.972247}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -461,6 +461,8 @@ MonoBehaviour:
     bonus: 5
     ordemExibicao: 0
     corDestaque: {r: 0.4, g: 0.8, b: 0.3, a: 1}
+    possuiDeslocamentoLabelManual: 1
+    deslocamentoLabelManual: {x: -0.4554844, y: 0.41386005}
     territorioIds:
     - SodherNoor
     - SpearOfTheGods
@@ -481,6 +483,8 @@ MonoBehaviour:
     bonus: 3
     ordemExibicao: 1
     corDestaque: {r: 0.3, g: 0.7, b: 1, a: 1}
+    possuiDeslocamentoLabelManual: 1
+    deslocamentoLabelManual: {x: -0.096333265, y: -0.2402165}
     territorioIds:
     - Lai
     - Hevll
@@ -494,6 +498,8 @@ MonoBehaviour:
     bonus: 2
     ordemExibicao: 2
     corDestaque: {r: 0.8, g: 0.35, b: 0.35, a: 1}
+    possuiDeslocamentoLabelManual: 1
+    deslocamentoLabelManual: {x: -0.23041077, y: -0.050465822}
     territorioIds:
     - WhiteWall
     - Babushka
@@ -507,6 +513,8 @@ MonoBehaviour:
     bonus: 3
     ordemExibicao: 3
     corDestaque: {r: 0.75, g: 0.55, b: 0.25, a: 1}
+    possuiDeslocamentoLabelManual: 1
+    deslocamentoLabelManual: {x: 0.2564516, y: 1.0797892}
     territorioIds:
     - Marcias
     - Nai
@@ -522,6 +530,8 @@ MonoBehaviour:
     bonus: 3
     ordemExibicao: 4
     corDestaque: {r: 0.65, g: 0.4, b: 0.85, a: 1}
+    possuiDeslocamentoLabelManual: 1
+    deslocamentoLabelManual: {x: 0.31438065, y: 0.48036373}
     territorioIds:
     - Widows
     - Mariliand
@@ -536,6 +546,8 @@ MonoBehaviour:
     bonus: 2
     ordemExibicao: 5
     corDestaque: {r: 0.25, g: 0.8, b: 0.7, a: 1}
+    possuiDeslocamentoLabelManual: 1
+    deslocamentoLabelManual: {x: 0.1581409, y: -0.03382206}
     territorioIds:
     - Potros
     - Maki
@@ -550,6 +562,8 @@ MonoBehaviour:
     bonus: 4
     ordemExibicao: 6
     corDestaque: {r: 1, g: 1, b: 1, a: 1}
+    possuiDeslocamentoLabelManual: 1
+    deslocamentoLabelManual: {x: -0.22285575, y: 0.03520441}
     territorioIds:
     - DarknessRoom
     - ColdCoast
@@ -593,10 +607,6 @@ MonoBehaviour:
     destinoId: SpearOfTheGods
     tipo: 0
     bidirecional: 1
-  - origemId: Cube
-    destinoId: SpearOfTheGods
-    tipo: 0
-    bidirecional: 1
   - origemId: Babushka
     destinoId: WhiteWall
     tipo: 0
@@ -613,20 +623,8 @@ MonoBehaviour:
     destinoId: Nai
     tipo: 0
     bidirecional: 1
-  - origemId: CrowsHome
-    destinoId: Cube
-    tipo: 0
-    bidirecional: 1
   - origemId: Cube
     destinoId: PalmTowner
-    tipo: 0
-    bidirecional: 1
-  - origemId: Cube
-    destinoId: NewSahara
-    tipo: 0
-    bidirecional: 1
-  - origemId: CrowsHome
-    destinoId: NewSahara
     tipo: 0
     bidirecional: 1
   - origemId: Babushka
@@ -639,10 +637,6 @@ MonoBehaviour:
     bidirecional: 1
   - origemId: Nai
     destinoId: PeachLand
-    tipo: 0
-    bidirecional: 1
-  - origemId: Nai
-    destinoId: PutfireDistrict
     tipo: 0
     bidirecional: 1
   - origemId: PeachLand
@@ -697,10 +691,6 @@ MonoBehaviour:
     destinoId: ValBay
     tipo: 0
     bidirecional: 1
-  - origemId: Montreux
-    destinoId: ValBay
-    tipo: 0
-    bidirecional: 1
   - origemId: Braveland
     destinoId: Montreux
     tipo: 0
@@ -725,10 +715,6 @@ MonoBehaviour:
     destinoId: Tarantula
     tipo: 0
     bidirecional: 1
-  - origemId: OffRoad
-    destinoId: Trinit
-    tipo: 0
-    bidirecional: 1
   - origemId: Demetrius
     destinoId: Garin
     tipo: 0
@@ -739,14 +725,6 @@ MonoBehaviour:
     bidirecional: 1
   - origemId: KsIsland
     destinoId: OffRoad
-    tipo: 0
-    bidirecional: 1
-  - origemId: FlathiaIsland
-    destinoId: SodherNoor
-    tipo: 0
-    bidirecional: 1
-  - origemId: PutfireDistrict
-    destinoId: RebeccaIsland
     tipo: 0
     bidirecional: 1
   - origemId: Maki
@@ -773,20 +751,12 @@ MonoBehaviour:
     destinoId: Tigershitman
     tipo: 0
     bidirecional: 1
-  - origemId: NewSahara
-    destinoId: Widows
-    tipo: 0
-    bidirecional: 1
   - origemId: BadenBaden
     destinoId: RebeccaIsland
     tipo: 0
     bidirecional: 1
   - origemId: DarknessRoom
     destinoId: TALand
-    tipo: 0
-    bidirecional: 1
-  - origemId: Putfire
-    destinoId: Garin
     tipo: 0
     bidirecional: 1
   - origemId: MillaSunderland
@@ -817,10 +787,6 @@ MonoBehaviour:
     destinoId: Mariliand
     tipo: 0
     bidirecional: 1
-  - origemId: FlathiaIsland
-    destinoId: Cube
-    tipo: 0
-    bidirecional: 1
   - origemId: Hevll
     destinoId: WhiteWall
     tipo: 0
@@ -837,10 +803,6 @@ MonoBehaviour:
     destinoId: Trinit
     tipo: 0
     bidirecional: 1
-  - origemId: Lineker
-    destinoId: KsIsland
-    tipo: 0
-    bidirecional: 1
   - origemId: Potros
     destinoId: MillaSunderland
     tipo: 0
@@ -851,6 +813,38 @@ MonoBehaviour:
     bidirecional: 1
   - origemId: PutfireDistrict
     destinoId: Maki
+    tipo: 0
+    bidirecional: 1
+  - origemId: NewSahara
+    destinoId: Braveland
+    tipo: 0
+    bidirecional: 1
+  - origemId: Widows
+    destinoId: ValBay
+    tipo: 0
+    bidirecional: 1
+  - origemId: CrowsHome
+    destinoId: ValBay
+    tipo: 0
+    bidirecional: 1
+  - origemId: Nai
+    destinoId: Sheppard
+    tipo: 0
+    bidirecional: 1
+  - origemId: Lineker
+    destinoId: OffRoad
+    tipo: 0
+    bidirecional: 1
+  - origemId: Sheppard
+    destinoId: RebeccaIsland
+    tipo: 0
+    bidirecional: 1
+  - origemId: FlathiaIsland
+    destinoId: Montreux
+    tipo: 0
+    bidirecional: 1
+  - origemId: Trinit
+    destinoId: KsIsland
     tipo: 0
     bidirecional: 1
   condicoesEstrategicas: []

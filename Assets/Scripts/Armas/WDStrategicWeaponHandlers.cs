@@ -47,7 +47,7 @@ public sealed class WDStrategicInstallationHandler:WDStrategicWeaponHandlerBase
     public override WDWeaponRevalidationResult Revalidate(IWDWeaponResolutionContext raw,WDWeaponAction action,WDWeaponDefinition definition)
     {var c=Strategic(raw);var t=c.FindTerritory(action.TargetTerritoryId);if(t==null||t.OwnerPlayerId!=action.AuthorPlayerId||t.FindInstallation(action.WeaponId)!=null)return Invalid("Instalação exige território próprio sem stacking.");if(kind==0&&c.GetOwnEnergyPlantActivations(action.AuthorPlayerId)>=2)return Invalid("Limite de duas Centrais próprias atingido.");return WDWeaponRevalidationResult.Valid();}
     public override WDWeaponExecutionResult Execute(IWDWeaponResolutionContext raw,WDWeaponAction action,WDWeaponDefinition definition)
-    {var c=Strategic(raw);int level=Level(c,action);int duration=kind==1?WDStrategicWeaponTables.ArtilleryDuration(level):0;int charges=kind==2?2:0;int payments=kind==0?3:0;bool movable=true;var i=new WDWeaponInstallationState(action.InstallationId,action.WeaponId,action.TargetTerritoryId,action.AuthorPlayerId,duration,0,charges,payments,level,movable,c.CurrentRound);c.FindTerritory(action.TargetTerritoryId).AddInstallation(i);if(kind==0)c.RecordOwnEnergyPlantActivation(action.AuthorPlayerId);return new(WDWeaponExecutionOutcome.Executed,"Instalação estratégica criada.");}
+    {var c=Strategic(raw);int level=Level(c,action);int charges=kind==1?WDStrategicWeaponTables.ArtilleryAmmunition(level):kind==2?2:0;int payments=kind==0?3:0;bool movable=true;var i=new WDWeaponInstallationState(action.InstallationId,action.WeaponId,action.TargetTerritoryId,action.AuthorPlayerId,0,0,charges,payments,level,movable,c.CurrentRound);c.FindTerritory(action.TargetTerritoryId).AddInstallation(i);if(kind==0)c.RecordOwnEnergyPlantActivation(action.AuthorPlayerId);return new(WDWeaponExecutionOutcome.Executed,"Instalação estratégica criada.");}
 }
 
 public sealed class WDLongRangeBombHandler:WDStrategicWeaponHandlerBase
@@ -100,7 +100,7 @@ public sealed class WDArtilleryOperationHandler:IWDWeaponPhaseHandler
             var targets=origin.Neighbours.Select(c.FindTerritory).Where(t=>IsAttackable(c,artillery.OwnerPlayerId,t)).OrderByDescending(t=>t.Troops).ThenBy(t=>t.TerritoryId,StringComparer.Ordinal).Take(3).ToArray();
             if(targets.Length==0||!artillery.TryMarkAutomaticRound(c.CurrentRound))continue;
             foreach(var target in targets){WDSupportWeaponInteractionService.ApplyDamage(target,WDStrategicWeaponTables.ArtilleryDamage(artillery.Level),true);if(target.Troops==0&&target.State==WDWeaponTerritoryStateKind.Neutral)target.MakeEmpty();}
-            artillery.ConsumeDuration();if(artillery.DurationRemaining==0)artillery.Destroy();
+            foreach(var _ in targets)artillery.ConsumeCharge();if(artillery.ChargesRemaining==0)artillery.Destroy();
         }
     }
 

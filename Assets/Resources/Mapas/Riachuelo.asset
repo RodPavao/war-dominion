@@ -18,7 +18,7 @@ MonoBehaviour:
   descricao: "Mapa da Batalha do Riachuelo com 37 territ\xF3rios e seis regi\xF5es."
   temaId: riachuelo
   versao: 1
-  arteBase: {fileID: 21300000, guid: 6e22641b0342a464eb3cc732e765bb9a, type: 3}
+  arteBase: {fileID: 9197619191786289354, guid: 933abf2749eb613459d31ea0d8ded793, type: 3}
   centroCamera: {x: 0, y: 0}
   tamanhoOrtografico: 11.75
   deslocamentoEnquadramento: {x: 0, y: 0}
@@ -26,8 +26,8 @@ MonoBehaviour:
   - id: Pilcomayo
     nomeExibido: Pilcomayo
     chaveTraducao: territory_pilcomayo
-    regiaoId: formosa
-    posicaoContador: {x: 0.08800049, y: 0.022000123}
+    regiaoId: chaco
+    posicaoContador: {x: 2.5034692, y: 1.7474561}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -36,8 +36,8 @@ MonoBehaviour:
   - id: Pilagas
     nomeExibido: "Pilag\xE1s"
     chaveTraducao: territory_pilagas
-    regiaoId: formosa
-    posicaoContador: {x: 0.016999511, y: -0.08}
+    regiaoId: santa_fe
+    posicaoContador: {x: 4.9800854, y: 3.1213381}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -47,7 +47,7 @@ MonoBehaviour:
     nomeExibido: Feliciano
     chaveTraducao: territory_feliciano
     regiaoId: entre_rios
-    posicaoContador: {x: -0.54299986, y: 0.195}
+    posicaoContador: {x: -5.3339024, y: 2.8208365}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -57,7 +57,7 @@ MonoBehaviour:
     nomeExibido: Palomera Island
     chaveTraducao: territory_palomeraisland
     regiaoId: chaco
-    posicaoContador: {x: 0.18099976, y: -0.17200013}
+    posicaoContador: {x: 0.065431595, y: 1.7836218}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -67,7 +67,7 @@ MonoBehaviour:
     nomeExibido: Federal
     chaveTraducao: territory_federal
     regiaoId: entre_rios
-    posicaoContador: {x: 0.12599975, y: -0.015999757}
+    posicaoContador: {x: -4.8201413, y: 1.2601675}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -76,8 +76,8 @@ MonoBehaviour:
   - id: GeneralSanMartin
     nomeExibido: "General San Mart\xEDn"
     chaveTraducao: territory_generalsanmartin
-    regiaoId: chaco
-    posicaoContador: {x: 0.165, y: -0.04700012}
+    regiaoId: santa_fe
+    posicaoContador: {x: 3.622981, y: 2.626965}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -87,7 +87,7 @@ MonoBehaviour:
     nomeExibido: La Paz
     chaveTraducao: territory_lapaz
     regiaoId: entre_rios
-    posicaoContador: {x: 0.14700012, y: -0.005}
+    posicaoContador: {x: -2.348274, y: 0.94997257}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -96,8 +96,8 @@ MonoBehaviour:
   - id: Formosa
     nomeExibido: Formosa
     chaveTraducao: territory_formosa
-    regiaoId: formosa
-    posicaoContador: {x: 0.0010009765, y: -0.044000246}
+    regiaoId: chaco
+    posicaoContador: {x: 2.61688, y: 0.63636965}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -106,8 +106,8 @@ MonoBehaviour:
   - id: Laishi
     nomeExibido: "Laish\xED"
     chaveTraducao: territory_laishi
-    regiaoId: formosa
-    posicaoContador: {x: -0.021999512, y: -0.024000244}
+    regiaoId: santa_fe
+    posicaoContador: {x: 5.2612004, y: 1.1438448}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -117,7 +117,7 @@ MonoBehaviour:
     nomeExibido: "Federaci\xF3n"
     chaveTraducao: territory_federacion
     regiaoId: entre_rios
-    posicaoContador: {x: -0.012000122, y: -0.3}
+    posicaoContador: {x: -3.559974, y: 1.6866857}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -127,7 +127,7 @@ MonoBehaviour:
     nomeExibido: O'Higgins
     chaveTraducao: territory_ohiggins
     regiaoId: chaco
-    posicaoContador: {x: 0.38900024, y: -0.325}
+    posicaoContador: {x: 1.2868252, y: 0.95966583}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -136,8 +136,8 @@ MonoBehaviour:
   - id: PrimeroDeMayo
     nomeExibido: Primero de Mayo
     chaveTraducao: territory_primerodemayo
-    regiaoId: chaco
-    posicaoContador: {x: 0.09600098, y: -0.015999757}
+    regiaoId: santa_fe
+    posicaoContador: {x: 3.8459349, y: 1.1341509}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -147,7 +147,7 @@ MonoBehaviour:
     nomeExibido: "Paran\xE1"
     chaveTraducao: territory_parana
     regiaoId: entre_rios
-    posicaoContador: {x: -0.38100007, y: -0.43099976}
+    posicaoContador: {x: -3.453344, y: 0.39743772}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -157,7 +157,7 @@ MonoBehaviour:
     nomeExibido: Villaguay
     chaveTraducao: territory_villaguay
     regiaoId: entre_rios
-    posicaoContador: {x: -0.037000123, y: -0.08199951}
+    posicaoContador: {x: -5.421144, y: 0.2714211}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -166,8 +166,8 @@ MonoBehaviour:
   - id: MayorMartinez
     nomeExibido: "Mayor Mart\xEDnez"
     chaveTraducao: territory_mayormartinez
-    regiaoId: neembucu
-    posicaoContador: {x: -0.145, y: 0.025999757}
+    regiaoId: formosa
+    posicaoContador: {x: 5.2732506, y: -0.45457947}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -177,7 +177,7 @@ MonoBehaviour:
     nomeExibido: Concordia
     chaveTraducao: territory_concordia
     regiaoId: entre_rios
-    posicaoContador: {x: 0.056999512, y: -0.2830005}
+    posicaoContador: {x: -1.452757, y: 0.12113647}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -187,7 +187,7 @@ MonoBehaviour:
     nomeExibido: San Lorenzo
     chaveTraducao: territory_sanlorenzo
     regiaoId: chaco
-    posicaoContador: {x: 0.20400025, y: 0.023000488}
+    posicaoContador: {x: 0.6955159, y: -0.31019458}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -196,8 +196,8 @@ MonoBehaviour:
   - id: SanFernando
     nomeExibido: San Fernando
     chaveTraducao: territory_sanfernando
-    regiaoId: chaco
-    posicaoContador: {x: -0.18699951, y: 0.01800049}
+    regiaoId: santa_fe
+    posicaoContador: {x: 3.9733813, y: 0.15828675}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -207,7 +207,7 @@ MonoBehaviour:
     nomeExibido: Desmochados
     chaveTraducao: territory_desmochados
     regiaoId: neembucu
-    posicaoContador: {x: 0.145, y: 0.033000488}
+    posicaoContador: {x: 1.8165966, y: -2.7809174}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -217,7 +217,7 @@ MonoBehaviour:
     nomeExibido: Mercedes
     chaveTraducao: territory_mercedes
     regiaoId: corrientes
-    posicaoContador: {x: 0.10599975, y: 0.08699951}
+    posicaoContador: {x: -3.3194587, y: -0.5692853}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -227,7 +227,7 @@ MonoBehaviour:
     nomeExibido: Goya
     chaveTraducao: territory_goya
     regiaoId: corrientes
-    posicaoContador: {x: -0.20799989, y: 0.20800048}
+    posicaoContador: {x: -1.7569646, y: -1.4055713}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -236,8 +236,8 @@ MonoBehaviour:
   - id: PasoDeLaPatria
     nomeExibido: Paso de la Patria
     chaveTraducao: territory_pasodelapatria
-    regiaoId: neembucu
-    posicaoContador: {x: 0.15, y: 0.08599976}
+    regiaoId: formosa
+    posicaoContador: {x: 5.581088, y: -2.1713655}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -247,7 +247,7 @@ MonoBehaviour:
     nomeExibido: Lavalle
     chaveTraducao: territory_lavalle
     regiaoId: corrientes
-    posicaoContador: {x: -0.14400025, y: 0.1}
+    posicaoContador: {x: -5.430838, y: -1.0953758}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -257,7 +257,7 @@ MonoBehaviour:
     nomeExibido: Paso de los Libres
     chaveTraducao: territory_pasodeloslibres
     regiaoId: corrientes
-    posicaoContador: {x: -0.049000245, y: 0.055999756}
+    posicaoContador: {x: -2.881422, y: -1.5122007}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -266,8 +266,8 @@ MonoBehaviour:
   - id: NueveDeJulio
     nomeExibido: Nueve de Julio
     chaveTraducao: territory_nuevedejulio
-    regiaoId: santa_fe
-    posicaoContador: {x: 0.051999513, y: 0.18699951}
+    regiaoId: neembucu
+    posicaoContador: {x: 0.0012731934, y: -1.6113544}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -276,8 +276,8 @@ MonoBehaviour:
   - id: Vera
     nomeExibido: Vera
     chaveTraducao: territory_vera
-    regiaoId: santa_fe
-    posicaoContador: {x: 0.009000245, y: -0.12199951}
+    regiaoId: neembucu
+    posicaoContador: {x: 1.4235253, y: -1.5669982}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -287,7 +287,7 @@ MonoBehaviour:
     nomeExibido: Sauce
     chaveTraducao: territory_sauce
     regiaoId: corrientes
-    posicaoContador: {x: -0.022000123, y: 0.24}
+    posicaoContador: {x: -3.9961855, y: -1.2795544}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -296,8 +296,8 @@ MonoBehaviour:
   - id: GeneralDiaz
     nomeExibido: "General D\xEDaz"
     chaveTraducao: territory_generaldiaz
-    regiaoId: neembucu
-    posicaoContador: {x: 0.045, y: 0.33900025}
+    regiaoId: chaco
+    posicaoContador: {x: 2.4015896, y: -0.35866264}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -306,8 +306,8 @@ MonoBehaviour:
   - id: SanJavier
     nomeExibido: San Javier
     chaveTraducao: territory_sanjavier
-    regiaoId: santa_fe
-    posicaoContador: {x: 0.016999511, y: 0.22900024}
+    regiaoId: formosa
+    posicaoContador: {x: 4.301533, y: -2.520335}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -317,7 +317,7 @@ MonoBehaviour:
     nomeExibido: "Curuz\xFA Cuati\xE1"
     chaveTraducao: territory_curuzucuatia
     regiaoId: corrientes
-    posicaoContador: {x: -0.2419995, y: -0.118000485}
+    posicaoContador: {x: -3.0752938, y: -2.8886912}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -326,8 +326,8 @@ MonoBehaviour:
   - id: SanCristobal
     nomeExibido: "San Crist\xF3bal"
     chaveTraducao: territory_sancristobal
-    regiaoId: santa_fe
-    posicaoContador: {x: 0.05800049, y: -0.080999754}
+    regiaoId: neembucu
+    posicaoContador: {x: 0.43196532, y: -2.435885}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -336,8 +336,8 @@ MonoBehaviour:
   - id: Humaita
     nomeExibido: "Humait\xE1"
     chaveTraducao: territory_humaita
-    regiaoId: neembucu
-    posicaoContador: {x: -0.17699951, y: 0.07300049}
+    regiaoId: formosa
+    posicaoContador: {x: 3.9719515, y: -1.0372144}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -346,8 +346,8 @@ MonoBehaviour:
   - id: SantaFe
     nomeExibido: Santa Fe
     chaveTraducao: territory_santafe
-    regiaoId: santa_fe
-    posicaoContador: {x: -0.06800049, y: 0.14099975}
+    regiaoId: neembucu
+    posicaoContador: {x: 2.8237085, y: -3.7957337}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -357,7 +357,7 @@ MonoBehaviour:
     nomeExibido: Esquina
     chaveTraducao: territory_esquina
     regiaoId: corrientes
-    posicaoContador: {x: -0.18099976, y: -0.2580005}
+    posicaoContador: {x: -1.8777276, y: -2.2481768}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -367,7 +367,7 @@ MonoBehaviour:
     nomeExibido: Monte Caseros
     chaveTraducao: territory_montecaseros
     regiaoId: corrientes
-    posicaoContador: {x: -0.016999511, y: 0.020999756}
+    posicaoContador: {x: -1.2898755, y: -2.937088}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -377,7 +377,7 @@ MonoBehaviour:
     nomeExibido: "Villalb\xEDn"
     chaveTraducao: territory_villalbin
     regiaoId: neembucu
-    posicaoContador: {x: -0.10300049, y: 0.02}
+    posicaoContador: {x: 2.7117841, y: -1.9581062}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -386,8 +386,8 @@ MonoBehaviour:
   - id: Pirane
     nomeExibido: "Piran\xE9"
     chaveTraducao: territory_pirane
-    regiaoId: santa_fe
-    posicaoContador: {x: 0.14600098, y: -0.155}
+    regiaoId: formosa
+    posicaoContador: {x: 4.3895545, y: -3.3556085}
     possuiPosicaoContador: 1
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
@@ -401,6 +401,8 @@ MonoBehaviour:
     bonus: 3
     ordemExibicao: 0
     corDestaque: {r: 0.92, g: 0.66, b: 0.25, a: 1}
+    possuiDeslocamentoLabelManual: 1
+    deslocamentoLabelManual: {x: -0.06069374, y: -0.87684417}
     territorioIds:
     - Feliciano
     - Federal
@@ -417,6 +419,8 @@ MonoBehaviour:
     bonus: 4
     ordemExibicao: 1
     corDestaque: {r: 0.28, g: 0.72, b: 0.92, a: 1}
+    possuiDeslocamentoLabelManual: 1
+    deslocamentoLabelManual: {x: 0.07059622, y: 0.14896715}
     territorioIds:
     - Mercedes
     - Goya
@@ -434,13 +438,15 @@ MonoBehaviour:
     bonus: 3
     ordemExibicao: 2
     corDestaque: {r: 0.52, g: 0.78, b: 0.34, a: 1}
+    possuiDeslocamentoLabelManual: 1
+    deslocamentoLabelManual: {x: 0.42396593, y: -0.6492263}
     territorioIds:
     - PalomeraIsland
-    - GeneralSanMartin
     - OHiggins
-    - PrimeroDeMayo
     - SanLorenzo
-    - SanFernando
+    - Pilcomayo
+    - Formosa
+    - GeneralDiaz
     metadados: []
   - id: santa_fe
     nomeExibido: Santa Fe
@@ -449,13 +455,14 @@ MonoBehaviour:
     bonus: 3
     ordemExibicao: 3
     corDestaque: {r: 0.86, g: 0.4, b: 0.42, a: 1}
+    possuiDeslocamentoLabelManual: 1
+    deslocamentoLabelManual: {x: 0.59872293, y: 0.47054613}
     territorioIds:
-    - NueveDeJulio
-    - Vera
-    - SanJavier
-    - SanCristobal
-    - SantaFe
-    - Pirane
+    - GeneralSanMartin
+    - Pilagas
+    - PrimeroDeMayo
+    - Laishi
+    - SanFernando
     metadados: []
   - id: neembucu
     nomeExibido: "\xD1eembuc\xFA"
@@ -464,13 +471,15 @@ MonoBehaviour:
     bonus: 3
     ordemExibicao: 4
     corDestaque: {r: 0.67, g: 0.48, b: 0.85, a: 1}
+    possuiDeslocamentoLabelManual: 1
+    deslocamentoLabelManual: {x: -0.21058083, y: 0.5512171}
     territorioIds:
-    - MayorMartinez
-    - Desmochados
-    - PasoDeLaPatria
-    - GeneralDiaz
-    - Humaita
     - Villalbin
+    - Desmochados
+    - SantaFe
+    - SanCristobal
+    - NueveDeJulio
+    - Vera
     metadados: []
   - id: formosa
     nomeExibido: Formosa
@@ -479,11 +488,14 @@ MonoBehaviour:
     bonus: 3
     ordemExibicao: 5
     corDestaque: {r: 0.35, g: 0.79, b: 0.68, a: 1}
+    possuiDeslocamentoLabelManual: 1
+    deslocamentoLabelManual: {x: 0.24715805, y: 0.6770464}
     territorioIds:
-    - Pilcomayo
-    - Pilagas
-    - Formosa
-    - Laishi
+    - Pirane
+    - SanJavier
+    - Humaita
+    - PasoDeLaPatria
+    - MayorMartinez
     metadados: []
   conexoes:
   - origemId: Lavalle
@@ -494,28 +506,8 @@ MonoBehaviour:
     destinoId: Parana
     tipo: 0
     bidirecional: 1
-  - origemId: Feliciano
-    destinoId: LaPaz
-    tipo: 0
-    bidirecional: 1
-  - origemId: Federacion
-    destinoId: Villaguay
-    tipo: 0
-    bidirecional: 1
-  - origemId: Concordia
-    destinoId: Federacion
-    tipo: 0
-    bidirecional: 1
-  - origemId: OHiggins
-    destinoId: PrimeroDeMayo
-    tipo: 0
-    bidirecional: 1
   - origemId: OHiggins
     destinoId: SanLorenzo
-    tipo: 0
-    bidirecional: 1
-  - origemId: OHiggins
-    destinoId: SanFernando
     tipo: 0
     bidirecional: 1
   - origemId: PrimeroDeMayo
@@ -524,18 +516,6 @@ MonoBehaviour:
     bidirecional: 1
   - origemId: Parana
     destinoId: Villaguay
-    tipo: 0
-    bidirecional: 1
-  - origemId: Concordia
-    destinoId: Villaguay
-    tipo: 0
-    bidirecional: 1
-  - origemId: SanFernando
-    destinoId: SanLorenzo
-    tipo: 0
-    bidirecional: 1
-  - origemId: Goya
-    destinoId: Mercedes
     tipo: 0
     bidirecional: 1
   - origemId: Lavalle
@@ -550,10 +530,6 @@ MonoBehaviour:
     destinoId: Sauce
     tipo: 0
     bidirecional: 1
-  - origemId: Goya
-    destinoId: Lavalle
-    tipo: 0
-    bidirecional: 1
   - origemId: PasoDeLosLibres
     destinoId: Sauce
     tipo: 0
@@ -562,20 +538,8 @@ MonoBehaviour:
     destinoId: PasoDeLosLibres
     tipo: 0
     bidirecional: 1
-  - origemId: CuruzuCuatia
-    destinoId: Sauce
-    tipo: 0
-    bidirecional: 1
-  - origemId: Esquina
-    destinoId: Sauce
-    tipo: 0
-    bidirecional: 1
   - origemId: Federal
     destinoId: Feliciano
-    tipo: 0
-    bidirecional: 1
-  - origemId: CuruzuCuatia
-    destinoId: Esquina
     tipo: 0
     bidirecional: 1
   - origemId: CuruzuCuatia
@@ -594,28 +558,12 @@ MonoBehaviour:
     destinoId: Villaguay
     tipo: 0
     bidirecional: 1
-  - origemId: Federal
-    destinoId: LaPaz
-    tipo: 0
-    bidirecional: 1
-  - origemId: GeneralSanMartin
-    destinoId: OHiggins
-    tipo: 0
-    bidirecional: 1
   - origemId: GeneralSanMartin
     destinoId: PrimeroDeMayo
     tipo: 0
     bidirecional: 1
-  - origemId: LaPaz
-    destinoId: Villaguay
-    tipo: 0
-    bidirecional: 1
   - origemId: Pirane
     destinoId: SanJavier
-    tipo: 0
-    bidirecional: 1
-  - origemId: Pilagas
-    destinoId: Pilcomayo
     tipo: 0
     bidirecional: 1
   - origemId: Humaita
@@ -626,24 +574,8 @@ MonoBehaviour:
     destinoId: Pilcomayo
     tipo: 0
     bidirecional: 1
-  - origemId: Desmochados
-    destinoId: PasoDeLaPatria
-    tipo: 0
-    bidirecional: 1
-  - origemId: Desmochados
-    destinoId: GeneralDiaz
-    tipo: 0
-    bidirecional: 1
-  - origemId: Formosa
-    destinoId: Pilagas
-    tipo: 0
-    bidirecional: 1
   - origemId: Laishi
     destinoId: Pilagas
-    tipo: 0
-    bidirecional: 1
-  - origemId: GeneralDiaz
-    destinoId: PasoDeLaPatria
     tipo: 0
     bidirecional: 1
   - origemId: NueveDeJulio
@@ -654,15 +586,7 @@ MonoBehaviour:
     destinoId: SanCristobal
     tipo: 0
     bidirecional: 1
-  - origemId: SanJavier
-    destinoId: Vera
-    tipo: 0
-    bidirecional: 1
   - origemId: SanCristobal
-    destinoId: Vera
-    tipo: 0
-    bidirecional: 1
-  - origemId: SantaFe
     destinoId: Vera
     tipo: 0
     bidirecional: 1
@@ -674,28 +598,12 @@ MonoBehaviour:
     destinoId: Villalbin
     tipo: 0
     bidirecional: 1
-  - origemId: SanJavier
-    destinoId: SantaFe
-    tipo: 0
-    bidirecional: 1
-  - origemId: SanCristobal
-    destinoId: SantaFe
-    tipo: 0
-    bidirecional: 1
   - origemId: Humaita
     destinoId: Villalbin
     tipo: 0
     bidirecional: 1
   - origemId: Pirane
     destinoId: SantaFe
-    tipo: 0
-    bidirecional: 1
-  - origemId: Formosa
-    destinoId: MayorMartinez
-    tipo: 0
-    bidirecional: 1
-  - origemId: Formosa
-    destinoId: Laishi
     tipo: 0
     bidirecional: 1
   - origemId: Laishi
@@ -706,39 +614,19 @@ MonoBehaviour:
     destinoId: SanJavier
     tipo: 0
     bidirecional: 1
-  - origemId: Desmochados
-    destinoId: MayorMartinez
-    tipo: 0
-    bidirecional: 1
   - origemId: MayorMartinez
     destinoId: PasoDeLaPatria
     tipo: 0
     bidirecional: 1
-  - origemId: SanFernando
-    destinoId: SanJavier
-    tipo: 0
-    bidirecional: 1
   - origemId: PasoDeLaPatria
     destinoId: SanJavier
-    tipo: 0
-    bidirecional: 1
-  - origemId: Pirane
-    destinoId: Villalbin
     tipo: 0
     bidirecional: 1
   - origemId: GeneralSanMartin
     destinoId: Laishi
     tipo: 0
     bidirecional: 1
-  - origemId: Desmochados
-    destinoId: Formosa
-    tipo: 0
-    bidirecional: 1
   - origemId: MayorMartinez
-    destinoId: SanFernando
-    tipo: 0
-    bidirecional: 1
-  - origemId: PasoDeLaPatria
     destinoId: SanFernando
     tipo: 0
     bidirecional: 1
@@ -762,44 +650,16 @@ MonoBehaviour:
     destinoId: Parana
     tipo: 0
     bidirecional: 1
-  - origemId: Goya
-    destinoId: Parana
-    tipo: 0
-    bidirecional: 1
   - origemId: Concordia
     destinoId: Mercedes
-    tipo: 0
-    bidirecional: 1
-  - origemId: Concordia
-    destinoId: PasoDeLosLibres
     tipo: 0
     bidirecional: 1
   - origemId: SanLorenzo
     destinoId: Vera
     tipo: 0
     bidirecional: 1
-  - origemId: SanFernando
-    destinoId: Vera
-    tipo: 0
-    bidirecional: 1
-  - origemId: MayorMartinez
-    destinoId: PrimeroDeMayo
-    tipo: 0
-    bidirecional: 1
-  - origemId: Humaita
-    destinoId: Pirane
-    tipo: 0
-    bidirecional: 1
   - origemId: Concordia
     destinoId: SanLorenzo
-    tipo: 0
-    bidirecional: 1
-  - origemId: NueveDeJulio
-    destinoId: PasoDeLosLibres
-    tipo: 0
-    bidirecional: 1
-  - origemId: NueveDeJulio
-    destinoId: CuruzuCuatia
     tipo: 0
     bidirecional: 1
   - origemId: SanCristobal
@@ -812,6 +672,154 @@ MonoBehaviour:
     bidirecional: 1
   - origemId: PalomeraIsland
     destinoId: OHiggins
+    tipo: 0
+    bidirecional: 1
+  - origemId: Goya
+    destinoId: NueveDeJulio
+    tipo: 0
+    bidirecional: 1
+  - origemId: Goya
+    destinoId: Esquina
+    tipo: 0
+    bidirecional: 1
+  - origemId: Mercedes
+    destinoId: Goya
+    tipo: 0
+    bidirecional: 1
+  - origemId: Federacion
+    destinoId: Parana
+    tipo: 0
+    bidirecional: 1
+  - origemId: Villaguay
+    destinoId: Lavalle
+    tipo: 0
+    bidirecional: 1
+  - origemId: Goya
+    destinoId: PasoDeLosLibres
+    tipo: 0
+    bidirecional: 1
+  - origemId: PasoDeLosLibres
+    destinoId: Esquina
+    tipo: 0
+    bidirecional: 1
+  - origemId: Concordia
+    destinoId: Goya
+    tipo: 0
+    bidirecional: 1
+  - origemId: Parana
+    destinoId: Concordia
+    tipo: 0
+    bidirecional: 1
+  - origemId: LaPaz
+    destinoId: Concordia
+    tipo: 0
+    bidirecional: 1
+  - origemId: LaPaz
+    destinoId: Federacion
+    tipo: 0
+    bidirecional: 1
+  - origemId: CuruzuCuatia
+    destinoId: Esquina
+    tipo: 0
+    bidirecional: 1
+  - origemId: NueveDeJulio
+    destinoId: Esquina
+    tipo: 0
+    bidirecional: 1
+  - origemId: Desmochados
+    destinoId: SantaFe
+    tipo: 0
+    bidirecional: 1
+  - origemId: Desmochados
+    destinoId: SanCristobal
+    tipo: 0
+    bidirecional: 1
+  - origemId: Desmochados
+    destinoId: Villalbin
+    tipo: 0
+    bidirecional: 1
+  - origemId: Formosa
+    destinoId: PrimeroDeMayo
+    tipo: 0
+    bidirecional: 1
+  - origemId: OHiggins
+    destinoId: GeneralDiaz
+    tipo: 0
+    bidirecional: 1
+  - origemId: Desmochados
+    destinoId: Vera
+    tipo: 0
+    bidirecional: 1
+  - origemId: Vera
+    destinoId: GeneralDiaz
+    tipo: 0
+    bidirecional: 1
+  - origemId: SanLorenzo
+    destinoId: GeneralDiaz
+    tipo: 0
+    bidirecional: 1
+  - origemId: Formosa
+    destinoId: GeneralDiaz
+    tipo: 0
+    bidirecional: 1
+  - origemId: Formosa
+    destinoId: OHiggins
+    tipo: 0
+    bidirecional: 1
+  - origemId: Formosa
+    destinoId: SanFernando
+    tipo: 0
+    bidirecional: 1
+  - origemId: SanFernando
+    destinoId: Humaita
+    tipo: 0
+    bidirecional: 1
+  - origemId: MayorMartinez
+    destinoId: Humaita
+    tipo: 0
+    bidirecional: 1
+  - origemId: PasoDeLaPatria
+    destinoId: Pirane
+    tipo: 0
+    bidirecional: 1
+  - origemId: SantaFe
+    destinoId: Villalbin
+    tipo: 0
+    bidirecional: 1
+  - origemId: SanJavier
+    destinoId: SantaFe
+    tipo: 0
+    bidirecional: 1
+  - origemId: SanFernando
+    destinoId: GeneralDiaz
+    tipo: 0
+    bidirecional: 1
+  - origemId: Laishi
+    destinoId: SanFernando
+    tipo: 0
+    bidirecional: 1
+  - origemId: Pilcomayo
+    destinoId: PrimeroDeMayo
+    tipo: 0
+    bidirecional: 1
+  - origemId: Federal
+    destinoId: Parana
+    tipo: 0
+    bidirecional: 1
+  - origemId: Pilcomayo
+    destinoId: OHiggins
+    tipo: 0
+    bidirecional: 1
+  - origemId: Pilcomayo
+    destinoId: GeneralSanMartin
+    tipo: 0
+    bidirecional: 1
+  - origemId: Vera
+    destinoId: Villalbin
+    tipo: 0
+    bidirecional: 1
+  - origemId: SanJavier
+    destinoId: Villalbin
     tipo: 0
     bidirecional: 1
   condicoesEstrategicas: []

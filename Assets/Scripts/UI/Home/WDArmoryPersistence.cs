@@ -13,6 +13,18 @@ public sealed class WDPlayerPrefsArmoryRepository : IWDArmoryRepository
     // ============================================================
 
     private const string StorageKey = "war_dominion.armory.profile.v1";
+    private readonly WDVipEntitlement vipEntitlement;
+
+    public WDPlayerPrefsArmoryRepository(WDVipEntitlement entitlement = null) => vipEntitlement = entitlement;
+
+    // 02. Sem autoridade de entitlement integrada, VIP legado de desenvolvimento não concede acesso.
+    public static bool ApplyAvailableEntitlement(WDArmoryProfile profile)
+    {
+        if (profile == null || !profile.IsVip) return false;
+        profile.SetVip(false);
+        profile.Normalize();
+        return true;
+    }
 
     public WDArmoryProfile Load(WDArmoryCatalogConfig catalog)
     {
@@ -22,6 +34,14 @@ public sealed class WDPlayerPrefsArmoryRepository : IWDArmoryRepository
         profile ??= CreateDevelopmentProfile(catalog);
         profile.Normalize();
         bool changed = profile.RemoveLegacyCardPlaceholders();
+        if (vipEntitlement == null)
+            changed |= ApplyAvailableEntitlement(profile);
+        else if (profile.IsVip != vipEntitlement.IsVipActive)
+        {
+            profile.SetVip(vipEntitlement.IsVipActive);
+            profile.Normalize();
+            changed = true;
+        }
 #if UNITY_EDITOR
         changed |= WDArmoryDevelopmentBootstrap.Apply(catalog, profile);
 #endif
@@ -34,14 +54,18 @@ public sealed class WDPlayerPrefsArmoryRepository : IWDArmoryRepository
     {
         if (profile == null)
             return;
+        if (vipEntitlement != null)
+        {
+            profile.SetVip(vipEntitlement.IsVipActive);
+            profile.Normalize();
+        }
         PlayerPrefs.SetString(StorageKey, JsonUtility.ToJson(profile));
         PlayerPrefs.Save();
     }
 
     private static WDArmoryProfile CreateDevelopmentProfile(WDArmoryCatalogConfig catalog)
     {
-        var profile = new WDArmoryProfile(
-            catalog != null && catalog.VipEnabledForDevelopment, 1200, 25);
+        var profile = new WDArmoryProfile(false, 1200, 25);
         if (catalog == null)
             return profile;
 

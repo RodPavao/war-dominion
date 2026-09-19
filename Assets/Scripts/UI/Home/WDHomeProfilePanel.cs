@@ -17,8 +17,12 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
 
     private WarDominionUITheme theme;
     private WDProfileRepository repository;
+    private WDSocialRepository social;
+    private WDSocialRepository subscribedSocial;
     private WDNavigationStack navigation;
     private Action<string, string> openEndpoint;
+    private Action<string> openDirectChat;
+    private Action<string, string, Action> confirmSocial;
     private Action identityChanged;
     private RectTransform content;
     private GameObject customizationModal;
@@ -28,6 +32,9 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
     private WDProfileCosmeticCategory category;
     private WDProfileMode? historyFilter;
     private WDProfileData currentProfile;
+    private Action<WDProfileCosmetic> openStoreForCosmetic;
+    private WDStoreCatalogConfig storeCatalog;
+    private WDProfilePresentation currentPresentation;
 
     public bool IsOpen => gameObject.activeSelf;
     public bool IsCustomizationOpen => customizationModal != null && customizationModal.activeSelf;
@@ -39,15 +46,22 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
     public int VisibleHistoryCount { get; private set; }
 
     public void Build(WarDominionUITheme newTheme, WDProfileRepository newRepository,
-        WDNavigationStack navigationStack, Action<string, string> endpoint,
-        Action onIdentityChanged)
+        WDSocialRepository socialRepository, WDNavigationStack navigationStack, Action<string, string> endpoint,
+        Action onIdentityChanged, Action<string> directChatAction = null,
+        Action<string, string, Action> socialConfirmation = null,
+        Action<WDProfileCosmetic> storeAction = null)
     {
+        UnsubscribeFromSocial();
         theme = newTheme;
         repository = newRepository;
+        social = socialRepository;
         navigation = navigationStack;
         openEndpoint = endpoint;
+        openDirectChat = directChatAction;
+        confirmSocial = socialConfirmation;
         identityChanged = onIdentityChanged;
-
+        openStoreForCosmetic = storeAction;
+        storeCatalog = Resources.Load<WDStoreCatalogConfig>("UI/Home/WDStoreCatalogConfig");
         Image blocker = gameObject.AddComponent<Image>();
         blocker.color = new Color(0.005f, 0.015f, 0.025f, 0.96f);
         blocker.raycastTarget = true;
@@ -56,17 +70,35 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
         gameObject.SetActive(false);
     }
 
+    private void OnEnable()
+    {
+        if (social == null || subscribedSocial == social)
+            return;
+        UnsubscribeFromSocial();
+        social.Changed += RefreshCurrentProfile;
+        subscribedSocial = social;
+    }
+
+    private void OnDisable() => UnsubscribeFromSocial();
+
+    public void Build(WarDominionUITheme newTheme, WDProfileRepository newRepository,
+        WDNavigationStack navigationStack, Action<string, string> endpoint,
+        Action onIdentityChanged) => Build(newTheme, newRepository,
+        new WDSocialRepository(newRepository, Array.Empty<WDSocialMockSeed>()),
+        navigationStack, endpoint, onIdentityChanged);
+
     // ============================================================
     // 02. NAVEGAÇÃO CONTEXTUAL
     // ============================================================
 
-    public void OpenMyProfile() => NavigateProfile(repository.LocalProfile, true);
+    public void OpenMyProfile() => NavigateProfile(
+        repository.Present(repository.LocalProfile.PlayerId, true));
 
     public void OpenPublicProfile(string playerId)
     {
         WDProfileData profile = repository.Find(playerId);
         if (profile != null)
-            NavigateProfile(profile, false);
+            NavigateProfile(repository.Present(playerId));
     }
 
     public void HideFromNavigation()
@@ -75,7 +107,18 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
         CloseCustomization();
         CurrentView = WDProfileView.None;
         currentProfile = null;
+        currentPresentation = null;
         gameObject.SetActive(false);
+    }
+
+    private void OnDestroy() => UnsubscribeFromSocial();
+
+    private void UnsubscribeFromSocial()
+    {
+        if (subscribedSocial == null)
+            return;
+        subscribedSocial.Changed -= RefreshCurrentProfile;
+        subscribedSocial = null;
     }
 
     public bool TryHandleModalBack()
@@ -93,21 +136,24 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
         return false;
     }
 
-    private void NavigateProfile(WDProfileData profile, bool own)
+    private void NavigateProfile(WDProfilePresentation presentation)
     {
+        WDProfileData profile = presentation.Profile;
+        transform.SetAsLastSibling();
         navigation.Push(new WDNavigationContext(
-            own ? "profile/me" : $"profile/public/{profile.PlayerId}",
-            _ => RenderProfile(profile, own)));
+            presentation.IsOwner ? "profile/me" : $"profile/public/{profile.PlayerId}",
+            _ => RenderProfile(presentation)));
     }
 
     private void OpenHistory()
     {
-        WDProfileData profile = currentProfile;
+        WDProfilePresentation presentation = currentPresentation;
+        WDProfileData profile = presentation.Profile;
         navigation.Push(new WDNavigationContext($"profile/{profile.PlayerId}/history",
             state =>
             {
                 historyFilter = state as WDProfileMode?;
-                RenderHistory(profile);
+                RenderHistory(presentation);
             }, () => historyFilter));
     }
 
@@ -115,10 +161,13 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
     // 03. MEU PERFIL E PERFIL PÚBLICO
     // ============================================================
 
-    private void RenderProfile(WDProfileData profile, bool own)
+    private void RenderProfile(WDProfilePresentation presentation)
     {
+        WDProfileData profile = presentation.Profile;
+        bool own = presentation.IsOwner;
         gameObject.SetActive(true);
         currentProfile = profile;
+        currentPresentation = presentation;
         CurrentView = own ? WDProfileView.MyProfile : WDProfileView.PublicProfile;
         Clear(content);
         BuildHeader(own ? "MEU PERFIL" : "PERFIL");
@@ -146,29 +195,33 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
         AddSectionTitle(stats, "ESTATÍSTICAS");
         AddButton(stats, "History", "HISTÓRICO DE PARTIDAS >", OpenHistory,
             new Vector2(0.17f, 0.78f), new Vector2(0.43f, 0.96f));
-        if (own || profile.Privacy.StatisticsVisible)
-            AddText(stats, "Stats", StatsLine(profile.Statistics), 20f, theme.TextoPrincipal,
+        if (presentation.CanShowStatistics)
+            AddText(stats, "Stats", StatsLine(presentation.Statistics), 20f, theme.TextoPrincipal,
                 new Vector2(0.03f, 0.08f), new Vector2(0.97f, 0.70f), TextAlignmentOptions.Center);
         else
             AddPrivateState(stats, "ESTATÍSTICAS PRIVADAS", "Este jogador optou por não exibir suas estatísticas.");
 
         RectTransform performance = Panel("Performance", content, new Vector2(0.31f, 0.39f), new Vector2(0.75f, 0.64f));
         AddSectionTitle(performance, "DESEMPENHO POR MODO");
-        if (own || profile.Privacy.PerformanceVisible)
-            BuildModeStats(performance, profile);
+        if (presentation.CanShowModePerformance)
+            BuildModeStats(performance, presentation.ModeStats);
         else
             AddPrivateState(performance, "DESEMPENHO PRIVADO", "Este jogador optou por não exibir seu desempenho por modo.");
 
         RectTransform division = Panel("CurrentDivision", content, new Vector2(0.77f, 0.39f), new Vector2(0.98f, 0.64f));
         AddSectionTitle(division, "DIVISÃO ATUAL");
-        AddText(division, "Value", $"{profile.Division}\n{profile.DivisionPoints:N0} PONTOS", 21f,
-            theme.Acento, new Vector2(0.08f, 0.12f), new Vector2(0.92f, 0.72f), TextAlignmentOptions.Center);
+        AddText(division, "Emblem", "DIV", 20f, theme.Acento,
+            new Vector2(0.08f, 0.48f), new Vector2(0.92f, 0.72f), TextAlignmentOptions.Center);
+        AddText(division, "Value", $"{presentation.Division.DisplayName}\n{profile.DivisionPoints:N0} {(profile.IsLocalPlayer ? "TROFÉUS" : "PONTOS")}", 21f,
+            theme.Acento, new Vector2(0.08f, 0.12f), new Vector2(0.92f, 0.48f), TextAlignmentOptions.Center);
 
         RectTransform achievements = Panel("Achievements", content, new Vector2(0.31f, 0.10f), new Vector2(0.98f, 0.37f));
         AddSectionTitle(achievements, "CONQUISTAS");
-        if (own || profile.Privacy.AchievementsVisible)
+        if (presentation.CanShowMissionsAchievements)
         {
-            AddText(achievements, "Preview", "◎ PRIMEIRA DE MUITAS  1/1     ◇ TÁTICO SUPREMO  15/20 VITÓRIAS\n\n⬡ LEGIONÁRIO FIEL  284/500     ⚔ VETERANO DE GUERRA  CONCLUÍDA",
+            string progress = string.Join("     ", presentation.Achievements.Select(item =>
+                $"- {item.Title}  {item.Progress}"));
+            AddText(achievements, "Preview", progress,
                 16f, theme.TextoPrincipal, new Vector2(0.04f, 0.10f), new Vector2(0.96f, 0.72f), TextAlignmentOptions.Center);
             AddButton(achievements, "All", "VER TODAS >", () => openEndpoint?.Invoke("CONQUISTAS", "Catálogo completo ainda não implementado."),
                 new Vector2(0.79f, 0.78f), new Vector2(0.97f, 0.96f));
@@ -183,19 +236,50 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
         {
             WDProfileSocialState.Stranger => "ADICIONAR AMIGO",
             WDProfileSocialState.RequestSent => "SOLICITAÇÃO ENVIADA",
+            WDProfileSocialState.RequestReceived => "ACEITAR SOLICITAÇÃO",
             WDProfileSocialState.Friend => "AMIGO",
+            WDProfileSocialState.Self => "VOCÊ",
             _ => "JOGADOR BLOQUEADO"
         };
         if (profile.SocialState != WDProfileSocialState.Blocked)
-            AddButton(left, "Friend", state, () =>
+        {
+            WDUIPremiumButton friendButton = AddButton(left, "Friend", state, () =>
             {
-                profile.SendFriendRequest();
-                RenderProfile(profile, false);
+                if (profile.SocialState == WDProfileSocialState.Stranger)
+                    social?.SendFriendRequest(profile.PlayerId);
+                else if (profile.SocialState == WDProfileSocialState.RequestReceived)
+                    social?.AcceptReceived(profile.PlayerId);
+                RenderProfile(repository.Present(profile.PlayerId));
             }, new Vector2(0.08f, 0.20f), new Vector2(0.92f, 0.28f), profile.SocialState == WDProfileSocialState.Stranger);
-        AddButton(left, "Chat", "CHAT", () => openEndpoint?.Invoke("CHAT", "Endpoint estrutural. Sistema de mensagens ainda não implementado."),
+            friendButton.SetInteractable(profile.SocialState == WDProfileSocialState.Stranger ||
+                profile.SocialState == WDProfileSocialState.RequestReceived);
+        }
+        AddButton(left, "Chat", "CHAT", () =>
+        {
+            if (openDirectChat != null) openDirectChat(profile.PlayerId);
+            else openEndpoint?.Invoke("CHAT", "Endpoint estrutural. Sistema de mensagens ainda não implementado.");
+        },
             new Vector2(0.08f, 0.11f), new Vector2(0.72f, 0.19f));
-        AddButton(left, "More", "...", () => openEndpoint?.Invoke("PERFIL", "BLOQUEAR · requer confirmação explícita\nDENUNCIAR · endpoint estrutural"),
+        AddButton(left, "More", "...", () =>
+        {
+            if (profile.SocialState == WDProfileSocialState.Blocked)
+            {
+                openEndpoint?.Invoke("JOGADOR BLOQUEADO", "Desbloqueie este jogador pela aba BLOQUEADOS do Hub de Amigos.");
+                return;
+            }
+            if (confirmSocial != null)
+                confirmSocial("BLOQUEAR JOGADOR?", $"Bloquear {profile.Nickname}? Amizade e solicitações serão removidas.",
+                    () => social?.Block(profile.PlayerId));
+            else
+                openEndpoint?.Invoke("PERFIL", "BLOQUEAR · requer confirmação explícita\nDENUNCIAR · endpoint estrutural");
+        },
             new Vector2(0.75f, 0.11f), new Vector2(0.92f, 0.19f));
+    }
+
+    private void RefreshCurrentProfile()
+    {
+        if (IsOpen && currentProfile != null && CurrentView == WDProfileView.PublicProfile)
+            RenderProfile(repository.Present(currentProfile.PlayerId));
     }
 
     // ============================================================
@@ -237,12 +321,24 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
             int column = i % 4;
             int row = i / 4;
             bool selected = customization.Preview.GetValueOrDefault(category) == item.Id;
-            string label = $"{item.Name}\n{(selected ? "✓ EQUIPADO" : item.Owned ? "EQUIPAR" : "VER NA LOJA")}";
+            // O ID é canônico; o título comercial identifica o item adquirido para o jogador.
+            WDStoreProduct storeProduct = storeCatalog?.Products.FirstOrDefault(product =>
+                product != null && product.cosmeticId == item.Id);
+            string displayName = storeProduct?.title ?? item.Name;
+            string label = $"{displayName}\n{(selected ? "EQUIPADO" : item.Owned ? "POSSUÍDO · EQUIPAR" : "VER NA LOJA")}";
             AddButton(grid, item.Id, label, () =>
             {
-                customization.PreviewItem(item.Id);
                 if (!item.Owned)
-                    openEndpoint?.Invoke("LOJA", $"{item.Name} não foi concedido. Loja ainda não implementada.");
+                {
+                    if (openStoreForCosmetic != null)
+                    {
+                        CloseCustomization();
+                        openStoreForCosmetic(item);
+                        return;
+                    }
+                    openEndpoint?.Invoke("LOJA", $"{item.Name} ainda não está disponível na Loja.");
+                }
+                else customization.PreviewItem(item.Id);
                 RenderCustomization();
             }, new Vector2(0.03f + column * 0.24f, 0.53f - row * 0.46f),
                new Vector2(0.24f + column * 0.24f, 0.94f - row * 0.46f), selected);
@@ -256,7 +352,7 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
         if (customization.Save())
         {
             CloseCustomization();
-            RenderProfile(repository.LocalProfile, true);
+            RenderProfile(repository.Present(repository.LocalProfile.PlayerId, true));
         }
         else
             openEndpoint?.Invoke("ITEM NÃO POSSUÍDO", "A pré-visualização não concede nem equipa este item.");
@@ -278,9 +374,15 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
         AddText(panel, "Title", "EDITAR NOME", 25f, theme.TextoPrincipal, new Vector2(0.07f, 0.72f), new Vector2(0.93f, 0.93f));
         RectTransform field = Panel("Input", panel, new Vector2(0.08f, 0.43f), new Vector2(0.92f, 0.66f));
         nicknameInput = field.gameObject.AddComponent<TMP_InputField>();
-        TextMeshProUGUI text = AddText(field, "Text", repository.LocalProfile.Nickname, 19f, theme.TextoPrincipal, Vector2.zero, Vector2.one);
+        RectTransform viewport = WDHomeUIFactory.Rect("TextViewport", field);
+        WDHomeUIFactory.Stretch(viewport, 12f, 4f, 12f, 4f);
+        TextMeshProUGUI text = AddText(viewport, "Text", repository.LocalProfile.Nickname,
+            19f, theme.TextoPrincipal, Vector2.zero, Vector2.one);
         text.rectTransform.offsetMin = new Vector2(14f, 4f); text.rectTransform.offsetMax = new Vector2(-14f, -4f);
+        nicknameInput.textViewport = viewport;
         nicknameInput.textComponent = text;
+        nicknameInput.lineType = TMP_InputField.LineType.SingleLine;
+        nicknameInput.contentType = TMP_InputField.ContentType.Standard;
         nicknameInput.text = repository.LocalProfile.Nickname;
         AddButton(panel, "Cancel", "CANCELAR", CloseNicknameEditor, new Vector2(0.08f, 0.12f), new Vector2(0.45f, 0.32f));
         AddButton(panel, "Confirm", "SALVAR", ConfirmNickname, new Vector2(0.55f, 0.12f), new Vector2(0.92f, 0.32f), true);
@@ -310,16 +412,17 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
     // 05. HISTÓRICO E ENDPOINT DE REPLAY
     // ============================================================
 
-    private void RenderHistory(WDProfileData profile)
+    private void RenderHistory(WDProfilePresentation presentation)
     {
+        WDProfileData profile = presentation.Profile;
         gameObject.SetActive(true);
         currentProfile = profile;
+        currentPresentation = presentation;
         CurrentView = WDProfileView.History;
         Clear(content);
         BuildHeader("HISTÓRICO DE PARTIDAS");
         RectTransform body = Panel("History", content, new Vector2(0.02f, 0.06f), new Vector2(0.98f, 0.88f));
-        bool visible = profile.IsLocalPlayer || profile.Privacy.HistoryVisible;
-        if (!visible)
+        if (!presentation.CanShowMatchHistory)
         {
             VisibleHistoryCount = 0;
             AddPrivateState(body, "HISTÓRICO DE PARTIDAS PRIVADO", "Este jogador optou por não exibir seu histórico de partidas.");
@@ -330,16 +433,18 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
         for (int i = 0; i < filters.Length; i++)
         {
             var filter = filters[i];
-            AddButton(body, $"Filter_{filter.Item1}", filter.Item1, () => { historyFilter = filter.Item2; RenderHistory(profile); },
+            AddButton(body, $"Filter_{filter.Item1}", filter.Item1, () => { historyFilter = filter.Item2; RenderHistory(presentation); },
                 new Vector2(0.02f + i * 0.105f, 0.90f), new Vector2(0.115f + i * 0.105f, 0.98f), historyFilter == filter.Item2);
         }
-        IReadOnlyList<WDProfileMatchRecord> rows = WDProfileRepository.FilterHistory(profile, historyFilter);
+        IReadOnlyList<WDProfileMatchRecord> rows = WDProfileRepository.FilterHistory(presentation, historyFilter);
         VisibleHistoryCount = rows.Count;
         for (int i = 0; i < rows.Count; i++)
         {
             WDProfileMatchRecord row = rows[i];
             float top = 0.87f - i * 0.078f;
-            AddText(body, $"Match_{i}", $"{row.Result}   {row.MapName} · {ModeLabel(row.Mode)}     {row.Participants}     {row.PlayedAt}     PARTIDA: {row.MatchId}",
+            AddText(body, $"Match_{i}", $"{row.Result}   {row.MapName} · {ModeLabel(row.Mode)}" +
+                (string.IsNullOrEmpty(row.SubmodeId) ? string.Empty : $" · {row.SubmodeId}") +
+                $"     +{row.TrophiesEarned} TROFÉUS     {row.Participants}     {row.PlayedAt}     PARTIDA: {row.MatchId}",
                 13f, theme.TextoPrincipal, new Vector2(0.02f, top - 0.065f), new Vector2(0.79f, top));
             AddButton(body, $"Copy_{i}", "COPIAR ID", () => Copy(row.MatchId), new Vector2(0.80f, top - 0.06f), new Vector2(0.89f, top));
             AddButton(body, $"Replay_{i}", "VER DETALHES", () => RequestReplay(row.MatchId), new Vector2(0.90f, top - 0.06f), new Vector2(0.98f, top), true);
@@ -401,9 +506,10 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
         AddText(parent, "PrivateState", $"▣\n{title}\n{body}", 17f, theme.TextoSecundario,
             new Vector2(0.08f, 0.08f), new Vector2(0.92f, 0.78f), TextAlignmentOptions.Center);
 
-    private void BuildModeStats(Transform parent, WDProfileData profile)
+    private void BuildModeStats(Transform parent,
+        IReadOnlyDictionary<WDProfileMode, WDProfileStats> modeStats)
     {
-        string value = string.Join("\n", profile.ModeStats.Select(pair =>
+        string value = string.Join("\n", modeStats.Select(pair =>
             $"{ModeLabel(pair.Key),-8}  {StatsLine(pair.Value)}"));
         AddText(parent, "ModeStats", value, 14f, theme.TextoPrincipal,
             new Vector2(0.04f, 0.08f), new Vector2(0.96f, 0.74f), TextAlignmentOptions.Center);
@@ -423,7 +529,9 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
     }
 
     private static string StatsLine(WDProfileStats stats) =>
-        $"PARTIDAS {stats.Matches}     VITÓRIAS {stats.Wins}     DERROTAS {stats.Losses}     TAXA {stats.WinRate:0.0}%";
+        $"PARTIDAS {stats.Matches}     VITÓRIAS {stats.Wins}     DERROTAS {stats.Losses}" +
+        (stats.Draws > 0 ? $"     EMPATES {stats.Draws}" : string.Empty) +
+        $"     TAXA {stats.WinRate:0.0}%";
     private static string ModeLabel(WDProfileMode mode) => mode switch
     { WDProfileMode.Battle => "BATALHA", WDProfileMode.OneVsOne => "1V1", WDProfileMode.TwoVsTwo => "2V2", _ => "3V3" };
     private static void Clear(Transform parent)

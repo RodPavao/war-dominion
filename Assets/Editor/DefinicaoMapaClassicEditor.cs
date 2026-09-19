@@ -22,11 +22,12 @@ public static class DefinicaoMapaClassicEditor
     private const string CenaRiachuelo = "Assets/Mapas/Batalha do Riachuelo/Riachuelo.unity";
     private const string CenaDarkWorld = "Assets/Mapas/Dark World/DarkWorld.unity";
     private const string CenaPeloponeso = "Assets/Mapas/Peloponeso/Peloponeso.unity";
-    private const string MenuSelecionarClassic = "War Dominion/Ferramentas de Desenvolvimento/Mapas/Abrir/Clássico";
-    private const string MenuSelecionarPearlHarbor = "War Dominion/Ferramentas de Desenvolvimento/Mapas/Abrir/Pearl Harbor";
-    private const string MenuSelecionarRiachuelo = "War Dominion/Ferramentas de Desenvolvimento/Mapas/Abrir/Batalha do Riachuelo";
-    private const string MenuSelecionarDarkWorld = "War Dominion/Ferramentas de Desenvolvimento/Mapas/Abrir/Dark World";
-    private const string MenuSelecionarPeloponeso = "War Dominion/Ferramentas de Desenvolvimento/Mapas/Abrir/Peloponeso";
+    private const string MenuPreview = "War Dominion/Ferramentas de Desenvolvimento/Mapas/Abrir Preview Editorial (sem partida)/";
+    private const string MenuSelecionarClassic = MenuPreview + "Clássico";
+    private const string MenuSelecionarPearlHarbor = MenuPreview + "Pearl Harbor";
+    private const string MenuSelecionarRiachuelo = MenuPreview + "Batalha do Riachuelo";
+    private const string MenuSelecionarDarkWorld = MenuPreview + "Dark World";
+    private const string MenuSelecionarPeloponeso = MenuPreview + "Peloponeso";
     private static readonly (string MapaId, string MenuPath)[] MenusDeMapas =
     {
         ("classic", MenuSelecionarClassic),
@@ -126,7 +127,8 @@ public static class DefinicaoMapaClassicEditor
         PlayerPrefs.Save();
         EditorSceneManager.OpenScene(cena, OpenSceneMode.Single);
         SceneView.RepaintAll();
-        Debug.Log($"MAPAS | {nomeExibido} selecionado. O próximo Play Mode usará {mapaId}.");
+        Debug.Log($"PREVIEW EDITORIAL | {nomeExibido} aberto para inspeção. " +
+            "Para validar uma partida real, use Home → Match.");
     }
 
     private static void AoAlterarCenaAtiva(Scene anterior, Scene atual)
@@ -141,8 +143,21 @@ public static class DefinicaoMapaClassicEditor
 
     private static void AoAlterarPlayMode(PlayModeStateChange estado)
     {
+        if (estado == PlayModeStateChange.EnteredPlayMode &&
+            DeveAvisarPreviewEditorial(WDMatchSetupContext.Current != null,
+                ObterMapaDaCenaAtiva() != null))
+            Debug.LogWarning(
+                "PREVIEW EDITORIAL | Play iniciado sem WDMatchSetup. " +
+                "Este fluxo não representa uma partida completa; para validar " +
+                "gameplay, inicie pela Home.");
         if (estado == PlayModeStateChange.EnteredEditMode || estado == PlayModeStateChange.ExitingEditMode)
             EditorApplication.delayCall += SincronizarSelecaoComCenaAtiva;
+    }
+
+    internal static bool DeveAvisarPreviewEditorial(bool possuiMatchSetup,
+        bool cenaAtivaEhMapa)
+    {
+        return !possuiMatchSetup && cenaAtivaEhMapa;
     }
 
     private static bool CenaAtivaCorrespondeAoMapa(string mapaId)

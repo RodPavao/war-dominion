@@ -1,0 +1,69 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 34d5869799574d00b0977cc98458f283, type: 3}
+  m_Name: WDMapMigrationCalibrationStore
+  m_EditorClassIdentifier: Assembly-CSharp-Editor::WDMapMigrationCalibrationStore
+  calibrations:
+  - mapId: classic
+    territoryId: Afghanistan
+    scale: {x: 1.0986257, y: 1.0671233}
+    offsetPixels: {x: 210.13744, y: 24.10685}
+    rotationDegrees: 0
+    originalScale: {x: 1.0986257, y: 1.0671233}
+    originalOffsetPixels: {x: 210.13744, y: 24.10685}
+    originalRotationDegrees: 0
+    state: 0
+  - mapId: classic
+    territoryId: Alaska
+    scale: {x: 1.0986257, y: 1.099137}
+    offsetPixels: {x: 222.13744, y: 24.10685}
+    rotationDegrees: 0
+    originalScale: {x: 1.0986257, y: 1.099137}
+    originalOffsetPixels: {x: 222.13744, y: 24.10685}
+    originalRotationDegrees: 0
+    state: 0
+  - mapId: classic
+    territoryId: Alberta
+    scale: {x: 1.0986257, y: 1.0671233}
+    offsetPixels: {x: 220.7362, y: 26.086487}
+    rotationDegrees: 0
+    originalScale: {x: 1.0986257, y: 1.0671233}
+    originalOffsetPixels: {x: 214.13744, y: 24.10685}
+    originalRotationDegrees: 0
+    state: 0
+  - mapId: classic
+    territoryId: Algeria
+    scale: {x: 1.0986257, y: 1.0671233}
+    offsetPixels: {x: 216.33704, y: 23.186283}
+    rotationDegrees: 0
+    originalScale: {x: 1.0986257, y: 1.0671233}
+    originalOffsetPixels: {x: 214.13744, y: 20.10685}
+    originalRotationDegrees: 0
+    state: 0
+  - mapId: classic
+    territoryId: Arabia
+    scale: {x: 1.0986257, y: 1.0671233}
+    offsetPixels: {x: 212.00755, y: 25.97687}
+    rotationDegrees: 0
+    originalScale: {x: 1.0986257, y: 1.0671233}
+    originalOffsetPixels: {x: 210.13744, y: 24.10685}
+    originalRotationDegrees: 0
+    state: 0
+  - mapId: classic
+    territoryId: Argentina
+    scale: {x: 1.1315844, y: 1.0671233}
+    offsetPixels: {x: 203.17795, y: 19.613598}
+    rotationDegrees: 0
+    originalScale: {x: 1.1315844, y: 1.0671233}
+    originalOffsetPixels: {x: 206.13744, y: 20.10685}
+    originalRotationDegrees: 0
+    state: 0

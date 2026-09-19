@@ -90,7 +90,7 @@ public static class RiachueloEditor
         T("Esquina", "Esquina", "corrientes", 849.5f, 1815.5f, 831.4f, 1841.3f),
         T("MonteCaseros", "Monte Caseros", "corrientes", 1239.5f, 1892f, 1237.8f, 1889.9f),
         T("Villalbin", "Villalbín", "neembucu", 2526f, 1980.5f, 2515.7f, 1978.5f),
-        T("Pirane", "Pirané", "santa_fe", 2150f, 2075.5f, 2164.6f, 2091f)
+        T("Pirane", "Pirané", "formosa", 2150f, 2075.5f, 2164.6f, 2091f)
     };
 
     private static readonly Dictionary<string, (string Nome, int Bonus, int Ordem, Color Cor)> Regioes =

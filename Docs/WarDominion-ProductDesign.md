@@ -780,7 +780,7 @@ A coluna 6+ representa seis ou mais territórios perdidos. As tropas entram no p
 
 ### [DEFINITIVO — IMPLEMENTADO NO DOMÍNIO V1] Infiltrado
 
-- Energia: 25; nível único; cooldown geral previsto: três rounds.
+- Energia: 20; nível único; cooldown próprio após uso válido: quatro rounds.
 - Seleciona um adversário e uma ação de carta programada naquele round pelo `ActionId` exato; não seleciona território nem interfere em instalações persistentes.
 - A consulta expõe apenas `ActionId`, `WeaponId` e nome público. Origem, alvo, tropas, parâmetros e instalações permanecem ocultos.
 - Resolve em fase própria anterior à Paz e às demais ações anuláveis. Pode bloquear Paz ou instalação de Drone programada naquele round, mas não outro Infiltrado.
@@ -857,11 +857,33 @@ Identidades técnicas estáveis de jogador, território e mapa permanecem separa
 
 Progressão permanente da conta, loadout disponível na partida e estado runtime são camadas distintas. Energy e cooldown pertencem somente à sessão e nunca são gravados como progressão. Todo jogador inicia com zero Energy; disponibilidade é consultada por códigos técnicos estruturados, que futuramente serão convertidos em mensagens pelo sistema global de localização.
 
+### [DEFINITIVO] HUD funcional de Preparation e Resolution
+
+O HUD usa a mesma tela-base nas duas fases. O deck permanece à esquerda em grade 2 × 4. Em modos de equipe, Transferir e Ações formam um bloco compacto logo abaixo; em 1x1 e FFA, Transferir não reserva espaço e Ações sobe automaticamente para a primeira posição abaixo do deck. O topo esquerdo agrupa Energy, tropas disponíveis e tempo; Menu e Regiões ficam próximos desse painel. O topo direito contém somente Mensagens e Configurações. O botão inferior direito finaliza ações na Preparation e alterna Normal/Acelerado na Resolution, sem pular a resolução.
+
+A disponibilidade visual das cartas representa diretamente o runtime canônico: Energy, cooldown, lock inicial, nível, loadout e limites de uso. Como todos começam com zero Energy, no primeiro round a Central de Energia é a única carta naturalmente utilizável entre cartas com custo positivo; isso não deve ser contornado pela UI. Cartas sem Energy suficiente exibem explicitamente a relação Energy atual/custo. Travas iniciais e cooldowns mantêm também o custo canônico visível, sem confundir o relógio da trava com o cooldown próprio da arma.
+
+Durante cada Preparation, um jogador pode programar no máximo uma nova utilização de cada `WeaponId`. Cancelar validamente essa programação libera a carta para nova programação no mesmo round. Operações de instalações persistentes — como varredura do Radar, disparos de Drone ou Foguetes e operação automática da Artilharia — não constituem segunda utilização da carta.
+
+Regiões é uma camada estritamente informativa baseada em `DefinicaoMapa.Regioes`: colore temporariamente os territórios, mostra nome e bônus reais e bloqueia a interpretação de cliques como gameplay enquanto estiver ativa. Desativar restaura a aparência territorial canônica.
+
+Durante um targeting territorial explícito de arma, toda a área do território — inclusive o contador de tropas — é interpretada primeiro como alvo da arma. Fechar um modal de seleção ainda incompleta cancela o fluxo compartilhado, limpa o targeting e não cria ação nem consome Energy, cooldown ou limite de programação. Esses comandos funcionais permanecem desacoplados da composição visual provisória para futura ligação à UI importada do Figma.
+
+Durante a Preparation, tocar no perfil de aliado oferece Atacar, Defender, Transferir, Atenção e Foco. Esses marcadores são comunicação privada da equipe: não entram em filas, não gastam recursos, não alteram tropas/proprietário e são limpos ao sair da Preparation. Durante a Resolution, tocar no próprio perfil abre emojis e o filtro local de recepção. O resultado social não interfere em sinais táticos.
+
+Uma conquista confirmada pelo evento canônico de resolução solicita brilho forte sobre a forma inteira do território durante 1,5 segundo. A apresentação não calcula nem modifica a conquista.
+
+A seleção terrestre usa ressalto suave e persistente, sem translação: origem e destino crescem discretamente ao redor do centro da geometria territorial individual, nunca ao redor do centro da máscara ou do mapa, até confirmação, cancelamento, invalidação ou mudança de fase. O root lógico, o collider e o contador permanecem imóveis. Esse estado é visualmente distinto da conquista territorial comum, que usa somente glow temporário sem mover o território.
+
+Quando uma mudança canônica de proprietário completa pela primeira vez o controle individual de todos os territórios de uma região definida em `DefinicaoMapa.Regioes`, a resolução emite um evento visual regional separado. O efeito coordena simultaneamente os territórios membros com glow mais forte e leve escala visual durante aproximadamente 1,5 segundo. A detecção compara ownership anterior e posterior, não usa cor, tropas, Energy ou o overlay informativo e não se repete enquanto a região já estiver integralmente controlada.
+
 O ciclo real de rounds avança cooldown uma única vez por round. A consulta runtime não executa armas nem altera territórios. A composição autoritativa dos decks Normais e os níveis efetivos são capturados em snapshots por participante; Random Cards usa diretamente os IDs canônicos e níveis capturados, sem fallback silencioso fora das regras temporárias explicitamente aprovadas.
 
 ### Identidade e loadout da partida — decisão definitiva
 
 A Central de Energia é uma arma-base universal: integra o catálogo oficial de 26 armas, não ocupa os oito slots principais nem os dois slots de Apoio do deck Normal e não participa do sorteio Random Cards. Seu custo zero permite uso desde o Round 1, mas sua produção começa somente no Round 2. Quando possuída, usa o nível permanente capturado; quando ainda não possuída, recebe N1 temporário apenas naquela partida, sem alterar a progressão.
+
+A produção de Energy da Central ocorre no início dos três rounds seguintes à instalação (N1 +5, N2 +10, N3 +15 e N4 +20 por pagamento). Além dela, cada ataque terrestre que obtém sucesso efetivo segundo o `ResultadoAcaoTerrestre` canônico acumula +5 Energy para a Preparation do round seguinte. Tentativa fracassada, movimento, transferência e ocupação de território VAZIO sem combate não geram Energy. Os créditos pendentes de ataques e os pagamentos de Central são somados uma única vez na entrada da Preparation correspondente; somente então alteram o runtime autoritativo e atualizam imediatamente o indicador de Energy e a disponibilidade das cartas. Território e região não geram Energy: regiões completas concedem exclusivamente o bônus de tropas definido em `DefinicaoMapa.Regioes`.
 
 O Random Cards utiliza diretamente `WeaponId` canônico. Seu pool efetivo contém as 25 armas oficiais exceto `energy_plant`. Os antigos `card_01` a `card_24` eram placeholders derivados dos três decks mock de oito cards, não possuíam correspondência semântica e deixam de ser identidade funcional. Saves locais que ainda os contenham têm esses slots limpos, sem conversão inventada.
 
@@ -1157,7 +1179,9 @@ A camada visual nunca decide gameplay. `GameManager` e os resultados lógicos s�
 
 Transferência é a entrega completa do controle de um território a um aliado, preservando as tropas existentes nesse território. Não é movimentação de tropas.
 
-No modelo 2v2 atual há apenas um aliado elegível, portanto não é necessário perguntar o destinatário: a seleção direta do território é suficiente. A arquitetura deve continuar extensível para outros formatos.
+No modelo 2v2 atual há apenas um aliado elegível, portanto não é necessário perguntar o destinatário: ao escolher o território a entregar, a transferência é programada diretamente, sem confirmação adicional. No 3v3, o jogador primeiro escolhe um dos dois aliados em popup compacto; depois escolhe o território a entregar àquele destinatário, também sem confirmação adicional. Fechar o popup cancela o fluxo sem consumir a transferência, e escolher um território não troca automaticamente o aliado selecionado. A arquitetura deve continuar extensível para outros formatos.
+
+Concluir ou cancelar o targeting de transferência limpa o destaque transitório de seleção. Uma transferência já programada permanece identificável pela lista de ações, mas não mantém glow territorial concorrente durante o restante da Preparation.
 
 ### [DEFINITIVO] Regra visual
 
@@ -1481,26 +1505,118 @@ Ao atualizar:
 - Os contratos legados de reconhecimento do Drone e infiltração territorial foram
   removidos atomicamente na etapa 7D.7A-2; não existe execução paralela.
 
-## Armas V1 — Etapa 7D.7A-2 (execução canônica)
+## Armas V1 — Etapa 7D.7A-2 (registro histórico substituído)
 
-[IMPLEMENTADO — VALIDADO NO UNITY: 633/633 EDITMODE]
+[HISTÓRICO — as regras ativas posteriores prevalecem]
 
 - Ordem global: início do round; Infiltrado; Paz; Anulador; transferências;
   interferências; reforços; instalações/logística; Sniper; Propaganda; ofensivas;
   Artilharia automática; Paraquedistas; terrestres; consolidação.
 - Drone instala em território próprio e pode disparar no mesmo round por ação
   dependente. Cada instalação dispara no máximo uma vez por round; Flak intercepta,
-  Bunker absorve, Paz impede antes do lançamento e Sniper bloqueia sem consumir carga.
+  Bunker absorve e Paz impede antes do lançamento. A referência histórica a bloqueio
+  por Sniper foi revogada pelas regras ativas posteriores.
   Alvos inimigos, Neutros e Vazios são válidos; Vazio consome carga com dano efetivo
   zero. O segundo disparo remove a instalação.
 - Radar existente no início da Preparation usa uma porta imediata idempotente do
   `WDWeaponExecutionCoordinator`. Instalação do round corrente é inelegível. A leitura
   privada do autor detecta somente cobertura Flak e expira no próximo `BeginRound`.
-  Flak e Paz não bloqueiam; Sniper já programado no momento da tentativa bloqueia sem
-  consumo e sem rollback posterior.
-- Infiltrado bloqueia por `ActionId` antes da ação alvo, incluindo Paz e instalação
-  Drone do mesmo round. Operações persistentes não são elegíveis e outro Infiltrado
-  nunca é alvo.
+  Flak, Paz e Sniper não bloqueiam a varredura.
+- O contrato histórico por `ActionId` foi substituído por
+  `TargetPlayerId + TargetWeaponId`; consultar a seção ativa de Infiltrado.
 - `WDWeaponResolutionPipeline.ResolveRound` continua autoridade global única;
   `WDWeaponExecutionCoordinator` continua executor único e o GameManager apenas expõe
   portas finas de orquestração.
+# Preparation, Resolution e UX funcional das Armas V1 [ATIVO]
+
+## Autoridades canônicas
+
+- `WDWeaponPreparationService` registra, substitui, cancela e congela intenções; não executa efeitos.
+- `WDWeaponResolutionPipeline.ResolveRound` é a única autoridade global da Resolution.
+- `WDWeaponExecutionCoordinator` é o executor canônico das armas.
+- `GameManager` apenas orquestra as portas; `TerritorioClique` continua sendo o estado territorial real.
+- A apresentação consome resultados imutáveis da Resolution e nunca recalcula nem reaplica gameplay.
+
+## Preparation e HUD
+
+- A Preparation dura 90 segundos e opera sobre o mapa real.
+- O HUD apresenta oito armas em grade 2 × 4, Energy real, tropas disponíveis e cronômetro.
+- Transferência aparece somente em partidas com aliados. A lista AÇÕES reúne reforços, ações terrestres, transferências, armas programadas e operações de instalações.
+- Cartas distinguem disponível, selecionando, programada/cooldown prospectivo, cooldown real e indisponível.
+- Cancelar uma instalação cancela deterministicamente suas operações dependentes ainda reversíveis. Um Radar que já revelou informação é irreversível.
+- Blitzkrieg concede imediatamente seu limite terrestre ampliado durante a Preparation. Tropas Reservas e Recuperação concedem imediatamente um pool provisório distribuível, sem cobrar Energy/cooldown antes da Resolution.
+- Ordens que excedam o limite normal e distribuições vinculadas ao benefício guardam dependência da ação de arma. Cancelar ou substituir a ação remove deterministicamente essas dependências e restaura limite, tropas disponíveis, territórios, Energy, cooldown e usos ao estado equivalente a nunca programá-la.
+- A Resolution continua sendo a autoridade canônica: ela valida a ação e compromete seus custos, mas não duplica um benefício de planejamento que já foi materializado pela Preparation.
+- Durante Resolution os comandos de Preparation ficam bloqueados; a lista, quando aberta, é somente leitura.
+- O controle NORMAL / ACELERADO altera apenas apresentação e delays, nunca ordem, RNG ou resultado.
+
+## Infiltrado [REGRA ATIVA]
+
+- Energia: 20; cooldown próprio após uso válido: 4; cooldown forçado no `WeaponId` alvo: 3.
+- Round 1: indisponível, contador 2; Round 2: indisponível, contador 1; Round 3: disponível.
+- O alvo é `TargetPlayerId + TargetWeaponId`; a seleção por `TargetActionId` está obsoleta.
+- A arma escolhida recebe cooldown forçado 3 mesmo que não tenha sido programada. Se estiver programada, sua ação é bloqueada pela ordem canônica.
+- Infiltrado pode mirar outro Infiltrado. O primeiro válido por fase, OfficialPlayerOrder, ProgramOrder e ActionId prevalece.
+- O Infiltrado executado recebe cooldown próprio 4; um Infiltrado atingido recebe cooldown forçado 3.
+- Operações de instalações persistentes já existentes não são bloqueadas por essa seleção de arma.
+- O bloqueio aplica-se ao uso/acionamento programado da carta naquele round; não
+  desliga Radar, Drone, Foguetes, Artilharia, Flak, Central ou instalação persistente
+  equivalente já existente.
+
+## Radar [REGRA ATIVA]
+
+- Radar tem uma revelação e pode usá-la na mesma Preparation em que a instalação é programada.
+- A varredura é imediata, idempotente e revela somente se o território investigado possui cobertura de Flak.
+- O resultado pertence exclusivamente ao autor, dura apenas o round atual e não expõe nível, posição da Flak nem outras instalações.
+- Sniper não interfere com instalação, varredura, carga ou resultado do Radar.
+- Flak, Paz e Infiltrado não bloqueiam a varredura. A Resolution apenas representa o evento já ocorrido, sem segunda execução e sem mecanismo especial de retry por Sniper.
+
+## Sniper [REGRA ATIVA]
+
+- Sniper é ofensivo, causa uma baixa quando executado validamente e somente então
+  registra o bloqueio da origem atingida para ações terrestres e operações persistentes
+  cuja interação já esteja definida.
+- Paz vigente bloqueia Sniper antes do lançamento: não há dano, Energy, cooldown, uso
+  nem bloqueio residual.
+- Sniper não interfere com Radar nem Transporte Aéreo e não funciona como bloqueador
+  universal de WeaponId ou instalações.
+
+## Artilharia e Foguetes [REGRA ATIVA]
+
+- Artilharia usa munição persistente, não duração operacional: N1/N2 = 6; N3/N4 = 9. Dano: 1/2/2/3.
+- Dispara no máximo três vezes por round e no máximo uma vez por alvo, priorizando mais tropas e usando ID estável no desempate.
+- Munição não utilizada permanece; Sniper impede a operação sem consumir estoque. Captura e transporte preservam munição e nível.
+- Foguetes pode disparar no round da instalação, sem obrigatoriedade. Suas duas cargas são preservadas quando não usadas.
+
+## Instalações, transporte e sigilo [REGRA ATIVA]
+
+- Transporte Aéreo move tropas e, no máximo, uma instalação explicitamente transportável: Flak, Central, Artilharia, Foguetes, Drone ou Radar.
+- A quantidade é escolhida na Preparation entre 1 e o menor valor entre capacidade por nível (5/7/10/12/15/18) e tropas da origem menos a guarnição obrigatória de 1.
+- Ao chegar em território aliado, a instalação passa ao aliado e preserva integralmente nível, cargas, munição, duração e demais estados; isso não concede desbloqueio permanente.
+- Bunker e Campo Minado não são transportáveis.
+- Flak não intercepta Transporte Aéreo; Sniper também não impede tropas nem a instalação
+  selecionada de serem transportadas.
+- Campo Minado e Flak são visíveis somente ao proprietário e aliados; adversários e espectadores não os veem.
+- Resultado de Radar é privado ao autor, inclusive em 2v2 e 3v3.
+
+## Presentation funcional
+
+- Resultados de armas são apresentados com carta compacta sobre o mapa e estados visuais distintos para sucesso, bloqueio, interceptação, invalidação e conflito/substituição.
+- O popup de jogadores exibe avatar provisório, nome, patente, os quatro indicadores (territórios, tropas totais, tropas disponíveis e Energy) e os oito slots do deck em linha. Os perfis laterais seguem a `OfficialPlayerOrder` do round.
+- A lista AÇÕES fecha ao entrar na Resolution, pode ser reaberta opcionalmente e passa a exibir os resultados canônicos sem controles de cancelamento ou operação.
+- Instalações visíveis informam estado, cargas/munição, duração ou barreira sem duplicar a fonte autoritativa.
+- Premium Polish, shaders, animações cinematográficas, chat completo, espectadores e easter eggs permanecem fora desta etapa.
+
+## Labels de Regiões e autoria de mapas [ATIVO]
+
+- A label compacta usa `<NOME> +<BÔNUS>` e nunca altera regra, membros ou bônus da região.
+- Sem override, o runtime calcula o centroide dos centros territoriais e ancora a label no
+  território membro mais próximo desse centroide. Isso evita que a média caia no oceano
+  ou em espaço vazio distante da massa regional.
+- Labels já posicionadas participam de uma resolução determinística de overlap: posição
+  preferida, direita, esquerda, cima, baixo e diagonais, sempre limitada ao viewport.
+- `DefinicaoRegiaoMapa` armazena opcionalmente `possuiDeslocamentoLabelManual` e
+  `deslocamentoLabelManual`. Assets antigos usam automaticamente o fallback sem override.
+- Na aba Regiões do War Dominion Map Editor, a label selecionada pode ser arrastada no
+  preview. O comando **Resetar label para Automático** remove o override. Drag e reset
+  suportam Undo/Redo, marcam o asset dirty e não movem territórios.

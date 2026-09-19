@@ -1,5 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
+using System;
+using System.Linq;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -11,35 +13,60 @@ public sealed class WarDominionMatchHUD : MonoBehaviour
     // 01. ESTADO E REFERÊNCIAS DA COMPOSIÇÃO
     // ============================================================
 
-    private const int EnergiaMock = 100;
-    private static readonly int[] CustosDeckMock = { 15, 20, 25, 30, 35, 40, 45, 50 };
     private WarDominionUITheme theme;
     private IMatchUICommands commands;
+    private WDWeaponMatchUIController weaponUI;
+    private ResolutionSequenceController resolutionSequence;
+    private WDMatchInformationalOverlayController informationalOverlay;
     private MatchUIState state;
     private TextMeshProUGUI energyText, troopsText, timerText, roundText, phaseText, attackAmountText;
     private RectTransform playersContent, actionsContent, actionsDrawer, actionsDismissLayer, attackBar, popupLayer;
     private TextMeshProUGUI socialEmojiToast;
     private WDUIPremiumButton transferButton, confirmTransferButton, finishRoundButton,
-        decreaseAttackButton, increaseAttackButton, sendAttackButton;
-    private WDUIPremiumButton socialEmojiFilterButton;
+        decreaseAttackButton, increaseAttackButton, sendAttackButton, actionsButton;
+    private WDUIPremiumButton regionsButton;
+    private WDUIPremiumButton speedButton;
     private readonly List<WDUIPremiumButton> deckButtons = new List<WDUIPremiumButton>();
     private bool actionsOpen;
     private bool hideSocialEmojis;
-    private int selectedCard = -1;
+    private Action openChatHub;
+    private WDChatRepository chatRepository;
+    private string matchChatChannelId;
+    private GameObject chatUnreadIndicator;
     private Coroutine drawerAnimation;
     private Coroutine emojiToastAnimation;
     private string actionsContentKey = string.Empty;
     private string playersContentKey = string.Empty;
     private int lastPresentedRound = -1;
+    private GameManager.FaseTurno? lastPresentedPhase;
 
     // ============================================================
     // 02. COMPOSIÇÃO LATERAL, SEM PAINEL INFERIOR PERMANENTE
     // ============================================================
 
-    public void Build(WarDominionUITheme newTheme, IMatchUICommands newCommands)
+    public void Build(WarDominionUITheme newTheme, IMatchUICommands newCommands,
+        WDWeaponMatchUIController newWeaponUI,
+        ResolutionSequenceController newResolutionSequence,
+        WDMatchInformationalOverlayController newInformationalOverlay,
+        Action chatHubAction = null, WDChatRepository sharedChatRepository = null,
+        string sharedMatchChannelId = null)
     {
         theme = newTheme;
         commands = newCommands;
+        weaponUI = newWeaponUI;
+        resolutionSequence = newResolutionSequence;
+        if (resolutionSequence != null)
+        {
+            WDSettingsData preferences = WDSettingsRepository.LoadPersisted();
+            resolutionSequence.PlaybackSpeed = preferences.ResolutionSpeed ==
+                WDResolutionPresentationSpeed.Accelerated ? 2f : 1f;
+        }
+        informationalOverlay = newInformationalOverlay;
+        openChatHub = chatHubAction;
+        chatRepository = sharedChatRepository;
+        matchChatChannelId = sharedMatchChannelId;
+        if (chatRepository != null)
+            chatRepository.Changed += RefreshChatAttention;
         RectTransform left = CreateNeutralPanel("LeftCommandRail", Vector2.zero,
             new Vector2(0f, 1f), Vector2.zero, new Vector2(300f, 0f));
         RectTransform right = CreateNeutralPanel("RightCommandRail", new Vector2(1f, 0f),
@@ -65,14 +92,21 @@ public sealed class WarDominionMatchHUD : MonoBehaviour
         energyText = CreateIndicator(indicators, "ENERGIA", "E");
         troopsText = CreateIndicator(indicators, "TROPAS", "T");
         timerText = CreateIndicator(indicators, "TEMPO", "@");
+        RectTransform navigation = WDUIFactory.Rect("PrimaryNavigation", rail);
+        AnchorTop(navigation, 14f, 94f, 272f, 48f);
+        HorizontalLayoutGroup navigationRow = navigation.gameObject.AddComponent<HorizontalLayoutGroup>();
+        navigationRow.spacing = 6f; navigationRow.childControlWidth = true;
+        navigationRow.childForceExpandWidth = true;
+        CreateButton(navigation, "MENU", ShowMatchInfo);
+        regionsButton = CreateButton(navigation, "REGIÕES", ToggleRegions);
         roundText = CreateText(rail, "Round", theme.TypeTitle, theme.TextoPrincipal,
-            new Vector2(16f, -98f), new Vector2(268f, 32f));
+            new Vector2(16f, -150f), new Vector2(268f, 32f));
         phaseText = CreateText(rail, "Phase", theme.TypeMicro, theme.Acento,
-            new Vector2(16f, -128f), new Vector2(268f, 22f));
+            new Vector2(16f, -180f), new Vector2(268f, 22f));
         CreateText(rail, "DeckTitle", theme.TypeSection, theme.TextoSecundario,
-            new Vector2(16f, -164f), new Vector2(268f, 24f)).text = "DECK  8 SLOTS";
+            new Vector2(16f, -210f), new Vector2(268f, 24f)).text = "DECK  8 SLOTS";
         RectTransform deck = WDUIFactory.Rect("Deck", rail);
-        AnchorTop(deck, 16f, 194f, 268f, 356f);
+        AnchorTop(deck, 16f, 240f, 268f, 356f);
         GridLayoutGroup grid = deck.gameObject.AddComponent<GridLayoutGroup>();
         grid.cellSize = new Vector2(128f, 80f); grid.spacing = new Vector2(8f, 8f);
         grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount; grid.constraintCount = 2;
@@ -80,17 +114,18 @@ public sealed class WarDominionMatchHUD : MonoBehaviour
         {
             int slot = i;
             WDUIPremiumButton card = CreateButton(deck,
-                $"CARTA {i + 1}\nE {CustosDeckMock[i]}  CD --", () => ToggleCard(slot));
+                $"SLOT {i + 1}", () => ToggleCard(slot));
+            card.SetHoverFeedbackEnabled(false);
             card.GetComponent<LayoutElement>().preferredHeight = 80f;
             deckButtons.Add(card);
         }
         transferButton = CreateCompactControl(rail, "TransferControl", "< >  TRANSFERIR",
-            new Vector2(16f, -570f), ToggleTransfer);
+            new Vector2(16f, -616f), ToggleTransfer);
         confirmTransferButton = CreateCompactControl(rail, "ConfirmTransferControl",
-            "CONFIRMAR TRANSFERÊNCIA", new Vector2(16f, -626f),
+            "CONFIRMAR TRANSFERÊNCIA", new Vector2(16f, -672f),
             ConfirmTransferRecipient);
-        CreateCompactControl(rail, "ActionsControl", "=  AÇÕES",
-            new Vector2(16f, -682f), ToggleActionsDrawer);
+        actionsButton = CreateCompactControl(rail, "ActionsControl", "=  AÇÕES",
+            new Vector2(16f, -672f), ToggleActionsDrawer);
     }
 
     private void BuildRightRail(RectTransform rail)
@@ -99,10 +134,18 @@ public sealed class WarDominionMatchHUD : MonoBehaviour
         AnchorTop(tools, 14f, 14f, 272f, 48f);
         HorizontalLayoutGroup row = tools.gameObject.AddComponent<HorizontalLayoutGroup>();
         row.spacing = 6f; row.childControlWidth = true; row.childForceExpandWidth = true;
-        CreateButton(tools, "CHAT", ShowChatPopup);
-        socialEmojiFilterButton = CreateButton(tools, "EMOJI", ToggleSocialEmojiFilter);
-        CreateButton(tools, "INFO", ShowMatchInfo);
-        CreateButton(tools, "MENU", ShowMatchSettings);
+        WDUIPremiumButton chatButton = CreateButton(tools, "MENSAGENS", ShowMessagesPopup);
+        RectTransform unread = WDUIFactory.Rect("UnreadIndicator", chatButton.transform);
+        unread.anchorMin = unread.anchorMax = new Vector2(1f, 1f);
+        unread.pivot = new Vector2(1f, 1f);
+        unread.anchoredPosition = new Vector2(-4f, -4f);
+        unread.sizeDelta = new Vector2(14f, 14f);
+        Image unreadImage = unread.gameObject.AddComponent<Image>();
+        unreadImage.color = theme.Danger;
+        unreadImage.raycastTarget = false;
+        chatUnreadIndicator = unread.gameObject;
+        RefreshChatAttention();
+        CreateButton(tools, "CONFIGURAÇÕES", ShowMatchSettings);
         CreateText(rail, "PlayersTitle", theme.TypeSection, theme.TextoSecundario,
             new Vector2(16f, -84f), new Vector2(268f, 24f)).text = "ORDEM DO ROUND";
         playersContent = WDUIFactory.Rect("Players", rail);
@@ -111,6 +154,8 @@ public sealed class WarDominionMatchHUD : MonoBehaviour
         list.spacing = 8f; list.childControlHeight = true; list.childForceExpandHeight = false;
         finishRoundButton = CreateCompactControl(rail, "FinishRound", ">>  FINALIZAR ROUND",
             new Vector2(16f, -704f), FinishRound);
+        speedButton = CreateCompactControl(rail, "ResolutionSpeed", "NORMAL",
+            new Vector2(16f, -704f), ToggleResolutionSpeed);
     }
 
     // ============================================================
@@ -121,11 +166,16 @@ public sealed class WarDominionMatchHUD : MonoBehaviour
     {
         if (newState == null || theme == null) return;
         bool newRound = lastPresentedRound >= 0 && lastPresentedRound != newState.Round;
+        bool enteredResolution = lastPresentedPhase.HasValue &&
+            lastPresentedPhase.Value != GameManager.FaseTurno.Resolucao &&
+            newState.Fase == GameManager.FaseTurno.Resolucao;
         lastPresentedRound = newState.Round;
+        lastPresentedPhase = newState.Fase;
         state = newState;
-        if (newRound || state.Fase != GameManager.FaseTurno.Preparacao || state.AcoesEnviadas)
+        if (newRound || enteredResolution || state.AcoesEnviadas &&
+            state.Fase == GameManager.FaseTurno.Preparacao)
             CloseActionsDrawerImmediately();
-        energyText.text = $"E\n{EnergiaMock}";
+        energyText.text = $"E\n{weaponUI?.CurrentEnergy ?? 0}";
         troopsText.text = $"T\n{state.ReforcosDisponiveis}";
         int seconds = Mathf.CeilToInt(state.TempoRestante);
         timerText.text = $"@\n{seconds / 60:00}:{seconds % 60:00}";
@@ -134,56 +184,45 @@ public sealed class WarDominionMatchHUD : MonoBehaviour
             ? state.FeedbackSelecaoInicial
             : state.Fase.ToString().ToUpperInvariant();
         transferButton.SetInteractable(state.PodeEditarPreparacao && state.TransferenciaDisponivel && !state.TransferenciaUsada);
+        transferButton.gameObject.SetActive(state.UsaEquipes);
+        SetLeftRailControlPosition(actionsButton, ActionsControlTop(state.UsaEquipes));
         transferButton.SetSelected(state.EmModoTransferencia);
         transferButton.SetLabel(state.EmModoTransferencia ? "X  CANCELAR TRANSFERIR" : "< >  TRANSFERIR");
-        bool canConfirmTransfer = state.EmModoTransferencia &&
-            !string.IsNullOrEmpty(state.TerritorioTransferenciaId) &&
-            !state.TransferenciaUsada;
-        confirmTransferButton.gameObject.SetActive(canConfirmTransfer);
-        confirmTransferButton.SetInteractable(canConfirmTransfer);
-        confirmTransferButton.SetLabel(
-            state.DestinatariosTransferencia.Count > 1 &&
-            state.DestinatarioTransferenciaSelecionado == TerritorioClique.Dono.Neutro
-                ? "ESCOLHER ALIADO"
-                : "CONFIRMAR TRANSFERÊNCIA");
+        confirmTransferButton.gameObject.SetActive(false);
         finishRoundButton.SetInteractable(
             state.AcoesEnviadas
                 ? state.PodeCancelarEnvio
                 : state.PodeEnviarPreparacao && state.ReforcosDisponiveis == 0);
         finishRoundButton.SetLabel(state.AcoesEnviadas
-            ? "X  DESFAZER ENVIO"
+            ? "AÇÕES ENVIADAS"
             : ">>  FINALIZAR ROUND");
-        PresentSocialEmojiFilter();
+        finishRoundButton.gameObject.SetActive(state.Fase == GameManager.FaseTurno.Preparacao);
+        speedButton.gameObject.SetActive(state.Fase == GameManager.FaseTurno.Resolucao);
+        regionsButton?.SetSelected(informationalOverlay?.RegionsActive == true);
         PresentDeck();
         string newPlayersKey = BuildPlayersContentKey();
         if (newPlayersKey != playersContentKey)
             RebuildPlayers(newPlayersKey);
         PresentAttackBar();
         if (actionsOpen && BuildActionsContentKey() != actionsContentKey) RebuildActions();
+        PresentWeaponModalIfNeeded();
     }
 
     private void PresentDeck()
     {
+        IReadOnlyList<WDWeaponHudCardState> cards = weaponUI?.GetCards() ??
+            System.Array.Empty<WDWeaponHudCardState>();
         for (int i = 0; i < deckButtons.Count; i++)
         {
-            if (state != null && state.UsaRandomCards)
-            {
-                string cardId = i < state.CartasJogadorLocal.Count
-                    ? state.CartasJogadorLocal[i]
-                    : string.Empty;
-                bool occupied = !string.IsNullOrEmpty(cardId);
-                deckButtons[i].SetInteractable(occupied);
-                deckButtons[i].SetSelected(false);
-                deckButtons[i].SetLabel(occupied ? cardId : "VAZIO");
-                continue;
-            }
-
-            bool selected = selectedCard == i;
-            deckButtons[i].SetInteractable(CustosDeckMock[i] <= EnergiaMock);
-            deckButtons[i].SetSelected(false);
-            deckButtons[i].SetLabel(selected
-                ? $"X  CARTA {i + 1}\nE {CustosDeckMock[i]}  CD --"
-                : $"CARTA {i + 1}\nE {CustosDeckMock[i]}  CD --");
+            WDWeaponHudCardState card = i < cards.Count ? cards[i] : null;
+            bool selected = card?.Selected == true;
+            bool available = IsCardInteractable(card, state.PodeEditarPreparacao);
+            deckButtons[i].SetInteractable(
+                available || selected || ShouldAcceptInsufficientEnergyClick(card, state.PodeEditarPreparacao));
+            deckButtons[i].SetSelected(selected);
+            string status = FormatCardStatus(card, weaponUI?.CurrentEnergy ?? 0);
+            deckButtons[i].SetLabel(card == null ? "VAZIO" :
+                $"{(selected ? "X  " : string.Empty)}{card.DisplayName}\nN{card.Level}  {status}");
             Image background = deckButtons[i].GetComponent<Image>();
             TextMeshProUGUI label = deckButtons[i].GetComponentInChildren<TextMeshProUGUI>();
             if (selected && background != null)
@@ -191,6 +230,42 @@ public sealed class WarDominionMatchHUD : MonoBehaviour
             if (label != null)
                 label.color = selected ? theme.Danger : theme.TextoPrincipal;
         }
+    }
+
+    public static bool IsCardInteractable(WDWeaponHudCardState card, bool canEdit) =>
+        canEdit && card != null &&
+        card.AvailabilityReason == WDWeaponAvailabilityReason.Available;
+
+    public static bool ShouldAcceptInsufficientEnergyClick(
+        WDWeaponHudCardState card, bool canEdit) =>
+        canEdit && card != null &&
+        card.AvailabilityReason == WDWeaponAvailabilityReason.InsufficientEnergy;
+
+    public static string FormatCardStatus(WDWeaponHudCardState card, int currentEnergy)
+    {
+        if (card == null)
+            return "VAZIO";
+        if (card.Programmed)
+            return $"PROGRAMADA  CD {Mathf.Max(1, card.CooldownRemaining)}";
+        if (card.AvailabilityReason == WDWeaponAvailabilityReason.InitialRoundLock)
+            return $"BLOQUEADA {card.CooldownRemaining}  |  E {card.EnergyCost}";
+        if (card.AvailabilityReason == WDWeaponAvailabilityReason.Cooldown)
+            return $"CD {card.CooldownRemaining}  |  E {card.EnergyCost}";
+        if (card.AvailabilityReason == WDWeaponAvailabilityReason.InsufficientEnergy)
+            return $"ENERGIA {currentEnergy}/{card.EnergyCost}";
+        return $"E {card.EnergyCost}";
+    }
+
+    public static float ActionsControlTop(bool usesTeams) => usesTeams ? -672f : -616f;
+
+    private static void SetLeftRailControlPosition(
+        WDUIPremiumButton control, float top)
+    {
+        if (control == null)
+            return;
+        RectTransform rect = control.GetComponent<RectTransform>();
+        if (rect != null)
+            rect.anchoredPosition = new Vector2(rect.anchoredPosition.x, top);
     }
 
     // ============================================================
@@ -257,20 +332,44 @@ public sealed class WarDominionMatchHUD : MonoBehaviour
     {
         ClearChildren(actionsContent);
         actionsContentKey = BuildActionsContentKey();
+        bool readOnly = state.Fase == GameManager.FaseTurno.Resolucao;
         foreach (MatchUIReinforcementState reinforcement in state.Distribuicoes)
         {
             int id = reinforcement.Id;
             AddActionItem($"REFORÇO  +{reinforcement.Quantidade}\n{reinforcement.TerritorioId}",
-                () => commands?.RemoverDistribuicaoReforco(id));
+                readOnly ? null : () => commands?.RemoverDistribuicaoReforco(id));
         }
         foreach (MatchUIActionState action in state.Acoes)
         {
             int position = action.Posicao;
             AddActionItem($"{action.TipoEsperado}  x{action.Quantidade}\n{action.OrigemId} > {action.DestinoId}",
-                () => commands?.RemoverAcao(position));
+                readOnly ? null : () => commands?.RemoverAcao(position));
         }
         if (state.Transferencia != null)
-            AddActionItem($"TRANSFERÊNCIA\n{state.Transferencia.TerritorioId}", () => commands?.RemoverTransferencia());
+            AddActionItem($"TRANSFERÊNCIA\n{state.Transferencia.TerritorioId}",
+                readOnly ? null : () => commands?.RemoverTransferencia());
+        if (weaponUI != null)
+        {
+            foreach (WDWeaponAction action in weaponUI.GetProgrammedActions())
+            {
+                WDWeaponAction captured = action;
+                bool irreversible = weaponUI.IsIrreversible(action.ActionId);
+                string result = readOnly ? $"  |  {weaponUI.GetResolutionStatus(action.ActionId)}" : string.Empty;
+                AddActionItem($"ARMA  {action.WeaponId}{result}\n{action.OriginTerritoryId} > {action.TargetTerritoryId}",
+                    irreversible || state.Fase == GameManager.FaseTurno.Resolucao
+                        ? null : () => weaponUI.CancelAction(captured.ActionId));
+                if (!readOnly && action.WeaponId == WDTacticalWeaponIds.Radar && !irreversible)
+                    AddActionItem("USAR RADAR\nSelecionar território", () =>
+                        weaponUI.SelectProgrammedRadar(captured.ActionId));
+            }
+            foreach (WDWeaponHudInstallationState installation in weaponUI.GetVisibleInstallations()
+                .Where(item => item.CanOperate))
+            {
+                string id = installation.InstallationId;
+                AddActionItem($"{installation.DisplayName}\n{installation.TerritoryId}  CARGAS {installation.Charges}",
+                    readOnly ? null : () => weaponUI.SelectInstallation(id));
+            }
+        }
         if (actionsContent.childCount == 0)
         {
             TextMeshProUGUI empty = WDUIFactory.Text("Empty", actionsContent, theme, theme.TypeBody,
@@ -288,6 +387,10 @@ public sealed class WarDominionMatchHUD : MonoBehaviour
             key += $"|R:{item.Id}:{item.Quantidade}:{item.TerritorioId}";
         foreach (MatchUIActionState item in state.Acoes)
             key += $"|A:{item.Posicao}:{item.Quantidade}:{item.OrigemId}:{item.DestinoId}";
+        if (weaponUI != null)
+            foreach (WDWeaponAction item in weaponUI.GetProgrammedActions())
+                key += $"|W:{item.ActionId}:{item.WeaponId}:{item.TargetTerritoryId}:" +
+                    weaponUI.GetResolutionStatus(item.ActionId);
         return key;
     }
 
@@ -300,7 +403,8 @@ public sealed class WarDominionMatchHUD : MonoBehaviour
         TextMeshProUGUI text = CreateText(item, "Summary", theme.TypeMicro, theme.TextoPrincipal,
             new Vector2(10f, -8f), new Vector2(230f, 48f));
         text.text = summary; text.textWrappingMode = TextWrappingModes.Normal;
-        CreateMiniButton(item, "X", new Vector2(-42f, -10f), theme.Danger, remove);
+        if (remove != null)
+            CreateMiniButton(item, "X", new Vector2(-42f, -10f), theme.Danger, remove);
     }
 
     // ============================================================
@@ -343,8 +447,9 @@ public sealed class WarDominionMatchHUD : MonoBehaviour
                 button.transition = Selectable.Transition.None;
                 button.targetGraphic = background;
                 background.raycastTarget = true;
+                TerritorioClique.Dono captured = player.Jogador;
                 if (player.EhJogadorLocal) button.onClick.AddListener(ShowEmojiDrawer);
-                else button.onClick.AddListener(ShowTacticalPopup);
+                else button.onClick.AddListener(() => ShowTacticalPopup(captured));
             }
         }
     }
@@ -367,39 +472,101 @@ public sealed class WarDominionMatchHUD : MonoBehaviour
     // 07. POPUPS LOCAIS PROVISÓRIOS
     // ============================================================
 
-    private void ShowChatPopup() => ShowPopup("CHAT / MENSAGENS",
-        "TIME   CLÃ\n\nHistórico local provisório\n\n[ campo de mensagem ]   ENVIAR\n\nEMOJIS   |   SUPORTE");
+    private void ShowMessagesPopup()
+    {
+        if (openChatHub != null) openChatHub();
+        else ShowPopup("MENSAGENS", "Chat local temporariamente indisponível.");
+    }
+
+    private void RefreshChatAttention()
+    {
+        if (chatUnreadIndicator != null)
+            chatUnreadIndicator.SetActive(chatRepository?.HasExternalAttention(matchChatChannelId) == true);
+    }
+
+    private void OnDestroy()
+    {
+        if (chatRepository != null)
+            chatRepository.Changed -= RefreshChatAttention;
+    }
     private void ShowMatchSettings() => ShowPopup("CONFIGURAÇÕES DA PARTIDA",
         "CONFIGURAÇÕES\n\nMANUAL", "ABANDONAR PARTIDA", WDMatchSetupContext.ExitToHome);
-    private void ShowEmojiDrawer() => ShowPopup("EMOJIS RÁPIDOS",
-        "Envio social local provisório.", "ENVIAR  :) ", SendLocalTestEmoji);
-    private void ShowTacticalPopup() => ShowPopup("COMUNICAÇÃO TÁTICA",
-        "Selecione um comando local provisório.", "ATACAR   DEFENDER   TRANSFERIR", ClosePopup);
+    private void ShowEmojiDrawer()
+    {
+        if (state?.Fase != GameManager.FaseTurno.Resolucao)
+            return;
+        ClearChildren(popupLayer);
+        popupLayer.gameObject.SetActive(true);
+        RectTransform panel = CreateNeutralPanel("EmojiDrawer", new Vector2(0.5f, 0.5f),
+            new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(560f, 360f), popupLayer);
+        CreateText(panel, "Title", theme.TypeTitle, theme.TextoPrincipal,
+            new Vector2(24f, -24f), new Vector2(450f, 42f)).text = "EMOJIS RÁPIDOS";
+        CreateMiniButton(panel, "X", new Vector2(-54f, -20f), theme.Danger, ClosePopup);
+        CreateText(panel, "State", theme.TypeBody, theme.TextoSecundario,
+            new Vector2(24f, -92f), new Vector2(500f, 40f)).text = hideSocialEmojis
+                ? "Emojis recebidos: OCULTOS" : "Emojis recebidos: VISÍVEIS";
+        RectTransform actions = WDUIFactory.Rect("EmojiActions", panel);
+        actions.anchorMin = new Vector2(0.08f, 0.12f);
+        actions.anchorMax = new Vector2(0.92f, 0.60f);
+        actions.offsetMin = actions.offsetMax = Vector2.zero;
+        VerticalLayoutGroup layout = actions.gameObject.AddComponent<VerticalLayoutGroup>();
+        layout.spacing = 10f; layout.childControlHeight = true;
+        layout.childForceExpandHeight = false;
+        WDUIPremiumButton send = CreateButton(actions, ":)  ENVIAR EMOJI", SendLocalTestEmoji);
+        send.GetComponent<LayoutElement>().preferredHeight = 56f;
+        WDUIPremiumButton filter = CreateButton(actions,
+            hideSocialEmojis ? "HABILITAR EMOJIS RECEBIDOS" : "OCULTAR EMOJIS RECEBIDOS",
+            ToggleSocialEmojiFilter);
+        filter.GetComponent<LayoutElement>().preferredHeight = 56f;
+    }
+
+    private void ShowTacticalPopup(TerritorioClique.Dono ally)
+    {
+        if (state?.Fase != GameManager.FaseTurno.Preparacao)
+            return;
+        if (informationalOverlay?.IsSelectingTacticalTerritory == true)
+        {
+            informationalOverlay.CancelTacticalSelection();
+            return;
+        }
+        ClearChildren(popupLayer);
+        popupLayer.gameObject.SetActive(true);
+        Image blocker = popupLayer.gameObject.GetComponent<Image>() ??
+            popupLayer.gameObject.AddComponent<Image>();
+        blocker.color = new Color(0f, 0f, 0f, 0.18f);
+        blocker.raycastTarget = true;
+        Button dismiss = popupLayer.gameObject.GetComponent<Button>() ??
+            popupLayer.gameObject.AddComponent<Button>();
+        dismiss.transition = Selectable.Transition.None;
+        dismiss.onClick.RemoveAllListeners();
+        dismiss.onClick.AddListener(() =>
+        {
+            informationalOverlay?.CancelTacticalSelection();
+            ClosePopup();
+        });
+        RectTransform panel = CreateNeutralPanel("TacticalRadial", new Vector2(1f, 0.5f),
+            new Vector2(1f, 0.5f), new Vector2(-312f, 60f), new Vector2(480f, 420f), popupLayer);
+        CreateText(panel, "Title", theme.TypeSection, theme.TextoPrincipal,
+            new Vector2(90f, -20f), new Vector2(300f, 36f)).text = "COMUNICAÇÃO TÁTICA";
+        string[] labels = { "!  ATACAR", "#  DEFENDER", ">  TRANSFERIR", "?  ATENÇÃO", "+  FOCO" };
+        for (int i = 0; i < labels.Length; i++)
+        {
+            int captured = i;
+            float angle = Mathf.Lerp(120f, 240f, i / 4f) * Mathf.Deg2Rad;
+            Vector2 position = new Vector2(220f + Mathf.Cos(angle) * 150f,
+                -205f - Mathf.Sin(angle) * 150f);
+            CreateCompactControl(panel, "Tactical_" + i, labels[i], position,
+                () => { informationalOverlay?.BeginTacticalPing(ally,
+                    (WDTacticalPingKind)captured); ClosePopup(); }, 180f);
+        }
+        CreateMiniButton(panel, "X", new Vector2(-54f, -20f), theme.Danger, ClosePopup);
+    }
 
     // ============================================================
     // 08. SELEÇÃO REUTILIZÁVEL DO DESTINATÁRIO DA TRANSFERÊNCIA
     // ============================================================
 
-    private void ConfirmTransferRecipient()
-    {
-        if (state == null || state.DestinatariosTransferencia.Count == 0)
-            return;
-
-        if (state.DestinatariosTransferencia.Count == 1)
-        {
-            commands?.ConfirmarTransferencia();
-            return;
-        }
-
-        if (state.DestinatarioTransferenciaSelecionado !=
-            TerritorioClique.Dono.Neutro)
-        {
-            commands?.ConfirmarTransferencia();
-            return;
-        }
-
-        ShowTransferRecipientPopup();
-    }
+    private void ConfirmTransferRecipient() => ShowTransferRecipientPopup();
 
     private void ShowTransferRecipientPopup()
     {
@@ -418,7 +585,7 @@ public sealed class WarDominionMatchHUD : MonoBehaviour
             new Vector2(24f, -24f), new Vector2(520f, 42f)).text =
             "TRANSFERIR PARA QUAL ALIADO?";
         CreateMiniButton(panel, "X", new Vector2(-54f, -20f),
-            theme.Danger, ClosePopup);
+            theme.Danger, CancelTransferPopup);
 
         RectTransform options = WDUIFactory.Rect("Recipients", panel);
         options.anchorMin = new Vector2(0.08f, 0.14f);
@@ -467,23 +634,83 @@ public sealed class WarDominionMatchHUD : MonoBehaviour
 
     private void ShowMatchInfo()
     {
-        string body = $"ROUND {state?.Round ?? 0}\n\n";
-        if (state != null)
-            foreach (MatchUIPlayerState player in state.Jogadores)
-            {
-                int totalTroops = 0;
-                foreach (MatchUITerritoryState territory in state.Territorios)
-                    if (territory.Proprietario == player.Jogador)
-                        totalTroops += territory.Tropas;
-                string team = state.UsaEquipes ? $"  |  {player.Equipe}" : string.Empty;
-                body += $"{player.Nome}{team}\nMapa {player.TerritoriosControlados}   " +
-                    $"Tropas {totalTroops}   Disponíveis {(player.EhJogadorLocal ? state.ReforcosDisponiveis : 0)}   " +
-                    $"Energia {EnergiaMock}\nDeck: {(player.EhJogadorLocal ? "ATUAL" : "OCULTO")}\n\n";
-            }
-        ShowPopup("INFORMAÇÕES DA PARTIDA", body);
+        ClearChildren(popupLayer);
+        popupLayer.gameObject.SetActive(true);
+        Image blocker = popupLayer.gameObject.GetComponent<Image>() ??
+            popupLayer.gameObject.AddComponent<Image>();
+        blocker.color = new Color(0f, 0f, 0f, 0.66f);
+        blocker.raycastTarget = true;
+        RectTransform panel = CreateNeutralPanel("PlayersPopup", new Vector2(0.5f, 0.5f),
+            new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1180f, 700f), popupLayer);
+        CreateText(panel, "Title", theme.TypeTitle, theme.TextoPrincipal,
+            new Vector2(24f, -20f), new Vector2(1040f, 42f)).text =
+            $"JOGADORES  |  ROUND {state?.Round ?? 0}";
+        CreateMiniButton(panel, "X", new Vector2(-54f, -20f), theme.Danger, ClosePopup);
+        RectTransform content = WDUIFactory.Rect("PlayerCards", panel);
+        Stretch(content, 24f, 24f, 82f, 24f);
+        VerticalLayoutGroup list = content.gameObject.AddComponent<VerticalLayoutGroup>();
+        list.spacing = 10f; list.childControlHeight = true; list.childForceExpandHeight = false;
+        if (state == null) return;
+        foreach (MatchUIPlayerState player in state.Jogadores)
+            CreatePlayerInformationCard(content, player);
     }
 
-    private void ShowPopup(string title, string body, string actionLabel = null, UnityEngine.Events.UnityAction action = null)
+    private void CreatePlayerInformationCard(Transform parent, MatchUIPlayerState player)
+    {
+        RectTransform card = WDUIFactory.Rect("PlayerInfo_" + player.Jogador, parent);
+        card.gameObject.AddComponent<LayoutElement>().preferredHeight = 118f;
+        Image background = card.gameObject.AddComponent<Image>();
+        background.color = new Color(0.02f, 0.02f, 0.025f, 0.98f);
+        Image avatar = WDUIFactory.Rect("Avatar", card).gameObject.AddComponent<Image>();
+        avatar.color = player.Cor;
+        avatar.rectTransform.anchorMin = avatar.rectTransform.anchorMax = new Vector2(0f, 0.5f);
+        avatar.rectTransform.pivot = new Vector2(0f, 0.5f);
+        avatar.rectTransform.anchoredPosition = new Vector2(14f, 0f);
+        avatar.rectTransform.sizeDelta = new Vector2(72f, 72f);
+        string team = state.UsaEquipes ? $"  |  {player.Equipe}" : string.Empty;
+        CreateText(card, "Identity", theme.TypeBody, theme.TextoPrincipal,
+            new Vector2(100f, -10f), new Vector2(250f, 42f)).text =
+            $"{player.Nome}{team}\nPATENTE  --";
+        int totalTroops = state.Territorios
+            .Where(item => item.Proprietario == player.Jogador).Sum(item => item.Tropas);
+        int available = player.EhJogadorLocal ? state.ReforcosDisponiveis : 0;
+        string playerId = state == null ? string.Empty :
+            weaponUI?.PlayerIdForOwner(player.Jogador) ?? string.Empty;
+        CreateText(card, "Indicators", theme.TypeMicro, theme.TextoSecundario,
+            new Vector2(360f, -10f), new Vector2(780f, 24f)).text =
+            $"TERRITÓRIOS {player.TerritoriosControlados}   TROPAS {totalTroops}   " +
+            $"DISPONÍVEIS {available}   ENERGY {weaponUI?.GetPlayerEnergy(playerId) ?? 0}";
+        RectTransform deck = WDUIFactory.Rect("Deck", card);
+        deck.anchorMin = deck.anchorMax = new Vector2(0f, 1f);
+        deck.pivot = new Vector2(0f, 1f); deck.anchoredPosition = new Vector2(360f, -42f);
+        deck.sizeDelta = new Vector2(790f, 62f);
+        GridLayoutGroup grid = deck.gameObject.AddComponent<GridLayoutGroup>();
+        grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount; grid.constraintCount = 8;
+        grid.cellSize = new Vector2(91f, 54f); grid.spacing = new Vector2(7f, 0f);
+        IReadOnlyList<string> cards = weaponUI?.GetDeckCardLabels(playerId) ??
+            System.Array.Empty<string>();
+        for (int i = 0; i < 8; i++)
+        {
+            RectTransform slot = WDUIFactory.Rect("Card_" + (i + 1), deck);
+            Image slotBackground = slot.gameObject.AddComponent<Image>();
+            slotBackground.color = new Color(0.045f, 0.045f, 0.055f, 1f);
+            TextMeshProUGUI label = WDUIFactory.Text("Label", slot, theme, theme.TypeMicro,
+                theme.TextoPrincipal, TextAlignmentOptions.Center);
+            Stretch(label.rectTransform, 3f, 3f, 3f, 3f);
+            label.text = i < cards.Count ? cards[i] : "--";
+            label.textWrappingMode = TextWrappingModes.Normal;
+        }
+    }
+
+    private void ToggleRegions()
+    {
+        informationalOverlay?.ToggleRegions();
+        regionsButton?.SetSelected(informationalOverlay?.RegionsActive == true);
+    }
+
+    private void ShowPopup(string title, string body, string actionLabel = null,
+        UnityEngine.Events.UnityAction action = null,
+        UnityEngine.Events.UnityAction closeAction = null)
     {
         ClearChildren(popupLayer); popupLayer.gameObject.SetActive(true);
         Image blocker = popupLayer.gameObject.GetComponent<Image>() ?? popupLayer.gameObject.AddComponent<Image>();
@@ -492,7 +719,8 @@ public sealed class WarDominionMatchHUD : MonoBehaviour
             Vector2.zero, new Vector2(620f, 560f), popupLayer);
         CreateText(panel, "Title", theme.TypeTitle, theme.TextoPrincipal,
             new Vector2(24f, -24f), new Vector2(520f, 42f)).text = title;
-        CreateMiniButton(panel, "X", new Vector2(-54f, -20f), theme.Danger, ClosePopup);
+        CreateMiniButton(panel, "X", new Vector2(-54f, -20f), theme.Danger,
+            closeAction ?? ClosePopup);
         TextMeshProUGUI bodyText = CreateText(panel, "Body", theme.TypeBody, theme.TextoSecundario,
             new Vector2(24f, -90f), new Vector2(572f, 380f));
         bodyText.text = body; bodyText.textWrappingMode = TextWrappingModes.Normal;
@@ -507,6 +735,18 @@ public sealed class WarDominionMatchHUD : MonoBehaviour
     }
 
     private void ClosePopup() => popupLayer.gameObject.SetActive(false);
+
+    public void CancelWeaponSelectionAndClosePopup()
+    {
+        weaponUI?.CancelSelection();
+        ClosePopup();
+    }
+
+    private void CancelTransferPopup()
+    {
+        commands?.SelecionarModoAcao();
+        ClosePopup();
+    }
 
     // ============================================================
     // 08. FILTRO LOCAL DE RECEPÇÃO DE EMOJIS SOCIAIS
@@ -531,16 +771,7 @@ public sealed class WarDominionMatchHUD : MonoBehaviour
     private void ToggleSocialEmojiFilter()
     {
         hideSocialEmojis = !hideSocialEmojis;
-        PresentSocialEmojiFilter();
-    }
-
-    private void PresentSocialEmojiFilter()
-    {
-        if (socialEmojiFilterButton == null)
-            return;
-
-        socialEmojiFilterButton.SetSelected(hideSocialEmojis);
-        socialEmojiFilterButton.SetLabel(hideSocialEmojis ? "X EMOJI" : "EMOJI");
+        ClosePopup();
     }
 
     private void SendLocalTestEmoji()
@@ -574,20 +805,159 @@ public sealed class WarDominionMatchHUD : MonoBehaviour
 
     private void ToggleCard(int slot)
     {
-        if (state != null && state.UsaRandomCards)
-        {
-            commands?.UsarCarta(slot);
+        IReadOnlyList<WDWeaponHudCardState> cards = weaponUI?.GetCards();
+        if (cards == null || slot < 0 || slot >= cards.Count)
             return;
-        }
-
-        selectedCard = selectedCard == slot ? -1 : slot;
+        if (cards[slot].Selected)
+            weaponUI.CancelSelection();
+        else if (weaponUI.SelectWeapon(cards[slot].WeaponId))
+            PresentWeaponSelectionPopupIfNeeded();
+        else if (cards[slot].AvailabilityReason ==
+            WDWeaponAvailabilityReason.InsufficientEnergy)
+            deckButtons[slot].PlayDeniedFeedback();
         PresentDeck();
+    }
+
+    private void PresentWeaponSelectionPopupIfNeeded()
+    {
+        if (weaponUI.Stage == WDWeaponHudSelectionStage.TargetPlayer)
+            ShowWeaponPlayerPopup();
+        else if (weaponUI.Stage == WDWeaponHudSelectionStage.Parameters)
+            ShowTransportPopup();
+        else if (weaponUI.Stage == WDWeaponHudSelectionStage.RadarConfirmation)
+            ShowRadarConfirmation();
+    }
+
+    private void PresentWeaponModalIfNeeded()
+    {
+        if (weaponUI == null || popupLayer.gameObject.activeSelf)
+            return;
+        PresentWeaponSelectionPopupIfNeeded();
+    }
+
+    private void ShowTransportPopup()
+    {
+        ClearChildren(popupLayer); popupLayer.gameObject.SetActive(true);
+        Image blocker = popupLayer.gameObject.GetComponent<Image>() ?? popupLayer.gameObject.AddComponent<Image>();
+        blocker.color = new Color(0f, 0f, 0f, 0.66f); blocker.raycastTarget = true;
+        RectTransform panel = CreateNeutralPanel("TransportPopup", new Vector2(0.5f, 0.5f),
+            new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(760f, 520f), popupLayer);
+        CreateText(panel, "Title", theme.TypeTitle, theme.TextoPrincipal,
+            new Vector2(24f, -24f), new Vector2(640f, 42f)).text = "TRANSPORTE AÉREO";
+        CreateMiniButton(panel, "X", new Vector2(-54f, -20f), theme.Danger,
+            CancelWeaponSelectionAndClosePopup);
+        RectTransform options = WDUIFactory.Rect("Options", panel);
+        Stretch(options, 24f, 24f, 100f, 36f);
+        VerticalLayoutGroup layout = options.gameObject.AddComponent<VerticalLayoutGroup>();
+        layout.spacing = 10f; layout.childControlHeight = true; layout.childForceExpandHeight = false;
+        RectTransform amount = WDUIFactory.Rect("Amount", options);
+        amount.gameObject.AddComponent<LayoutElement>().preferredHeight = 58f;
+        HorizontalLayoutGroup amountLayout = amount.gameObject.AddComponent<HorizontalLayoutGroup>();
+        amountLayout.spacing = 8f; amountLayout.childControlWidth = true;
+        amountLayout.childForceExpandWidth = true;
+        CreateButton(amount, "-", () => { weaponUI.ChangeTransportTroops(-1); ShowTransportPopup(); });
+        CreateButton(amount, $"TROPAS  {weaponUI.TransportTroops} / {weaponUI.MaximumTransportTroops}", null);
+        CreateButton(amount, "+", () => { weaponUI.ChangeTransportTroops(1); ShowTransportPopup(); });
+        CreateButton(options, $"CONFIRMAR {weaponUI.TransportTroops} — SEM INSTALAÇÃO", () =>
+        {
+            weaponUI.ConfirmTransport(weaponUI.TransportTroops, string.Empty); ClosePopup();
+        }).GetComponent<LayoutElement>().preferredHeight = 58f;
+        foreach (WDWeaponHudInstallationState installation in weaponUI.GetVisibleInstallations()
+            .Where(item => item.OwnerPlayerId == weaponUI.LocalPlayerId &&
+                item.TerritoryId == weaponUI.CurrentOriginId &&
+                (item.WeaponId == WDSupportWeaponIds.FlakTower ||
+                 item.WeaponId == WDStrategicWeaponIds.EnergyPlant ||
+                 item.WeaponId == WDStrategicWeaponIds.Artillery ||
+                 item.WeaponId == WDStrategicWeaponIds.Rockets ||
+                 item.WeaponId == WDSpecialWeaponIds.Drone ||
+                 item.WeaponId == WDTacticalWeaponIds.Radar)))
+        {
+            string id = installation.InstallationId;
+            CreateButton(options, $"{weaponUI.TransportTroops} TROPAS + {installation.DisplayName}", () =>
+            {
+                weaponUI.ConfirmTransport(weaponUI.TransportTroops, id); ClosePopup();
+            }).GetComponent<LayoutElement>().preferredHeight = 58f;
+        }
+    }
+
+    private void ShowRadarConfirmation()
+    {
+        ShowPopup("RADAR — USO IRREVERSÍVEL",
+            "A varredura revela somente a existência de cobertura Flak neste território.",
+            "CONFIRMAR", () => { weaponUI.ConfirmRadarScan(); ClosePopup(); },
+            CancelWeaponSelectionAndClosePopup);
+    }
+
+    private void ShowWeaponPlayerPopup()
+    {
+        ClearChildren(popupLayer); popupLayer.gameObject.SetActive(true);
+        Image blocker = popupLayer.gameObject.GetComponent<Image>() ?? popupLayer.gameObject.AddComponent<Image>();
+        blocker.color = new Color(0f, 0f, 0f, 0.66f); blocker.raycastTarget = true;
+        RectTransform panel = CreateNeutralPanel("WeaponPlayerPopup", new Vector2(0.5f, 0.5f),
+            new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(900f, 620f), popupLayer);
+        CreateText(panel, "Title", theme.TypeTitle, theme.TextoPrincipal,
+            new Vector2(24f, -24f), new Vector2(780f, 42f)).text = "SELECIONE O ADVERSÁRIO";
+        CreateMiniButton(panel, "X", new Vector2(-54f, -20f), theme.Danger,
+            CancelWeaponSelectionAndClosePopup);
+        RectTransform options = WDUIFactory.Rect("Options", panel);
+        Stretch(options, 24f, 24f, 90f, 24f);
+        VerticalLayoutGroup layout = options.gameObject.AddComponent<VerticalLayoutGroup>();
+        layout.spacing = 10f; layout.childControlHeight = true; layout.childForceExpandHeight = false;
+        foreach (WDMatchParticipant opponent in weaponUI.GetOpponents())
+        {
+            string id = opponent.PlayerId;
+            WDUIPremiumButton button = CreateButton(options,
+                $"{opponent.Nickname}\n{weaponUI.DescribeDeck(id)}", () =>
+                {
+                    weaponUI.SelectTargetPlayer(id);
+                    if (weaponUI.Stage == WDWeaponHudSelectionStage.TargetWeapon)
+                        ShowInfiltratorWeaponPopup(id);
+                    else ClosePopup();
+                });
+            button.GetComponent<LayoutElement>().preferredHeight = 82f;
+        }
+    }
+
+    private void ShowInfiltratorWeaponPopup(string playerId)
+    {
+        ClearChildren(popupLayer);
+        RectTransform panel = CreateNeutralPanel("InfiltratorPopup", new Vector2(0.5f, 0.5f),
+            new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1100f, 420f), popupLayer);
+        CreateText(panel, "Title", theme.TypeTitle, theme.TextoPrincipal,
+            new Vector2(24f, -24f), new Vector2(980f, 42f)).text = "INFILTRADO — ESCOLHA UMA ARMA";
+        CreateMiniButton(panel, "X", new Vector2(-54f, -20f), theme.Danger,
+            CancelWeaponSelectionAndClosePopup);
+        RectTransform options = WDUIFactory.Rect("Weapons", panel);
+        Stretch(options, 24f, 24f, 100f, 40f);
+        GridLayoutGroup grid = options.gameObject.AddComponent<GridLayoutGroup>();
+        grid.cellSize = new Vector2(245f, 82f); grid.spacing = new Vector2(10f, 10f);
+        grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount; grid.constraintCount = 4;
+        foreach (WDInfiltratorWeaponTarget target in weaponUI.GetInfiltratorWeapons(playerId))
+        {
+            string weaponId = target.WeaponId;
+            CreateButton(options, $"{target.DisplayName}\nN{target.Level}", () =>
+            {
+                weaponUI.SelectInfiltratorWeapon(weaponId); ClosePopup();
+            });
+        }
+    }
+
+    private void ToggleResolutionSpeed()
+    {
+        if (resolutionSequence == null) return;
+        resolutionSequence.PlaybackSpeed = resolutionSequence.PlaybackSpeed > 1f ? 1f : 2f;
+        speedButton.SetLabel(resolutionSequence.PlaybackSpeed > 1f ? "ACELERADO >>" : "NORMAL");
     }
     private void ToggleTransfer()
     {
         if (state == null) return;
         if (state.EmModoTransferencia) commands?.SelecionarModoAcao();
-        else commands?.SelecionarModoTransferencia();
+        else
+        {
+            commands?.SelecionarModoTransferencia();
+            if (state.DestinatariosTransferencia.Count > 1)
+                ShowTransferRecipientPopup();
+        }
     }
     private void ToggleActionsDrawer()
     {

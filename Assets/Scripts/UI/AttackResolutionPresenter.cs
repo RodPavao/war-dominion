@@ -73,7 +73,10 @@ public sealed class AttackResolutionPresenter : MonoBehaviour,
 
         Destroy(attacker);
         ApplyFinalVisualState(visualEvent);
-        destination.DestacarReforco();
+        if (visualEvent.Conquered)
+            destination.GetComponent<TerritorioVisual>()?.DestacarConquistaBreve();
+        else
+            destination.DestacarReforco();
         yield return context.Wait(theme.AttackImpactDuration);
         yield return context.Wait(theme.AttackResultDuration);
 
@@ -162,5 +165,28 @@ public sealed class AttackResolutionPresenter : MonoBehaviour,
     {
         float inverse = 1f - t;
         return inverse * inverse * start + 2f * inverse * t * control + t * t * end;
+    }
+}
+
+[DisallowMultipleComponent]
+public sealed class RegionConquestResolutionPresenter : MonoBehaviour,
+    IResolutionVisualPresenter
+{
+    public bool Supports(ResolutionVisualEventType type) =>
+        type == ResolutionVisualEventType.RegionConquest;
+
+    public IEnumerator Present(ResolutionVisualEvent visualEvent,
+        ResolutionVisualPresentationContext context)
+    {
+        if (visualEvent == null || context == null ||
+            visualEvent.RegionTerritoryIds == null)
+            yield break;
+
+        foreach (string territoryId in visualEvent.RegionTerritoryIds)
+            if (ResolutionVisualMapUtility.TryGetTerritory(
+                territoryId, out TerritorioClique territory))
+                territory.DestacarConquistaRegiao();
+
+        yield return context.Wait(TerritorioVisual.DuracaoDestaqueConquista);
     }
 }

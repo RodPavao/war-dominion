@@ -1,23 +1,84 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using UnityEngine;
 
 public enum WDProfileMode { Battle, OneVsOne, TwoVsTwo, ThreeVsThree }
 public enum WDProfileCosmeticCategory { Avatar, Frame, TerritorySkin, Effect }
-public enum WDProfileSocialState { Stranger, RequestSent, Friend, Blocked }
+public enum WDProfileSocialState { Self, Stranger, RequestSent, RequestReceived, Friend, Blocked }
+
+// ============================================================
+// 01. DIVISÕES CONFIGURÁVEIS E IDENTIDADE COMPETITIVA
+// ============================================================
+
+[Serializable]
+public sealed class WDDivisionDefinition
+{
+    public string Id { get; }
+    public string DisplayName { get; }
+    public string EmblemId { get; }
+    public int DisplayOrder { get; }
+    public bool HasOpenUpperLimit { get; }
+
+    public WDDivisionDefinition(string id, string displayName, string emblemId,
+        int displayOrder, bool hasOpenUpperLimit = false)
+    {
+        Id = id ?? throw new ArgumentNullException(nameof(id));
+        DisplayName = displayName ?? throw new ArgumentNullException(nameof(displayName));
+        EmblemId = emblemId ?? string.Empty;
+        DisplayOrder = displayOrder;
+        HasOpenUpperLimit = hasOpenUpperLimit;
+    }
+}
+
+public sealed class WDDivisionCatalog
+{
+    private readonly IReadOnlyList<WDDivisionDefinition> ordered;
+    private readonly Dictionary<string, WDDivisionDefinition> byId;
+
+    public IReadOnlyList<WDDivisionDefinition> Ordered => ordered;
+
+    public WDDivisionCatalog(IEnumerable<WDDivisionDefinition> definitions)
+    {
+        ordered = (definitions ?? Array.Empty<WDDivisionDefinition>())
+            .OrderBy(item => item.DisplayOrder).ThenBy(item => item.Id, StringComparer.Ordinal)
+            .ToArray();
+        byId = ordered.ToDictionary(item => item.Id, StringComparer.Ordinal);
+    }
+
+    public WDDivisionDefinition Find(string id) =>
+        byId.TryGetValue(id ?? string.Empty, out WDDivisionDefinition value) ? value : null;
+
+    public static WDDivisionCatalog CreatePrototype() => new(new[]
+    {
+        new WDDivisionDefinition("recruit", "RECRUIT", "division_recruit", 10),
+        new WDDivisionDefinition("soldier", "SOLDIER", "division_soldier", 20),
+        new WDDivisionDefinition("elite", "ELITE", "division_elite", 30),
+        new WDDivisionDefinition("legionnaire", "LEGIONNAIRE", "division_legionnaire", 40),
+        new WDDivisionDefinition("centurion", "CENTURION", "division_centurion", 50),
+        new WDDivisionDefinition("commander", "COMMANDER", "division_commander", 60),
+        new WDDivisionDefinition("warlord", "WARLORD", "division_warlord", 70),
+        new WDDivisionDefinition("conqueror", "CONQUEROR", "division_conqueror", 80),
+        new WDDivisionDefinition("supreme_commander", "SUPREME COMMANDER", "division_supreme_commander", 90),
+        new WDDivisionDefinition("dominator", "DOMINATOR", "division_dominator", 100),
+        new WDDivisionDefinition("veteran", "VETERAN", "division_veteran", 110, true)
+    });
+}
 
 [Serializable]
 public sealed class WDProfileStats
 {
     public int Matches { get; }
     public int Wins { get; }
-    public int Losses => Math.Max(0, Matches - Wins);
+    public int Draws { get; }
+    public int Losses => Math.Max(0, Matches - Wins - Draws);
     public float WinRate => Matches == 0 ? 0f : Wins * 100f / Matches;
 
-    public WDProfileStats(int matches, int wins)
+    public WDProfileStats(int matches, int wins, int draws = 0)
     {
         Matches = Math.Max(0, matches);
         Wins = Math.Max(0, Math.Min(Matches, wins));
+        Draws = Math.Max(0, Math.Min(Matches - Wins, draws));
     }
 }
 
@@ -28,6 +89,10 @@ public sealed class WDProfilePrivacy
     public bool PerformanceVisible { get; }
     public bool AchievementsVisible { get; }
     public bool HistoryVisible { get; }
+    public bool ShowStatistics => StatisticsVisible;
+    public bool ShowModePerformance => PerformanceVisible;
+    public bool ShowMatchHistory => HistoryVisible;
+    public bool ShowMissionsAchievements => AchievementsVisible;
 
     public WDProfilePrivacy(bool statistics = true, bool performance = true,
         bool achievements = true, bool history = true)
@@ -37,6 +102,94 @@ public sealed class WDProfilePrivacy
         AchievementsVisible = achievements;
         HistoryVisible = history;
     }
+
+    public WDProfilePrivacy WithStatistics(bool value) =>
+        new(value, PerformanceVisible, AchievementsVisible, HistoryVisible);
+    public WDProfilePrivacy WithModePerformance(bool value) =>
+        new(StatisticsVisible, value, AchievementsVisible, HistoryVisible);
+    public WDProfilePrivacy WithMatchHistory(bool value) =>
+        new(StatisticsVisible, PerformanceVisible, AchievementsVisible, value);
+    public WDProfilePrivacy WithMissionsAchievements(bool value) =>
+        new(StatisticsVisible, PerformanceVisible, value, HistoryVisible);
+
+    public static WDProfilePrivacy Defaults => new();
+}
+
+public interface IWDProfilePrivacyStore
+{
+    WDProfilePrivacy Load();
+    void Save(WDProfilePrivacy privacy);
+    void Reset();
+}
+
+public sealed class WDMemoryProfilePrivacyStore : IWDProfilePrivacyStore
+{
+    private WDProfilePrivacy value;
+
+    public WDMemoryProfilePrivacyStore(WDProfilePrivacy initial = null) =>
+        value = initial ?? WDProfilePrivacy.Defaults;
+
+    public WDProfilePrivacy Load() => value;
+    public void Save(WDProfilePrivacy privacy) => value = privacy;
+    public void Reset() => value = WDProfilePrivacy.Defaults;
+}
+
+public sealed class WDPlayerPrefsProfilePrivacyStore : IWDProfilePrivacyStore
+{
+    private const string StorageKey = "WarDominion.Profile.Privacy.v1";
+
+    [Serializable]
+    private sealed class Data
+    {
+        public bool statistics = true;
+        public bool modePerformance = true;
+        public bool matchHistory = true;
+        public bool missionsAchievements = true;
+    }
+
+    public WDProfilePrivacy Load()
+    {
+        if (!PlayerPrefs.HasKey(StorageKey))
+            return WDProfilePrivacy.Defaults;
+        Data data = JsonUtility.FromJson<Data>(PlayerPrefs.GetString(StorageKey));
+        return data == null ? WDProfilePrivacy.Defaults : new WDProfilePrivacy(
+            data.statistics, data.modePerformance,
+            data.missionsAchievements, data.matchHistory);
+    }
+
+    public void Save(WDProfilePrivacy privacy)
+    {
+        var data = new Data
+        {
+            statistics = privacy.ShowStatistics,
+            modePerformance = privacy.ShowModePerformance,
+            matchHistory = privacy.ShowMatchHistory,
+            missionsAchievements = privacy.ShowMissionsAchievements
+        };
+        PlayerPrefs.SetString(StorageKey, JsonUtility.ToJson(data));
+        PlayerPrefs.Save();
+    }
+
+    public void Reset()
+    {
+        PlayerPrefs.DeleteKey(StorageKey);
+        PlayerPrefs.Save();
+    }
+}
+
+[Serializable]
+public sealed class WDProfileAchievement
+{
+    public string Id { get; }
+    public string Title { get; }
+    public string Progress { get; }
+
+    public WDProfileAchievement(string id, string title, string progress)
+    {
+        Id = id ?? string.Empty;
+        Title = title ?? string.Empty;
+        Progress = progress ?? string.Empty;
+    }
 }
 
 [Serializable]
@@ -45,7 +198,7 @@ public sealed class WDProfileCosmetic
     public string Id { get; }
     public string Name { get; }
     public WDProfileCosmeticCategory Category { get; }
-    public bool Owned { get; }
+    public bool Owned { get; private set; }
 
     public WDProfileCosmetic(string id, string name,
         WDProfileCosmeticCategory category, bool owned)
@@ -55,6 +208,8 @@ public sealed class WDProfileCosmetic
         Category = category;
         Owned = owned;
     }
+
+    internal void GrantOwnership() => Owned = true;
 }
 
 [Serializable]
@@ -66,9 +221,13 @@ public sealed class WDProfileMatchRecord
     public string Result { get; }
     public string Participants { get; }
     public string PlayedAt { get; }
+    public string SubmodeId { get; }
+    public int Placement { get; }
+    public int TrophiesEarned { get; }
 
     public WDProfileMatchRecord(string matchId, WDProfileMode mode, string mapName,
-        string result, string participants, string playedAt)
+        string result, string participants, string playedAt,
+        string submodeId = "", int placement = 0, int trophiesEarned = 0)
     {
         MatchId = matchId;
         Mode = mode;
@@ -76,6 +235,9 @@ public sealed class WDProfileMatchRecord
         Result = result;
         Participants = participants;
         PlayedAt = playedAt;
+        SubmodeId = submodeId ?? string.Empty;
+        Placement = placement;
+        TrophiesEarned = trophiesEarned;
     }
 }
 
@@ -86,27 +248,30 @@ public sealed class WDProfileData
 
     public string PlayerId { get; }
     public string Nickname { get; private set; }
-    public string Division { get; }
-    public int DivisionPoints { get; }
-    public string Clan { get; }
+    public WDDivisionDefinition DivisionDefinition { get; }
+    public string DivisionId => DivisionDefinition.Id;
+    public string Division => DivisionDefinition.DisplayName;
+    public int DivisionPoints { get; private set; }
+    public string Clan { get; private set; }
     public bool IsLocalPlayer { get; }
-    public WDProfilePrivacy Privacy { get; }
+    public WDProfilePrivacy Privacy { get; private set; }
     public WDProfileSocialState SocialState { get; private set; }
-    public WDProfileStats Statistics { get; }
+    public WDProfileStats Statistics { get; private set; }
     public IReadOnlyDictionary<WDProfileMode, WDProfileStats> ModeStats => modeStats;
-    public IReadOnlyList<WDProfileMatchRecord> History { get; }
+    public IReadOnlyList<WDProfileMatchRecord> History { get; private set; }
+    public IReadOnlyList<WDProfileAchievement> Achievements { get; }
     public IReadOnlyDictionary<WDProfileCosmeticCategory, string> Equipped => equipped;
 
-    public WDProfileData(string playerId, string nickname, string division,
+    public WDProfileData(string playerId, string nickname, WDDivisionDefinition division,
         int divisionPoints, string clan, bool isLocalPlayer, WDProfilePrivacy privacy,
         WDProfileSocialState socialState, WDProfileStats statistics,
         IDictionary<WDProfileMode, WDProfileStats> stats,
-        IEnumerable<WDProfileMatchRecord> history,
+        IEnumerable<WDProfileMatchRecord> history, IEnumerable<WDProfileAchievement> achievements,
         IDictionary<WDProfileCosmeticCategory, string> equippedItems)
     {
         PlayerId = playerId;
         Nickname = nickname;
-        Division = division;
+        DivisionDefinition = division ?? throw new ArgumentNullException(nameof(division));
         DivisionPoints = divisionPoints;
         Clan = clan;
         IsLocalPlayer = isLocalPlayer;
@@ -116,6 +281,7 @@ public sealed class WDProfileData
         modeStats = new Dictionary<WDProfileMode, WDProfileStats>(stats ??
             new Dictionary<WDProfileMode, WDProfileStats>());
         History = (history ?? Array.Empty<WDProfileMatchRecord>()).Take(10).ToArray();
+        Achievements = (achievements ?? Array.Empty<WDProfileAchievement>()).ToArray();
         equipped = new Dictionary<WDProfileCosmeticCategory, string>(equippedItems ??
             new Dictionary<WDProfileCosmeticCategory, string>());
     }
@@ -137,8 +303,81 @@ public sealed class WDProfileData
 
     public void Block() => SocialState = WDProfileSocialState.Blocked;
 
+    internal void ApplySocialState(WDProfileSocialState value) => SocialState = value;
+
+    internal void ApplyClan(string value) => Clan = value ?? string.Empty;
+
     public void Equip(WDProfileCosmeticCategory category, string itemId) =>
         equipped[category] = itemId;
+
+    internal void ApplyPrivacy(WDProfilePrivacy privacy) =>
+        Privacy = privacy ?? WDProfilePrivacy.Defaults;
+
+    // 04. Projeção somente do jogador local; a autoridade é o ledger persistido.
+    internal void ApplyMatchProgress(WDLocalMatchProgress progress)
+    {
+        if (!IsLocalPlayer || progress == null) return;
+        DivisionPoints = progress.trophies;
+        Statistics = new WDProfileStats(progress.matches, progress.wins, progress.draws);
+        foreach (WDProfileMode mode in Enum.GetValues(typeof(WDProfileMode)))
+        {
+            WDLocalModeCounter counter = progress.modes.FirstOrDefault(item =>
+                MatchMode(item.modeId) == mode);
+            modeStats[mode] = new WDProfileStats(counter?.matches ?? 0,
+                counter?.wins ?? 0, counter?.draws ?? 0);
+        }
+        History = progress.history.Where(item => item != null).Take(10).Select(item =>
+            new WDProfileMatchRecord(item.resultId, MatchMode(item.modeId), item.mapId,
+                item.draw ? "EMPATE" : item.modeId == "ffa" && item.placement > 0
+                    ? $"{item.placement}º LUGAR" : item.victory ? "VITÓRIA" : "DERROTA",
+                string.Empty, new DateTime(item.playedAtUtcTicks, DateTimeKind.Utc)
+                    .ToString("dd/MM/yyyy · HH:mm"), item.submodeId, item.placement,
+                item.trophiesEarned)).ToArray();
+    }
+
+    private static WDProfileMode MatchMode(string modeId) => modeId switch
+    {
+        "1x1" => WDProfileMode.OneVsOne,
+        "2x2" => WDProfileMode.TwoVsTwo,
+        _ => WDProfileMode.Battle
+    };
+}
+
+// ============================================================
+// 02. PROJEÇÃO DE VISIBILIDADE PARA MEU PERFIL E PERFIL PÚBLICO
+// ============================================================
+
+public sealed class WDProfilePresentation
+{
+    internal WDProfileData Profile { get; }
+    public bool IsOwner { get; }
+    public string PlayerId => Profile.PlayerId;
+    public string Nickname => Profile.Nickname;
+    public string Clan => Profile.Clan;
+    public int DivisionPoints => Profile.DivisionPoints;
+    public WDProfileSocialState SocialState => Profile.SocialState;
+    public IReadOnlyDictionary<WDProfileCosmeticCategory, string> Equipped => Profile.Equipped;
+    public WDDivisionDefinition Division => Profile.DivisionDefinition;
+    public WDProfileStats Statistics { get; }
+    public IReadOnlyDictionary<WDProfileMode, WDProfileStats> ModeStats { get; }
+    public IReadOnlyList<WDProfileMatchRecord> History { get; }
+    public IReadOnlyList<WDProfileAchievement> Achievements { get; }
+
+    public bool CanShowStatistics => Statistics != null;
+    public bool CanShowModePerformance => ModeStats != null;
+    public bool CanShowMatchHistory => History != null;
+    public bool CanShowMissionsAchievements => Achievements != null;
+
+    public WDProfilePresentation(WDProfileData profile, bool isOwner)
+    {
+        Profile = profile ?? throw new ArgumentNullException(nameof(profile));
+        IsOwner = isOwner;
+        Statistics = isOwner || profile.Privacy.ShowStatistics ? profile.Statistics : null;
+        ModeStats = isOwner || profile.Privacy.ShowModePerformance ? profile.ModeStats : null;
+        History = isOwner || profile.Privacy.ShowMatchHistory ? profile.History : null;
+        Achievements = isOwner || profile.Privacy.ShowMissionsAchievements
+            ? profile.Achievements : null;
+    }
 }
 
 public sealed class WDProfileCustomizationSession
@@ -179,29 +418,78 @@ public sealed class WDProfileCustomizationSession
 public sealed class WDProfileRepository
 {
     private readonly Dictionary<string, WDProfileData> profiles = new(StringComparer.Ordinal);
+    private readonly IWDProfilePrivacyStore privacyStore;
     public WDProfileData LocalProfile { get; }
+    public IReadOnlyList<WDProfileData> AllProfiles => profiles.Values.ToArray();
     public IReadOnlyList<WDProfileCosmetic> Cosmetics { get; }
 
-    public WDProfileRepository(WarDominionHomeData homeData)
+    // 03. O catálogo de Personalização projeta aquisições do perfil persistido compartilhado.
+    public void ApplyPurchasedOwnership(IEnumerable<string> cosmeticIds)
     {
+        var ids = new HashSet<string>(cosmeticIds ?? Array.Empty<string>(), StringComparer.Ordinal);
+        foreach (WDProfileCosmetic item in Cosmetics)
+            if (ids.Contains(item.Id)) item.GrantOwnership();
+    }
+    public WDDivisionCatalog Divisions { get; }
+
+    public WDProfileRepository(WarDominionHomeData homeData,
+        IWDProfilePrivacyStore newPrivacyStore = null)
+    {
+        privacyStore = newPrivacyStore ?? new WDPlayerPrefsProfilePrivacyStore();
+        Divisions = WDDivisionCatalog.CreatePrototype();
         string nickname = homeData != null && !string.IsNullOrWhiteSpace(homeData.Nickname)
             ? homeData.Nickname : "Guest4821";
         if (!nickname.StartsWith("Guest", StringComparison.OrdinalIgnoreCase) && nickname == "PLAYER")
             nickname = "Guest4821";
-        string division = homeData != null && !string.IsNullOrWhiteSpace(homeData.League)
-            ? homeData.League.Replace("Liga", "DIVISÃO").ToUpperInvariant() : "LEGIONNAIRE";
-        LocalProfile = CreateProfile("WD-4821", nickname, division, true,
-            new WDProfilePrivacy(), WDProfileSocialState.Friend);
+        LocalProfile = CreateProfile("WD-4821", nickname, "legionnaire", true,
+            privacyStore.Load(), WDProfileSocialState.Self);
         profiles[LocalProfile.PlayerId] = LocalProfile;
-        profiles["WD-2847"] = CreateProfile("WD-2847", "Guest2847", "LEGIONNAIRE", false,
+        profiles["WD-2847"] = CreateProfile("WD-2847", "Guest2847", "legionnaire", false,
             new WDProfilePrivacy(), WDProfileSocialState.Stranger);
-        profiles["WD-3906"] = CreateProfile("WD-3906", "Guest3906", "LEGIONNAIRE", false,
+        profiles["WD-3906"] = CreateProfile("WD-3906", "Guest3906", "legionnaire", false,
             new WDProfilePrivacy(false, false, false, false), WDProfileSocialState.Stranger);
+        AddPrototypeProfile("WD-1112", "PlayerXXXX", "dominator", 2840);
+        AddPrototypeProfile("WD-2924", "Guest2924", "recruit", 920);
+        AddPrototypeProfile("WD-7105", "SergeantWolf", "elite", 1460);
+        AddPrototypeProfile("WD-8150", "AlphaStrike", "centurion", 2050);
+        AddPrototypeProfile("WD-5582", "CommanderZ", "supreme_commander", 2795);
+        AddPrototypeProfile("WD-7331", "ShadowStalker", "conqueror", 2731);
+        AddPrototypeProfile("WD-1291", "Guest1291", "soldier", 1180);
+        AddPrototypeProfile("WD-6400", "RogueDominion", "warlord", 2610);
         Cosmetics = CreateCosmetics();
     }
 
     public WDProfileData Find(string playerId) =>
         profiles.TryGetValue(playerId ?? string.Empty, out WDProfileData profile) ? profile : null;
+
+    public WDProfilePresentation Present(string playerId, bool asOwner = false)
+    {
+        WDProfileData profile = Find(playerId);
+        return profile == null ? null : new WDProfilePresentation(
+            profile, asOwner && ReferenceEquals(profile, LocalProfile));
+    }
+
+    public void UpdateLocalPrivacy(WDProfilePrivacy privacy)
+    {
+        LocalProfile.ApplyPrivacy(privacy);
+        privacyStore.Save(LocalProfile.Privacy);
+    }
+
+    public void RestoreLocalPrivacyDefaults()
+    {
+        privacyStore.Reset();
+        LocalProfile.ApplyPrivacy(WDProfilePrivacy.Defaults);
+    }
+
+    public void ApplyLocalMatchProgress(WDLocalMatchProgress progress) =>
+        LocalProfile.ApplyMatchProgress(progress);
+
+    private void AddPrototypeProfile(string id, string nickname, string divisionId,
+        int divisionPoints)
+    {
+        profiles[id] = CreateProfile(id, nickname, divisionId, false,
+            new WDProfilePrivacy(), WDProfileSocialState.Stranger, divisionPoints);
+    }
 
     public static IReadOnlyList<WDProfileMatchRecord> FilterHistory(
         WDProfileData profile, WDProfileMode? mode) =>
@@ -209,15 +497,26 @@ public sealed class WDProfileRepository
             ? Array.Empty<WDProfileMatchRecord>()
             : profile.History.Where(item => !mode.HasValue || item.Mode == mode.Value).Take(10).ToArray();
 
-    private static WDProfileData CreateProfile(string id, string nickname, string division,
-        bool local, WDProfilePrivacy privacy, WDProfileSocialState social) =>
-        new(id, nickname, division, 1840, "Vanguard Elite", local, privacy, social,
-            new WDProfileStats(284, 167),
+    public static IReadOnlyList<WDProfileMatchRecord> FilterHistory(
+        WDProfilePresentation presentation, WDProfileMode? mode) =>
+        presentation?.History == null
+            ? Array.Empty<WDProfileMatchRecord>()
+            : presentation.History.Where(item => !mode.HasValue || item.Mode == mode.Value)
+                .Take(10).ToArray();
+
+    private WDProfileData CreateProfile(string id, string nickname, string divisionId,
+        bool local, WDProfilePrivacy privacy, WDProfileSocialState social,
+        int divisionPoints = 1840) =>
+        new(id, nickname, Divisions.Find(divisionId), local ? 0 : divisionPoints, "Vanguard Elite", local, privacy, social,
+            local ? new WDProfileStats(0, 0) : new WDProfileStats(284, 167),
+            local ? Enum.GetValues(typeof(WDProfileMode)).Cast<WDProfileMode>()
+                .ToDictionary(mode => mode, _ => new WDProfileStats(0, 0)) :
             new Dictionary<WDProfileMode, WDProfileStats>
             {
                 [WDProfileMode.Battle] = new(142, 89), [WDProfileMode.OneVsOne] = new(62, 37),
                 [WDProfileMode.TwoVsTwo] = new(48, 25), [WDProfileMode.ThreeVsThree] = new(32, 16)
-            }, CreateHistory(nickname),
+            }, local ? Array.Empty<WDProfileMatchRecord>() : CreateHistory(nickname),
+            local ? Array.Empty<WDProfileAchievement>() : CreateAchievements(),
             new Dictionary<WDProfileCosmeticCategory, string>
             {
                 [WDProfileCosmeticCategory.Avatar] = "avatar_01",
@@ -225,6 +524,14 @@ public sealed class WDProfileRepository
                 [WDProfileCosmeticCategory.TerritorySkin] = "skin_01",
                 [WDProfileCosmeticCategory.Effect] = "effect_01"
             });
+
+    private static IReadOnlyList<WDProfileAchievement> CreateAchievements() => new[]
+    {
+        new WDProfileAchievement("first_win", "PRIMEIRA DE MUITAS", "1/1"),
+        new WDProfileAchievement("supreme_tactician", "TÁTICO SUPREMO", "15/20 VITÓRIAS"),
+        new WDProfileAchievement("loyal_legionnaire", "LEGIONÁRIO FIEL", "284/500"),
+        new WDProfileAchievement("war_veteran", "VETERANO DE GUERRA", "CONCLUÍDA")
+    };
 
     private static IReadOnlyList<WDProfileMatchRecord> CreateHistory(string nickname)
     {

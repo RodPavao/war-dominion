@@ -378,20 +378,30 @@ public class TerritorioClique : MonoBehaviour
 
     public void DestacarSelecao()
     {
+        if (territorioVisual == null)
+            territorioVisual = GetComponent<TerritorioVisual>();
+
         if (territorioVisual != null)
         {
             territorioVisual
                 .DestacarSelecao();
         }
+
+        GetComponentInChildren<WDArmyCounterView>(true)?.MostrarSelecionado(true);
     }
 
     public void RemoverDestaqueSelecao()
     {
+        if (territorioVisual == null)
+            territorioVisual = GetComponent<TerritorioVisual>();
+
         if (territorioVisual != null)
         {
             territorioVisual
                 .RemoverDestaqueSelecao();
         }
+
+        GetComponentInChildren<WDArmyCounterView>(true)?.MostrarSelecionado(false);
     }
 
     public void DestacarReforco()
@@ -400,5 +410,14 @@ public class TerritorioClique : MonoBehaviour
             territorioVisual = GetComponent<TerritorioVisual>();
 
         territorioVisual?.DestacarReforcoBreve();
+        GetComponentInChildren<WDArmyCounterView>(true)?.PulsoReforco();
+    }
+
+    public void DestacarConquistaRegiao()
+    {
+        if (territorioVisual == null)
+            territorioVisual = GetComponent<TerritorioVisual>();
+
+        territorioVisual?.DestacarConquistaRegiaoBreve();
     }
 }

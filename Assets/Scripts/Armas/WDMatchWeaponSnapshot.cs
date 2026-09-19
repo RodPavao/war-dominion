@@ -186,7 +186,8 @@ public static class WDMatchWeaponSnapshotFactory
     {
         if (string.IsNullOrWhiteSpace(id))
             return WDMatchWeaponSnapshotStatus.IncompleteDeck;
-        if (weapon == null || id == UniversalEnergyPlantId ||
+        // 04. A Central de Energia também pode ocupar um slot principal no Arsenal.
+        if (weapon == null || (id == UniversalEnergyPlantId && kind != WDMatchWeaponSlotKind.Main) ||
             kind == WDMatchWeaponSlotKind.Support && !catalog.IsSupportEligible(weapon))
             return WDMatchWeaponSnapshotStatus.InvalidIdentity;
         if (!seen.Add(id))

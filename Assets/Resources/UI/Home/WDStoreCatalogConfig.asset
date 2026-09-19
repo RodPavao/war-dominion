@@ -1,0 +1,97 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 087a14f46ed34f799ed08c61ec949f26, type: 3}
+  m_Name: WDStoreCatalogConfig
+  m_EditorClassIdentifier:
+  products:
+  - id: avatar_viking
+    title: Jarl Wolfgang
+    description: Avatar de comandante
+    kind: 0
+    cosmeticId: avatar_05
+    price: 20
+    currency: 1
+    featured: 1
+    available: 1
+    order: 10
+    vipPolicy: 0
+  - id: avatar_duchess
+    title: Iron Duchess
+    description: Avatar de comandante
+    kind: 0
+    cosmeticId: avatar_06
+    price: 24
+    currency: 1
+    featured: 0
+    available: 1
+    order: 20
+    vipPolicy: 0
+  - id: avatar_spartan
+    title: Spartan Dominion
+    description: Avatar exclusivo VIP
+    kind: 0
+    cosmeticId: avatar_07
+    price: 25
+    currency: 1
+    featured: 1
+    available: 1
+    order: 30
+    vipPolicy: 1
+  - id: odin_frame
+    title: Moldura de Odin
+    description: Moldura da coleção
+    kind: 1
+    cosmeticId: frame_05
+    price: 700
+    currency: 0
+    featured: 1
+    available: 1
+    order: 40
+    vipPolicy: 0
+  - id: odin_skin
+    title: Metal Glacial
+    description: Skin territorial da coleção
+    kind: 2
+    cosmeticId: skin_05
+    price: 800
+    currency: 0
+    featured: 1
+    available: 1
+    order: 50
+    vipPolicy: 0
+  - id: odin_effect
+    title: Aura Boreal
+    description: Efeito da coleção
+    kind: 3
+    cosmeticId: effect_05
+    price: 500
+    currency: 0
+    featured: 0
+    available: 1
+    order: 60
+    vipPolicy: 0
+  collections:
+  - id: sons_of_odin
+    title: SONS OF ODIN
+    description: Conjunto temático de cosméticos
+    productIds:
+    - avatar_viking
+    - odin_frame
+    - odin_skin
+    - odin_effect
+    price: 1200
+    currency: 0
+    featured: 1
+    available: 1
+    order: 10
+  vipDiscountPercent: 10
+  mockVipDays: 30

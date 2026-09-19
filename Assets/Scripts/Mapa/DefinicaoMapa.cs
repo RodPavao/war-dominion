@@ -45,6 +45,9 @@ public sealed class DefinicaoRegiaoMapa
     [Min(0)] public int bonus;
     public int ordemExibicao;
     public Color corDestaque = Color.white;
+    [Tooltip("Usa um deslocamento manual para a label da região em vez da posição automática.")]
+    public bool possuiDeslocamentoLabelManual;
+    public Vector2 deslocamentoLabelManual;
     public List<string> territorioIds = new List<string>();
     public List<MetadadoMapa> metadados = new List<MetadadoMapa>();
 }

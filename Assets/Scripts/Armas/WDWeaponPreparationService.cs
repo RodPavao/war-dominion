@@ -58,6 +58,7 @@ public enum WDWeaponProgrammingReason
     TargetOutOfRange,
     EmptyTargetNotAllowed,
     DuplicateIntent,
+    IrreversibleAction,
     ActionNotFound,
     ActionNotOwned
 }
@@ -152,17 +153,20 @@ public sealed class WDWeaponProgrammingOption
     }
 }
 
-public sealed class WDPreparedWeaponActionIdentity
+public sealed class WDInfiltratorWeaponTarget
 {
-    public string ActionId { get; }
+    public string PlayerId { get; }
     public string WeaponId { get; }
     public string DisplayName { get; }
+    public int Level { get; }
 
-    public WDPreparedWeaponActionIdentity(string actionId, string weaponId, string displayName)
+    public WDInfiltratorWeaponTarget(string playerId, string weaponId, string displayName,
+        int level)
     {
-        ActionId = actionId ?? string.Empty;
+        PlayerId = playerId ?? string.Empty;
         WeaponId = weaponId ?? string.Empty;
         DisplayName = displayName ?? string.Empty;
+        Level = Math.Max(1, level);
     }
 }
 
@@ -189,6 +193,8 @@ public sealed class WDWeaponPreparationService
     private readonly List<WDWeaponAction> actions = new();
     private readonly Dictionary<string, string> selectedWeapons =
         new(StringComparer.Ordinal);
+    private readonly HashSet<string> irreversibleActions = new(StringComparer.Ordinal);
+    private readonly HashSet<string> cardProgrammingActionIds = new(StringComparer.Ordinal);
     private int activeRound;
     private int nextProgramOrder;
     private bool preparationOpen;
@@ -217,6 +223,8 @@ public sealed class WDWeaponPreparationService
         preparationOpen = true;
         roundFrozen = false;
         selectedWeapons.Clear();
+        irreversibleActions.Clear();
+        cardProgrammingActionIds.Clear();
     }
 
     public void CloseWithoutResolution()
@@ -232,8 +240,24 @@ public sealed class WDWeaponPreparationService
     public WDWeaponProgrammingOption GetOption(string playerId, string weaponId)
     {
         WDWeaponDefinition definition = catalog.FindWeapon(weaponId);
+        WDWeaponAvailability availability = runtime.GetAvailability(playerId, weaponId);
+        if (weaponId == WDSpecialWeaponIds.Infiltrator && activeRound < 3 &&
+            availability.Reason != WDWeaponAvailabilityReason.PlayerNotFound &&
+            availability.Reason != WDWeaponAvailabilityReason.WeaponNotFound &&
+            availability.Reason != WDWeaponAvailabilityReason.NotInLoadout)
+        {
+            availability = new WDWeaponAvailability(
+                WDWeaponAvailabilityReason.InitialRoundLock, availability.Level,
+                availability.Energy, availability.EnergyCost, 3 - activeRound,
+                availability.Uses);
+        }
+        if (availability.IsAvailable && HasCardProgramming(playerId, weaponId))
+            availability = new WDWeaponAvailability(
+                WDWeaponAvailabilityReason.AlreadyProgrammedThisPreparation,
+                availability.Level, availability.Energy, availability.EnergyCost,
+                availability.CooldownRemaining, availability.Uses);
         return new WDWeaponProgrammingOption(
-            weaponId, runtime.GetAvailability(playerId, weaponId),
+            weaponId, availability,
             definition != null ? ResolveRequirement(definition, WDWeaponIntentKind.Standard) : null);
     }
 
@@ -287,11 +311,27 @@ public sealed class WDWeaponPreparationService
             return Failure(WDWeaponProgrammingReason.ActionNotFound);
         if (action.AuthorPlayerId != playerId)
             return Failure(WDWeaponProgrammingReason.ActionNotOwned);
-        actions.Remove(action);
+        if (irreversibleActions.Contains(action.ActionId))
+            return Failure(WDWeaponProgrammingReason.IrreversibleAction);
+        string installationId = action.InstallationId;
+        WDWeaponAction[] removed = actions.Where(item => item.ActionId == action.ActionId ||
+            (!string.IsNullOrEmpty(installationId) &&
+             item.InstallationId == installationId)).ToArray();
+        actions.RemoveAll(item => removed.Contains(item));
+        foreach (WDWeaponAction removedAction in removed)
+            cardProgrammingActionIds.Remove(removedAction.ActionId);
         return new WDWeaponProgrammingResult(
             WDWeaponProgrammingReason.Success,
             runtime.GetAvailability(playerId, action.WeaponId), action);
     }
+
+    public bool MarkIrreversible(string actionId) =>
+        !string.IsNullOrWhiteSpace(actionId) &&
+        actions.Any(item => item.ActionId == actionId && item.Round == activeRound) &&
+        irreversibleActions.Add(actionId);
+
+    public bool IsIrreversible(string actionId) =>
+        !string.IsNullOrWhiteSpace(actionId) && irreversibleActions.Contains(actionId);
 
     public WDWeaponProgrammingResult Replace(
         string playerId, string actionId, WDWeaponProgrammingRequest replacement)
@@ -305,7 +345,10 @@ public sealed class WDWeaponPreparationService
 
         WDWeaponProgrammingResult result = ProgramInternal(replacement, actionId);
         if (result.Succeeded)
+        {
             actions.Remove(current);
+            cardProgrammingActionIds.Remove(current.ActionId);
+        }
         return result;
     }
 
@@ -319,18 +362,20 @@ public sealed class WDWeaponPreparationService
     public IReadOnlyList<WDWeaponAction> GetRoundActions(int round) =>
         Order(actions.Where(item => item.Round == round));
 
-    public IReadOnlyList<WDPreparedWeaponActionIdentity> GetEligibleInfiltratorTargets(
+    public IReadOnlyList<WDInfiltratorWeaponTarget> GetEligibleInfiltratorWeapons(
         string authorPlayerId, string opponentPlayerId)
     {
         if (!MatchesPlayer(authorPlayerId, opponentPlayerId, WDWeaponPlayerRelation.Opponent))
-            return Array.Empty<WDPreparedWeaponActionIdentity>();
-        return actions.Where(item => item.Round == activeRound &&
-                item.AuthorPlayerId == opponentPlayerId &&
-                item.WeaponId != WDSpecialWeaponIds.Infiltrator &&
-                !WDWeaponActionSemantics.IsPersistentInstallationOperation(item))
-            .Select(item => new WDPreparedWeaponActionIdentity(item.ActionId, item.WeaponId,
-                catalog.FindWeapon(item.WeaponId)?.DisplayName ?? item.WeaponId))
-            .OrderBy(item => item.ActionId, StringComparer.Ordinal).ToArray();
+            return Array.Empty<WDInfiltratorWeaponTarget>();
+        WDWeaponPlayerRuntimeState opponent = runtime.FindPlayer(opponentPlayerId);
+        if (opponent == null)
+            return Array.Empty<WDInfiltratorWeaponTarget>();
+        return opponent.Weapons.Where(item => item.Available)
+            .Select(item => new WDInfiltratorWeaponTarget(opponentPlayerId, item.WeaponId,
+                catalog.FindWeapon(item.WeaponId)?.DisplayName ?? item.WeaponId,
+                item.Level))
+            .OrderBy(item => item.DisplayName, StringComparer.Ordinal)
+            .ThenBy(item => item.WeaponId, StringComparer.Ordinal).ToArray();
     }
 
     public IReadOnlyList<WDWeaponAction> FreezeRound()
@@ -373,21 +418,38 @@ public sealed class WDWeaponPreparationService
             return Failure(WDWeaponProgrammingReason.WeaponNotFound);
         WDWeaponAvailability availability = runtime.GetAvailability(
             request.PlayerId, request.WeaponId);
+        if (request.WeaponId == WDSpecialWeaponIds.Infiltrator && activeRound < 3)
+            availability = new WDWeaponAvailability(
+                WDWeaponAvailabilityReason.InitialRoundLock, availability.Level,
+                availability.Energy, availability.EnergyCost, 3 - activeRound,
+                availability.Uses);
         if (!availability.IsAvailable)
             return new WDWeaponProgrammingResult(
                 WDWeaponProgrammingReason.WeaponUnavailable, availability);
         int pendingUses = actions.Count(item => item.ActionId != ignoredActionId &&
             item.AuthorPlayerId == request.PlayerId && item.WeaponId == request.WeaponId &&
             item.State == WDWeaponActionState.Programmed);
-        if (definition.UseLimit > 0 && availability.Uses + pendingUses >= definition.UseLimit)
-            return new WDWeaponProgrammingResult(
-                WDWeaponProgrammingReason.ProgrammingUsageLimit, availability);
-
         WDWeaponSelectionRequirement requirement = ResolveRequirement(
             definition, request.IntentKind);
         WDWeaponProgrammingReason validation = ValidateSelection(request, requirement);
-        if (validation != WDWeaponProgrammingReason.Success)
+        bool reachedUseLimit = definition.UseLimit > 0 &&
+            availability.Uses + pendingUses >= definition.UseLimit;
+        bool reachedPreparationLimit = request.IntentKind == WDWeaponIntentKind.Standard &&
+            HasCardProgramming(request.PlayerId, request.WeaponId, ignoredActionId);
+        if (validation != WDWeaponProgrammingReason.Success &&
+            ((!reachedUseLimit && !reachedPreparationLimit) ||
+             MustPrecedeProgrammingLimit(validation)))
             return new WDWeaponProgrammingResult(validation, availability);
+        if (reachedUseLimit)
+            return new WDWeaponProgrammingResult(
+                WDWeaponProgrammingReason.ProgrammingUsageLimit, availability);
+        if (reachedPreparationLimit)
+            return new WDWeaponProgrammingResult(
+                WDWeaponProgrammingReason.ProgrammingUsageLimit,
+                new WDWeaponAvailability(
+                    WDWeaponAvailabilityReason.AlreadyProgrammedThisPreparation,
+                    availability.Level, availability.Energy, availability.EnergyCost,
+                    availability.CooldownRemaining, availability.Uses));
         if (actions.Any(item => item.ActionId != ignoredActionId &&
             item.Round == activeRound && SameIntent(item, request)))
             return new WDWeaponProgrammingResult(
@@ -407,9 +469,16 @@ public sealed class WDWeaponPreparationService
             phase, order, request.OriginTerritoryId, request.TargetTerritoryId,
             request.TargetPlayerId, request.InstallationId, request.Parameters);
         actions.Add(action);
+        if (request.IntentKind == WDWeaponIntentKind.Standard)
+            cardProgrammingActionIds.Add(action.ActionId);
         return new WDWeaponProgrammingResult(
             WDWeaponProgrammingReason.Success, availability, action);
     }
+
+    private static bool MustPrecedeProgrammingLimit(
+        WDWeaponProgrammingReason reason) => reason ==
+            WDWeaponProgrammingReason.TargetOutOfRange ||
+        reason == WDWeaponProgrammingReason.InvalidTargetPlayer;
 
     private WDWeaponProgrammingReason ValidateSelection(
         WDWeaponProgrammingRequest request, WDWeaponSelectionRequirement requirement)
@@ -592,6 +661,13 @@ public sealed class WDWeaponPreparationService
         action.TargetPlayerId == request.TargetPlayerId &&
         action.InstallationId == request.InstallationId &&
         ParametersEqual(action.Parameters, request.Parameters);
+
+    private bool HasCardProgramming(
+        string playerId, string weaponId, string ignoredActionId = "") =>
+        actions.Any(item => item.Round == activeRound &&
+            item.ActionId != ignoredActionId && item.AuthorPlayerId == playerId &&
+            item.WeaponId == weaponId && item.State == WDWeaponActionState.Programmed &&
+            cardProgrammingActionIds.Contains(item.ActionId));
 
     private static bool ParametersEqual(
         IReadOnlyList<WDWeaponActionParameter> left,

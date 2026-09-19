@@ -37,6 +37,19 @@ public static class MapOverlayProjection
         return RectTransformUtility.ScreenPointToLocalPointInRectangle(
             overlay, screenPosition, null, out overlayPosition);
     }
+
+    public static Vector3 GetTerritoryWorldAnchor(TerritorioClique territory)
+    {
+        if (territory == null)
+            return Vector3.zero;
+        Collider2D collider = territory.GetComponent<PolygonCollider2D>() ??
+            territory.GetComponent<Collider2D>();
+        if (collider == null)
+            return territory.transform.position;
+        Vector3 center = collider.bounds.center;
+        Vector2 insideOrBoundary = collider.ClosestPoint(center);
+        return new Vector3(insideOrBoundary.x, insideOrBoundary.y, center.z);
+    }
 }
 
 public sealed class ResolutionVisualPresentationContext

@@ -33,6 +33,10 @@ public class LayoutPartida : MonoBehaviour
     // =====================================================
 
     private Camera cameraPrincipal;
+    public static Camera CameraRuntime =>
+        instance != null && instance.cameraPrincipal != null
+            ? instance.cameraPrincipal
+            : null;
 
     private Rect rectOriginal;
     private float sizeOriginal;
@@ -87,9 +91,7 @@ public class LayoutPartida : MonoBehaviour
         cameraPrincipal = Camera.main;
 
         if (cameraPrincipal == null)
-        {
             cameraPrincipal = FindAnyObjectByType<Camera>();
-        }
 
         if (cameraPrincipal == null)
         {
@@ -160,14 +162,12 @@ public class LayoutPartida : MonoBehaviour
             );
 
 
-        // Área exclusiva do mapa.
-        cameraPrincipal.rect =
-            new Rect(
-                larguraEsquerdaEfetiva,
-                0f,
-                larguraCentral,
-                1f
-            );
+        // Mapas WD 16:9 são o fundo integral; o HUD já está em Screen Space.
+        // Mapas legados preservam temporariamente o viewport central anterior.
+        bool fundoIntegral16x9 = MapaAtivo.Instance != null &&
+            EhArteIntegral16x9(MapaAtivo.Instance.Definicao);
+        cameraPrincipal.rect = CalcularViewportMapa(fundoIntegral16x9,
+            larguraEsquerdaEfetiva, larguraCentral);
 
 
         cameraPrincipal.backgroundColor =
@@ -181,6 +181,22 @@ public class LayoutPartida : MonoBehaviour
 
         AjustarMapaPelaAltura();
     }
+
+    public static Rect CalcularViewportMapa(bool fundoIntegral16x9,
+        float margemEsquerda, float larguraCentral) => fundoIntegral16x9
+        ? new Rect(0f, 0f, 1f, 1f)
+        : new Rect(margemEsquerda, 0f, larguraCentral, 1f);
+
+    public static bool EhArteIntegral16x9(DefinicaoMapa mapa) =>
+        mapa != null && mapa.ArteBase != null && mapa.ArteBase.rect.height > 0f &&
+        Mathf.Abs(mapa.ArteBase.rect.width / mapa.ArteBase.rect.height -
+            16f / 9f) < 0.001f;
+
+    public static float TamanhoOrtograficoNormalizado(
+        Vector2 tamanhoMapa,
+        float aspectoViewport) =>
+        Mathf.Max(tamanhoMapa.y * 0.5f,
+            tamanhoMapa.x / (2f * Mathf.Max(aspectoViewport, 0.01f)));
 
 
     // =====================================================
@@ -216,15 +232,12 @@ public class LayoutPartida : MonoBehaviour
             ? viewportPixels.width / viewportPixels.height
             : cameraPrincipal.aspect;
 
-        float tamanhoPelaAltura =
-            alturaMapa / 2f;
-
-        float tamanhoPelaLargura =
-            limitesMapa.size.x /
+        float tamanhoPelaAltura = alturaMapa / 2f;
+        float tamanhoPelaLargura = limitesMapa.size.x /
             (2f * Mathf.Max(aspectoViewport, 0.01f));
 
-        float tamanhoCamera =
-            Mathf.Max(tamanhoPelaAltura, tamanhoPelaLargura);
+        float tamanhoCamera = TamanhoOrtograficoNormalizado(
+            limitesMapa.size, aspectoViewport);
         string eixoLimitante = tamanhoPelaLargura > tamanhoPelaAltura
             ? "largura"
             : "altura";
@@ -236,6 +249,7 @@ public class LayoutPartida : MonoBehaviour
                 0.01f
             );
 
+        MapaAtivo.Instance.RegistrarTamanhoOrtograficoEnquadrado(tamanhoCamera);
 
         cameraPrincipal.orthographicSize =
             tamanhoCamera;

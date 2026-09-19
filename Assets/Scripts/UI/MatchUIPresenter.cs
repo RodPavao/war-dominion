@@ -435,6 +435,11 @@ public sealed class MatchUIPresenter : MonoBehaviour
                 .Append((int)jogador.EstadoRodada).Append(':')
                 .Append(jogador.Cor);
 
+        foreach (WDMatchParticipant participant in
+            gameManager.MatchSetupAtual?.Participants ?? Array.Empty<WDMatchParticipant>())
+            chave.Append("|E:").Append(participant.PlayerId).Append(':')
+                .Append(gameManager.WeaponRuntime?.FindPlayer(participant.PlayerId)?.Energy ?? 0);
+
         foreach (MatchUITerritoryState territorio in territorios)
             chave.Append("|D:").Append(territorio.Id).Append(':')
                 .Append((int)territorio.Proprietario).Append(':')

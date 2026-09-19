@@ -36,7 +36,7 @@ public static class WDStrategicWeaponTables
     public static int LongRangeBombDamage(int level) => From(new[] { 2,3,4,5,6,7 }, level);
     public static int RocketDamage(int level) => From(new[] { 2,3,4,5,6,7 }, level);
     public static int ArtilleryDamage(int level) => From(new[] { 1,2,2,3 }, level);
-    public static int ArtilleryDuration(int level) => level <= 2 ? 2 : 3;
+    public static int ArtilleryAmmunition(int level) => level <= 2 ? 6 : 9;
     private static int From(int[] values, int level) => values[Math.Clamp(level,1,values.Length)-1];
 }
 
