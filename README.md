@@ -1,68 +1,75 @@
-# WarGame 🎮
+# WAR DOMINION
 
-A strategy game project inspired by classic territory-conquest board games, developed in Unity as part of my learning journey in game development and C# programming.
+WAR DOMINION is a digital territory-based strategy game developed in Unity and C#. Players manage troops, plan territorial movements, and use weapons and actions through a round-based flow with Preparation and Resolution phases.
 
-The project explores the implementation of a digital strategy game involving countries, territories, maps and gameplay mechanics.
+![WAR DOMINION home interface](Docs/Images/war-dominion-home.png)
 
-## 🎯 Project Objective
+## Project Status
 
-The main objective of this project is to practice game development concepts using Unity and C#, transforming a traditional strategy board game concept into an interactive digital project.
+WAR DOMINION is currently under active development.
 
-The project is currently under development and will evolve as new mechanics and programming concepts are implemented.
+The current project includes playable match systems, interactive maps, and an interface oriented toward desktop and landscape mobile use. Chat and social presentation use local repositories; they do not represent an operational public online multiplayer service.
 
-## 🛠️ Technologies
+## Match Presentation
 
-- Unity
-- C#
-- Visual Studio Code
-- Git
-- GitHub
+The match interface accommodates different landscape aspect ratios while keeping the map as the main interaction area. The examples below show the base 16:9 composition and its adaptation to a wider 20:9 format.
 
-## 🗺️ Current Development
+> **Development note:** The in-match interface is currently being progressively rebuilt. Some elements visible in these screenshots—particularly the player panel on the right and the weapon/action area on the left—are still structural foundations and do not represent their final visual design. Other components have already reached their approved visual stage.
 
-The project currently includes initial work involving:
+### 16:9 — Base Composition
 
-- Game map development
-- Countries and territories
-- Graphical assets
-- Unity scenes
-- C# scripts
-- Initial game structure and mechanics
-  
-### World Map and Territory System
-<img width="1926" height="989" alt="Captura de tela 2026-08-09 224056" src="https://github.com/user-attachments/assets/5c70c882-1498-4564-86f3-b4e7ccb1fcce" />
+![WAR DOMINION match interface in 16:9](Docs/Images/war-dominion-match-16x9.png)
 
-### Territory Development in Unity
-<img width="3439" height="1001" alt="Captura de tela 2026-08-09 224403" src="https://github.com/user-attachments/assets/67f0eb38-a248-41a1-b558-01db0594e5f5" />
+### 20:9 — Wider Landscape Composition
 
-## 📚 Concepts Practiced
+![WAR DOMINION match interface in 20:9](Docs/Images/war-dominion-match-20x9.png)
 
-During the development of this project, I am practicing concepts such as:
+## Current Systems
 
-- C# programming
-- Game development fundamentals
-- Unity scenes and GameObjects
-- Components and scripts
-- User interface development
-- Game logic
-- Asset management
-- Project organization
-- Version control with Git and GitHub
+- Interactive maps with territory ownership states and troop counters.
+- Round-based Preparation and Resolution phases, troop management, and territorial movement.
+- Weapon and action execution systems.
+- Multiple match configurations represented in the project.
+- Regions, regional bonuses, and a contextual player information overlay.
+- In-match chat with message history, drafts, Unicode text, and colored emoji presentation.
+- Contextual match settings and match exit confirmation.
+- Responsive match presentation for the demonstrated landscape formats.
+- Android development build workflow and automated Unity EditMode tests.
 
-## 🚧 Project Status
+## Feature Screenshots
 
-This project is currently **under development**.
+### Regions
 
-New gameplay systems, mechanics and improvements will be added progressively as my studies in software and game development advance.
+Contextual visualization of regions and their associated bonuses.
 
-## 🚀 Learning Journey
+![WAR DOMINION regions and regional bonuses](Docs/Images/war-dominion-regions.png)
 
-WarGame is part of my software development portfolio and represents my first practical experience developing a game with Unity and C#.
+### In-Match Chat
 
-The project is being developed alongside my studies in Analysis and Systems Development and will evolve as I expand my knowledge of programming, software architecture and game development.
+Chat integrated into the match interface, with a colored emoji picker and Unicode message presentation.
 
-## 👨‍💻 Author
+![WAR DOMINION in-match chat and colored emoji picker](Docs/Images/war-dominion-match-chat.png)
+
+### Match Settings
+
+A contextual settings panel within the match. The screenshot shows the current interface; not every visible control is fully connected to its underlying functionality.
+
+![WAR DOMINION match settings panel](Docs/Images/war-dominion-match-settings.png)
+
+## Technology
+
+- Unity and C#.
+- Unity UI (uGUI) and TextMeshPro.
+- Unity Test Framework with EditMode tests.
+- Android development builds through Unity Build Profiles.
+- Git and GitHub.
+
+## Architecture
+
+The project separates gameplay state, match flow, UI presentation, weapon/action execution, and map definitions. Presentation components consume shared state and commands, while automated tests cover domain behavior and UI integration.
+
+## Author
 
 **Rodrigo Pavão**
 
-Analysis and Systems Development student, currently building skills in programming, software development and technology.
+Software Development · Game Development · Analysis and Systems Development.
