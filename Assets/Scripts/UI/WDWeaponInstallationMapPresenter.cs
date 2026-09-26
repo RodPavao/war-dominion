@@ -1,4 +1,5 @@
 using System.Collections;
+using System;
 using System.Linq;
 using TMPro;
 using UnityEngine;
@@ -12,13 +13,16 @@ public sealed class WDWeaponInstallationMapPresenter : MonoBehaviour
     private WDWeaponMatchUIController weaponUI;
     private RectTransform content;
     private string snapshotKey = string.Empty;
+    private Action<WDWeaponHudInstallationState> openInstallationHub;
 
     public void Configure(RectTransform targetOverlay, WarDominionUITheme value,
-        WDWeaponMatchUIController controller)
+        WDWeaponMatchUIController controller,
+        Action<WDWeaponHudInstallationState> installationHubAction = null)
     {
         overlay = targetOverlay;
         theme = value;
         weaponUI = controller;
+        openInstallationHub = installationHubAction;
         content = WDUIFactory.Rect("VisibleWeaponInstallations", overlay);
         content.anchorMin = Vector2.zero; content.anchorMax = Vector2.one;
         content.offsetMin = content.offsetMax = Vector2.zero;
@@ -64,6 +68,11 @@ public sealed class WDWeaponInstallationMapPresenter : MonoBehaviour
             background.color = installation.IsAbandoned || installation.IsDisabled
                 ? new Color(0.16f, 0.16f, 0.17f, 0.88f)
                 : new Color(0.02f, 0.02f, 0.025f, 0.9f);
+            Button button = badge.gameObject.AddComponent<Button>();
+            button.transition = Selectable.Transition.None;
+            button.targetGraphic = background;
+            WDWeaponHudInstallationState captured = installation;
+            button.onClick.AddListener(() => openInstallationHub?.Invoke(captured));
             TextMeshProUGUI label = WDUIFactory.Text("Label", badge, theme,
                 theme.TypeMicro, installation.IsDisabled ? theme.Danger : theme.TextoPrincipal,
                 TextAlignmentOptions.Center);

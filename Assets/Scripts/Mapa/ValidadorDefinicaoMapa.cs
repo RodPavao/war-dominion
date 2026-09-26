@@ -94,6 +94,22 @@ public static class ValidadorDefinicaoMapa
         {
             if (territorio != null && !string.IsNullOrWhiteSpace(territorio.regiaoId) && !regiaoIds.Contains(territorio.regiaoId))
                 Erro(problemas, "REFERENCIA_REGIAO_INVALIDA", $"{territorio.id} referencia a região inexistente {territorio.regiaoId}.");
+            if (territorio == null || string.IsNullOrWhiteSpace(territorio.id))
+                continue;
+            DefinicaoRegiaoMapa declarada = null;
+            foreach (DefinicaoRegiaoMapa regiao in mapa.Regioes)
+                if (regiao != null && string.Equals(regiao.id, territorio.regiaoId,
+                    StringComparison.Ordinal))
+                    declarada = regiao;
+            if (declarada != null && (declarada.territorioIds == null ||
+                !declarada.territorioIds.Contains(territorio.id)))
+                Erro(problemas, "REGIAO_NAO_LISTA_TERRITORIO",
+                    $"{territorio.id} aponta para {declarada.id}, mas não consta em territorioIds.");
+            foreach (DefinicaoRegiaoMapa regiao in mapa.Regioes)
+                if (regiao?.territorioIds != null && regiao.territorioIds.Contains(territorio.id) &&
+                    !string.Equals(regiao.id, territorio.regiaoId, StringComparison.Ordinal))
+                    Erro(problemas, "REGIAO_LISTA_TERRITORIO_DIVERGENTE",
+                        $"{regiao.id} lista {territorio.id}, cuja região declarada é {territorio.regiaoId}.");
         }
 
         HashSet<string> conexoes = new HashSet<string>(StringComparer.Ordinal);

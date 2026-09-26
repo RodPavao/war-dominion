@@ -21,6 +21,8 @@ public sealed class WarDominionMapEditorWindow : EditorWindow
     private string search = string.Empty;
     private int selectedTerritory;
     private string territoryNameSearch = string.Empty;
+    private readonly WDMapTerritoryNameEditState territoryNameEdit =
+        new WDMapTerritoryNameEditState();
     private int selectedRegion;
     private string highlightedRegionTerritoryId;
     private string regionTerritorySearch = string.Empty;
@@ -312,11 +314,29 @@ public sealed class WarDominionMapEditorWindow : EditorWindow
             map.Territorios.Count - 1);
         DefinicaoTerritorioMapa selected = map.Territorios[selectedTerritory];
         if (selected == null) return;
+        bool reboundNameEditor = territoryNameEdit.Bind(selected);
+        if (reboundNameEditor)
+        {
+            GUIUtility.keyboardControl = 0;
+            GUIUtility.hotControl = 0;
+            Repaint();
+        }
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Território",
             string.IsNullOrWhiteSpace(selected.nomeExibido)
                 ? selected.id : selected.nomeExibido);
         EditorGUILayout.LabelField("ID", selected.id);
+        using (new EditorGUI.DisabledScope(reboundNameEditor))
+        {
+            EditorGUI.BeginChangeCheck();
+            GUI.SetNextControlName("WD.MapEditor.DisplayName." +
+                territoryNameEdit.OwnerId);
+            string displayName = EditorGUILayout.TextField("Nome exibido",
+                territoryNameEdit.Buffer);
+            bool displayNameChanged = EditorGUI.EndChangeCheck();
+            if (!reboundNameEditor && displayNameChanged)
+                territoryNameEdit.Apply(map, displayName);
+        }
         EditorGUILayout.LabelField("Posicionamento",
             selected.possuiPosicaoNomeManual ? "Manual" : "Automático");
         EditorGUI.BeginChangeCheck();
@@ -407,7 +427,36 @@ public sealed class WarDominionMapEditorWindow : EditorWindow
             using (new EditorGUI.DisabledScope(map.Regioes.Count == 0))
                 if (GUILayout.Button("Remover região")) RemoveRegion();
         }
+        using (new EditorGUILayout.HorizontalScope())
+        {
+            if (GUILayout.Button("VALIDAR REGIÕES"))
+                LogRegionValidation();
+            if (GUILayout.Button("CORRIGIR ASSOCIAÇÕES SEGURAS"))
+            {
+                int changes = WarDominionMapEditorOperations.RepairRegionAssociations(map);
+                serializedMap.Update();
+                Debug.Log(changes == 0
+                    ? $"MAP EDITOR | {map.name}: associações regionais já consistentes."
+                    : $"MAP EDITOR | {map.name}: {changes} correções regionais determinísticas aplicadas.", map);
+                Repaint();
+            }
+        }
         EditorGUILayout.HelpBox("A associação permanece autoritativa em territorio.regiaoId e região.territorioIds.", MessageType.Info);
+    }
+
+    private void LogRegionValidation()
+    {
+        // 06. Validação explícita sem mutação silenciosa.
+        WDMapEditorValidationReport report = WarDominionMapEditorOperations.Validate(map,
+            catalog != null ? catalog.Mapas : Array.Empty<DefinicaoMapa>());
+        ProblemaValidacaoMapa[] regionIssues = report.Issues.Where(issue =>
+            issue.Codigo.Contains("REGIAO") || issue.Codigo.Contains("TERRITORIO_EM_MULTIPLAS"))
+            .ToArray();
+        if (regionIssues.Length == 0)
+            Debug.Log($"MAP EDITOR | {map.name}: regiões válidas.", map);
+        else
+            Debug.LogWarning($"MAP EDITOR | {map.name}: {regionIssues.Length} problema(s) regionais.\n" +
+                string.Join("\n", regionIssues.Select(issue => issue.ToString())), map);
     }
 
     private void DrawSelectedRegion(DefinicaoRegiaoMapa region)
@@ -573,6 +622,17 @@ public sealed class WarDominionMapEditorWindow : EditorWindow
         EditorGUILayout.LabelField(map.Territorios[selectedTerritory].nomeExibido);
         EditorGUILayout.PropertyField(territory.FindPropertyRelative("possuiPosicaoContador"));
         EditorGUILayout.PropertyField(territory.FindPropertyRelative("posicaoContador"));
+        EditorGUI.BeginChangeCheck();
+        float scale = EditorGUILayout.Slider("Escala individual",
+            map.Territorios[selectedTerritory].EscalaContadorEfetiva,
+            0.1f, 4f);
+        if (EditorGUI.EndChangeCheck())
+        {
+            WarDominionMapEditorOperations.SetCounterScale(map,
+                map.Territorios[selectedTerritory].id, scale);
+            serializedMap.Update();
+            Repaint();
+        }
         if (GUILayout.Button("Resetar posição do contador") &&
             EditorUtility.DisplayDialog("Resetar contador",
                 "Definir a posição do contador como (0, 0)?", "Resetar", "Cancelar"))
@@ -580,7 +640,7 @@ public sealed class WarDominionMapEditorWindow : EditorWindow
             Undo.RecordObject(map, "Resetar posição do contador");
             territory.FindPropertyRelative("posicaoContador").vector2Value = Vector2.zero;
         }
-        EditorGUILayout.HelpBox("Arraste o marcador C no viewport para mover o contador. Undo é suportado.", MessageType.Info);
+        EditorGUILayout.HelpBox("Arraste o marcador C para mover. A escala altera imediatamente o preview e usa o mesmo multiplicador individual consumido pelo runtime.", MessageType.Info);
     }
 
     private void DrawMigration16x9()
@@ -1248,6 +1308,7 @@ public sealed class WarDominionMapEditorWindow : EditorWindow
         }
         var projection = new WDMapViewportTransform(artRect,
             activePreviewContext.ArtBounds);
+        DrawSelectedRegionFill(projection);
         if (showRegions)
             DrawRegionLabels(projection);
         if (tab == Tab.Nomes)
@@ -1288,7 +1349,24 @@ public sealed class WarDominionMapEditorWindow : EditorWindow
                 for (int i = 0; i < map.Territorios.Count; i++)
                 {
                     Vector2 point = convert(i);
-                    Rect marker = new Rect(point.x - 8f, point.y - 8f, 16f, 16f);
+                    Vector2 mapSize = TerritorioContador.ResolverTamanhoVisualNoMapa(
+                        map, map.Territorios[i]);
+                    Vector2 markerSize = new Vector2(
+                        Mathf.Abs(projection.MapToViewport(new Vector2(
+                            activePreviewContext.ToArtLocal(map.Territorios[i].id,
+                                map.Territorios[i].posicaoContador).x + mapSize.x,
+                            0f)).x - projection.MapToViewport(new Vector2(
+                            activePreviewContext.ToArtLocal(map.Territorios[i].id,
+                                map.Territorios[i].posicaoContador).x, 0f)).x),
+                        Mathf.Abs(projection.MapToViewport(new Vector2(0f,
+                            activePreviewContext.ToArtLocal(map.Territorios[i].id,
+                                map.Territorios[i].posicaoContador).y + mapSize.y)).y -
+                            projection.MapToViewport(new Vector2(0f,
+                            activePreviewContext.ToArtLocal(map.Territorios[i].id,
+                                map.Territorios[i].posicaoContador).y)).y));
+                    markerSize.x = Mathf.Max(8f, markerSize.x);
+                    markerSize.y = Mathf.Max(8f, markerSize.y);
+                    Rect marker = new Rect(point - markerSize * 0.5f, markerSize);
                     EditorGUI.DrawRect(marker, territorySelection.Contains(i) || i == selectedTerritory
                         ? Color.yellow : Color.cyan);
                     GUI.Label(marker, "C", EditorStyles.centeredGreyMiniLabel);
@@ -1542,7 +1620,8 @@ public sealed class WarDominionMapEditorWindow : EditorWindow
 
     private static int[] TriangulateClosedPolygon(IReadOnlyList<Vector2> closed)
     {
-        int count = closed == null ? 0 : closed.Count - 1;
+        int count = closed == null ? 0 : closed.Count;
+        if (count > 1 && closed[0] == closed[count - 1]) count--;
         if (count < 3) return Array.Empty<int>();
         var remaining = Enumerable.Range(0, count).ToList();
         var triangles = new List<int>((count - 2) * 3);
@@ -1976,6 +2055,40 @@ public sealed class WarDominionMapEditorWindow : EditorWindow
             new Color(1f, 0.86f, 0.08f, 1f), 4f);
     }
 
+    private void DrawSelectedRegionFill(WDMapViewportTransform projection)
+    {
+        if (tab != Tab.Regioes || map.Regioes.Count == 0) return;
+        DefinicaoRegiaoMapa region = map.Regioes[Mathf.Clamp(selectedRegion, 0,
+            map.Regioes.Count - 1)];
+        Color fill = region.corDestaque;
+        fill.a = Mathf.Clamp(fill.a <= 0f ? 0.28f : fill.a * 0.38f,
+            0.16f, 0.42f);
+        Handles.BeginGUI();
+        Handles.color = fill;
+        foreach (DefinicaoTerritorioMapa territory in map.Territorios)
+        {
+            if (territory == null || !string.Equals(territory.regiaoId,
+                    region.id, StringComparison.Ordinal) ||
+                !activePreviewContext.TryGetTerritoryPolygons(territory.id,
+                    out IReadOnlyList<IReadOnlyList<Vector2>> polygons)) continue;
+            foreach (IReadOnlyList<Vector2> polygon in polygons)
+            {
+                int[] triangles = TriangulateClosedPolygon(polygon);
+                for (int index = 0; index + 2 < triangles.Length; index += 3)
+                {
+                    migrationTriangleBuffer[0] = projection.MapToViewport(
+                        polygon[triangles[index]]);
+                    migrationTriangleBuffer[1] = projection.MapToViewport(
+                        polygon[triangles[index + 1]]);
+                    migrationTriangleBuffer[2] = projection.MapToViewport(
+                        polygon[triangles[index + 2]]);
+                    Handles.DrawAAConvexPolygon(migrationTriangleBuffer);
+                }
+            }
+        }
+        Handles.EndGUI();
+    }
+
     private void DrawTerritoryOutline(string territoryId, Color color, float width)
     {
         if (!activePreviewContext.TryGetTerritoryPolygons(territoryId,
@@ -2153,6 +2266,8 @@ public sealed class WarDominionMapEditorWindow : EditorWindow
         item.FindPropertyRelative("nomeExibido").stringValue = "Nova Região";
         item.FindPropertyRelative("bonus").intValue = 0;
         item.FindPropertyRelative("territorioIds").ClearArray();
+        serializedMap.ApplyModifiedProperties();
+        EditorUtility.SetDirty(map);
         selectedRegion = items.arraySize - 1;
     }
 
@@ -2160,10 +2275,10 @@ public sealed class WarDominionMapEditorWindow : EditorWindow
     {
         DefinicaoRegiaoMapa region = map.Regioes[selectedRegion];
         if (!EditorUtility.DisplayDialog("Remover região",
-                $"Remover '{region.nomeExibido}'? Os territórios associados ficarão inválidos até serem reatribuídos.",
+                $"Remover '{region.nomeExibido}'? Os territórios associados ficarão sem região e serão sinalizados pelo validador.",
                 "Remover", "Cancelar")) return;
-        Undo.RecordObject(map, "Remover região");
-        serializedMap.FindProperty("regioes").DeleteArrayElementAtIndex(selectedRegion);
+        WarDominionMapEditorOperations.RemoveRegion(map, region.id);
+        serializedMap.Update();
         selectedRegion = Mathf.Max(0, selectedRegion - 1);
     }
 

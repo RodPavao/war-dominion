@@ -418,6 +418,14 @@ public class GerenciadorRodada : MonoBehaviour
             IniciarProximaRodada();
     }
 
+    // 8.1. A seleção territorial inicial roda também no Player Android.
+    // Ela usa a autoridade normal de prioridade antes de começar o round 1.
+    public void PrepararPrioridadeRoundUm()
+    {
+        rodadaAtual = 1;
+        AtualizarPrioridadeJogadores();
+    }
+
 #if UNITY_EDITOR
     private class LadoTesteEditor
     {
@@ -439,12 +447,6 @@ public class GerenciadorRodada : MonoBehaviour
         ResultadoAtual = null;
         gameManager?.LimparPreparacaoParaTesteEditor();
         IniciarRodada();
-    }
-
-    public void PrepararPrioridadeRoundUm()
-    {
-        rodadaAtual = 1;
-        AtualizarPrioridadeJogadores();
     }
 
     [ContextMenu("Teste Editor/Preparar Round 10 Empatado")]

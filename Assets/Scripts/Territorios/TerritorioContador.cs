@@ -26,6 +26,23 @@ public class TerritorioContador : MonoBehaviour
     private ContadorTropas contadorTropas;
     private TerritorioClique territorio;
 
+    public static Vector3 ResolverEscalaBase(DefinicaoMapa mapa)
+    {
+        if (mapa != null && overridesEscalaPorMapa.TryGetValue(mapa.MapaId,
+                out Vector3 overrideMapa))
+            return overrideMapa;
+        return escalaPadraoGlobal;
+    }
+
+    public static Vector2 ResolverTamanhoVisualNoMapa(DefinicaoMapa mapa,
+        DefinicaoTerritorioMapa territorio)
+    {
+        Vector3 baseScale = ResolverEscalaBase(mapa);
+        float individual = territorio?.EscalaContadorEfetiva ?? 1f;
+        return new Vector2(WDArmyCounterView.FrameWidth * baseScale.x * individual,
+            WDArmyCounterView.FrameWidth * baseScale.y * individual);
+    }
+
     private void Awake()
     {
         territorio =
@@ -57,7 +74,7 @@ public class TerritorioContador : MonoBehaviour
         CriarContador();
     }
 
-    private static void AplicarEscalaDoContador(
+    private void AplicarEscalaDoContador(
         Transform contador)
     {
         if (contador == null)
@@ -67,12 +84,16 @@ public class TerritorioContador : MonoBehaviour
             ? MapaAtivo.Instance.Definicao
             : null;
 
-        Vector3 escala = escalaPadraoGlobal;
-        if (mapa != null &&
-            overridesEscalaPorMapa.TryGetValue(mapa.MapaId, out Vector3 overrideMapa))
-            escala = overrideMapa;
+        Vector3 escala = ResolverEscalaBase(mapa);
 
-        contador.localScale = escala;
+        DefinicaoTerritorioMapa dados = mapa != null && territorio != null
+            ? MapaAtivo.Instance.ObterDefinicaoTerritorio(territorio.idTerritorio)
+            : null;
+        float escalaIndividual = dados != null
+            ? dados.EscalaContadorEfetiva
+            : 1f;
+
+        contador.localScale = escala * escalaIndividual;
     }
 
     private void CriarContador()

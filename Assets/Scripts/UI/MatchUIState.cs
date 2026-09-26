@@ -38,6 +38,7 @@ public sealed class MatchUIState : IEquatable<MatchUIState>
     public string DestinoSelecionadoId { get; }
     public string TerritorioTransferenciaId { get; }
     public int QuantidadeAcaoSelecionada { get; }
+    public int QuantidadeMaximaAcao { get; }
     public string TipoAcaoEsperado { get; }
     public string FeedbackTransferencia { get; }
     public IReadOnlyList<TerritorioClique.Dono> DestinatariosTransferencia { get; }
@@ -82,6 +83,7 @@ public sealed class MatchUIState : IEquatable<MatchUIState>
         string destinoSelecionadoId,
         string territorioTransferenciaId,
         int quantidadeAcaoSelecionada,
+        int quantidadeMaximaAcao,
         string tipoAcaoEsperado,
         string feedbackTransferencia,
         TerritorioClique.Dono[] destinatariosTransferencia,
@@ -126,6 +128,7 @@ public sealed class MatchUIState : IEquatable<MatchUIState>
         DestinoSelecionadoId = destinoSelecionadoId ?? string.Empty;
         TerritorioTransferenciaId = territorioTransferenciaId ?? string.Empty;
         QuantidadeAcaoSelecionada = quantidadeAcaoSelecionada;
+        QuantidadeMaximaAcao = quantidadeMaximaAcao;
         TipoAcaoEsperado = tipoAcaoEsperado ?? string.Empty;
         FeedbackTransferencia = feedbackTransferencia ?? string.Empty;
         DestinatariosTransferencia = Array.AsReadOnly(

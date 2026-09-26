@@ -1642,10 +1642,10 @@ public sealed class WDWeaponExecutionCoordinatorTests
     [Test]
     public void ActionsControlOccupiesCompactPositionWithOrWithoutTeams()
     {
-        Assert.That(WarDominionMatchHUD.ActionsControlTop(false), Is.EqualTo(-616f));
-        Assert.That(WarDominionMatchHUD.ActionsControlTop(true), Is.EqualTo(-672f));
+        Assert.That(WarDominionMatchHUD.ActionsControlTop(false), Is.EqualTo(-803f));
+        Assert.That(WarDominionMatchHUD.ActionsControlTop(true), Is.EqualTo(-803f));
         Assert.That(WarDominionMatchHUD.ActionsControlTop(true) -
-            WarDominionMatchHUD.ActionsControlTop(false), Is.EqualTo(-56f));
+            WarDominionMatchHUD.ActionsControlTop(false), Is.Zero);
     }
 
     // 01. A mesma seleção deve ativar somente uma das duas composições de HUD.
@@ -1658,12 +1658,12 @@ public sealed class WDWeaponExecutionCoordinatorTests
         try
         {
             UICompositionRoot.ApplyHudMode(newHud, legacy, true);
-            Assert.That(newHud.activeSelf, Is.True);
+            Assert.That(newHud.activeSelf, Is.False);
             Assert.That(legacy.enabled, Is.False);
 
             UICompositionRoot.ApplyHudMode(newHud, legacy, false);
             Assert.That(newHud.activeSelf, Is.False);
-            Assert.That(legacy.enabled, Is.True);
+            Assert.That(legacy.enabled, Is.False);
         }
         finally
         {

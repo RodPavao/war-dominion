@@ -1,0 +1,88 @@
+# WD 16:9 — Promotion Dry-Run
+
+- Timestamp: 2026-09-12T17:10:54.5608711-03:00
+- HEAD: `72137fcb310e9873d09c1961f553ea717dcc4dbc`
+- Map: `riachuelo`
+- Scene: `Assets/Mapas/Batalha do Riachuelo/Riachuelo.unity`
+- Current art: `Assets/Mapas/Batalha do Riachuelo/Arte/Riachuelo.png`
+- Target art: `Assets/Mapas/Batalha do Riachuelo/Arte/WD_Map_Riachuelo_Background_16x9_v01.png`
+- Result: **READY FOR PROMOTION**
+
+## Structural validation
+
+- TerritoryIds: 37/37
+- Polygon paths: 37/37
+- Ambiguities: 0
+- Multipart territories: 0
+- TerritorioClique: 37/37
+- Colliders: 37/37
+- Connections: 82 (`941A768E3284DFF95B44EA5799186C43ECAFD473310788CEBB75909E0F829E72`)
+- Regions: 6 (`6E1030C6DEC9D77113E0C3AEE408A445DA9AE02BD47D08C61F26CA38C15FD370`)
+- Scene dirty before/after: False/False
+
+## Camera plan
+
+- Target bounds: center=(0,0,0), size=(19,2,10,8,0,2)
+- Orthographic size: 5 → 5,4
+- Position: (0,0,-10) → (0,0,-10)
+- Aspect policy: `max(height/2, width/(2*aspect))`; no stretch or crop; HUD remains ScreenSpaceOverlay.
+
+## Territory plan
+
+| TerritoryId | GO | Paths old→new | Components | Bounds old | Bounds new | Counter | Fallback/path | Visual | Result |
+|---|---|---:|---|---|---|---|---|---|---|
+| Pilcomayo | Pilcomayo | 1→1 | 23 | (2454,213,368,371) | (1134,296,138,136) | REPOSITION (1685,5,185,2) | (1210,3,365,3)/0 | EDITOR_GENERATED_BOUNDARY_VISUAL | PROMOTABLE |
+| Pilagas | Pilagas | 1→1 | 12 | (2148,238,418,502) | (1373,149,158,152) | PRESERVABLE (1502,1,232,3) | (1455,4,224,2)/0 | EDITOR_GENERATED_BOUNDARY_VISUAL | PROMOTABLE |
+| Feliciano | Feliciano | 1→1 | 1 | (119,287,505,504) | (350,178,213,208) | REPOSITION (202,242,8) | (433,6,274,1)/0 | EDITOR_GENERATED_BOUNDARY_VISUAL | PROMOTABLE |
+| PalomeraIsland | PalomeraIsland | 1→1 | 30 | (1330,534,350,333) | (878,284,150,137) | PRESERVABLE (969,9,335,4) | (961,1,359,4)/0 | EDITOR_GENERATED_BOUNDARY_VISUAL | PROMOTABLE |
+| Federal | Federal | 1→1 | 11 | (455,580,447,288) | (367,315,187,180) | PRESERVABLE (440,1,339,1) | (468,4,406,1)/0 | EDITOR_GENERATED_BOUNDARY_VISUAL | PROMOTABLE |
+| GeneralSanMartin | GeneralSanMartin | 1→1 | 4 | (1910,563,329,330) | (1240,161,178,203) | PRESERVABLE (1331,6,342,4) | (1329,7,267,8)/0 | EDITOR_GENERATED_BOUNDARY_VISUAL | PROMOTABLE |
+| LaPaz | LaPaz | 1→1 | 27 | (157,612,446,439) | (654,326,137,177) | REPOSITION (251,4,388,8) | (722,1,428,4)/0 | EDITOR_GENERATED_BOUNDARY_VISUAL | PROMOTABLE |
+| Formosa | Formosa | 1→1 | 35 | (2538,560,330,560) | (1165,430,104,93) | REPOSITION (1721,4,394,6) | (1221,7,476,4)/0 | EDITOR_GENERATED_BOUNDARY_VISUAL | PROMOTABLE |
+| Laishi | Laishi | 1→1 | 5 | (2220,690,365,332) | (1410,294,143,235) | PRESERVABLE (1528,5,401,2) | (1481,1,414,5)/0 | EDITOR_GENERATED_BOUNDARY_VISUAL | PROMOTABLE |
+| Federacion | Federacion | 1→1 | 15 | (823,636,317,434) | (495,304,191,114) | PRESERVABLE (624,3,412,7) | (597,4,362,2)/0 | EDITOR_GENERATED_BOUNDARY_VISUAL | PROMOTABLE |
+| OHiggins | OHiggins | 1→1 | 7 | (1499,682,538,410) | (955,346,230,170) | PRESERVABLE (1150,7,429,7) | (1085,8,444,4)/0 | EDITOR_GENERATED_BOUNDARY_VISUAL | PROMOTABLE |
+| PrimeroDeMayo | PrimeroDeMayo | 1→1 | 14 | (1981,879,249,226) | (1270,349,156,137) | PRESERVABLE (1346,9,464,3) | (1347,3,418,9)/0 | EDITOR_GENERATED_BOUNDARY_VISUAL | PROMOTABLE |
+| Parana | Parana | 1→1 | 3 | (64,817,473,388) | (506,420,251,161) | REPOSITION (167,1,492,6) | (629,3,504,4)/0 | EDITOR_GENERATED_BOUNDARY_VISUAL | PROMOTABLE |
+| Villaguay | Villaguay | 1→1 | 8 | (478,860,587,392) | (328,402,198,158) | PRESERVABLE (488,9,497,3) | (410,7,499,5)/0 | EDITOR_GENERATED_BOUNDARY_VISUAL | PROMOTABLE |
+| MayorMartinez | MayorMartinez | 1→1 | 28 | (2205,984,462,251) | (1411,525,142,121) | REPOSITION (1542,1,517,3) | (1487,3,585,5)/0 | EDITOR_GENERATED_BOUNDARY_VISUAL | PROMOTABLE |
+| Concordia | Concordia | 1→1 | 20 | (1048,855,277,467) | (754,419,116,192) | REPOSITION (759,2,521,9) | (814,7,527,9)/0 | EDITOR_GENERATED_BOUNDARY_VISUAL | PROMOTABLE |
+| SanLorenzo | SanLorenzo | 1→1 | 0 | (1392,1036,550,378) | (905,496,235,155) | PRESERVABLE (1074,6,571,4) | (1032,3,571,6)/0 | EDITOR_GENERATED_BOUNDARY_VISUAL | PROMOTABLE |
+| SanFernando | SanFernando | 1→1 | 26 | (1908,1070,340,319) | (1264,473,198,104) | REPOSITION (1311,4,573,7) | (1357,3,524,2)/0 | EDITOR_GENERATED_BOUNDARY_VISUAL | PROMOTABLE |
+| Desmochados | Desmochados | 1→1 | 13 | (2537,1102,331,298) | (1055,746,179,156) | REPOSITION (1730,2,583,1) | (1141,7,818,1)/0 | EDITOR_GENERATED_BOUNDARY_VISUAL | PROMOTABLE |
+| Mercedes | Mercedes | 1→1 | 17 | (388,1192,726,204) | (467,558,310,83) | REPOSITION (485,600,7) | (628,1,596,9)/0 | EDITOR_GENERATED_BOUNDARY_VISUAL | PROMOTABLE |
+| Goya | Goya | 1→1 | 34 | (75,1202,490,458) | (725,618,114,114) | REPOSITION (190,5,659) | (780,3,673,1)/0 | EDITOR_GENERATED_BOUNDARY_VISUAL | PROMOTABLE |
+| PasoDeLaPatria | PasoDeLaPatria | 1→1 | 9 | (2199,1207,411,450) | (1434,639,141,211) | PRESERVABLE (1540,8,665,2) | (1506,7,732,3)/0 | EDITOR_GENERATED_BOUNDARY_VISUAL | PROMOTABLE |
+| Lavalle | Lavalle | 1→1 | 6 | (444,1342,325,267) | (333,563,206,181) | PRESERVABLE (377,1,684,9) | (428,5,644,2)/0 | EDITOR_GENERATED_BOUNDARY_VISUAL | PROMOTABLE |
+| PasoDeLosLibres | PasoDeLosLibres | 1→1 | 22 | (981,1329,275,299) | (595,629,135,153) | PRESERVABLE (709,2,688,3) | (662,698)/0 | EDITOR_GENERATED_BOUNDARY_VISUAL | PROMOTABLE |
+| NueveDeJulio | NueveDeJulio | 1→1 | 24 | (1335,1350,335,338) | (881,625,140,130) | PRESERVABLE (960,1,701,1) | (953,8,683,1)/0 | EDITOR_GENERATED_BOUNDARY_VISUAL | PROMOTABLE |
+| Vera | Vera | 1→1 | 21 | (1661,1352,374,325) | (1019,635,164,119) | REPOSITION (1177,4,713,5) | (1102,4,696,7)/0 | EDITOR_GENERATED_BOUNDARY_VISUAL | PROMOTABLE |
+| Sauce | Sauce | 1→1 | 36 | (678,1359,326,411) | (491,624,136,93) | REPOSITION (534,2,719,9) | (553,2,666,9)/0 | EDITOR_GENERATED_BOUNDARY_VISUAL | PROMOTABLE |
+| GeneralDiaz | GeneralDiaz | 1→1 | 19 | (2595,1371,319,551) | (1132,511,144,130) | REPOSITION (1757,753,6) | (1196,1,576,2)/0 | EDITOR_GENERATED_BOUNDARY_VISUAL | PROMOTABLE |
+| SanJavier | SanJavier | 1→1 | 25 | (2023,1358,277,599) | (1293,729,182,126) | PRESERVABLE (1377,6,763,9) | (1375,5,787,6)/0 | EDITOR_GENERATED_BOUNDARY_VISUAL | PROMOTABLE |
+| CuruzuCuatia | CuruzuCuatia | 1→1 | 31 | (878,1551,475,294) | (576,743,179,117) | PRESERVABLE (695,799) | (656,3,811,7)/0 | EDITOR_GENERATED_BOUNDARY_VISUAL | PROMOTABLE |
+| SanCristobal | SanCristobal | 1→1 | 32 | (1460,1586,319,323) | (936,720,130,120) | REPOSITION (1035,820,4) | (1003,2,783,6)/0 | EDITOR_GENERATED_BOUNDARY_VISUAL | PROMOTABLE |
+| Humaita | Humaita | 1→1 | 2 | (2281,1599,409,329) | (1259,570,177,177) | REPOSITION (1571,5,820,7) | (1354,655)/0 | EDITOR_GENERATED_BOUNDARY_VISUAL | PROMOTABLE |
+| SantaFe | SantaFe | 1→1 | 18 | (1733,1650,419,410) | (1152,837,168,154) | REPOSITION (1232,7,860,3) | (1242,4,919,6)/0 | EDITOR_GENERATED_BOUNDARY_VISUAL | PROMOTABLE |
+| Esquina | Esquina | 1→1 | 29 | (635,1665,429,301) | (684,708,195,109) | REPOSITION (529,4,860,5) | (772,2,764,8)/0 | EDITOR_GENERATED_BOUNDARY_VISUAL | PROMOTABLE |
+| MonteCaseros | MonteCaseros | 1→1 | 33 | (1056,1772,367,240) | (755,790,152,90) | REPOSITION (788,3,883,2) | (831,833,7)/0 | EDITOR_GENERATED_BOUNDARY_VISUAL | PROMOTABLE |
+| Villalbin | Villalbin | 1→1 | 10 | (2293,1784,466,393) | (1181,632,119,228) | REPOSITION (1602,924,6) | (1240,9,738,7)/0 | EDITOR_GENERATED_BOUNDARY_VISUAL | PROMOTABLE |
+| Pirane | Pirane | 1→1 | 16 | (1955,1885,390,381) | (1300,801,205,151) | REPOSITION (1378,5,977,2) | (1399,875,6)/0 | EDITOR_GENERATED_BOUNDARY_VISUAL | PROMOTABLE |
+
+## Warnings
+
+- None
+
+## Blockers
+
+- None
+
+## Future visual strategy
+
+Generate an editor-time territorial visual asset from each canonical boundary and use the same paths as the future PolygonCollider2D. Do not deform or retain the legacy territorial sprite as promoted geometry.
+
+## Labels
+
+Manual overrides remain unchanged. Runtime region labels depend on territory transforms and require visual review after a future promotion.
+
+> Nenhuma promoção foi aplicada.

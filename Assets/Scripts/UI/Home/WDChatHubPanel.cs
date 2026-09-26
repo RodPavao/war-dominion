@@ -48,7 +48,7 @@ public sealed class WDChatHubPanel : MonoBehaviour
         openProfile = profileAction;
         confirm = confirmAction;
         Image blocker = gameObject.AddComponent<Image>();
-        blocker.color = new Color(0.005f, 0.015f, 0.025f, 0.94f);
+        blocker.color = WDMatchVisualStyle.BackdropMatch;
         blocker.raycastTarget = true;
         content = WDHomeUIFactory.Rect("ChatContent", transform);
         WDHomeUIFactory.Stretch(content, 54f, 44f, 54f, 44f);
@@ -126,6 +126,7 @@ public sealed class WDChatHubPanel : MonoBehaviour
     private void Render()
     {
         gameObject.SetActive(true);
+        ApplyResponsiveFrame();
         Clear(content);
         AddButton(content, "Back", "<  VOLTAR", Back,
             new Vector2(0.01f, 0.91f), new Vector2(0.13f, 0.99f));
@@ -139,6 +140,19 @@ public sealed class WDChatHubPanel : MonoBehaviour
         RenderChannels(left);
         RenderConversation(center);
         RenderOnlineFriends(right);
+    }
+
+    // 05. O chat conserva a composição canônica e usa o espaço ultrawide como
+    // margem. A altura continua sendo a autoridade de escala da PARTIDA.
+    private void ApplyResponsiveFrame()
+    {
+        RectTransform root = (RectTransform)transform;
+        float width = Mathf.Min(1920f, Mathf.Max(960f, root.rect.width - 108f));
+        float height = Mathf.Min(980f, Mathf.Max(620f, root.rect.height - 88f));
+        content.anchorMin = content.anchorMax = new Vector2(0.5f, 0.5f);
+        content.pivot = new Vector2(0.5f, 0.5f);
+        content.anchoredPosition = Vector2.zero;
+        content.sizeDelta = new Vector2(width, height);
     }
 
     private void RenderChannels(RectTransform parent)
@@ -267,7 +281,7 @@ public sealed class WDChatHubPanel : MonoBehaviour
         WDHomeUIFactory.Stretch(modalRect);
         newConversationModal = modalRect.gameObject;
         Image blocker = newConversationModal.AddComponent<Image>();
-        blocker.color = new Color(0f, 0f, 0f, 0.72f); blocker.raycastTarget = true;
+        blocker.color = WDMatchVisualStyle.BackdropMatch; blocker.raycastTarget = true;
         RectTransform panel = Panel("Panel", newConversationModal.transform,
             new Vector2(0.32f, 0.34f), new Vector2(0.68f, 0.66f));
         AddText(panel, "Title", "NOVA CONVERSA", 24f, theme.TextoPrincipal,
@@ -339,8 +353,12 @@ public sealed class WDChatHubPanel : MonoBehaviour
     {
         RectTransform rect = WDHomeUIFactory.Rect(name, parent); rect.anchorMin = min; rect.anchorMax = max;
         rect.offsetMin = rect.offsetMax = Vector2.zero;
-        Image image = rect.gameObject.AddComponent<Image>(); image.color = theme.BackgroundElevated; image.raycastTarget = true;
-        Outline outline = rect.gameObject.AddComponent<Outline>(); outline.effectColor = theme.BorderNeutral; return rect;
+        Image image = rect.gameObject.AddComponent<Image>();
+        image.color = WDMatchVisualStyle.SurfaceMatchModal;
+        image.raycastTarget = true;
+        WDHomeUIFactory.ApplyRounded(image, 12);
+        WDHomeUIFactory.AddRoundedBorder(rect, WDMatchVisualStyle.Gold, 12);
+        return rect;
     }
     private TextMeshProUGUI AddText(Transform parent, string name, string value, float size, Color color,
         Vector2 min, Vector2 max, TextAlignmentOptions alignment = TextAlignmentOptions.Left)

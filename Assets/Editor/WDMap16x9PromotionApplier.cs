@@ -37,7 +37,7 @@ public static class WDMap16x9PromotionApplier
     private const string BackupBoundaryHash =
         "89248A7B8364B352368E5D987CCB415701FEED94142BC3A1B6C327F6EE1B9DF6";
     private const string CurrentBoundaryHash =
-        "CD42030806446E36A83163569898F381CD24DB787E7938D5BDB33E8155A34D5F";
+        "0C4529C262BDCEB81F95CB9F488AE3D784B78D8BBE567E3AA87F54706F1166E7";
 
     [MenuItem("War Dominion/Editor de Mapas/Promover quatro mapas restantes para 16:9")]
     public static void PromoteRemainingMapsFromMenu()

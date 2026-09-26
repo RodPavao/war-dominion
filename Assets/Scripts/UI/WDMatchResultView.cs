@@ -8,6 +8,7 @@ public sealed class WDMatchResultView : MonoBehaviour
     // 01. Tela funcional provisória sobre as duas variantes do HUD.
     private TextMeshProUGUI title;
     private TextMeshProUGUI details;
+    private RectTransform resultPanel;
     private bool leaving;
 
     public void Build(WarDominionUITheme theme)
@@ -17,23 +18,23 @@ public sealed class WDMatchResultView : MonoBehaviour
         root.anchorMax = Vector2.one;
         root.offsetMin = root.offsetMax = Vector2.zero;
         Image blocker = gameObject.AddComponent<Image>();
-        blocker.color = new Color(0f, 0f, 0f, 0.82f);
+        blocker.color = WDMatchVisualStyle.BackdropMatch;
         blocker.raycastTarget = true;
 
-        RectTransform panel = WDUIFactory.Rect("ResultPanel", root);
-        panel.anchorMin = new Vector2(0.30f, 0.27f);
-        panel.anchorMax = new Vector2(0.70f, 0.73f);
-        panel.offsetMin = panel.offsetMax = Vector2.zero;
-        panel.gameObject.AddComponent<WDUIPanel>().Build(theme, true);
+        resultPanel = WDUIFactory.Rect("ResultPanel", root);
+        resultPanel.anchorMin = new Vector2(0.33f, 0.30f);
+        resultPanel.anchorMax = new Vector2(0.67f, 0.70f);
+        resultPanel.offsetMin = resultPanel.offsetMax = Vector2.zero;
+        resultPanel.gameObject.AddComponent<WDUIPanel>().Build(theme, true);
 
-        title = WDUIFactory.Text("Title", panel, theme, theme.TypeTitle,
+        title = WDUIFactory.Text("Title", resultPanel, theme, theme.TypeTitle,
             theme.TextoPrincipal, TextAlignmentOptions.Center);
         SetBounds(title.rectTransform, 0.08f, 0.70f, 0.92f, 0.90f);
-        details = WDUIFactory.Text("Details", panel, theme, theme.TypeBody,
+        details = WDUIFactory.Text("Details", resultPanel, theme, theme.TypeBody,
             theme.TextoSecundario, TextAlignmentOptions.Center);
         SetBounds(details.rectTransform, 0.08f, 0.28f, 0.92f, 0.70f);
 
-        RectTransform action = WDUIFactory.Rect("Continue", panel);
+        RectTransform action = WDUIFactory.Rect("Continue", resultPanel);
         action.anchorMin = new Vector2(0.20f, 0.08f);
         action.anchorMax = new Vector2(0.80f, 0.22f);
         action.offsetMin = action.offsetMax = Vector2.zero;
@@ -45,7 +46,11 @@ public sealed class WDMatchResultView : MonoBehaviour
     public void Present(WDMatchCompletion outcome, int totalTrophies)
     {
         if (outcome == null) return;
-        title.text = outcome.IsDraw ? "EMPATE" : outcome.IsLocalWinner ? "VITÓRIA" : "DERROTA";
+        bool wideResult = outcome.ModeId != "1v1";
+        resultPanel.anchorMin = wideResult ? new Vector2(0.24f, 0.25f) : new Vector2(0.33f, 0.30f);
+        resultPanel.anchorMax = wideResult ? new Vector2(0.76f, 0.75f) : new Vector2(0.67f, 0.70f);
+        title.text = "BATALHA ENCERRADA\n" +
+            (outcome.IsDraw ? "— EMPATE —" : outcome.IsLocalWinner ? "— VITÓRIA —" : "— DERROTA —");
         string placement = outcome.ModeId == "ffa" ? $"\nCOLOCAÇÃO: {outcome.Placement}º" : string.Empty;
         details.text = $"MODO: {outcome.ModeId.ToUpperInvariant()}" +
             (string.IsNullOrEmpty(outcome.SubmodeId) ? string.Empty :

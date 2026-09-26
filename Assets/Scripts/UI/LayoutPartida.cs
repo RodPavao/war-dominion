@@ -44,6 +44,8 @@ public class LayoutPartida : MonoBehaviour
     private Color corOriginal;
     private float larguraEsquerdaEfetiva;
     private float larguraDireitaEfetiva;
+    private Vector2Int ultimaResolucaoAplicada;
+    private bool aguardandoMapa = true;
 
     private bool configurado = false;
 
@@ -69,6 +71,21 @@ public class LayoutPartida : MonoBehaviour
     private void Start()
     {
         AplicarLayout();
+    }
+
+
+    // =====================================================
+    // 02. REAPLICAÇÃO DETERMINÍSTICA
+    // =====================================================
+
+    private void LateUpdate()
+    {
+        if (!Application.isPlaying || Screen.width <= 0 || Screen.height <= 0)
+            return;
+
+        var resolucao = new Vector2Int(Screen.width, Screen.height);
+        if (aguardandoMapa || resolucao != ultimaResolucaoAplicada)
+            AplicarLayout();
     }
 
 
@@ -162,12 +179,9 @@ public class LayoutPartida : MonoBehaviour
             );
 
 
-        // Mapas WD 16:9 são o fundo integral; o HUD já está em Screen Space.
-        // Mapas legados preservam temporariamente o viewport central anterior.
-        bool fundoIntegral16x9 = MapaAtivo.Instance != null &&
-            EhArteIntegral16x9(MapaAtivo.Instance.Definicao);
-        cameraPrincipal.rect = CalcularViewportMapa(fundoIntegral16x9,
-            larguraEsquerdaEfetiva, larguraCentral);
+        // 02. A câmera do mundo é sempre física e integral. As reservas de HUD
+        // existem somente para compatibilidade com consumidores legados.
+        cameraPrincipal.rect = new Rect(0f, 0f, 1f, 1f);
 
 
         cameraPrincipal.backgroundColor =
@@ -179,7 +193,9 @@ public class LayoutPartida : MonoBehaviour
             );
 
 
-        AjustarMapaPelaAltura();
+        aguardandoMapa = !AjustarMapaPelaAltura();
+        if (!aguardandoMapa)
+            ultimaResolucaoAplicada = new Vector2Int(Screen.width, Screen.height);
     }
 
     public static Rect CalcularViewportMapa(bool fundoIntegral16x9,
@@ -192,35 +208,48 @@ public class LayoutPartida : MonoBehaviour
         Mathf.Abs(mapa.ArteBase.rect.width / mapa.ArteBase.rect.height -
             16f / 9f) < 0.001f;
 
+    // 04. O mapa usa enquadramento de cobertura. O menor dos dois limites
+    // elimina letterbox/pillarbox e mantém a câmera em viewport físico integral.
     public static float TamanhoOrtograficoNormalizado(
         Vector2 tamanhoMapa,
         float aspectoViewport) =>
-        Mathf.Max(tamanhoMapa.y * 0.5f,
+        Mathf.Min(tamanhoMapa.y * 0.5f,
             tamanhoMapa.x / (2f * Mathf.Max(aspectoViewport, 0.01f)));
+
+    public static Vector2 CalcularCentroResponsivo(Bounds arte, Bounds jogavel,
+        float tamanhoOrtografico, float aspectoViewport, Vector2 deslocamento)
+    {
+        float meiaAltura = tamanhoOrtografico;
+        float meiaLargura = tamanhoOrtografico * Mathf.Max(aspectoViewport, 0.01f);
+        Vector2 desejado = new Vector2(jogavel.center.x, jogavel.center.y) + deslocamento;
+        float minimoX = arte.min.x + meiaLargura;
+        float maximoX = arte.max.x - meiaLargura;
+        float minimoY = arte.min.y + meiaAltura;
+        float maximoY = arte.max.y - meiaAltura;
+        return new Vector2(
+            minimoX <= maximoX ? Mathf.Clamp(desejado.x, minimoX, maximoX) : arte.center.x,
+            minimoY <= maximoY ? Mathf.Clamp(desejado.y, minimoY, maximoY) : arte.center.y);
+    }
 
 
     // =====================================================
     // MAPA - ALTURA TEM PRIORIDADE
     // =====================================================
 
-    private void AjustarMapaPelaAltura()
+    private bool AjustarMapaPelaAltura()
     {
         if (MapaAtivo.Instance == null ||
             !MapaAtivo.Instance.TentarObterLimitesVisuais(out Bounds limitesMapa))
         {
-            Debug.LogError(
-                "LAYOUT | Visual do mapa ativo não encontrado."
-            );
-
-            return;
+            return false;
         }
 
 
         // =================================================
         // REGRA PRINCIPAL
         //
-        // O mapa ocupa o maior tamanho possível sem recorte, considerando
-        // o aspect ratio real do viewport reservado entre os painéis.
+        // O mapa cobre o viewport completo. Em proporções diferentes da arte,
+        // o excedente é recortado no eixo necessário e nunca vira faixa preta.
         // =================================================
 
         float alturaMapa =
@@ -238,7 +267,7 @@ public class LayoutPartida : MonoBehaviour
 
         float tamanhoCamera = TamanhoOrtograficoNormalizado(
             limitesMapa.size, aspectoViewport);
-        string eixoLimitante = tamanhoPelaLargura > tamanhoPelaAltura
+        string eixoLimitante = tamanhoPelaLargura < tamanhoPelaAltura
             ? "largura"
             : "altura";
 
@@ -263,8 +292,9 @@ public class LayoutPartida : MonoBehaviour
         // sem mover mapa, territórios, colliders ou contadores.
         // =================================================
 
-        Vector3 centroMapa =
-            limitesMapa.center;
+        Bounds limitesJogaveis = limitesMapa;
+        if (MapaAtivo.Instance.TentarObterLimitesJogaveis(out Bounds boundsTerritorios))
+            limitesJogaveis = boundsTerritorios;
 
         Vector2 deslocamentoEnquadramento =
             MapaAtivo.Instance.Definicao != null
@@ -272,16 +302,19 @@ public class LayoutPartida : MonoBehaviour
                 : Vector2.zero;
 
 
+        Vector2 centroResponsivo = CalcularCentroResponsivo(limitesMapa,
+            limitesJogaveis, tamanhoCamera, aspectoViewport, deslocamentoEnquadramento);
+
         cameraPrincipal.transform.position =
             new Vector3(
-                centroMapa.x + deslocamentoEnquadramento.x,
-                centroMapa.y + deslocamentoEnquadramento.y,
+                centroResponsivo.x,
+                centroResponsivo.y,
                 posicaoOriginal.z
             );
 
 
         Debug.Log(
-            "LAYOUT | Mapa maximizado sem recorte | " +
+            "LAYOUT | Mapa fullscreen por cobertura | " +
             "Orthographic Size: " +
             tamanhoCamera.ToString("0.00") +
             " | Offset: " +
@@ -300,6 +333,8 @@ public class LayoutPartida : MonoBehaviour
             Mathf.RoundToInt(viewportPixels.width) + "x" +
             Mathf.RoundToInt(viewportPixels.height)
         );
+
+        return true;
     }
 
 

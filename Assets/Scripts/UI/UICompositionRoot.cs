@@ -16,7 +16,7 @@ public sealed class UICompositionRoot : MonoBehaviour
 
     private const string CaminhoTema = "UI/WarDominionUITheme";
     public const string ChaveHUDNovo = "WarDominion.UI.HUDNovoAtivo";
-    public static bool IsNewHudSelected() => PlayerPrefs.GetInt(ChaveHUDNovo, 1) == 1;
+    public static bool IsNewHudSelected() => true;
     private MatchUIPresenter presenter;
     private RectTransform safeArea;
     private RoundAnnouncementView roundAnnouncement;
@@ -28,10 +28,11 @@ public sealed class UICompositionRoot : MonoBehaviour
     private WeaponResolutionPresenter weaponResolutionPresenter;
     private ResolutionVisualStateCoordinator resolutionVisualStateCoordinator;
     private PreparedActionsOverlayController preparedActionsOverlay;
-    private WarDominionMatchHUD matchHUD;
+    private WDMatchUIPresentationBinding presentationBinding;
+    private WDMatchUIV2 matchUIV2;
     private WDWeaponMatchUIController weaponUI;
-    private WDWeaponInstallationMapPresenter weaponInstallationPresenter;
     private WDMatchInformationalOverlayController informationalOverlay;
+    private IWDMatchUtilityCommands matchUtilities;
     private WDInitialTerritorySelectionView initialTerritorySelectionView;
     private WDMatchResultView resultView;
     private WDLocalMatchResultService matchResults;
@@ -42,6 +43,7 @@ public sealed class UICompositionRoot : MonoBehaviour
     private Rect ultimaAreaSegura;
     private Vector2Int ultimaResolucao;
     private string activeChatMatchId;
+    private WDChatChannel activeMatchChat;
 
     private void Awake()
     {
@@ -60,7 +62,8 @@ public sealed class UICompositionRoot : MonoBehaviour
     public void Inicializar(MatchUIPresenter novoPresenter)
     {
         GarantirEstrutura();
-        matchHUD?.BindCommands(novoPresenter?.Comandos);
+        presentationBinding?.Configure(novoPresenter?.Comandos, weaponUI,
+            informationalOverlay, matchUtilities);
 
         if (presenter == novoPresenter)
         {
@@ -160,7 +163,9 @@ public sealed class UICompositionRoot : MonoBehaviour
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920f, 1080f);
         scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
-        scaler.matchWidthOrHeight = 0.5f;
+        // 03. Altura canônica controla SIZE; anchors e Safe Area controlam POSITION.
+        // Assim uma tela ultrawide ganha espaço lateral sem ampliar o HUD.
+        scaler.matchWidthOrHeight = 1f;
 
         safeArea = CriarCamada("SafeArea", raizRect);
         CriarCamada("LeftDock", safeArea);
@@ -206,25 +211,33 @@ public sealed class UICompositionRoot : MonoBehaviour
         preparedActionsOverlay.Configure(
             GetComponent<MatchUIPresenter>(), mapOverlayLayer, tema);
 
-        RectTransform finalHUD = CriarCamada("FinalMatchHUD", safeArea);
+        // 04. Controllers funcionais sobrevivem sem construir a apresentação aposentada.
         weaponUI = GetComponent<WDWeaponMatchUIController>() ??
             gameObject.AddComponent<WDWeaponMatchUIController>();
         weaponUI.Configure(GetComponent<GameManager>());
-        weaponInstallationPresenter =
-            mapOverlayLayer.gameObject.AddComponent<WDWeaponInstallationMapPresenter>();
-        weaponInstallationPresenter.Configure(mapOverlayLayer, tema, weaponUI);
         informationalOverlay = mapOverlayLayer.gameObject.AddComponent<WDMatchInformationalOverlayController>();
         informationalOverlay.Configure(mapOverlayLayer, tema, regionInfoOverlay);
-        RectTransform chatLayer = CriarCamada("SharedChatHub", modalLayer);
+        matchUtilities = new WDMatchUtilityCommands(informationalOverlay);
         WDChatRepository chatRepository = EnsureChatRuntime();
-        WDChatHubPanel chatPanel = chatLayer.gameObject.AddComponent<WDChatHubPanel>();
-        chatPanel.Build(tema, chatRepository, chatRepository.Social, chatRepository.Profiles);
-        WDChatChannel matchChat = CreateMatchChat(chatRepository, GetComponent<GameManager>()?.MatchSetupAtual);
-        matchHUD = finalHUD.gameObject.AddComponent<WarDominionMatchHUD>();
-        matchHUD.Build(tema, GetComponent<MatchUIPresenter>()?.Comandos, weaponUI,
-            resolutionSequence, informationalOverlay,
-            () => chatPanel.OpenLocal(chatPanel.HideFromNavigation, matchChat),
-            chatRepository, matchChat?.Id);
+        WDChatChannel matchChat = CreateMatchChat(chatRepository,
+            GetComponent<GameManager>()?.MatchSetupAtual);
+        presentationBinding = GetComponent<WDMatchUIPresentationBinding>() ??
+            gameObject.AddComponent<WDMatchUIPresentationBinding>();
+        presentationBinding.Configure(GetComponent<MatchUIPresenter>()?.Comandos,
+            weaponUI, informationalOverlay, matchUtilities);
+        presentationBinding.ConfigureChat(chatRepository, matchChat);
+
+        // 05. A Match UI V2 é a única apresentação registrada. O mapa permanece
+        // fora da Safe Area e continua sob responsabilidade do framing validado.
+        RectTransform matchUIV2Rect = CriarCamada("MatchUIV2", safeArea);
+        matchUIV2 = matchUIV2Rect.GetComponent<WDMatchUIV2>() ??
+            matchUIV2Rect.gameObject.AddComponent<WDMatchUIV2>();
+        matchUIV2.Build(tema, GetComponent<MatchUIPresenter>()?.Comandos,
+            weaponUI, resolutionSequence);
+        // 05.1. Preferências existentes, limitadas ao áudio; saída local já estabelecida.
+        matchUIV2.BindSettings(new WDSettingsRepository(null, new WDMatchSettingsRuntime()),
+            WDMatchSetupContext.ExitToHome);
+        presentationBinding.Register(matchUIV2);
 
         RectTransform initialSelectionRect = CriarCamada("InitialTerritorySelection", modalLayer);
         initialTerritorySelectionView =
@@ -233,7 +246,7 @@ public sealed class UICompositionRoot : MonoBehaviour
         RectTransform resultRect = CriarCamada("MatchResult", modalLayer);
         resultView = resultRect.gameObject.AddComponent<WDMatchResultView>();
         resultView.Build(tema);
-        DefinirHUDNovoAtivo(IsNewHudSelected());
+        RetireLegacyPresentations();
         AtualizarSafeArea(true);
     }
 
@@ -256,15 +269,9 @@ public sealed class UICompositionRoot : MonoBehaviour
 
     private WDChatChannel CreateMatchChat(WDChatRepository repository, WDMatchSetup setup)
     {
-        if (setup == null)
-            return null;
-        activeChatMatchId = setup.DeterministicSeed.ToString();
-        WDMatchParticipant local = setup.Participants.FirstOrDefault(participant =>
-            participant.Kind == WDMatchParticipantKind.Local) ?? setup.Participants.FirstOrDefault();
-        if (local == null)
-            return null;
-        return repository.CreateMatchTeamChannel(activeChatMatchId, local.PlayerId,
-            setup.Participants.Select(participant => (participant.PlayerId, participant.TeamIndex)));
+        activeChatMatchId ??= setup?.MatchId ?? "local-" + Guid.NewGuid().ToString("N");
+        return activeMatchChat = repository.CreateLocalMatchChannel(activeChatMatchId, setup,
+            null, TerritorioClique.Dono.Neutro, false);
     }
 
     private static RectTransform CriarCamada(string nome, Transform pai)
@@ -324,12 +331,19 @@ public sealed class UICompositionRoot : MonoBehaviour
 
     private void AoEstadoAlterado(MatchUIState state)
     {
+        if (activeMatchChat == null && state != null)
+        {
+            var repository = EnsureChatRuntime();
+            activeMatchChat = repository.CreateLocalMatchChannel(activeChatMatchId,
+                GetComponent<GameManager>()?.MatchSetupAtual, state.Jogadores, state.JogadorLocal, state.UsaEquipes);
+            if (activeMatchChat != null) presentationBinding?.ConfigureChat(repository, activeMatchChat);
+        }
         if (state == null)
             return;
 
-        matchHUD?.BindCommands(presenter?.Comandos);
-
-        matchHUD?.Present(state);
+        presentationBinding?.Configure(presenter?.Comandos, weaponUI,
+            informationalOverlay, matchUtilities);
+        presentationBinding?.Present(state);
         informationalOverlay?.Present(state);
         PresentMatchResult(state);
 
@@ -392,24 +406,36 @@ public sealed class UICompositionRoot : MonoBehaviour
     }
 
     // ============================================================
-    // 05. COMPARAÇÃO CONTROLADA ENTRE HUD FINAL E LEGADO
+    // 05. APOSENTADORIA DAS APRESENTAÇÕES ACUMULADAS
     // ============================================================
 
     public void DefinirHUDNovoAtivo(bool ativo)
     {
-        PlayerPrefs.SetInt(ChaveHUDNovo, ativo ? 1 : 0);
-        PlayerPrefs.Save();
-        ApplyHudMode(matchHUD != null ? matchHUD.gameObject : null,
-            GetComponent<HUDPreparacao>(), ativo);
+        RetireLegacyPresentations();
+    }
+
+    public void RegisterMatchPresentation(IWDMatchUIPresentation presentation) =>
+        presentationBinding?.Register(presentation);
+
+    private void RetireLegacyPresentations()
+    {
+        HUDPreparacao legacy = GetComponent<HUDPreparacao>();
+        if (legacy != null)
+            legacy.enabled = false;
+        Transform accumulatedCanvasHud = safeArea != null
+            ? safeArea.Find("FinalMatchHUD")
+            : null;
+        if (accumulatedCanvasHud != null)
+            accumulatedCanvasHud.gameObject.SetActive(false);
     }
 
     public static void ApplyHudMode(GameObject newHud, Behaviour legacyHud, bool useNewHud)
     {
-        // 02. Uma seleção controla ambas as composições, inclusive no modo de desenvolvimento.
+        // Compatibilidade de testes/ferramentas antigas: nenhuma composição aposentada assume autoridade.
         if (legacyHud != null)
-            legacyHud.enabled = !useNewHud;
+            legacyHud.enabled = false;
         if (newHud != null)
-            newHud.SetActive(useNewHud);
+            newHud.SetActive(false);
     }
 }
 

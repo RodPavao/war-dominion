@@ -29,6 +29,7 @@ MonoBehaviour:
     regiaoId: chaco
     posicaoContador: {x: 2.5034692, y: 1.7474561}
     possuiPosicaoContador: 1
+    escalaContador: 0.51
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
     tamanhoFonteNome: 0
@@ -39,6 +40,7 @@ MonoBehaviour:
     regiaoId: santa_fe
     posicaoContador: {x: 4.9800854, y: 3.1213381}
     possuiPosicaoContador: 1
+    escalaContador: 0.51
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
     tamanhoFonteNome: 0
@@ -47,8 +49,9 @@ MonoBehaviour:
     nomeExibido: Feliciano
     chaveTraducao: territory_feliciano
     regiaoId: entre_rios
-    posicaoContador: {x: -5.3339024, y: 2.8208365}
+    posicaoContador: {x: -5.240351, y: 2.7855184}
     possuiPosicaoContador: 1
+    escalaContador: 0.51
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
     tamanhoFonteNome: 0
@@ -59,6 +62,7 @@ MonoBehaviour:
     regiaoId: chaco
     posicaoContador: {x: 0.065431595, y: 1.7836218}
     possuiPosicaoContador: 1
+    escalaContador: 0.51
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
     tamanhoFonteNome: 0
@@ -69,6 +73,7 @@ MonoBehaviour:
     regiaoId: entre_rios
     posicaoContador: {x: -4.8201413, y: 1.2601675}
     possuiPosicaoContador: 1
+    escalaContador: 0.51
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
     tamanhoFonteNome: 0
@@ -79,6 +84,7 @@ MonoBehaviour:
     regiaoId: santa_fe
     posicaoContador: {x: 3.622981, y: 2.626965}
     possuiPosicaoContador: 1
+    escalaContador: 0.51
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
     tamanhoFonteNome: 0
@@ -89,6 +95,7 @@ MonoBehaviour:
     regiaoId: entre_rios
     posicaoContador: {x: -2.348274, y: 0.94997257}
     possuiPosicaoContador: 1
+    escalaContador: 0.51
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
     tamanhoFonteNome: 0
@@ -99,6 +106,7 @@ MonoBehaviour:
     regiaoId: chaco
     posicaoContador: {x: 2.61688, y: 0.63636965}
     possuiPosicaoContador: 1
+    escalaContador: 0.51
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
     tamanhoFonteNome: 0
@@ -109,6 +117,7 @@ MonoBehaviour:
     regiaoId: santa_fe
     posicaoContador: {x: 5.2612004, y: 1.1438448}
     possuiPosicaoContador: 1
+    escalaContador: 0.51
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
     tamanhoFonteNome: 0
@@ -119,6 +128,7 @@ MonoBehaviour:
     regiaoId: entre_rios
     posicaoContador: {x: -3.559974, y: 1.6866857}
     possuiPosicaoContador: 1
+    escalaContador: 0.51
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
     tamanhoFonteNome: 0
@@ -129,6 +139,7 @@ MonoBehaviour:
     regiaoId: chaco
     posicaoContador: {x: 1.2868252, y: 0.95966583}
     possuiPosicaoContador: 1
+    escalaContador: 0.51
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
     tamanhoFonteNome: 0
@@ -139,6 +150,7 @@ MonoBehaviour:
     regiaoId: santa_fe
     posicaoContador: {x: 3.8459349, y: 1.1341509}
     possuiPosicaoContador: 1
+    escalaContador: 0.51
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
     tamanhoFonteNome: 0
@@ -149,6 +161,7 @@ MonoBehaviour:
     regiaoId: entre_rios
     posicaoContador: {x: -3.453344, y: 0.39743772}
     possuiPosicaoContador: 1
+    escalaContador: 0.51
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
     tamanhoFonteNome: 0
@@ -159,6 +172,7 @@ MonoBehaviour:
     regiaoId: entre_rios
     posicaoContador: {x: -5.421144, y: 0.2714211}
     possuiPosicaoContador: 1
+    escalaContador: 0.51
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
     tamanhoFonteNome: 0
@@ -169,6 +183,7 @@ MonoBehaviour:
     regiaoId: formosa
     posicaoContador: {x: 5.2732506, y: -0.45457947}
     possuiPosicaoContador: 1
+    escalaContador: 0.51
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
     tamanhoFonteNome: 0
@@ -179,6 +194,7 @@ MonoBehaviour:
     regiaoId: entre_rios
     posicaoContador: {x: -1.452757, y: 0.12113647}
     possuiPosicaoContador: 1
+    escalaContador: 0.51
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
     tamanhoFonteNome: 0
@@ -189,6 +205,7 @@ MonoBehaviour:
     regiaoId: chaco
     posicaoContador: {x: 0.6955159, y: -0.31019458}
     possuiPosicaoContador: 1
+    escalaContador: 0.51
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
     tamanhoFonteNome: 0
@@ -199,6 +216,7 @@ MonoBehaviour:
     regiaoId: santa_fe
     posicaoContador: {x: 3.9733813, y: 0.15828675}
     possuiPosicaoContador: 1
+    escalaContador: 0.51
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
     tamanhoFonteNome: 0
@@ -209,6 +227,7 @@ MonoBehaviour:
     regiaoId: neembucu
     posicaoContador: {x: 1.8165966, y: -2.7809174}
     possuiPosicaoContador: 1
+    escalaContador: 0.51
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
     tamanhoFonteNome: 0
@@ -219,6 +238,7 @@ MonoBehaviour:
     regiaoId: corrientes
     posicaoContador: {x: -3.3194587, y: -0.5692853}
     possuiPosicaoContador: 1
+    escalaContador: 0.51
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
     tamanhoFonteNome: 0
@@ -229,6 +249,7 @@ MonoBehaviour:
     regiaoId: corrientes
     posicaoContador: {x: -1.7569646, y: -1.4055713}
     possuiPosicaoContador: 1
+    escalaContador: 0.51
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
     tamanhoFonteNome: 0
@@ -239,6 +260,7 @@ MonoBehaviour:
     regiaoId: formosa
     posicaoContador: {x: 5.581088, y: -2.1713655}
     possuiPosicaoContador: 1
+    escalaContador: 0.51
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
     tamanhoFonteNome: 0
@@ -249,6 +271,7 @@ MonoBehaviour:
     regiaoId: corrientes
     posicaoContador: {x: -5.430838, y: -1.0953758}
     possuiPosicaoContador: 1
+    escalaContador: 0.51
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
     tamanhoFonteNome: 0
@@ -259,6 +282,7 @@ MonoBehaviour:
     regiaoId: corrientes
     posicaoContador: {x: -2.881422, y: -1.5122007}
     possuiPosicaoContador: 1
+    escalaContador: 0.51
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
     tamanhoFonteNome: 0
@@ -269,6 +293,7 @@ MonoBehaviour:
     regiaoId: neembucu
     posicaoContador: {x: 0.0012731934, y: -1.6113544}
     possuiPosicaoContador: 1
+    escalaContador: 0.51
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
     tamanhoFonteNome: 0
@@ -279,6 +304,7 @@ MonoBehaviour:
     regiaoId: neembucu
     posicaoContador: {x: 1.4235253, y: -1.5669982}
     possuiPosicaoContador: 1
+    escalaContador: 0.51
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
     tamanhoFonteNome: 0
@@ -289,6 +315,7 @@ MonoBehaviour:
     regiaoId: corrientes
     posicaoContador: {x: -3.9961855, y: -1.2795544}
     possuiPosicaoContador: 1
+    escalaContador: 0.51
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
     tamanhoFonteNome: 0
@@ -299,6 +326,7 @@ MonoBehaviour:
     regiaoId: chaco
     posicaoContador: {x: 2.4015896, y: -0.35866264}
     possuiPosicaoContador: 1
+    escalaContador: 0.51
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
     tamanhoFonteNome: 0
@@ -309,6 +337,7 @@ MonoBehaviour:
     regiaoId: formosa
     posicaoContador: {x: 4.301533, y: -2.520335}
     possuiPosicaoContador: 1
+    escalaContador: 0.51
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
     tamanhoFonteNome: 0
@@ -319,6 +348,7 @@ MonoBehaviour:
     regiaoId: corrientes
     posicaoContador: {x: -3.0752938, y: -2.8886912}
     possuiPosicaoContador: 1
+    escalaContador: 0.51
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
     tamanhoFonteNome: 0
@@ -329,6 +359,7 @@ MonoBehaviour:
     regiaoId: neembucu
     posicaoContador: {x: 0.43196532, y: -2.435885}
     possuiPosicaoContador: 1
+    escalaContador: 0.51
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
     tamanhoFonteNome: 0
@@ -339,6 +370,7 @@ MonoBehaviour:
     regiaoId: formosa
     posicaoContador: {x: 3.9719515, y: -1.0372144}
     possuiPosicaoContador: 1
+    escalaContador: 0.51
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
     tamanhoFonteNome: 0
@@ -349,6 +381,7 @@ MonoBehaviour:
     regiaoId: neembucu
     posicaoContador: {x: 2.8237085, y: -3.7957337}
     possuiPosicaoContador: 1
+    escalaContador: 0.51
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
     tamanhoFonteNome: 0
@@ -359,6 +392,7 @@ MonoBehaviour:
     regiaoId: corrientes
     posicaoContador: {x: -1.8777276, y: -2.2481768}
     possuiPosicaoContador: 1
+    escalaContador: 0.51
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
     tamanhoFonteNome: 0
@@ -369,6 +403,7 @@ MonoBehaviour:
     regiaoId: corrientes
     posicaoContador: {x: -1.2898755, y: -2.937088}
     possuiPosicaoContador: 1
+    escalaContador: 0.51
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
     tamanhoFonteNome: 0
@@ -379,6 +414,7 @@ MonoBehaviour:
     regiaoId: neembucu
     posicaoContador: {x: 2.7117841, y: -1.9581062}
     possuiPosicaoContador: 1
+    escalaContador: 0.51
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
     tamanhoFonteNome: 0
@@ -389,6 +425,7 @@ MonoBehaviour:
     regiaoId: formosa
     posicaoContador: {x: 4.3895545, y: -3.3556085}
     possuiPosicaoContador: 1
+    escalaContador: 0.51
     posicaoNomeManual: {x: 0, y: 0}
     possuiPosicaoNomeManual: 0
     tamanhoFonteNome: 0

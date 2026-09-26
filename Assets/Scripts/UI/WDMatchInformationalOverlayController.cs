@@ -154,9 +154,8 @@ public sealed class WDMatchInformationalOverlayController : MonoBehaviour
         for (int index = 0; index < map.Regioes.Count; index++)
         {
             DefinicaoRegiaoMapa region = map.Regioes[index];
-            Color color = region.corDestaque;
-            if (color.a <= 0.05f || color.grayscale > 0.92f)
-                color = Color.HSVToRGB(index / Mathf.Max(1f, map.Regioes.Count), 0.52f, 0.92f);
+            Color color = ResolveRegionPresentationColor(region, index,
+                map.Regioes.Count);
             foreach (string id in region.territorioIds)
                 if (TryTerritory(id, out TerritorioClique territory))
                     territory.GetComponent<TerritorioVisual>()?.DestacarContinente(color);
@@ -172,6 +171,31 @@ public sealed class WDMatchInformationalOverlayController : MonoBehaviour
 
     public static string DescribeRegionInline(DefinicaoRegiaoMapa region) => region == null
         ? string.Empty : $"{region.nomeExibido} +{region.bonus}";
+
+    public static Color ResolveRegionPresentationColor(
+        DefinicaoRegiaoMapa region, int index = 0, int regionCount = 1)
+    {
+        if (region == null)
+            return Color.white;
+
+        // A paleta Classic reproduz os seis acentos aprovados no Figma.
+        // A lista, os nomes e os bônus continuam vindo de DefinicaoMapa.Regioes.
+        switch (region.id)
+        {
+            case "america_norte": return new Color(77f / 255f, 143f / 255f, 209f / 255f);
+            case "america_sul": return new Color(88f / 255f, 168f / 255f, 115f / 255f);
+            case "europa": return new Color(146f / 255f, 112f / 255f, 200f / 255f);
+            case "africa": return new Color(211f / 255f, 154f / 255f, 74f / 255f);
+            case "asia": return new Color(213f / 255f, 107f / 255f, 99f / 255f);
+            case "oceania": return new Color(76f / 255f, 183f / 255f, 197f / 255f);
+        }
+
+        Color source = region.corDestaque;
+        if (source.a <= 0.05f || source.grayscale > 0.92f)
+            source = Color.HSVToRGB(index / Mathf.Max(1f, regionCount), 0.52f, 0.92f);
+        source.a = 1f;
+        return source;
+    }
 
     public static Vector2 CalculateRegionBadgeSize(Vector2 preferredTextSize)
     {
@@ -223,7 +247,7 @@ public sealed class WDMatchInformationalOverlayController : MonoBehaviour
                 ? MapaAtivo.Instance.ConverterPosicaoArteParaMundo(artLocal)
                 : artLocal;
             CreateRegionBadge("Region_" + region.id, world,
-                DescribeRegionInline(region), color, occupiedLabels,
+                region.nomeExibido, DescribeRegionBonus(region), color, occupiedLabels,
                 !region.possuiDeslocamentoLabelManual);
         }
     }
@@ -272,7 +296,7 @@ public sealed class WDMatchInformationalOverlayController : MonoBehaviour
     }
 
     private void CreateRegionBadge(
-        string name, Vector3 world, string content, Color color,
+        string name, Vector3 world, string title, string bonus, Color color,
         IList<Rect> occupiedLabels, bool allowAutomaticAvoidance)
     {
         Camera camera = Camera.main != null
@@ -290,25 +314,50 @@ public sealed class WDMatchInformationalOverlayController : MonoBehaviour
         group.SetAsLastSibling();
 
         Image plate = group.gameObject.AddComponent<Image>();
-        plate.color = new Color(0.025f, 0.035f, 0.05f, 0.96f);
+        plate.color = new Color(8f / 255f, 16f / 255f, 24f / 255f, 0.88f);
         plate.raycastTarget = false;
+        WDHomeUIFactory.ApplyRounded(plate, 10);
+        WDHomeUIFactory.AddRoundedBorder(group,
+            new Color(220f / 255f, 230f / 255f, 239f / 255f, 0.18f), 10);
+        Shadow dropShadow = group.gameObject.AddComponent<Shadow>();
+        dropShadow.effectColor = new Color(0f, 0f, 0f, 0.42f);
+        dropShadow.effectDistance = new Vector2(0f, -6f);
+        dropShadow.useGraphicAlpha = true;
 
-        TextMeshProUGUI label = WDUIFactory.Text("Content", group, theme,
-            theme.TypeBody, Color.white, TextAlignmentOptions.Center);
-        RectTransform labelRect = label.rectTransform;
-        labelRect.anchorMin = Vector2.zero;
-        labelRect.anchorMax = Vector2.one;
-        labelRect.offsetMin = new Vector2(14f, 7f);
-        labelRect.offsetMax = new Vector2(-14f, -7f);
-        label.text = content ?? string.Empty;
-        label.fontStyle = FontStyles.Bold;
-        label.textWrappingMode = TextWrappingModes.NoWrap;
-        label.enabled = true;
-        label.alpha = 1f;
-        label.raycastTarget = false;
+        RectTransform accent = WDUIFactory.Rect("Accent", group);
+        accent.anchorMin = accent.anchorMax = new Vector2(0f, 0.5f);
+        accent.pivot = new Vector2(0f, 0.5f);
+        accent.anchoredPosition = Vector2.zero;
+        accent.sizeDelta = new Vector2(4f, 36f);
+        Image accentImage = accent.gameObject.AddComponent<Image>();
+        accentImage.color = color;
+        accentImage.raycastTarget = false;
+        WDHomeUIFactory.ApplyRounded(accentImage, 2);
 
-        Vector2 preferred = label.GetPreferredValues(label.text);
-        group.sizeDelta = CalculateRegionBadgeSize(preferred);
+        TextMeshProUGUI titleLabel = WDUIFactory.Text("Title", group, theme,
+            11.5f, new Color(241f / 255f, 244f / 255f, 247f / 255f),
+            TextAlignmentOptions.Left);
+        titleLabel.rectTransform.anchorMin = titleLabel.rectTransform.anchorMax = new Vector2(0f, 1f);
+        titleLabel.rectTransform.pivot = new Vector2(0f, 1f);
+        titleLabel.rectTransform.anchoredPosition = new Vector2(16f, -8f);
+        titleLabel.rectTransform.sizeDelta = new Vector2(140f, 18f);
+        titleLabel.text = (title ?? string.Empty).ToUpperInvariant();
+        titleLabel.fontStyle = FontStyles.Bold;
+        titleLabel.textWrappingMode = TextWrappingModes.NoWrap;
+        titleLabel.raycastTarget = false;
+
+        TextMeshProUGUI bonusLabel = WDUIFactory.Text("Bonus", group, theme,
+            20f, color, TextAlignmentOptions.Left);
+        bonusLabel.rectTransform.anchorMin = bonusLabel.rectTransform.anchorMax = new Vector2(0f, 1f);
+        bonusLabel.rectTransform.pivot = new Vector2(0f, 1f);
+        bonusLabel.rectTransform.anchoredPosition = new Vector2(16f, -29f);
+        bonusLabel.rectTransform.sizeDelta = new Vector2(140f, 27f);
+        bonusLabel.text = bonus ?? string.Empty;
+        bonusLabel.fontStyle = FontStyles.Bold;
+        bonusLabel.textWrappingMode = TextWrappingModes.NoWrap;
+        bonusLabel.raycastTarget = false;
+
+        group.sizeDelta = new Vector2(160f, 60f);
         Rect viewport = regionInfoOverlay.rect;
         if (viewport.width <= 1f || viewport.height <= 1f)
             viewport = new Rect(-Screen.width * 0.5f, -Screen.height * 0.5f,

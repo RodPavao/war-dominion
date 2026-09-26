@@ -135,6 +135,7 @@ public sealed class MatchUIPresenter : MonoBehaviour
             destinoId,
             transferenciaId,
             gameManager.quantidadeAcaoSelecionada,
+            gameManager.ObterMaximoDisponivelOrigem(),
             gameManager.TipoAcaoSelecionadaEsperado,
             gameManager.feedbackTransferencia,
             transferRecipientArray,
@@ -421,6 +422,7 @@ public sealed class MatchUIPresenter : MonoBehaviour
             .Append(tempo).Append('|')
             .Append(gameManager.reforcosDisponiveis).Append('|')
             .Append(gameManager.quantidadeAcaoSelecionada).Append('|')
+            .Append(gameManager.ObterMaximoDisponivelOrigem()).Append('|')
             .Append(gameManager.TransferenciaDisponivelParaJogadorLocal).Append('|')
             .Append(gameManager.MatchSetupUsaEquipes).Append('|')
             .Append(origemId).Append('|').Append(destinoId).Append('|')

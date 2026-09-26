@@ -1,0 +1,52 @@
+# WD 16:9 — Riachuelo Promotion
+
+- Timestamp: 2026-09-12T17:11:31.1798072-03:00
+- HEAD: `72137fcb310e9873d09c1961f553ea717dcc4dbc`
+- Backup: `_LocalBackups/WD16x9_PrePromotion_riachuelo_20260912_171057`
+- Result: **RIACHUELO PROMOTED**
+- Background: `Assets/Mapas/Batalha do Riachuelo/Arte/Riachuelo.png` → `Assets/Mapas/Batalha do Riachuelo/Arte/WD_Map_Riachuelo_Background_16x9_v01.png`
+- TerritoryIds: 37
+- Paths: 37
+- Multipartes: 0
+- Counters preserved/repositioned: 16/21
+- Connections hash: `941A768E3284DFF95B44EA5799186C43ECAFD473310788CEBB75909E0F829E72`
+- Regions hash: `6E1030C6DEC9D77113E0C3AEE408A445DA9AE02BD47D08C61F26CA38C15FD370`
+- Generated assets:
+  - `Assets/Mapas/Batalha do Riachuelo/Runtime16x9`
+  - `Assets/Mapas/Batalha do Riachuelo/Runtime16x9/Concordia.png`
+  - `Assets/Mapas/Batalha do Riachuelo/Runtime16x9/CuruzuCuatia.png`
+  - `Assets/Mapas/Batalha do Riachuelo/Runtime16x9/Desmochados.png`
+  - `Assets/Mapas/Batalha do Riachuelo/Runtime16x9/Esquina.png`
+  - `Assets/Mapas/Batalha do Riachuelo/Runtime16x9/Federacion.png`
+  - `Assets/Mapas/Batalha do Riachuelo/Runtime16x9/Federal.png`
+  - `Assets/Mapas/Batalha do Riachuelo/Runtime16x9/Feliciano.png`
+  - `Assets/Mapas/Batalha do Riachuelo/Runtime16x9/Formosa.png`
+  - `Assets/Mapas/Batalha do Riachuelo/Runtime16x9/GeneralDiaz.png`
+  - `Assets/Mapas/Batalha do Riachuelo/Runtime16x9/GeneralSanMartin.png`
+  - `Assets/Mapas/Batalha do Riachuelo/Runtime16x9/Goya.png`
+  - `Assets/Mapas/Batalha do Riachuelo/Runtime16x9/Humaita.png`
+  - `Assets/Mapas/Batalha do Riachuelo/Runtime16x9/LaPaz.png`
+  - `Assets/Mapas/Batalha do Riachuelo/Runtime16x9/Laishi.png`
+  - `Assets/Mapas/Batalha do Riachuelo/Runtime16x9/Lavalle.png`
+  - `Assets/Mapas/Batalha do Riachuelo/Runtime16x9/MayorMartinez.png`
+  - `Assets/Mapas/Batalha do Riachuelo/Runtime16x9/Mercedes.png`
+  - `Assets/Mapas/Batalha do Riachuelo/Runtime16x9/MonteCaseros.png`
+  - `Assets/Mapas/Batalha do Riachuelo/Runtime16x9/NueveDeJulio.png`
+  - `Assets/Mapas/Batalha do Riachuelo/Runtime16x9/OHiggins.png`
+  - `Assets/Mapas/Batalha do Riachuelo/Runtime16x9/PalomeraIsland.png`
+  - `Assets/Mapas/Batalha do Riachuelo/Runtime16x9/Parana.png`
+  - `Assets/Mapas/Batalha do Riachuelo/Runtime16x9/PasoDeLaPatria.png`
+  - `Assets/Mapas/Batalha do Riachuelo/Runtime16x9/PasoDeLosLibres.png`
+  - `Assets/Mapas/Batalha do Riachuelo/Runtime16x9/Pilagas.png`
+  - `Assets/Mapas/Batalha do Riachuelo/Runtime16x9/Pilcomayo.png`
+  - `Assets/Mapas/Batalha do Riachuelo/Runtime16x9/Pirane.png`
+  - `Assets/Mapas/Batalha do Riachuelo/Runtime16x9/PrimeroDeMayo.png`
+  - `Assets/Mapas/Batalha do Riachuelo/Runtime16x9/SanCristobal.png`
+  - `Assets/Mapas/Batalha do Riachuelo/Runtime16x9/SanFernando.png`
+  - `Assets/Mapas/Batalha do Riachuelo/Runtime16x9/SanJavier.png`
+  - `Assets/Mapas/Batalha do Riachuelo/Runtime16x9/SanLorenzo.png`
+  - `Assets/Mapas/Batalha do Riachuelo/Runtime16x9/SantaFe.png`
+  - `Assets/Mapas/Batalha do Riachuelo/Runtime16x9/Sauce.png`
+  - `Assets/Mapas/Batalha do Riachuelo/Runtime16x9/Vera.png`
+  - `Assets/Mapas/Batalha do Riachuelo/Runtime16x9/Villaguay.png`
+  - `Assets/Mapas/Batalha do Riachuelo/Runtime16x9/Villalbin.png`

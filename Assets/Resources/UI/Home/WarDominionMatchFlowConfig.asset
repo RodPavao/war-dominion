@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 49d26a57b5cf45dfa09c7ea7e83fb8da, type: 3}
   m_Name: WarDominionMatchFlowConfig
-  m_EditorClassIdentifier:
+  m_EditorClassIdentifier: 
   modes:
   - id: ffa
     displayName: BATALHA
@@ -48,7 +48,7 @@ MonoBehaviour:
     matchSize: 2
     botsAllowed: 0
     mapSelectionPolicy: 0
-    fixedMapId:
+    fixedMapId: 
     roundLimit: 10
     suddenDeathEnabled: 1
     eligibleMaps: []
@@ -99,7 +99,7 @@ MonoBehaviour:
     matchSize: 4
     botsAllowed: 1
     mapSelectionPolicy: 0
-    fixedMapId:
+    fixedMapId: 
     roundLimit: 10
     suddenDeathEnabled: 1
     eligibleMaps: []
@@ -150,7 +150,7 @@ MonoBehaviour:
     matchSize: 6
     botsAllowed: 1
     mapSelectionPolicy: 0
-    fixedMapId:
+    fixedMapId: 
     roundLimit: 10
     suddenDeathEnabled: 1
     eligibleMaps: []
@@ -183,7 +183,7 @@ MonoBehaviour:
     matchSize: 6
     botsAllowed: 1
     mapSelectionPolicy: 1
-    fixedMapId:
+    fixedMapId: 
     roundLimit: 5
     suddenDeathEnabled: 1
     eligibleMaps: []
@@ -196,7 +196,7 @@ MonoBehaviour:
   - mapId: riachuelo
     enabled: 1
   - mapId: dark_world
-    enabled: 1
+    enabled: 0
   - mapId: peloponeso
     enabled: 1
   mapCompatibility:

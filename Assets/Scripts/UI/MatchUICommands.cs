@@ -37,14 +37,24 @@ public sealed class MatchUICommands : IMatchUICommands
         this.gameManager = gameManager;
     }
 
-    public void SelecionarModoAcao() => gameManager?.SelecionarModoAcaoTerrestre();
-    public void SelecionarModoTransferencia() => gameManager?.SelecionarModoTransferencia();
+    public void SelecionarModoAcao()
+    {
+        gameManager?.SelecionarModoAcaoTerrestre();
+        AtualizarApresentacao();
+    }
+
+    public void SelecionarModoTransferencia()
+    {
+        gameManager?.SelecionarModoTransferencia();
+        AtualizarApresentacao();
+    }
 
     public bool SelecionarTerritorio(string territorioId)
     {
         if (!TentarObterTerritorio(territorioId, out TerritorioClique territorio))
             return false;
         gameManager.ClicarTerritorio(territorio);
+        AtualizarApresentacao();
         return true;
     }
 
@@ -54,11 +64,35 @@ public sealed class MatchUICommands : IMatchUICommands
             ? gameManager.DistribuirReforcos(territorio, quantidade)
             : 0;
     }
-    public void AumentarQuantidadeAcao() => gameManager?.AumentarQuantidadeAcao();
-    public void DiminuirQuantidadeAcao() => gameManager?.DiminuirQuantidadeAcao();
-    public void ConfirmarAcao() => gameManager?.ConfirmarAcaoPreparada();
-    public void CancelarSelecao() => gameManager?.CancelarSelecaoAtual();
-    public void DesfazerUltimaAcao() => gameManager?.CancelarUltimaOrdem();
+    public void AumentarQuantidadeAcao()
+    {
+        gameManager?.AumentarQuantidadeAcao();
+        AtualizarApresentacao();
+    }
+
+    public void DiminuirQuantidadeAcao()
+    {
+        gameManager?.DiminuirQuantidadeAcao();
+        AtualizarApresentacao();
+    }
+
+    public void ConfirmarAcao()
+    {
+        gameManager?.ConfirmarAcaoPreparada();
+        AtualizarApresentacao();
+    }
+
+    public void CancelarSelecao()
+    {
+        gameManager?.CancelarSelecaoAtual();
+        AtualizarApresentacao();
+    }
+
+    public void DesfazerUltimaAcao()
+    {
+        gameManager?.CancelarUltimaOrdem();
+        AtualizarApresentacao();
+    }
 
     public bool RemoverAcao(int posicaoNaFila)
     {
@@ -94,6 +128,9 @@ public sealed class MatchUICommands : IMatchUICommands
             gameManager.GetComponent<MatchUIPresenter>()?.SolicitarSnapshotAtual();
         return consumida;
     }
+
+    private void AtualizarApresentacao() =>
+        gameManager?.GetComponent<MatchUIPresenter>()?.SolicitarSnapshotAtual();
 
     // ============================================================
     // 03. RESOLUÇÃO GENÉRICA POR ID, SEM REFERÊNCIAS DE VIEW

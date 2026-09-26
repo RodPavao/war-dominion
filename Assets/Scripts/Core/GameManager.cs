@@ -389,8 +389,8 @@ public class GameManager : MonoBehaviour
         HUDPreparacao hudLegado = GetComponent<HUDPreparacao>();
         if (hudLegado == null)
             hudLegado = gameObject.AddComponent<HUDPreparacao>();
-        // 01. O legado não deve desenhar enquanto o HUD selecionado é construído.
-        hudLegado.enabled = !UICompositionRoot.IsNewHudSelected();
+        // 01. A apresentação IMGUI está aposentada; seus comandos permanecem no GameManager.
+        hudLegado.enabled = false;
 
         MatchUIPresenter matchUIPresenter =
             GetComponent<MatchUIPresenter>();
@@ -1145,7 +1145,7 @@ public class GameManager : MonoBehaviour
             );
     }
 
-    private int ObterMaximoDisponivelOrigem()
+    public int ObterMaximoDisponivelOrigem()
     {
         if (territorioSelecionado == null ||
             filaAcoes == null)

@@ -165,7 +165,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   theme: {fileID: 11400000, guid: ab39d444343d45b19e3ead1f209d85c1, type: 2}
   mockData: {fileID: 11400000, guid: e3d46955529e4306905a69b6afac634d, type: 2}
-  backgroundTexture: {fileID: 2800000, guid: d7aee5fcc0aa49ada4b262c97c1684fc, type: 3}
+  backgroundTexture: {fileID: 2800000, guid: 1a77115c83a36bd4cb84bf50e279b7ca, type: 3}
+  playBackgroundTexture: {fileID: 2800000, guid: 155cd536fd807bd44bb6039e59484744, type: 3}
+  matchmakingBackgroundTexture: {fileID: 2800000, guid: 7f300526cdf93c346be60bb431e2a3bf, type: 3}
+  warDominionOpening16x9Texture: {fileID: 2800000, guid: 10893875d7c28a0428c4c81337ac38c1, type: 3}
+  warDominionOpeningUltrawideTexture: {fileID: 2800000, guid: 4f6d381c2b7a4b248c069d21f63eb8aa, type: 3}
 --- !u!1 &1974318952
 GameObject:
   m_ObjectHideFlags: 0

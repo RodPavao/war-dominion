@@ -40,6 +40,15 @@ public sealed class WDLocalizedText
     [SerializeField, TextArea] private string italian;
     [SerializeField, TextArea] private string german;
 
+    public WDLocalizedText() { }
+
+    public WDLocalizedText(string key, string portuguese, string english)
+    {
+        this.key = key;
+        this.portuguese = portuguese;
+        this.english = english;
+    }
+
     public string Key => key;
 
     public string Resolve(WDLanguage language)

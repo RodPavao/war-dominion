@@ -10,6 +10,14 @@
 # Local-only project backups
 _LocalBackups/
 
+# Local temporary workspace and editor backups
+.utmp/
+*~
+
+# Local recovery scenes (not referenced by the project/build)
+/Assets/_Recovery/
+/Assets/_Recovery.meta
+
 # Memory captures
 [Mm]emoryCaptures/
 

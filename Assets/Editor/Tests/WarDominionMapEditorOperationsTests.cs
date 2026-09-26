@@ -9,6 +9,70 @@ public sealed class WarDominionMapEditorOperationsTests
 {
     private readonly List<Object> disposable = new List<Object>();
 
+    [Test]
+    public void CounterScaleUsesOneForLegacyDataAndPersistsIndividualOverride()
+    {
+        DefinicaoMapa map = CreateMap("map", true, 1);
+        DefinicaoTerritorioMapa territory = map.Territorios[0];
+        territory.escalaContador = 0f;
+
+        Assert.That(territory.EscalaContadorEfetiva, Is.EqualTo(1f));
+        Assert.That(WarDominionMapEditorOperations.SetCounterScale(map,
+            territory.id, 0.62f), Is.True);
+        Assert.That(territory.escalaContador, Is.EqualTo(0.62f).Within(0.0001f));
+        Assert.That(map.Territorios[1].EscalaContadorEfetiva, Is.EqualTo(1f));
+    }
+
+    [Test]
+    public void DisplayNameCanChangeWithoutChangingTechnicalId()
+    {
+        DefinicaoMapa map = CreateMap("map", true, 1);
+        string id = map.Territorios[0].id;
+
+        Assert.That(WarDominionMapEditorOperations.SetTerritoryDisplayName(map,
+            id, "Western Australia"), Is.True);
+        Assert.That(map.Territorios[0].id, Is.EqualTo(id));
+        Assert.That(map.Territorios[0].nomeExibido,
+            Is.EqualTo("Western Australia"));
+    }
+
+    [Test]
+    public void TerritoryNameEditStateNeverAppliesOwnerABufferToTerritoryB()
+    {
+        DefinicaoMapa map = CreateMap("map", true, 1);
+        DefinicaoTerritorioMapa first = map.Territorios[0];
+        DefinicaoTerritorioMapa second = map.Territorios[1];
+        string secondName = second.nomeExibido;
+        var state = new WDMapTerritoryNameEditState();
+
+        Assert.That(state.Bind(first), Is.True);
+        Assert.That(state.Apply(map, "Edited A"), Is.True);
+        Assert.That(state.Bind(second), Is.True);
+
+        Assert.That(first.nomeExibido, Is.EqualTo("Edited A"));
+        Assert.That(second.nomeExibido, Is.EqualTo(secondName));
+        Assert.That(state.OwnerId, Is.EqualTo(second.id));
+        Assert.That(state.Buffer, Is.EqualTo(secondName));
+    }
+
+    [Test]
+    public void CounterPreviewUsesSameEffectiveRuntimeSize()
+    {
+        DefinicaoMapa map = CreateMap("riachuelo", true, 1);
+        DefinicaoTerritorioMapa territory = map.Territorios[0];
+        territory.escalaContador = 0.51f;
+
+        Vector2 size = TerritorioContador.ResolverTamanhoVisualNoMapa(map,
+            territory);
+        Vector3 baseScale = TerritorioContador.ResolverEscalaBase(map);
+
+        Assert.That(size.x, Is.EqualTo(WDArmyCounterView.FrameWidth *
+            baseScale.x * 0.51f).Within(0.0001f));
+        Assert.That(size.y, Is.EqualTo(WDArmyCounterView.FrameWidth *
+            baseScale.y * 0.51f).Within(0.0001f));
+    }
+
+
     // ============================================================
     // 01. CONEXÕES BIDIRECIONAIS, REMOÇÃO E DUPLICAÇÃO
     // ============================================================
@@ -253,6 +317,35 @@ public sealed class WarDominionMapEditorOperationsTests
         map.Regioes[1].territorioIds.Add("a");
         Assert.That(WarDominionMapEditorOperations.DiagnoseRegionAssociation(map, "a")
             .State, Is.EqualTo(WarDominionMapEditorOperations.RegionAssociationState.RegionContainsTerritoryWithDifferentOwner));
+    }
+
+    [Test]
+    public void RegionRepairDerivesListsFromCanonicalTerritoryRegionId()
+    {
+        DefinicaoMapa map = CreateMapWithSecondRegion();
+        map.Regioes[0].territorioIds.Remove("a");
+        map.Regioes[1].territorioIds.Add("a");
+        map.Regioes[1].territorioIds.Add("missing");
+
+        int changes = WarDominionMapEditorOperations.RepairRegionAssociations(map);
+
+        Assert.That(changes, Is.GreaterThan(0));
+        Assert.That(map.Regioes[0].territorioIds, Does.Contain("a"));
+        Assert.That(map.Regioes[1].territorioIds, Does.Not.Contain("a"));
+        Assert.That(map.Regioes[1].territorioIds, Does.Not.Contain("missing"));
+    }
+
+    [Test]
+    public void RemovingRegionClearsCanonicalReferencesWithoutLeavingOrphans()
+    {
+        DefinicaoMapa map = CreateMapWithSecondRegion();
+        WarDominionMapEditorOperations.MoveTerritoryToRegion(map, "a", "second");
+
+        int cleared = WarDominionMapEditorOperations.RemoveRegion(map, "second");
+
+        Assert.That(cleared, Is.EqualTo(1));
+        Assert.That(map.Regioes.Any(region => region.id == "second"), Is.False);
+        Assert.That(map.Territorios[0].regiaoId, Is.Empty);
     }
 
     [Test]

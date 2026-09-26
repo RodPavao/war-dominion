@@ -143,6 +143,30 @@ public sealed class WDWeaponMatchUIController : MonoBehaviour
         }).ToArray();
     }
 
+    public IReadOnlyList<WDWeaponHudCardState> GetSupportCards()
+    {
+        if (gameManager == null || catalog == null)
+            return Array.Empty<WDWeaponHudCardState>();
+        WDMatchParticipant local = gameManager.MatchSetupAtual?.Participants
+            .FirstOrDefault(item => item.PlayerId == LocalPlayerId);
+        IEnumerable<string> ids = local?.WeaponLoadout?.SupportSlots
+            .Select(item => item.WeaponId) ?? Enumerable.Empty<string>();
+        IReadOnlyList<WDWeaponAction> programmed =
+            gameManager.ObterAcoesArmasProgramadas(LocalPlayerId);
+        return ids.Take(2).Select(id =>
+        {
+            WDWeaponDefinition definition = catalog.FindWeapon(id);
+            WDWeaponProgrammingOption option = gameManager.WeaponPreparation?.GetOption(
+                LocalPlayerId, id);
+            WDWeaponAvailability availability = option?.Availability ?? default;
+            bool isProgrammed = programmed.Any(action => action.WeaponId == id);
+            return new WDWeaponHudCardState(id, definition?.DisplayName ?? id,
+                availability.Level, definition?.EnergyCost ?? 0,
+                isProgrammed ? definition?.CooldownRounds ?? 0 : availability.CooldownRemaining,
+                availability.Reason, SelectedWeaponId == id, isProgrammed);
+        }).ToArray();
+    }
+
     public IReadOnlyList<WDWeaponHudInstallationState> GetVisibleInstallations()
     {
         if (gameManager?.WeaponInstallationRegistry == null)

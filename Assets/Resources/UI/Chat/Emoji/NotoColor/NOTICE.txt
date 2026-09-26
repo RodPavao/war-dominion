@@ -1,0 +1,5 @@
+Google Noto Emoji
+Copyright 2013 Google, Inc. All Rights Reserved.
+Official SVGs from revision e20cbc2bbec1926686be9f9bee7d1d2cfa1fea0e; see manifest.json.
+Original graphics unchanged. Derived atlas rasterized at 120x120 with 4 px transparent padding; no recoloring.
+See LICENSE.txt and Apache-2.0.txt. No third_party assets included.

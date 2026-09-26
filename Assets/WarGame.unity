@@ -14767,7 +14767,7 @@ GameObject:
   - component: {fileID: 563699231}
   - component: {fileID: 563699232}
   m_Layer: 0
-  m_Name: EastAustralia
+  m_Name: WestAustralia
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -14801,8 +14801,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bd6189d3dc1fa3e41887db866c214d78, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerritorioClique
-  idTerritorio: EastAustralia
-  chaveTraducao: territory_east_australia
+  idTerritorio: WestAustralia
+  chaveTraducao: territory_west_australia
   continente: 5
   dono: 0
   estadoTerritorial: 1
@@ -25279,7 +25279,7 @@ GameObject:
   - component: {fileID: 943108818}
   - component: {fileID: 943108819}
   m_Layer: 0
-  m_Name: Yukon
+  m_Name: Alaska
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -25313,8 +25313,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bd6189d3dc1fa3e41887db866c214d78, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerritorioClique
-  idTerritorio: Yukon
-  chaveTraducao: territory_yukon
+  idTerritorio: Alaska
+  chaveTraducao: territory_alaska
   continente: 0
   dono: 0
   estadoTerritorial: 1
@@ -26802,7 +26802,7 @@ GameObject:
   - component: {fileID: 980353346}
   - component: {fileID: 980353347}
   m_Layer: 0
-  m_Name: WestAustralia
+  m_Name: EastAustralia
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -26836,8 +26836,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bd6189d3dc1fa3e41887db866c214d78, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerritorioClique
-  idTerritorio: WestAustralia
-  chaveTraducao: territory_west_australia
+  idTerritorio: EastAustralia
+  chaveTraducao: territory_east_australia
   continente: 5
   dono: 0
   estadoTerritorial: 1
@@ -36958,7 +36958,7 @@ MonoBehaviour:
   territorioSelecionado: {fileID: 0}
   territorioDestinoSelecionado: {fileID: 0}
   jogadorLocal: 1
-  faseAtual: 1
+  faseAtual: 0
   estadoPreparacao: 0
   modoAcao: 0
   territorioTransferenciaSelecionado: {fileID: 0}
@@ -40345,7 +40345,7 @@ GameObject:
   - component: {fileID: 1439669902}
   - component: {fileID: 1439669903}
   m_Layer: 0
-  m_Name: Alaska
+  m_Name: Quebec
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -40379,8 +40379,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bd6189d3dc1fa3e41887db866c214d78, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerritorioClique
-  idTerritorio: Alaska
-  chaveTraducao: territory_alaska
+  idTerritorio: Quebec
+  chaveTraducao: territory_quebec
   continente: 0
   dono: 0
   estadoTerritorial: 1
@@ -41031,7 +41031,7 @@ GameObject:
   - component: {fileID: 1462150139}
   - component: {fileID: 1462150140}
   m_Layer: 0
-  m_Name: Alberta
+  m_Name: Yukon
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -41065,8 +41065,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bd6189d3dc1fa3e41887db866c214d78, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerritorioClique
-  idTerritorio: Alberta
-  chaveTraducao: territory_alberta
+  idTerritorio: Yukon
+  chaveTraducao: territory_yukon
   continente: 0
   dono: 0
   estadoTerritorial: 1
@@ -42148,7 +42148,7 @@ GameObject:
   - component: {fileID: 1516220973}
   - component: {fileID: 1516220974}
   m_Layer: 0
-  m_Name: Ontario
+  m_Name: Alberta
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -42182,8 +42182,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bd6189d3dc1fa3e41887db866c214d78, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerritorioClique
-  idTerritorio: Ontario
-  chaveTraducao: territory_ontario
+  idTerritorio: Alberta
+  chaveTraducao: territory_alberta
   continente: 0
   dono: 0
   estadoTerritorial: 1
@@ -55140,7 +55140,7 @@ GameObject:
   - component: {fileID: 2106538213}
   - component: {fileID: 2106538214}
   m_Layer: 0
-  m_Name: Quebec
+  m_Name: Ontario
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -55174,8 +55174,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bd6189d3dc1fa3e41887db866c214d78, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerritorioClique
-  idTerritorio: Quebec
-  chaveTraducao: territory_quebec
+  idTerritorio: Ontario
+  chaveTraducao: territory_ontario
   continente: 0
   dono: 0
   estadoTerritorial: 1

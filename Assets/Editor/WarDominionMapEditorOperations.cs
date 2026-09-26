@@ -8,6 +8,35 @@ using UnityEngine.SceneManagement;
 
 public static class WarDominionMapEditorOperations
 {
+    public static bool SetCounterScale(DefinicaoMapa map, string territoryId,
+        float scale)
+    {
+        DefinicaoTerritorioMapa territory = map?.Territorios.FirstOrDefault(item =>
+            item != null && string.Equals(item.id, territoryId,
+                StringComparison.Ordinal));
+        float normalized = Mathf.Clamp(scale, 0.1f, 4f);
+        if (territory == null || Mathf.Approximately(territory.escalaContador,
+                normalized)) return false;
+        Undo.RecordObject(map, "Alterar escala do contador de " + territoryId);
+        territory.escalaContador = normalized;
+        EditorUtility.SetDirty(map);
+        return true;
+    }
+
+    public static bool SetTerritoryDisplayName(DefinicaoMapa map,
+        string territoryId, string displayName)
+    {
+        DefinicaoTerritorioMapa territory = map?.Territorios.FirstOrDefault(item =>
+            item != null && string.Equals(item.id, territoryId,
+                StringComparison.Ordinal));
+        string normalized = displayName?.Trim() ?? string.Empty;
+        if (territory == null || territory.nomeExibido == normalized) return false;
+        Undo.RecordObject(map, "Alterar nome exibido de " + territoryId);
+        territory.nomeExibido = normalized;
+        EditorUtility.SetDirty(map);
+        return true;
+    }
+
     public static bool SetTerritoryNamePosition(DefinicaoMapa map,
         string territoryId, Vector2 storedPosition)
     {
@@ -177,6 +206,80 @@ public static class WarDominionMapEditorOperations
     }
 
     // ============================================================
+    // 01. REGIÕES: CICLO DE VIDA E REPARO PELA AUTORIDADE CANÔNICA
+    // ============================================================
+
+    public static int RepairRegionAssociations(DefinicaoMapa map)
+    {
+        if (map == null) return 0;
+        var territoryById = map.Territorios.Where(item => item != null &&
+            !string.IsNullOrWhiteSpace(item.id)).ToDictionary(item => item.id,
+                StringComparer.Ordinal);
+        var regionById = map.Regioes.Where(item => item != null &&
+            !string.IsNullOrWhiteSpace(item.id)).GroupBy(item => item.id,
+                StringComparer.Ordinal).ToDictionary(group => group.Key,
+                group => group.First(), StringComparer.Ordinal);
+        int changes = 0;
+        Undo.RecordObject(map, "Corrigir associações regionais");
+
+        foreach (DefinicaoRegiaoMapa region in map.Regioes)
+        {
+            if (region == null) continue;
+            region.territorioIds ??= new List<string>();
+            int before = region.territorioIds.Count;
+            region.territorioIds = region.territorioIds.Where(id =>
+                    territoryById.TryGetValue(id, out DefinicaoTerritorioMapa territory) &&
+                    string.Equals(territory.regiaoId, region.id, StringComparison.Ordinal))
+                .Distinct(StringComparer.Ordinal).ToList();
+            changes += before - region.territorioIds.Count;
+        }
+
+        foreach (DefinicaoTerritorioMapa territory in territoryById.Values)
+        {
+            if (string.IsNullOrWhiteSpace(territory.regiaoId) ||
+                !regionById.TryGetValue(territory.regiaoId, out DefinicaoRegiaoMapa region))
+                continue;
+            if (!region.territorioIds.Contains(territory.id))
+            {
+                region.territorioIds.Add(territory.id);
+                changes++;
+            }
+        }
+
+        if (changes > 0) EditorUtility.SetDirty(map);
+        return changes;
+    }
+
+    public static int RemoveRegion(DefinicaoMapa map, string regionId)
+    {
+        if (map == null || string.IsNullOrWhiteSpace(regionId)) return 0;
+        int index = -1;
+        for (int i = 0; i < map.Regioes.Count; i++)
+            if (map.Regioes[i] != null && string.Equals(map.Regioes[i].id, regionId,
+                StringComparison.Ordinal))
+            {
+                index = i;
+                break;
+            }
+        if (index < 0) return 0;
+        Undo.RecordObject(map, "Remover região");
+        int cleared = 0;
+        foreach (DefinicaoTerritorioMapa territory in map.Territorios)
+            if (territory != null && string.Equals(territory.regiaoId, regionId,
+                StringComparison.Ordinal))
+            {
+                territory.regiaoId = string.Empty;
+                cleared++;
+            }
+        SerializedObject serialized = new SerializedObject(map);
+        SerializedProperty regions = serialized.FindProperty("regioes");
+        regions.DeleteArrayElementAtIndex(index);
+        serialized.ApplyModifiedProperties();
+        EditorUtility.SetDirty(map);
+        return cleared;
+    }
+
+    // ============================================================
     // 01. CONEXÕES BIDIRECIONAIS COMO UM ÚNICO REGISTRO AUTORITATIVO
     // ============================================================
 
@@ -301,7 +404,7 @@ public static class WarDominionMapEditorOperations
     {
         if (map == null) return;
         EditorUtility.SetDirty(map);
-        AssetDatabase.SaveAssets();
+        AssetDatabase.SaveAssetIfDirty(map);
     }
 
     public static bool RegisterInCatalog(CatalogoMapas catalog, DefinicaoMapa map)
@@ -313,6 +416,33 @@ public static class WarDominionMapEditorOperations
         catalog.ConfigurarNoEditor(catalog.MapaPadrao ?? map, maps);
         EditorUtility.SetDirty(catalog);
         return true;
+    }
+}
+
+public sealed class WDMapTerritoryNameEditState
+{
+    // ============================================================
+    // 07. EDIÇÃO VINCULADA À IDENTIDADE QUE INICIOU A OPERAÇÃO
+    // ============================================================
+
+    public string OwnerId { get; private set; } = string.Empty;
+    public string Buffer { get; private set; } = string.Empty;
+
+    public bool Bind(DefinicaoTerritorioMapa territory)
+    {
+        string nextId = territory?.id ?? string.Empty;
+        if (string.Equals(OwnerId, nextId, StringComparison.Ordinal))
+            return false;
+        OwnerId = nextId;
+        Buffer = territory?.nomeExibido ?? string.Empty;
+        return true;
+    }
+
+    public bool Apply(DefinicaoMapa map, string displayName)
+    {
+        Buffer = displayName ?? string.Empty;
+        return WarDominionMapEditorOperations.SetTerritoryDisplayName(map,
+            OwnerId, Buffer);
     }
 }
 

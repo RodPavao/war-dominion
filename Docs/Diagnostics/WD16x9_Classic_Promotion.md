@@ -1,0 +1,56 @@
+# WD 16:9 — Classic Promotion
+
+- Timestamp: 2026-09-12T12:45:23.3901855-03:00
+- HEAD: `72137fcb310e9873d09c1961f553ea717dcc4dbc`
+- Backup: `_LocalBackups/WD16x9_PrePromotion_20260912_101318`
+- Result: **CLASSIC PROMOTED**
+- Background: `ClassicMap.png` → `WD_Map_ClassicMap_Background_16x9_v01.png`
+- TerritoryIds: 42
+- Paths: 44
+- Multipartes: 2
+- Counters preserved/repositioned: 42/0
+- Connections hash: `1FDA1823CC2E9934D80A3CAC6406C62B1E6CC280DE7E9B5C567E06312E876E2C`
+- Regions hash: `E61DC55A77102BCA7D6791387AB24E5D08CFB93039BD4F8B55E99843AA3DD0F2`
+- Generated assets:
+  - `Assets/Mapas/Classic/Runtime16x9/Afghanistan.png`
+  - `Assets/Mapas/Classic/Runtime16x9/Alaska.png`
+  - `Assets/Mapas/Classic/Runtime16x9/Alberta.png`
+  - `Assets/Mapas/Classic/Runtime16x9/Algeria.png`
+  - `Assets/Mapas/Classic/Runtime16x9/Arabia.png`
+  - `Assets/Mapas/Classic/Runtime16x9/Argentina.png`
+  - `Assets/Mapas/Classic/Runtime16x9/Brazil.png`
+  - `Assets/Mapas/Classic/Runtime16x9/China.png`
+  - `Assets/Mapas/Classic/Runtime16x9/Congo.png`
+  - `Assets/Mapas/Classic/Runtime16x9/EastAustralia.png`
+  - `Assets/Mapas/Classic/Runtime16x9/EastUSA.png`
+  - `Assets/Mapas/Classic/Runtime16x9/Egypt.png`
+  - `Assets/Mapas/Classic/Runtime16x9/Ethiopia.png`
+  - `Assets/Mapas/Classic/Runtime16x9/Germany.png`
+  - `Assets/Mapas/Classic/Runtime16x9/Greenland.png`
+  - `Assets/Mapas/Classic/Runtime16x9/Iceland.png`
+  - `Assets/Mapas/Classic/Runtime16x9/India.png`
+  - `Assets/Mapas/Classic/Runtime16x9/Indochina.png`
+  - `Assets/Mapas/Classic/Runtime16x9/Indonesia.png`
+  - `Assets/Mapas/Classic/Runtime16x9/Irkutsk.png`
+  - `Assets/Mapas/Classic/Runtime16x9/Italy.png`
+  - `Assets/Mapas/Classic/Runtime16x9/Japan.png`
+  - `Assets/Mapas/Classic/Runtime16x9/Kamchatka.png`
+  - `Assets/Mapas/Classic/Runtime16x9/Madagascar.png`
+  - `Assets/Mapas/Classic/Runtime16x9/Mexico.png`
+  - `Assets/Mapas/Classic/Runtime16x9/Mongolia.png`
+  - `Assets/Mapas/Classic/Runtime16x9/NewGuinea.png`
+  - `Assets/Mapas/Classic/Runtime16x9/Ontario.png`
+  - `Assets/Mapas/Classic/Runtime16x9/Peru.png`
+  - `Assets/Mapas/Classic/Runtime16x9/Quebec.png`
+  - `Assets/Mapas/Classic/Runtime16x9/Russia.png`
+  - `Assets/Mapas/Classic/Runtime16x9/Scandinavia.png`
+  - `Assets/Mapas/Classic/Runtime16x9/Siberia.png`
+  - `Assets/Mapas/Classic/Runtime16x9/SouthAfrica.png`
+  - `Assets/Mapas/Classic/Runtime16x9/Spain.png`
+  - `Assets/Mapas/Classic/Runtime16x9/UnitedKingdom.png`
+  - `Assets/Mapas/Classic/Runtime16x9/Ural.png`
+  - `Assets/Mapas/Classic/Runtime16x9/Venezuela.png`
+  - `Assets/Mapas/Classic/Runtime16x9/WestAustralia.png`
+  - `Assets/Mapas/Classic/Runtime16x9/WestUSA.png`
+  - `Assets/Mapas/Classic/Runtime16x9/Yakutsk.png`
+  - `Assets/Mapas/Classic/Runtime16x9/Yukon.png`

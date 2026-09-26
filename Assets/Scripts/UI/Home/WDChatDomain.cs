@@ -251,6 +251,24 @@ public sealed class WDChatRepository
     // 04. CANAL TEMPORÁRIO E ISOLADO DE EQUIPE
     // ============================================================
 
+    // Adaptação da identidade da sessão local à identidade social, sem novo transporte.
+    public WDChatChannel CreateLocalMatchChannel(string matchId, WDMatchSetup setup,
+        IEnumerable<MatchUIPlayerState> players, TerritorioClique.Dono localOwner, bool usesTeams)
+    {
+        if (setup != null)
+        {
+            var local = setup.Participants.FirstOrDefault(p => p.Kind == WDMatchParticipantKind.Local);
+            if (!setup.IsTeamMatch || local == null) return null;
+            return CreateMatchTeamChannel(matchId, LocalPlayerId, setup.Participants.Select(p =>
+                (p == local ? LocalPlayerId : p.PlayerId, p.TeamIndex)));
+        }
+        if (!usesTeams) return null;
+        return CreateMatchTeamChannel(matchId, LocalPlayerId,
+            (players ?? Array.Empty<MatchUIPlayerState>())
+            .Where(p => p.Equipe != EquipesJogadores.Equipe.Nenhuma)
+            .Select(p => (p.Jogador == localOwner ? LocalPlayerId : $"match:{matchId}:slot:{(int)p.Jogador}", (int)p.Equipe)));
+    }
+
     public WDChatChannel CreateMatchTeamChannel(string matchId, string localPlayerId,
         IEnumerable<(string PlayerId, int Team)> participants)
     {

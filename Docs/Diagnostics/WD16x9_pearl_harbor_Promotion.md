@@ -1,0 +1,60 @@
+# WD 16:9 — Pearl Harbor Promotion
+
+- Timestamp: 2026-09-12T17:10:54.4671775-03:00
+- HEAD: `72137fcb310e9873d09c1961f553ea717dcc4dbc`
+- Backup: `_LocalBackups/WD16x9_PrePromotion_pearl_harbor_20260912_171015`
+- Result: **PEARL HARBOR PROMOTED**
+- Background: `Assets/Mapas/Pearl Harbor/Arte/PearlHarbor.png` → `Assets/Mapas/Pearl Harbor/Arte/WD_Map_PearlHarbor_Background_16x9_v01.png`
+- TerritoryIds: 45
+- Paths: 45
+- Multipartes: 0
+- Counters preserved/repositioned: 28/17
+- Connections hash: `F95767DA6D43345014F4D1D38FE2E87F808D8D993868AF4D4CA8A50DDF298DD9`
+- Regions hash: `2E78F5B1D8282BD1E4142EC1798A24FF132CC3476F318121470269518C0EBC46`
+- Generated assets:
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9`
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9/AbrahamLincolnCoast.png`
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9/Albuquerque.png`
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9/AndersonBase.png`
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9/Andrews.png`
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9/Atlanta.png`
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9/Austin.png`
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9/Bush.png`
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9/Charlotte.png`
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9/Columbus.png`
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9/Coolidge.png`
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9/DavisMonthan.png`
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9/Edwards.png`
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9/Eglin.png`
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9/Eisenhower.png`
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9/ElAguacate.png`
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9/Fairchild.png`
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9/Garfield.png`
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9/Grant.png`
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9/Harrison.png`
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9/Hayes.png`
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9/HearborPort.png`
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9/Hoover.png`
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9/Incirlik.png`
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9/Kadena.png`
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9/LongBeach.png`
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9/Malmstrom.png`
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9/Mather.png`
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9/Maxwell.png`
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9/PhilipCollins.png`
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9/Nixon.png`
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9/Otix.png`
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9/Phoenix.png`
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9/Portland.png`
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9/Ramstein.png`
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9/ReaganIsland.png`
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9/RheinMain.png`
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9/Robins.png`
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9/Roosevelt.png`
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9/Sacramento.png`
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9/Taft.png`
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9/Thule.png`
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9/TrumpIsland.png`
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9/Tucson.png`
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9/VirginiaBeach.png`
+  - `Assets/Mapas/Pearl Harbor/Runtime16x9/Yokota.png`

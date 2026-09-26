@@ -101,7 +101,7 @@ MonoBehaviour:
       - {x: 1209, y: 296}
       - {x: 1210, y: 288}
   - mapId: classic
-    territoryId: Alaska
+    territoryId: Quebec
     origin: MASK_AUTO
     confidence: 2
     reviewState: 1
@@ -195,7 +195,7 @@ MonoBehaviour:
       - {x: 663, y: 220}
       - {x: 668, y: 217}
   - mapId: classic
-    territoryId: Alberta
+    territoryId: Yukon
     origin: MASK_AUTO
     confidence: 1
     reviewState: 1
@@ -1020,7 +1020,7 @@ MonoBehaviour:
       - {x: 1045, y: 597}
       - {x: 1063, y: 588}
   - mapId: classic
-    territoryId: EastAustralia
+    territoryId: WestAustralia
     origin: MASK_AUTO
     confidence: 2
     reviewState: 1
@@ -2824,7 +2824,7 @@ MonoBehaviour:
       - {x: 1570, y: 633}
       - {x: 1575, y: 631}
   - mapId: classic
-    territoryId: Ontario
+    territoryId: Alberta
     origin: MASK_AUTO
     confidence: 0
     reviewState: 0
@@ -2931,7 +2931,7 @@ MonoBehaviour:
       - {x: 652, y: 627}
       - {x: 663, y: 623}
   - mapId: classic
-    territoryId: Quebec
+    territoryId: Ontario
     origin: MASK_AUTO
     confidence: 0
     reviewState: 0
@@ -3857,7 +3857,7 @@ MonoBehaviour:
       - {x: 618, y: 514}
       - {x: 623, y: 511}
   - mapId: classic
-    territoryId: WestAustralia
+    territoryId: EastAustralia
     origin: MASK_AUTO
     confidence: 1
     reviewState: 1
@@ -4081,7 +4081,7 @@ MonoBehaviour:
       - {x: 1440, y: 125}
       - {x: 1445, y: 120}
   - mapId: classic
-    territoryId: Yukon
+    territoryId: Alaska
     origin: MASK_AUTO
     confidence: 0
     reviewState: 0

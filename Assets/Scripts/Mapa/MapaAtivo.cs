@@ -457,4 +457,38 @@ public sealed class MapaAtivo : MonoBehaviour
         limites = default;
         return false;
     }
+
+    // ============================================================
+    // 8. BOUNDS JOGÁVEIS PARA ENQUADRAMENTO RESPONSIVO
+    // ============================================================
+
+    public bool TentarObterLimitesJogaveis(out Bounds limites)
+    {
+        if (territoriosRuntime.Count == 0)
+            AtualizarReferenciasDaCena();
+
+        bool encontrou = false;
+        limites = default;
+        foreach (TerritorioClique territorio in territoriosRuntime)
+        {
+            if (territorio == null)
+                continue;
+
+            Collider2D collider = territorio.GetComponent<Collider2D>();
+            Bounds atual = collider != null
+                ? collider.bounds
+                : new Bounds(territorio.transform.position, Vector3.zero);
+            if (!encontrou)
+            {
+                limites = atual;
+                encontrou = true;
+            }
+            else
+            {
+                limites.Encapsulate(atual.min);
+                limites.Encapsulate(atual.max);
+            }
+        }
+        return encontrou;
+    }
 }

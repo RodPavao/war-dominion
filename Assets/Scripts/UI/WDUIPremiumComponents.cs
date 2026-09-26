@@ -7,6 +7,8 @@ using UnityEngine.UI;
 
 public static class WDUIFactory
 {
+    private static TMP_FontAsset gabaritoSemiBold;
+
     // ============================================================
     // 01. FÁBRICA NATIVA SUBSTITUÍVEL POR SPRITES DEFINITIVOS
     // ============================================================
@@ -31,7 +33,7 @@ public static class WDUIFactory
         RectTransform rect = gameObject.GetComponent<RectTransform>();
         rect.SetParent(parent, false);
         TextMeshProUGUI text = gameObject.GetComponent<TextMeshProUGUI>();
-        text.font = theme.FonteInterface;
+        text.font = ResolveInterfaceFont(theme);
         text.fontSize = size;
         text.color = color;
         text.alignment = alignment;
@@ -39,6 +41,68 @@ public static class WDUIFactory
         text.textWrappingMode = TextWrappingModes.NoWrap;
         return text;
     }
+
+    // 01.1. A View da partida usa a fonte final do Figma sem depender de uma
+    // troca manual no Inspector. O asset TMP é criado uma vez a partir do TTF.
+    private static TMP_FontAsset ResolveInterfaceFont(WarDominionUITheme theme)
+    {
+        if (gabaritoSemiBold == null)
+        {
+            Font source = Resources.Load<Font>("UI/Fonts/Gabarito-SemiBold");
+            if (source != null)
+            {
+                gabaritoSemiBold = TMP_FontAsset.CreateFontAsset(source);
+                gabaritoSemiBold.name = "Gabarito SemiBold Runtime";
+                gabaritoSemiBold.hideFlags = HideFlags.DontSave;
+                ProtectInterfaceFontResources(null);
+                TMPro_EventManager.TEXT_CHANGED_EVENT.Add(ProtectInterfaceFontResources);
+                Application.quitting += ReleaseInterfaceFont;
+#if UNITY_EDITOR
+                UnityEditor.AssemblyReloadEvents.beforeAssemblyReload += ReleaseInterfaceFont;
+#endif
+            }
+        }
+        return gabaritoSemiBold != null ? gabaritoSemiBold : theme.FonteInterface;
+    }
+
+    // O cache possui fonte, material e todos os atlas dinâmicos, inclusive os
+    // adicionados posteriormente pelo TMP. Nenhum deles pertence à cena da UI.
+    private static void ProtectInterfaceFontResources(Object changed)
+    {
+        gabaritoSemiBold.material.hideFlags = HideFlags.DontSave;
+        for (int i = 0; i < gabaritoSemiBold.atlasTextureCount; i++)
+            gabaritoSemiBold.atlasTextures[i].hideFlags = HideFlags.DontSave;
+    }
+
+    private static void ReleaseInterfaceFont()
+    {
+        TMPro_EventManager.TEXT_CHANGED_EVENT.Remove(ProtectInterfaceFontResources);
+        Application.quitting -= ReleaseInterfaceFont;
+#if UNITY_EDITOR
+        UnityEditor.AssemblyReloadEvents.beforeAssemblyReload -= ReleaseInterfaceFont;
+#endif
+        // TMP_FontAsset.OnDestroy libera o material e os atlas que ele possui.
+        Object.DestroyImmediate(gabaritoSemiBold);
+        gabaritoSemiBold = null;
+    }
+}
+
+public static class WDMatchVisualStyle
+{
+    // 02. HIERARQUIA CANÔNICA DE SUPERFÍCIES DA PARTIDA
+    public static readonly Color SurfaceMatchBase = new Color32(11, 14, 18, 224);
+    public static readonly Color SurfaceMatchElevated = new Color32(11, 14, 18, 239);
+    public static readonly Color SurfaceMatchModal = new Color32(11, 14, 18, 248);
+    // 01.1. Corpo legível dos overlays V2; independente de backdrop e superfícies legadas.
+    public static readonly Color SurfaceMatchReadable = new Color(11f / 255f, 14f / 255f, 18f / 255f, .95f);
+    public static readonly Color SurfaceMatchControl = new Color32(18, 22, 28, 218);
+    public static readonly Color BackdropMatch = new Color32(0, 0, 0, 184);
+    public static readonly Color BorderMatchGold = new Color32(197, 155, 99, 255);
+    public static readonly Color BorderMatchGoldSoft = new Color32(197, 155, 99, 122);
+    public static readonly Color Surface = SurfaceMatchBase;
+    public static readonly Color SurfaceElevated = SurfaceMatchElevated;
+    public static readonly Color Gold = BorderMatchGold;
+    public static readonly Color Muted = new Color32(142, 146, 154, 255);
 }
 
 [DisallowMultipleComponent]
@@ -51,12 +115,12 @@ public sealed class WDUIPanel : MonoBehaviour
     public void Build(WarDominionUITheme theme, bool elevated = false)
     {
         Image surface = gameObject.GetComponent<Image>() ?? gameObject.AddComponent<Image>();
-        surface.color = elevated ? theme.BackgroundElevated : theme.SurfaceGlass;
+        surface.color = elevated ? WDMatchVisualStyle.SurfaceMatchElevated :
+            WDMatchVisualStyle.SurfaceMatchBase;
         surface.raycastTarget = false;
-        Outline outline = gameObject.GetComponent<Outline>() ?? gameObject.AddComponent<Outline>();
-        outline.effectColor = theme.BorderNeutral;
-        outline.effectDistance = Vector2.one * theme.PanelBorderWidth;
-        outline.useGraphicAlpha = true;
+        WDHomeUIFactory.ApplyRounded(surface, 12);
+        WDHomeUIFactory.AddRoundedBorder((RectTransform)transform,
+            WDMatchVisualStyle.BorderMatchGold, 12);
     }
 }
 
@@ -79,12 +143,18 @@ public sealed class WDUIPremiumButton : MonoBehaviour,
     private bool useCustomColors;
     private Color customNormal;
     private Color customHover;
+    private bool useCustomLabelColor;
+    private Color customLabelColor;
+    private bool useCustomDisabledColor;
+    private Color customDisabledColor;
     private Coroutine deniedFeedback;
 
     public void Build(WarDominionUITheme newTheme, string text, UnityAction action)
     {
         theme = newTheme;
         background = gameObject.GetComponent<Image>() ?? gameObject.AddComponent<Image>();
+        WDHomeUIFactory.ApplyRounded(background, 6);
+        WDHomeUIFactory.AddRoundedBorder((RectTransform)transform, WDMatchVisualStyle.Gold, 6);
         button = gameObject.GetComponent<Button>() ?? gameObject.AddComponent<Button>();
         button.transition = Selectable.Transition.None;
         button.onClick.RemoveAllListeners();
@@ -126,6 +196,18 @@ public sealed class WDUIPremiumButton : MonoBehaviour,
         customHover = hover;
         AtualizarVisual();
     }
+    public void SetLabelColor(Color color)
+    {
+        useCustomLabelColor = true;
+        customLabelColor = color;
+        AtualizarVisual();
+    }
+    public void SetDisabledColor(Color color)
+    {
+        useCustomDisabledColor = true;
+        customDisabledColor = color;
+        AtualizarVisual();
+    }
 
     public void PlayDeniedFeedback()
     {
@@ -159,13 +241,21 @@ public sealed class WDUIPremiumButton : MonoBehaviour,
     {
         if (background == null || theme == null) return;
         bool enabled = button == null || button.interactable;
-        Color color = !enabled ? theme.Disabled : useCustomColors
+        Color color = !enabled
+            ? (useCustomDisabledColor ? customDisabledColor : theme.Disabled)
+            : useCustomColors
             ? (hovered ? customHover : customNormal)
-            : selected ? theme.Acento : hovered ? theme.BackgroundElevated : theme.SurfaceGlass;
+            : selected ? new Color(WDMatchVisualStyle.Gold.r, WDMatchVisualStyle.Gold.g,
+                WDMatchVisualStyle.Gold.b, 0.28f)
+            : hovered ? new Color(WDMatchVisualStyle.Gold.r, WDMatchVisualStyle.Gold.g,
+                WDMatchVisualStyle.Gold.b, 0.16f)
+            : WDMatchVisualStyle.SurfaceMatchControl;
         if (pressed && enabled) color = Color.Lerp(color, Color.black, 0.18f);
         background.color = color;
         transform.localScale = Vector3.one * (pressed && enabled ? 0.975f : 1f);
-        if (label != null) label.color = enabled ? theme.TextoPrincipal : theme.TextoSecundario;
+        if (label != null) label.color = enabled
+            ? (useCustomLabelColor ? customLabelColor : theme.TextoPrincipal)
+            : theme.TextoSecundario;
     }
 }
 

@@ -918,6 +918,20 @@ public sealed class WDMap16x9PromotionServiceTests
     }
 
     [Test]
+    public void CoverFramingFillsWideAndTabletViewportsWithoutStretching()
+    {
+        Vector2 mapSize = new Vector2(19.2f, 10.8f);
+
+        float wide = LayoutPartida.TamanhoOrtograficoNormalizado(
+            mapSize, 2400f / 1080f);
+        float tablet = LayoutPartida.TamanhoOrtograficoNormalizado(
+            mapSize, 4f / 3f);
+
+        Assert.That(wide, Is.EqualTo(4.32f).Within(0.0001f));
+        Assert.That(tablet, Is.EqualTo(5.4f).Within(0.0001f));
+    }
+
+    [Test]
     public void ClassicLogicalConnectionGraphRemainsCanonicalAfterPromotion()
     {
         WDMap16x9PromotionReport report =
@@ -930,6 +944,31 @@ public sealed class WDMap16x9PromotionServiceTests
                 StringComparison.Ordinal)), Is.Empty);
         Assert.That(report.ConnectionsHash, Is.EqualTo(
             "7F2EDF08B5FB26D8AE9F11297FD0C363127FC9ED5B18A916944EA0AC37236851"));
+    }
+
+    [Test]
+    public void ClassicCorrectedGeometryIdentitiesContainTheirCounterAnchors()
+    {
+        DefinicaoMapa map = AssetDatabase.LoadAssetAtPath<DefinicaoMapa>(
+            WDMap16x9PromotionService.ClassicMapAssetPath);
+        WDMapMigrationBoundaryStore store = WDMapMigrationBoundaryRepository.Load();
+        string[] corrected =
+        {
+            "Alaska", "Yukon", "Alberta", "Ontario", "Quebec",
+            "EastAustralia", "WestAustralia"
+        };
+
+        foreach (string territoryId in corrected)
+        {
+            DefinicaoTerritorioMapa territory = map.Territorios.Single(item =>
+                item.id == territoryId);
+            Assert.That(store.TryGet("classic", territoryId, out var boundary),
+                Is.True, territoryId);
+            Vector2 pixel = WDMap16x9PromotionPlanner.SpriteLocalToBoundaryPixel(
+                territory.posicaoContador, map.ArteBase);
+            Assert.That(WDMap16x9PromotionPlanner.Contains(boundary.paths, pixel,
+                out _), Is.True, territoryId);
+        }
     }
 
     [TestCase("pearl_harbor", 45, 45)]

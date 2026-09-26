@@ -72,8 +72,11 @@ public sealed class ResolutionVisualPresentationContext
     public Color GetPlayerColor(TerritorioClique.Dono player) =>
         PaletaJogadores.ObterCorAtiva(player);
 
-    public float PlaybackDeltaTime =>
-        Time.unscaledDeltaTime * Mathf.Max(0.01f, getPlaybackSpeed?.Invoke() ?? 1f);
+    public float PlaybackDeltaTime => ScaleDeltaTime(
+        Time.unscaledDeltaTime, getPlaybackSpeed?.Invoke() ?? 1f);
+
+    public static float ScaleDeltaTime(float deltaTime, float playbackSpeed) =>
+        deltaTime * Mathf.Max(0.01f, playbackSpeed);
 
     public bool TryWorldToOverlay(
         Vector3 worldPosition,
@@ -89,8 +92,8 @@ public sealed class ResolutionVisualPresentationContext
         float remaining = Mathf.Max(0f, seconds);
         while (remaining > 0f)
         {
-            float speed = Mathf.Max(0.01f, getPlaybackSpeed?.Invoke() ?? 1f);
-            remaining -= Time.unscaledDeltaTime * speed;
+            remaining -= ScaleDeltaTime(
+                Time.unscaledDeltaTime, getPlaybackSpeed?.Invoke() ?? 1f);
             yield return null;
         }
     }
@@ -115,10 +118,19 @@ public sealed class ResolutionSequenceController : MonoBehaviour
 
     public bool IsRunning => currentSequence != null;
     public float PlaybackSpeed { get; set; } = 1f;
+    public bool IsAccelerated => PlaybackSpeed > 1f;
     public event Action SequenceStarted;
     public event Action<ResolutionVisualEvent, int> EventStarted;
     public event Action<ResolutionVisualEvent, int> EventCompleted;
     public event Action SequenceCompleted;
+
+    // 02.1. A sequência é a autoridade única da preferência de velocidade. Ela
+    // existe durante toda a partida, portanto a escolha feita na Preparation é
+    // naturalmente preservada quando a mesma instância entra em Resolution.
+    public void TogglePlaybackSpeed()
+    {
+        PlaybackSpeed = IsAccelerated ? 1f : 2f;
+    }
 
     // ============================================================
     // 03. INICIALIZAÇÃO E REGISTRO DE APRESENTADORES

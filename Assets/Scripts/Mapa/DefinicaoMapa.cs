@@ -29,6 +29,10 @@ public sealed class DefinicaoTerritorioMapa
     public string regiaoId;
     public Vector2 posicaoContador;
     public bool possuiPosicaoContador = true;
+    [Min(0.1f)] public float escalaContador = 1f;
+    public float EscalaContadorEfetiva => escalaContador > 0f
+        ? Mathf.Max(0.1f, escalaContador)
+        : 1f;
     public Vector2 posicaoNomeManual;
     public bool possuiPosicaoNomeManual;
     [Min(0)] public int tamanhoFonteNome;
