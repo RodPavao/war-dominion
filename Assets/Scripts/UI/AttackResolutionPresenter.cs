@@ -6,6 +6,8 @@ using UnityEngine;
 public sealed class AttackResolutionPresenter : MonoBehaviour,
     IResolutionVisualPresenter
 {
+    private const float AirTransportTravelDuration = .9f;
+    private const float TransportedInstallationFadeDuration = .38f;
     // ============================================================
     // 01. CONFIGURAÇÃO E ESTADO VISUAL TEMPORÁRIO
     // ============================================================
@@ -54,6 +56,13 @@ public sealed class AttackResolutionPresenter : MonoBehaviour,
         route.SetPlanning(false);
         GameObject attacker = CreateCounterCopy(
             origin, ObterQuantidadeAnimada(visualEvent), visualEvent.Player);
+        RectTransform transportedIcon = null;
+        Vector2 installationOrigin = default;
+        Vector2 installationDestination = default;
+        if (!string.IsNullOrEmpty(visualEvent.InstallationId))
+            WDWeaponInstallationMapPresenter.TryBeginTransportTravel(
+                visualEvent.InstallationId, context.Overlay, out transportedIcon,
+                out installationOrigin, out installationDestination);
         route.SetGeometry(originPosition, destinationPosition);
         Vector3 originWorld = GetCounterWorldPosition(origin);
         Vector3 destinationWorld = GetCounterWorldPosition(destination);
@@ -61,18 +70,46 @@ public sealed class AttackResolutionPresenter : MonoBehaviour,
         attacker.transform.position = originWorld;
         origin.DestacarReforco();
         float elapsed = 0f;
-        while (elapsed < theme.AttackTravelDuration)
+        float travelDuration = visualEvent.ContentId == WDSupportWeaponIds.AirTransport
+            ? AirTransportTravelDuration : theme.AttackTravelDuration;
+        while (elapsed < travelDuration)
         {
             elapsed += context.PlaybackDeltaTime;
-            float progress = Mathf.Clamp01(elapsed / theme.AttackTravelDuration);
+            float progress = Mathf.Clamp01(elapsed / travelDuration);
             float smooth = progress * progress * (3f - 2f * progress);
             attacker.transform.position = Bezier(
                 originWorld, controlWorld, destinationWorld, smooth);
+            if (transportedIcon != null)
+            {
+                transportedIcon.anchoredPosition = Bezier(installationOrigin,
+                    CreateOverlayControl(installationOrigin, installationDestination),
+                    installationDestination, smooth);
+            }
             yield return null;
         }
 
         Destroy(attacker);
+        if (transportedIcon != null) Destroy(transportedIcon.gameObject);
         ApplyFinalVisualState(visualEvent);
+        if (!string.IsNullOrEmpty(visualEvent.InstallationId) &&
+            WDWeaponInstallationMapPresenter.TryBeginInstallationFade(
+                visualEvent.InstallationId, string.Empty,
+                visualEvent.DestinationTerritoryId, out string installationId))
+        {
+            float fadeElapsed = 0f;
+            while (fadeElapsed < TransportedInstallationFadeDuration)
+            {
+                fadeElapsed += context.PlaybackDeltaTime;
+                float progress = Mathf.Clamp01(
+                    fadeElapsed / TransportedInstallationFadeDuration);
+                float eased = progress * progress * (3f - 2f * progress);
+                WDWeaponInstallationMapPresenter.SetInstallationFadeAlpha(
+                    installationId, eased);
+                yield return null;
+            }
+            WDWeaponInstallationMapPresenter.SetInstallationFadeAlpha(
+                installationId, 1f);
+        }
         if (visualEvent.Conquered)
             destination.GetComponent<TerritorioVisual>()?.DestacarConquistaBreve();
         else
@@ -165,6 +202,16 @@ public sealed class AttackResolutionPresenter : MonoBehaviour,
     {
         float inverse = 1f - t;
         return inverse * inverse * start + 2f * inverse * t * control + t * t * end;
+    }
+
+    private Vector2 CreateOverlayControl(Vector2 origin, Vector2 destination)
+    {
+        Vector2 delta = destination - origin;
+        Vector2 normal = new(-delta.y, delta.x);
+        if (normal.sqrMagnitude > 0f) normal.Normalize();
+        return (origin + destination) * .5f + normal * Mathf.Min(
+            theme.PreparedArrowMaxCurveHeight,
+            delta.magnitude * theme.PreparedArrowCurveFactor);
     }
 }
 

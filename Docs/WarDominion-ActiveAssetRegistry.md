@@ -143,8 +143,12 @@ Runtime selection is `Resources/Mapas/CatalogoMapas.asset` → `DefinicaoMapa` �
 
 ### Match UI and Home
 
-- Match UI: `WarDominionMatchHUD`, `MatchUIPresenter`, `UICompositionRoot` and current
-  weapon/result presenters.
+- Match UI: `WDMatchUIV2`, registered through `WDMatchUIPresentationBinding`,
+  `MatchUIPresenter`, `UICompositionRoot` and current weapon/result presenters.
+  The retired `WarDominionMatchHUD` implementation and its exclusive historical assets
+  are isolated under `Assets/_Legacy/Match/RetiredHUD/`.
+  The retired IMGUI `HUDPreparacao` presentation is isolated alongside it; the active
+  match bootstrap no longer creates or selects a legacy HUD.
 - Home: `WarDominionHomeController`, `WDHomeMatchFlowPanel` and current Home panels.
 
 ### Catalogs/configuration
@@ -211,3 +215,15 @@ Detalhes e próximos passos: `Docs/WarDominion-Map16x9MigrationReport.md` e
 Importação final: os cinco backgrounds WD usam textura 1920×1080 e SpriteRect
 full-canvas `(0, 0, 1920, 1080)`. GUIDs e IDs dos sub-assets foram preservados. Essa
 padronização de import não promove os backgrounds nem altera geometria territorial.
+
+## Certificação Marco Zero — 2026-10-04
+
+- A UI V2 usa `SpeedOff.png`/`SpeedOn.png` e seus sources vetoriais específicos.
+  A geração anterior `FigmaCurrent/Chevron.{png,svg}` e o source preto preenchido
+  `Official/Speed.svg` foram preservados em `Assets/_Legacy/Match/`.
+- `Assets/TerritoriosOriginais/` permanece como source legítimo: contém 42 recortes
+  texturizados dos territórios do mapa. `Assets/TerritoriosDefinitivos/` contém as 42
+  máscaras operacionais brancas em canvas 1365×1024 usadas pelas ferramentas Editor.
+  Os dois grupos preservam informações diferentes e não são duplicatas.
+- A árvore ativa não possui carregamento, fallback ou referência serializada para
+  conteúdo de `Assets/_Legacy/`.

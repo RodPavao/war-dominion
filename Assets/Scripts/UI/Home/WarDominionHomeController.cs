@@ -20,6 +20,11 @@ public sealed class WarDominionHomeController : MonoBehaviour
     [SerializeField] private Texture2D backgroundTexture;
     [SerializeField] private Texture2D playBackgroundTexture;
     [SerializeField] private Texture2D matchmakingBackgroundTexture;
+    [SerializeField] private Texture2D chatBackgroundTexture;
+    [SerializeField] private Texture2D friendsBackgroundTexture;
+    [SerializeField] private Texture2D settingsBackgroundTexture;
+    [SerializeField] private Texture2D rankingBackgroundTexture;
+    [SerializeField] private Texture2D storeBackgroundTexture;
     [SerializeField] private Texture2D warDominionOpening16x9Texture;
     [SerializeField] private Texture2D warDominionOpeningUltrawideTexture;
     [SerializeField] private TMP_FontAsset gabaritoBlack;
@@ -51,9 +56,14 @@ public sealed class WarDominionHomeController : MonoBehaviour
     private WDNavigationBackRouter navigationBackRouter;
     private RectTransform safeArea;
     private RectTransform homeAccount;
+    private RawImage homeAccountAvatar;
+    private GameObject accountDropdownRoot;
+    private RawImage accountDropdownAvatar;
+    private TextMeshProUGUI accountDropdownNickname;
     private RectTransform homeResources;
     private RectTransform homeLeftZone;
     private RectTransform homeRightZone;
+    private RectTransform homeCenterHub;
     private RectTransform homeSecondaryRow;
     private RectTransform homePlayButton;
     private RectTransform homeProfileCard;
@@ -61,7 +71,9 @@ public sealed class WarDominionHomeController : MonoBehaviour
     private RectTransform homeStoreCard;
     private RectTransform homeSettingsCard;
     private GameObject homeUIRoot;
+    private CanvasGroup homeInputGroup;
     private EventSystem homeEventSystem;
+    private bool openingPresentationActive;
     private TextMeshProUGUI homeNicknameLabel;
     private TextMeshProUGUI homeTrophiesLabel;
     private TextMeshProUGUI heroNicknameLabel;
@@ -85,11 +97,12 @@ public sealed class WarDominionHomeController : MonoBehaviour
     private const float WarDominionOpeningHoldSeconds = 3f;
     private const float WarDominionOpeningFadeSeconds = 0.6f;
     private const float WarDominionOpeningUltrawideThreshold = 2f;
+    private const float HomeSecondaryOpticalOffsetX = 8f;
     private static readonly Color FigmaText = new Color(0.961f, 0.965f, 0.973f, 1f);
     private static readonly Color FigmaMuted = new Color(0.557f, 0.573f, 0.604f, 1f);
     private static readonly Color FigmaGold = new Color(0.773f, 0.608f, 0.388f, 1f);
     private static readonly Color FigmaBorder = new Color(0.773f, 0.608f, 0.388f, 0.2f);
-    private static readonly Color FigmaPanel = new Color(0.067f, 0.075f, 0.09f, 0.88f);
+    private static readonly Color FigmaPanel = new Color(0.067f, 0.075f, 0.09f, 0.90f);
     private static readonly Color FigmaPill = new Color(0.106f, 0.114f, 0.133f, 0.9f);
     private static readonly Color FigmaNavigationGold =
         new Color(0.91f, 0.67f, 0.18f, 0.88f);
@@ -130,6 +143,8 @@ public sealed class WarDominionHomeController : MonoBehaviour
         if (!warDominionOpeningPresented && openingTexture != null)
         {
             warDominionOpeningPresented = true;
+            openingPresentationActive = true;
+            SetHomeInputEnabled(false);
             StartCoroutine(PresentWarDominionOpening(openingTexture));
         }
     }
@@ -216,6 +231,8 @@ public sealed class WarDominionHomeController : MonoBehaviour
         group.blocksRaycasts = false;
         yield return null;
         Destroy(overlay);
+        openingPresentationActive = false;
+        SetHomeInputEnabled(true);
     }
 
     private void Update()
@@ -226,7 +243,8 @@ public sealed class WarDominionHomeController : MonoBehaviour
             nextCurrencyRefresh = Time.unscaledTime + 1f;
             RefreshCurrencies();
         }
-        if (Keyboard.current?.escapeKey.wasPressedThisFrame != true)
+        if (openingPresentationActive ||
+            Keyboard.current?.escapeKey.wasPressedThisFrame != true)
             return;
 
         navigationBackRouter?.TryHandleBack(Time.frameCount);
@@ -236,12 +254,22 @@ public sealed class WarDominionHomeController : MonoBehaviour
     // 02. CANVAS, FUNDO E ÁREA SEGURA
     // ============================================================
 
+    private void SetHomeInputEnabled(bool value)
+    {
+        if (homeInputGroup == null)
+            return;
+        homeInputGroup.interactable = value;
+        homeInputGroup.blocksRaycasts = value;
+    }
+
     private void BuildHome()
     {
         var root = new GameObject(
             "HomeUIRoot", typeof(RectTransform), typeof(Canvas),
-            typeof(CanvasScaler), typeof(GraphicRaycaster));
+            typeof(CanvasScaler), typeof(GraphicRaycaster), typeof(CanvasGroup));
         homeUIRoot = root;
+        homeInputGroup = root.GetComponent<CanvasGroup>();
+        SetHomeInputEnabled(true);
         root.transform.SetParent(transform, false);
         Canvas canvas = root.GetComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
@@ -331,6 +359,8 @@ public sealed class WarDominionHomeController : MonoBehaviour
                 armoryPanel?.HideFromNavigation();
                 clanPanel?.HideFromNavigation();
                 storePanel?.HideFromNavigation();
+                CloseAccountDropdown();
+                RefreshHomeIdentity();
             }));
         matchFlowPanel.Build(
             theme, matchConfig, mockData, armoryCatalog, armoryRepository,
@@ -354,41 +384,58 @@ public sealed class WarDominionHomeController : MonoBehaviour
         WDHomeUIFactory.Stretch(friendsLayer);
         friendsPanel = friendsLayer.gameObject.AddComponent<WDHomeFriendsPanel>();
         friendsPanel.Build(theme, socialRepository, navigationStack,
-            profilePanel.OpenPublicProfile, OpenDirectChat, OpenSocialConfirmation);
+            profilePanel.OpenPublicProfile, OpenDirectChat, OpenSocialConfirmation,
+            friendsBackgroundTexture, SetFriendsPresentationVisible);
 
         RectTransform chatLayer = WDHomeUIFactory.Rect("ChatLayer", root.transform);
         WDHomeUIFactory.Stretch(chatLayer);
-        chatPanel = chatLayer.gameObject.AddComponent<WDChatHubPanel>();
+        // 07. Chat Geral V2: instancia a apresentação serializada e mantém o repositório existente.
+        GameObject chatPrefab = Resources.Load<GameObject>("UI/Chat/WDChatHubV2");
+        if (chatPrefab == null)
+            throw new System.InvalidOperationException(
+                "Prefab do Chat V2 ausente. Execute War Dominion > UI > Chat V2 > Criar Prefab Serializado.");
+        GameObject chatInstance = Instantiate(chatPrefab, chatLayer, false);
+        chatInstance.name = "WDChatHubV2";
+        WDHomeUIFactory.Stretch((RectTransform)chatInstance.transform);
+        chatPanel = chatInstance.GetComponent<WDChatHubPanel>() ??
+            throw new System.InvalidOperationException("WDChatHubV2.prefab não possui WDChatHubPanel.");
         chatPanel.Build(theme, chatRepository, socialRepository, profileRepository,
-            navigationStack, profilePanel.OpenPublicProfile, OpenSocialConfirmation);
+            navigationStack, profilePanel.OpenPublicProfile, OpenSocialConfirmation, OpenFriends,
+            chatBackgroundTexture, () => economyRepository.Load(economyCatalog), OpenNotificationCenter);
 
         RectTransform rankingLayer = WDHomeUIFactory.Rect("RankingLayer", root.transform);
         WDHomeUIFactory.Stretch(rankingLayer);
         rankingPanel = rankingLayer.gameObject.AddComponent<WDHomeRankingPanel>();
         rankingPanel.Build(theme, new WDRankingRepository(profileRepository), navigationStack,
-            profilePanel.OpenPublicProfile);
+            profilePanel.OpenPublicProfile, rankingBackgroundTexture, SetHomeCompositionVisible);
 
         RectTransform missionsLayer = WDHomeUIFactory.Rect("MissionsLayer", root.transform);
         WDHomeUIFactory.Stretch(missionsLayer);
         missionsPanel = missionsLayer.gameObject.AddComponent<WDHomeMissionsPanel>();
-        missionsPanel.Build(theme, missionRepository, navigationStack);
+        missionsPanel.Build(theme, missionRepository, navigationStack, SetHomeCompositionVisible);
 
         RectTransform settingsLayer = WDHomeUIFactory.Rect("SettingsLayer", root.transform);
         WDHomeUIFactory.Stretch(settingsLayer);
         settingsPanel = settingsLayer.gameObject.AddComponent<WDHomeSettingsPanel>();
-        settingsPanel.Build(theme, profileRepository, navigationStack);
+        settingsPanel.Build(theme, profileRepository, navigationStack,
+            settingsBackgroundTexture, SetSettingsPresentationVisible,
+            () => economyRepository.Load(economyCatalog), OpenNotificationCenter);
+        // O shell fica atrás da SafeArea: os recursos globais conservam exatamente
+        // os anchors e o posicionamento responsivo já aprovados na Home.
+        settingsLayer.SetSiblingIndex(safeArea.GetSiblingIndex());
 
         RectTransform armoryLayer = WDHomeUIFactory.Rect("ArmoryLayer", root.transform);
         WDHomeUIFactory.Stretch(armoryLayer);
         armoryPanel = armoryLayer.gameObject.AddComponent<WDHomeArmoryPanel>();
         armoryPanel.Build(
             theme, armoryCatalog, armoryRepository,
-            OpenLockedDeckPopup, navigationStack);
+            OpenLockedDeckPopup, navigationStack, SetHomeCompositionVisible);
 
         RectTransform storeLayer = WDHomeUIFactory.Rect("StoreLayer", root.transform);
         WDHomeUIFactory.Stretch(storeLayer);
         storePanel = storeLayer.gameObject.AddComponent<WDHomeStorePanel>();
-        if (storeService != null) storePanel.Build(theme, storeService, navigationStack);
+        if (storeService != null) storePanel.Build(theme, storeService, navigationStack,
+            storeBackgroundTexture, SetStorePresentationVisible, OpenNotificationCenter);
         else storeLayer.gameObject.SetActive(false);
 
         // 03. Membership único de sessão, projetado no Perfil e no Chat existentes.
@@ -402,7 +449,8 @@ public sealed class WarDominionHomeController : MonoBehaviour
         clanPanel = clanLayer.gameObject.AddComponent<WDHomeClanPanel>();
         clanPanel.Build(theme, clanRepository, profileRepository, socialRepository,
             navigationStack, profilePanel.OpenPublicProfile, OpenDirectChat,
-            OpenSocialConfirmation);
+            OpenSocialConfirmation, economyRepository.Load(economyCatalog),
+            SetClanPresentationVisible, OpenNotificationCenter);
         BuildFigmaFoundation(content);
 
         RectTransform notificationsLayer = WDHomeUIFactory.Rect("NotificationCenterLayer", root.transform);
@@ -431,9 +479,9 @@ public sealed class WarDominionHomeController : MonoBehaviour
         accountSurface.color = FigmaPanel;
         WDHomeUIFactory.ApplyRounded(accountSurface, 18);
         AddBorder(account, FigmaBorder);
-        // Ponto de extensao para o futuro seletor de contas: sem acao nesta fase.
         Button accountButton = account.gameObject.AddComponent<Button>();
         accountButton.transition = Selectable.Transition.None;
+        accountButton.onClick.AddListener(ToggleAccountDropdown);
         RectTransform avatarFrame = WDHomeUIFactory.Rect("AvatarFrame", account);
         Place(avatarFrame, new Vector2(0f, 0.5f), new Vector2(39f, 0f),
             new Vector2(58f, 58f));
@@ -448,9 +496,12 @@ public sealed class WarDominionHomeController : MonoBehaviour
         avatarMask.raycastTarget = false;
         WDHomeUIFactory.ApplyRounded(avatarMask, 26);
         avatarClip.gameObject.AddComponent<Mask>().showMaskGraphic = false;
-        RawImage avatar = FigmaTexture("Avatar", avatarClip, "HomeAvatar");
+        RawImage avatar = FigmaTexture("Avatar", avatarClip,
+            WDProfileIdentityVisuals.ResolveAvatar(profileRepository.LocalProfile));
+        homeAccountAvatar = avatar;
         Place(avatar.rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero,
             new Vector2(52f, 52f));
+        PreserveTextureAspect(avatar);
         homeNicknameLabel = FigmaLabel("Nickname", account,
             profileRepository.LocalProfile.Nickname, 19f, FigmaText);
         Place(homeNicknameLabel.rectTransform, new Vector2(0f, 0.5f),
@@ -462,6 +513,7 @@ public sealed class WarDominionHomeController : MonoBehaviour
         RawImage chevron = FigmaTexture("AccountChevron", account, "Chevron");
         Place(chevron.rectTransform, new Vector2(1f, 0.5f),
             new Vector2(-25f, 0f), new Vector2(22f, 22f));
+        BuildAccountDropdown(content);
 
         RectTransform resourceGroup = WDHomeUIFactory.Rect("ResourceGroup", header);
         homeResources = resourceGroup;
@@ -470,17 +522,11 @@ public sealed class WarDominionHomeController : MonoBehaviour
         // Auto Layout do node 581:2: 16 px entre moeda, esmeralda e sino.
         coinsLabel = BuildResourcePill(resourceGroup, "Coins", "Coin", 110f);
         emeraldsLabel = BuildResourcePill(resourceGroup, "Emeralds", "Gem", 80f);
-        RectTransform notifications = WDHomeUIFactory.Rect("NotificationCenter", resourceGroup);
+        RectTransform notifications = WDHomeUIFactory.BuildCanonicalNotification(
+            resourceGroup, OpenNotificationCenter);
         resourceNotification = notifications;
         Place(notifications, new Vector2(1f, 0.5f), Vector2.zero,
             new Vector2(48f, 48f), new Vector2(1f, 0.5f));
-        Image bellSurface = notifications.gameObject.AddComponent<Image>();
-        bellSurface.color = FigmaPill;
-        WDHomeUIFactory.ApplyRounded(bellSurface, 24);
-        AddBorder(notifications, FigmaBorder);
-        notifications.gameObject.AddComponent<Button>().onClick.AddListener(OpenNotificationCenter);
-        RawImage bell = FigmaTexture("Bell", notifications, "Bell");
-        Place(bell.rectTransform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(20f, 20f));
         Image unreadDot = WDHomeUIFactory.Image("UnreadIndicator", notifications,
             new Color(1f, 0.231f, 0.188f, 1f));
         WDHomeUIFactory.ApplyRounded(unreadDot, 4);
@@ -502,31 +548,28 @@ public sealed class WarDominionHomeController : MonoBehaviour
         BuildFinalRight(right);
 
         RectTransform hub = WDHomeUIFactory.Rect("CenterPlayHub", content);
+        homeCenterHub = hub;
         Place(hub, new Vector2(0.5f, 0.5f), new Vector2(10f, 4f),
             new Vector2(860f, 620f));
         RectTransform medal = WDHomeUIFactory.Rect("EmblemMedallion", hub);
         Place(medal, new Vector2(0.5f, 0.5f),
             new Vector2(0f, 307f), new Vector2(280f, 280f));
-        Image medalRing = medal.gameObject.AddComponent<Image>();
-        medalRing.color = new Color(0.83f, 0.63f, 0.29f, 1f);
-        WDHomeUIFactory.ApplyRounded(medalRing, 140);
-        medalRing.raycastTarget = true;
-        AddBorder(medal, new Color(1f, 0.9f, 0.62f, 0.7f));
-        medal.gameObject.AddComponent<Button>().onClick.AddListener(OpenMyProfile);
-        RectTransform medalArt = WDHomeUIFactory.Rect("CircularArt", medal);
-        Place(medalArt, new Vector2(0.5f, 0.5f), Vector2.zero,
-            new Vector2(250f, 250f));
-        Image medalMaskImage = medalArt.gameObject.AddComponent<Image>();
-        medalMaskImage.color = Color.white;
-        medalMaskImage.raycastTarget = false;
-        WDHomeUIFactory.ApplyRounded(medalMaskImage, 125);
-        medalArt.gameObject.AddComponent<Mask>().showMaskGraphic = false;
-        RawImage emblem = FigmaTexture("Emblem", medalArt, "Canonical/DivisionEmblem");
+        RawImage medallionGold = FigmaTexture("MedallionGold", medal,
+            WDDivisionVisuals.ResolveMedallion());
+        Place(medallionGold.rectTransform, new Vector2(0.5f, 0.5f),
+            Vector2.zero, new Vector2(280f, 280f));
+        medallionGold.raycastTarget = true;
+        Button medalButton = medal.gameObject.AddComponent<Button>();
+        medalButton.targetGraphic = medallionGold;
+        medalButton.onClick.AddListener(OpenMyProfile);
+
+        Texture2D divisionEmblem = ResolveDivisionEmblemTexture(
+            profileRepository.LocalProfile.DivisionDefinition);
+        RawImage emblem = FigmaTexture("Emblem", medal, divisionEmblem);
         Place(emblem.rectTransform, new Vector2(0.5f, 0.5f),
             Vector2.zero, new Vector2(250f, 250f));
-        // A arte exportada representa a divisao Legionnaire; outras divisoes
-        // aguardam seus emblemas sem receber um simbolo competitivo incorreto.
-        medal.gameObject.SetActive(profileRepository.LocalProfile.DivisionId == "legionnaire");
+        WDDivisionVisuals.ApplyCalibration(emblem.rectTransform,
+            profileRepository.LocalProfile.DivisionDefinition, 280f);
         heroNicknameLabel = FigmaLabel("PlayerName", hub,
             profileRepository.LocalProfile.Nickname, 40f, FigmaText,
             TextAlignmentOptions.Center);
@@ -598,12 +641,13 @@ public sealed class WarDominionHomeController : MonoBehaviour
         // 03. Cards centrais finais mantem as autoridades Arsenal e Cla.
         RectTransform secondary = WDHomeUIFactory.Rect("CenterSecondaryRow", content);
         homeSecondaryRow = secondary;
-        Place(secondary, new Vector2(0.5f, 0f), new Vector2(0f, 148f),
+        Place(secondary, new Vector2(0.5f, 0f), new Vector2(HomeSecondaryOpticalOffsetX, 148f),
             new Vector2(700f, 130f), new Vector2(0.5f, 0f));
         BuildFinalWideCard(secondary, "ArmoryCard", -180f, "Briefcase",
             "ARSENAL", "ARMAS & DECKS", OpenArmory);
-        BuildFinalWideCard(secondary, "ClanCard", 180f, "Shield",
+        RectTransform clanCard = BuildFinalWideCard(secondary, "ClanCard", 180f, "Shield",
             "CL\u00c3", "EQUIPE", OpenClan);
+        ApplyApprovedClanContentOffsets(clanCard);
         RefreshCurrencies();
         RefreshChatBadge();
         RefreshSocialIndicators();
@@ -626,7 +670,7 @@ public sealed class WarDominionHomeController : MonoBehaviour
         Place(featuredTournamentCard, new Vector2(0f, 0f), new Vector2(0f, 419.3f),
             new Vector2(302f, 125.5f), Vector2.zero);
         Image surface = featuredTournamentCard.gameObject.AddComponent<Image>();
-        surface.color = new Color(22f / 255f, 24f / 255f, 29f / 255f, 0.8f);
+        surface.color = new Color(22f / 255f, 24f / 255f, 29f / 255f, 0.90f);
         WDHomeUIFactory.ApplyRounded(surface, 18);
         AddBorder(featuredTournamentCard, FigmaGold);
         Button button = featuredTournamentCard.gameObject.AddComponent<Button>();
@@ -659,7 +703,7 @@ public sealed class WarDominionHomeController : MonoBehaviour
         Place(card, new Vector2(0f, 0f), new Vector2(0f, bottom),
             new Vector2(302f, 125.5f), Vector2.zero);
         Image surface = card.gameObject.AddComponent<Image>();
-        surface.color = new Color(22f / 255f, 24f / 255f, 29f / 255f, 0.8f);
+        surface.color = new Color(22f / 255f, 24f / 255f, 29f / 255f, 0.90f);
         WDHomeUIFactory.ApplyRounded(surface, 18);
         AddBorder(card, new Color(accent.r, accent.g, accent.b, 0.58f));
         Button cardButton = card.gameObject.AddComponent<Button>();
@@ -770,7 +814,7 @@ public sealed class WarDominionHomeController : MonoBehaviour
     {
         Image surface = card.GetComponent<Image>();
         if (surface != null)
-            surface.color = new Color(0.12f, 0.105f, 0.07f, 0.84f);
+            surface.color = new Color(0.12f, 0.105f, 0.07f, 0.90f);
         Transform border = card.Find("Border");
         if (border != null)
             border.GetComponent<Image>().color =
@@ -832,23 +876,29 @@ public sealed class WarDominionHomeController : MonoBehaviour
             new Vector2(width, height), centerCluster ? new Vector2(0.5f, 0f) : Vector2.zero);
         Color accent = accentOverride ?? FigmaGold;
         Image surface = card.gameObject.AddComponent<Image>();
-        surface.color = new Color(22f / 255f, 24f / 255f, 29f / 255f, 0.8f);
+        surface.color = new Color(22f / 255f, 24f / 255f, 29f / 255f, 0.90f);
         WDHomeUIFactory.ApplyRounded(surface, 24);
         AddBorder(card, new Color(accent.r, accent.g, accent.b, 0.58f));
         Button cardButton = card.gameObject.AddComponent<Button>();
         cardButton.transition = Selectable.Transition.None;
         cardButton.onClick.AddListener(action);
+        RectTransform contentGroup = card;
+        if (centerCluster)
+        {
+            contentGroup = WDHomeUIFactory.Rect("ContentGroup", card);
+            WDHomeUIFactory.Stretch(contentGroup);
+        }
         float iconFrameSize = centerCluster ? 44f : 42f;
         float iconSize = 24f;
         Vector2 iconAnchor = new Vector2(0f, 0.5f);
-        BuildCardIcon(card, iconName,
+        BuildCardIcon(contentGroup, iconName,
             centerCluster ? new Vector2(100f, 0f) : new Vector2(42f, 0f),
             iconFrameSize, iconSize, iconAnchor);
         float textLeft = centerCluster ? 142f : 85f;
-        BuildCardText(card, "Title", title, centerCluster ? 24f : 17.58f, accent,
+        BuildCardText(contentGroup, "Title", title, centerCluster ? 24f : 17.58f, accent,
             new Vector2(textLeft, centerCluster ? -36f : -30f),
             new Vector2(width - textLeft - 20f, centerCluster ? 30f : 32f));
-        BuildCardText(card, "Subtitle", subtitle, centerCluster ? 14f : 13.82f, FigmaMuted,
+        BuildCardText(contentGroup, "Subtitle", subtitle, centerCluster ? 14f : 13.82f, FigmaMuted,
             new Vector2(textLeft, centerCluster ? -73f : -59f),
             new Vector2(width - textLeft - 20f, centerCluster ? 22f : 29f));
         if (vip)
@@ -856,6 +906,19 @@ public sealed class WarDominionHomeController : MonoBehaviour
                 new Vector2(-12f, -15f), new Vector2(40f, 20f),
                 TextAlignmentOptions.Right, new Vector2(1f, 1f));
         return card;
+    }
+
+    private static void ApplyApprovedClanContentOffsets(RectTransform card)
+    {
+        if (card == null)
+            return;
+        RectTransform contentGroup = card.Find("ContentGroup") as RectTransform;
+        if (contentGroup != null)
+        {
+            // Valor aprovado no runtime: Left 30, Right -30, Top/Bottom 0.
+            contentGroup.offsetMin = new Vector2(30f, 0f);
+            contentGroup.offsetMax = new Vector2(-30f, 0f);
+        }
     }
 
     private RawImage BuildCardIcon(RectTransform card, string asset, Vector2 position,
@@ -921,21 +984,10 @@ public sealed class WarDominionHomeController : MonoBehaviour
     private TextMeshProUGUI BuildResourcePill(Transform parent, string name,
         string iconName, float width)
     {
-        RectTransform pill = WDHomeUIFactory.Rect(name, parent);
+        TextMeshProUGUI number = WDHomeUIFactory.BuildCanonicalResourcePill(
+            name, parent, iconName, width, out RectTransform pill);
         Place(pill, new Vector2(1f, 0.5f), Vector2.zero,
             new Vector2(width, 40f), new Vector2(1f, 0.5f));
-        Image surface = pill.gameObject.AddComponent<Image>();
-        surface.color = FigmaPill;
-        WDHomeUIFactory.ApplyRounded(surface, 20);
-        surface.raycastTarget = false;
-        RawImage icon = FigmaTexture("Icon", pill, iconName);
-        Place(icon.rectTransform, new Vector2(0f, 0.5f),
-            new Vector2(24f, 0f),
-            iconName == "Coin" ? new Vector2(10f, 10f) : new Vector2(16f, 16f));
-        TextMeshProUGUI number = FigmaLabel("Value", pill, "0", 16f,
-            FigmaText, TextAlignmentOptions.Right);
-        Place(number.rectTransform, new Vector2(0.5f, 0.5f),
-            new Vector2(10f, 0f), new Vector2(width - 48f, 28f));
         return number;
     }
 
@@ -945,8 +997,8 @@ public sealed class WarDominionHomeController : MonoBehaviour
             coinsLabel == null || emeraldsLabel == null)
             return;
         WDArmoryProfile profile = economyRepository.Load(economyCatalog);
-        coinsLabel.text = profile.Coins.ToString("N0");
-        emeraldsLabel.text = profile.Emeralds.ToString("N0");
+        WDHomeUIFactory.SetResourcePillValue(coinsLabel, profile.Coins, 110f, 180f);
+        WDHomeUIFactory.SetResourcePillValue(emeraldsLabel, profile.Emeralds, 80f, 150f);
         WDHomeUIFactory.LayoutResourceGroup(coinsLabel, emeraldsLabel,
             resourceNotification, 110f, 80f);
     }
@@ -968,11 +1020,20 @@ public sealed class WarDominionHomeController : MonoBehaviour
         WDHomeUIFactory.AddRoundedBorder(target, color, radius);
     }
 
+    private static Texture2D ResolveDivisionEmblemTexture(WDDivisionDefinition division)
+        => WDDivisionVisuals.ResolveEmblem(division);
+
     private RawImage FigmaTexture(string name, Transform parent, string asset)
+    {
+        return FigmaTexture(name, parent,
+            Resources.Load<Texture2D>("UI/Home/FigmaPhase1A/" + asset));
+    }
+
+    private RawImage FigmaTexture(string name, Transform parent, Texture2D texture)
     {
         RectTransform rect = WDHomeUIFactory.Rect(name, parent);
         RawImage image = rect.gameObject.AddComponent<RawImage>();
-        image.texture = Resources.Load<Texture2D>("UI/Home/FigmaPhase1A/" + asset);
+        image.texture = texture;
         image.color = Color.white;
         image.raycastTarget = false;
         return image;
@@ -1285,6 +1346,12 @@ public sealed class WarDominionHomeController : MonoBehaviour
 
     private bool TryHandleCancelableContext()
     {
+        if (accountDropdownRoot != null && accountDropdownRoot.activeSelf)
+        {
+            CloseAccountDropdown();
+            return true;
+        }
+
         if (notificationCenterPanel != null && notificationCenterPanel.IsOpen)
         {
             notificationCenterPanel.Close();
@@ -1296,6 +1363,11 @@ public sealed class WarDominionHomeController : MonoBehaviour
             modal.RequestClose();
             return true;
         }
+
+        // 01. O Chat no topo usa a pilha existente; painéis cobertos não consomem
+        // o comando de voltar destinado ao picker/menu/busca ou à própria tela.
+        if (navigationStack?.CurrentId == "chat" && chatPanel != null && chatPanel.IsOpen)
+            return chatPanel.TryHandleLocalBack();
 
         if (armoryPanel != null && armoryPanel.IsOpen)
         {
@@ -1341,9 +1413,60 @@ public sealed class WarDominionHomeController : MonoBehaviour
     public void BindNotificationItems(IReadOnlyList<WDHomeNotificationItem> validatedItems)
         => notificationCenterPanel?.SetItems(validatedItems);
 
-    private void OpenMyProfile() => profilePanel.OpenMyProfile();
+    private void OpenMyProfile()
+    {
+        CloseAccountDropdown();
+        profilePanel.OpenMyProfile();
+    }
 
     private void OpenSettings() => settingsPanel.OpenGeneral();
+
+    private void SetHomeCompositionVisible(bool visible)
+    {
+        if (homeAccount != null) homeAccount.gameObject.SetActive(visible);
+        if (homeLeftZone != null) homeLeftZone.gameObject.SetActive(visible);
+        if (homeRightZone != null) homeRightZone.gameObject.SetActive(visible);
+        if (homeCenterHub != null) homeCenterHub.gameObject.SetActive(visible);
+        if (homeSecondaryRow != null) homeSecondaryRow.gameObject.SetActive(visible);
+        if (!visible) CloseAccountDropdown();
+    }
+
+    private void SetSettingsPresentationVisible(bool visible)
+    {
+        SetHomeCompositionVisible(visible);
+        if (homeResources != null)
+            homeResources.gameObject.SetActive(visible);
+    }
+
+    // ============================================================
+    // 12.1. APRESENTAÇÃO FULLSCREEN EXCLUSIVA DO CLÃ
+    // ============================================================
+    private void SetClanPresentationVisible(bool visible)
+    {
+        SetHomeCompositionVisible(visible);
+        if (homeResources != null)
+            homeResources.gameObject.SetActive(visible);
+    }
+
+    // ============================================================
+    // 12.2. APRESENTAÇÃO FULLSCREEN EXCLUSIVA DE AMIGOS
+    // ============================================================
+    private void SetFriendsPresentationVisible(bool visible)
+    {
+        SetHomeCompositionVisible(visible);
+        if (homeResources != null)
+            homeResources.gameObject.SetActive(visible);
+    }
+
+    // ============================================================
+    // 12.3. APRESENTAÇÃO FULLSCREEN EXCLUSIVA DA LOJA
+    // ============================================================
+    private void SetStorePresentationVisible(bool visible)
+    {
+        SetHomeCompositionVisible(visible);
+        if (homeResources != null)
+            homeResources.gameObject.SetActive(visible);
+    }
 
     private void OpenFriends() => friendsPanel.Open();
 
@@ -1380,6 +1503,120 @@ public sealed class WarDominionHomeController : MonoBehaviour
             homeNicknameLabel.text = profileRepository.LocalProfile.Nickname;
         if (heroNicknameLabel != null)
             heroNicknameLabel.text = profileRepository.LocalProfile.Nickname;
+        Texture2D avatar = WDProfileIdentityVisuals.ResolveAvatar(profileRepository.LocalProfile);
+        if (homeAccountAvatar != null)
+        {
+            homeAccountAvatar.texture = avatar;
+            PreserveTextureAspect(homeAccountAvatar);
+        }
+        if (accountDropdownAvatar != null)
+        {
+            accountDropdownAvatar.texture = avatar;
+            PreserveTextureAspect(accountDropdownAvatar);
+        }
+        if (accountDropdownNickname != null)
+            accountDropdownNickname.text = profileRepository.LocalProfile.Nickname;
+    }
+
+    private void BuildAccountDropdown(RectTransform content)
+    {
+        RectTransform root = WDHomeUIFactory.Rect("AccountDropdownLayer", content);
+        WDHomeUIFactory.Stretch(root);
+        accountDropdownRoot = root.gameObject;
+
+        RectTransform outside = WDHomeUIFactory.Rect("OutsideDismiss", root);
+        WDHomeUIFactory.Stretch(outside);
+        Image outsideHit = outside.gameObject.AddComponent<Image>();
+        outsideHit.color = new Color(0f, 0f, 0f, 0.001f);
+        Button outsideButton = outside.gameObject.AddComponent<Button>();
+        outsideButton.transition = Selectable.Transition.None;
+        outsideButton.onClick.AddListener(CloseAccountDropdown);
+
+        RectTransform panel = WDHomeUIFactory.Rect("AccountDropdown", root);
+        Place(panel, new Vector2(0f, 1f), new Vector2(64f, -140f),
+            new Vector2(330f, 176f), new Vector2(0f, 1f));
+        Image surface = panel.gameObject.AddComponent<Image>();
+        surface.color = new Color(0.025f, 0.041f, 0.070f, 0.98f);
+        WDHomeUIFactory.ApplyRounded(surface, 14);
+        AddBorder(panel, new Color(FigmaGold.r, FigmaGold.g, FigmaGold.b, 0.72f));
+
+        RectTransform current = WDHomeUIFactory.Rect("CurrentLocalIdentity", panel);
+        Place(current, new Vector2(0.5f, 1f), new Vector2(0f, -49f),
+            new Vector2(306f, 74f));
+        Image currentSurface = current.gameObject.AddComponent<Image>();
+        currentSurface.color = new Color(0.055f, 0.071f, 0.105f, 0.96f);
+        WDHomeUIFactory.ApplyRounded(currentSurface, 10);
+
+        RectTransform avatarClip = WDHomeUIFactory.Rect("AvatarClip", current);
+        Place(avatarClip, new Vector2(0f, 0.5f), new Vector2(38f, 0f),
+            new Vector2(52f, 52f));
+        Image avatarMask = avatarClip.gameObject.AddComponent<Image>();
+        avatarMask.color = Color.white;
+        WDHomeUIFactory.ApplyRounded(avatarMask, 26);
+        avatarClip.gameObject.AddComponent<Mask>().showMaskGraphic = false;
+        accountDropdownAvatar = FigmaTexture("Avatar", avatarClip,
+            WDProfileIdentityVisuals.ResolveAvatar(profileRepository.LocalProfile));
+        Place(accountDropdownAvatar.rectTransform, new Vector2(0.5f, 0.5f),
+            Vector2.zero, new Vector2(52f, 52f));
+        PreserveTextureAspect(accountDropdownAvatar);
+
+        accountDropdownNickname = FigmaLabel("Nickname", current,
+            profileRepository.LocalProfile.Nickname, 17f, FigmaText);
+        Place(accountDropdownNickname.rectTransform, new Vector2(0f, 0.5f),
+            new Vector2(174f, 9f), new Vector2(197f, 26f));
+        TextMeshProUGUI localCaption = FigmaLabel("AccountType", current,
+            "IDENTIDADE LOCAL", 11f, FigmaMuted);
+        Place(localCaption.rectTransform, new Vector2(0f, 0.5f),
+            new Vector2(174f, -14f), new Vector2(197f, 20f));
+        Image activeDot = WDHomeUIFactory.Image("ActiveIndicator", current,
+            new Color(0f, 0.941f, 1f, 1f));
+        WDHomeUIFactory.ApplyRounded(activeDot, 4);
+        Place(activeDot.rectTransform, new Vector2(1f, 0.5f),
+            new Vector2(-17f, 0f), new Vector2(8f, 8f));
+
+        RectTransform link = WDHomeUIFactory.Rect("LinkAnotherAccount", panel);
+        Place(link, new Vector2(0.5f, 0f), new Vector2(0f, 15f),
+            new Vector2(306f, 52f), new Vector2(0.5f, 0f));
+        WDUIPremiumButton linkButton = link.gameObject.AddComponent<WDUIPremiumButton>();
+        linkButton.Build(theme, "VINCULAR OUTRA CONTA  ·  EM BREVE", () =>
+        {
+            CloseAccountDropdown();
+            OpenModal("VINCULAR OUTRA CONTA", "Integração de autenticação ainda não disponível.");
+        });
+        linkButton.SetPersistentColors(new Color(0.031f, 0.055f, 0.090f, 1f),
+            new Color(FigmaGold.r, FigmaGold.g, FigmaGold.b, 0.14f));
+        linkButton.SetLabelColor(FigmaGold);
+        accountDropdownRoot.SetActive(false);
+    }
+
+    private void ToggleAccountDropdown()
+    {
+        if (accountDropdownRoot == null)
+            return;
+        bool open = !accountDropdownRoot.activeSelf;
+        accountDropdownRoot.SetActive(open);
+        if (open)
+        {
+            RefreshHomeIdentity();
+            accountDropdownRoot.transform.SetAsLastSibling();
+        }
+    }
+
+    private void CloseAccountDropdown()
+    {
+        if (accountDropdownRoot != null)
+            accountDropdownRoot.SetActive(false);
+    }
+
+    private static void PreserveTextureAspect(RawImage image)
+    {
+        if (image == null)
+            return;
+        AspectRatioFitter aspect = image.GetComponent<AspectRatioFitter>() ??
+            image.gameObject.AddComponent<AspectRatioFitter>();
+        aspect.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+        aspect.aspectRatio = image.texture != null
+            ? (float)image.texture.width / image.texture.height : 1f;
     }
 
     private void OpenArmory() => armoryPanel.Open();
@@ -1484,7 +1721,7 @@ public sealed class WarDominionHomeController : MonoBehaviour
         {
             homeSecondaryRow.localScale = Vector3.one * WDHomeMobileLayout.HomeSecondaryCardScale;
             homeSecondaryRow.anchoredPosition =
-                new Vector2(0f, WDHomeMobileLayout.HomeSecondaryBottom);
+                new Vector2(HomeSecondaryOpticalOffsetX, WDHomeMobileLayout.HomeSecondaryBottom);
         }
         if (homePlayButton != null)
         {

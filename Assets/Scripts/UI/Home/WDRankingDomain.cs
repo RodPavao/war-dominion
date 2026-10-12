@@ -215,7 +215,7 @@ public sealed class WDRankingRepository
         IEnumerable<WDRankingEntry> filtered = ranked;
         if (query.Entity == WDRankingEntity.Players && !string.IsNullOrWhiteSpace(query.DivisionId))
             filtered = filtered.Where(entry => entry.Division?.Id == query.DivisionId);
-        string search = query.Search?.Trim();
+        string search = WDUIContentContracts.NormalizeSearch(query.Search);
         if (!string.IsNullOrEmpty(search))
             filtered = filtered.Where(entry => entry.DisplayName.IndexOf(search,
                 StringComparison.OrdinalIgnoreCase) >= 0 ||

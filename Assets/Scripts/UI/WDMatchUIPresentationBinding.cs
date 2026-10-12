@@ -105,6 +105,16 @@ public interface IWDMatchChatPresentation
     void BindChat(WDChatRepository repository, WDChatChannel matchChannel);
 }
 
+public interface IWDMatchWeaponPresentation
+{
+    void BindWeapons(WDWeaponMatchUIController controller);
+}
+
+public interface IWDMatchInteractionPresentation
+{
+    void BindInformational(WDMatchInformationalOverlayController controller);
+}
+
 [DisallowMultipleComponent]
 public sealed class WDMatchUIPresentationBinding : MonoBehaviour
 {
@@ -137,6 +147,8 @@ public sealed class WDMatchUIPresentationBinding : MonoBehaviour
         Utilities = utilities;
         presentation?.BindCommands(commands);
         presentation?.BindUtilities(utilities);
+        (presentation as IWDMatchWeaponPresentation)?.BindWeapons(weaponUI);
+        (presentation as IWDMatchInteractionPresentation)?.BindInformational(informationalOverlay);
     }
 
     // 2. Uma única apresentação pode possuir a tela por vez.
@@ -147,6 +159,8 @@ public sealed class WDMatchUIPresentationBinding : MonoBehaviour
             return;
         presentation.BindCommands(Commands);
         presentation.BindUtilities(Utilities);
+        (presentation as IWDMatchWeaponPresentation)?.BindWeapons(WeaponUI);
+        (presentation as IWDMatchInteractionPresentation)?.BindInformational(InformationalOverlay);
         (presentation as IWDMatchChatPresentation)?.BindChat(chat, matchChat);
         if (LatestState != null)
             presentation.Present(LatestState);

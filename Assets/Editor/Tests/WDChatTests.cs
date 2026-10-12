@@ -120,6 +120,19 @@ public sealed class WDChatTests
     }
 
     [Test]
+    public void MessageContractPreservesMultilineContentAndRejectsMoreThanFiveHundredCharacters()
+    {
+        var f = new Fixture();
+        WDChatChannel channel = f.Chat.OpenPrivate("WD-2847");
+        string multiline = "  primeira linha\nsegunda linha  ";
+        Assert.That(f.Chat.Send(channel.Id, f.Chat.LocalPlayerId, multiline), Is.True);
+        Assert.That(channel.Messages.Last().Text, Is.EqualTo(multiline));
+        Assert.That(f.Chat.Send(channel.Id, f.Chat.LocalPlayerId, new string('x', 500)), Is.True);
+        Assert.That(f.Chat.Send(channel.Id, f.Chat.LocalPlayerId, new string('x', 501)), Is.False);
+        Assert.That(f.Chat.Send(channel.Id, f.Chat.LocalPlayerId, "   \n  "), Is.False);
+    }
+
+    [Test]
     public void HubDoesNotReadUntilSpecificContentOpens()
     {
         var f = new Fixture();

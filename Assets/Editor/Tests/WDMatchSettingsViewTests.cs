@@ -137,9 +137,9 @@ public sealed class WDMatchSettingsViewTests
         using var f = new Fixture();
         f.Open();
         Assert.That(f.Slider("Master").interactable, Is.True);
-        foreach (var path in new[] { "Audio/Master/Slider", "Return", "RequestLeave" })
+        foreach (var path in new[] { "Audio/Master/Slider", "Audio/Master/Mute", "Return", "RequestLeave" })
             Assert.That(EffectiveOpacity(f.Panel.Find(path)), Is.EqualTo(1f), path);
-        foreach (var path in new[] { "Audio/Master/Mute", "Audio/Music/Slider", "Audio/Music/Mute",
+        foreach (var path in new[] { "Audio/Music/Slider", "Audio/Music/Mute",
             "Audio/Sfx/Slider", "Audio/Sfx/Mute", "Interface/Emojis/On", "Interface/Emojis/Off",
             "Interface/Combat/Normal", "Interface/Combat/Fast", "Manual" })
         {
@@ -188,7 +188,7 @@ public sealed class WDMatchSettingsViewTests
         f.Open();
         Assert.That(f.Slider("Music").interactable, Is.False);
         Assert.That(f.Slider("Sfx").interactable, Is.False);
-        foreach (var path in new[] { "Audio/Master/Mute", "Audio/Music/Mute", "Audio/Sfx/Mute", "Manual",
+        foreach (var path in new[] { "Audio/Music/Mute", "Audio/Sfx/Mute", "Manual",
             "Interface/Emojis/On", "Interface/Emojis/Off", "Interface/Combat/Normal", "Interface/Combat/Fast" })
         {
             var target = f.Panel.Find(path);
@@ -197,6 +197,47 @@ public sealed class WDMatchSettingsViewTests
         }
         Assert.That(f.Store.Saves, Is.Zero);
         Assert.That(f.Repository.Current.ResolutionSpeed, Is.EqualTo(WDResolutionPresentationSpeed.Normal));
+    }
+
+    [Test]
+    public void MasterMuteRestoresVolumePersistsAndRebindingDoesNotDuplicateWrites()
+    {
+        using var f = new Fixture();
+        f.View.BindSettings(f.Repository, () => f.Leaves++);
+        f.Open();
+        var mute = f.Panel.Find("Audio/Master/Mute");
+        Assert.That(mute.GetComponent<Button>().interactable, Is.True);
+        f.Click(mute);
+        Assert.That(f.Runtime.Master, Is.Zero);
+        Assert.That(f.Repository.Current.MasterMuted, Is.True);
+        Assert.That(f.Repository.Current.MasterVolume, Is.EqualTo(.31f));
+        Assert.That(f.Slider("Master").value, Is.EqualTo(.31f));
+        Assert.That(f.Store.Saves, Is.EqualTo(1));
+        Assert.That(new WDSettingsRepository(f.Store, new Runtime()).Current.MasterMuted, Is.True);
+        f.Backdrop(); f.Open();
+        Assert.That(f.Store.Saves, Is.EqualTo(1));
+        f.Click(mute);
+        Assert.That(f.Runtime.Master, Is.EqualTo(.31f));
+        Assert.That(f.Repository.Current.MasterMuted, Is.False);
+        Assert.That(f.Store.Saves, Is.EqualTo(2));
+        f.Repository.SetMasterVolume(.62f);
+        Assert.That(f.Slider("Master").value, Is.EqualTo(.62f));
+    }
+
+    [Test]
+    public void MissingSettingsAndExitAuthoritiesDisableTheirControls()
+    {
+        using var f = new Fixture();
+        f.View.BindSettings(null, null);
+        f.Open();
+        foreach (var path in new[] { "Audio/Master/Slider", "Audio/Master/Mute", "RequestLeave" })
+        {
+            Assert.That(f.Panel.Find(path).GetComponent<Selectable>().interactable, Is.False, path);
+            f.Click(f.Panel.Find(path));
+        }
+        Assert.That(f.Leaves, Is.Zero);
+        Assert.That(f.Store.Saves, Is.Zero);
+        Assert.That(f.Confirmation.gameObject.activeSelf, Is.False);
     }
 
     // 04. Confirmação não executa saída até o comando vermelho final; proteção contra duplo toque.

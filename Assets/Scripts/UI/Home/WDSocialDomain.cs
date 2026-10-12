@@ -40,6 +40,15 @@ public static class WDSocialMockCatalog
         new WDSocialMockSeed("WD-1112", WDProfileSocialState.Friend, WDSocialPresence.InMatch),
         new WDSocialMockSeed("WD-7105", WDProfileSocialState.Friend, WDSocialPresence.Online),
         new WDSocialMockSeed("WD-8150", WDProfileSocialState.Friend, WDSocialPresence.InMatch),
+        new WDSocialMockSeed("WD-2044", WDProfileSocialState.Friend, WDSocialPresence.Online),
+        new WDSocialMockSeed("WD-3178", WDProfileSocialState.Friend, WDSocialPresence.InMatch),
+        new WDSocialMockSeed("WD-4263", WDProfileSocialState.Friend, WDSocialPresence.Offline),
+        new WDSocialMockSeed("WD-5319", WDProfileSocialState.Friend, WDSocialPresence.Online),
+        new WDSocialMockSeed("WD-6472", WDProfileSocialState.Friend, WDSocialPresence.InMatch),
+        new WDSocialMockSeed("WD-7526", WDProfileSocialState.Friend, WDSocialPresence.Offline),
+        new WDSocialMockSeed("WD-8641", WDProfileSocialState.Friend, WDSocialPresence.Online),
+        new WDSocialMockSeed("WD-9085", WDProfileSocialState.Friend, WDSocialPresence.InMatch),
+        new WDSocialMockSeed("WD-9734", WDProfileSocialState.Friend, WDSocialPresence.Offline),
         new WDSocialMockSeed("WD-2924", WDProfileSocialState.RequestReceived, WDSocialPresence.Offline),
         new WDSocialMockSeed("WD-5582", WDProfileSocialState.RequestReceived, WDSocialPresence.Online),
         new WDSocialMockSeed("WD-7331", WDProfileSocialState.RequestReceived, WDSocialPresence.Online),
@@ -77,6 +86,30 @@ public sealed class WDSocialRepository
         }
     }
 
+    // ============================================================
+    // 02.1. AMOSTRA VISUAL RESTRITA A EDITOR/DEVELOPMENT BUILD
+    // ============================================================
+    public void EnsureDevelopmentPreviewData()
+    {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        bool hasRepresentativeData = profiles.AllProfiles.Any(profile =>
+            profile.SocialState == WDProfileSocialState.Friend ||
+            profile.SocialState == WDProfileSocialState.RequestReceived ||
+            profile.SocialState == WDProfileSocialState.Blocked);
+        if (hasRepresentativeData)
+            return;
+
+        foreach (WDSocialMockSeed seed in WDSocialMockCatalog.CreateSeeds())
+        {
+            WDProfileData profile = profiles.Find(seed.PlayerId);
+            if (profile == null || profile.IsLocalPlayer)
+                continue;
+            profile.ApplySocialState(seed.Relationship);
+            presence[profile.PlayerId] = seed.Presence;
+        }
+#endif
+    }
+
     public IReadOnlyList<WDProfileData> Friends(string query = null) =>
         Filter(WDProfileSocialState.Friend, query);
     public IReadOnlyList<WDProfileData> ReceivedRequests() =>
@@ -84,13 +117,19 @@ public sealed class WDSocialRepository
     public IReadOnlyList<WDProfileData> BlockedPlayers() =>
         Filter(WDProfileSocialState.Blocked, null);
 
+    public IReadOnlyList<WDProfileData> RecentPlayers(int maximum) =>
+        profiles.AllProfiles.Where(profile => !profile.IsLocalPlayer &&
+            profile.SocialState == WDProfileSocialState.Stranger)
+            .OrderBy(profile => profile.Nickname, StringComparer.OrdinalIgnoreCase)
+            .Take(Math.Max(0, maximum)).ToArray();
+
     public WDSocialPresence PresenceOf(string playerId) =>
         presence.TryGetValue(playerId ?? string.Empty, out WDSocialPresence value)
             ? value : WDSocialPresence.Offline;
 
     public WDProfileData FindCatalogResult(string query)
     {
-        string normalized = query?.Trim();
+        string normalized = WDUIContentContracts.NormalizeSearch(query);
         if (string.IsNullOrEmpty(normalized))
             return null;
         return profiles.AllProfiles.FirstOrDefault(profile =>
@@ -155,7 +194,7 @@ public sealed class WDSocialRepository
 
     private IReadOnlyList<WDProfileData> Filter(WDProfileSocialState state, string query)
     {
-        string normalized = query?.Trim();
+        string normalized = WDUIContentContracts.NormalizeSearch(query);
         return profiles.AllProfiles.Where(profile => profile.SocialState == state &&
             (string.IsNullOrEmpty(normalized) ||
              profile.Nickname.IndexOf(normalized, StringComparison.OrdinalIgnoreCase) >= 0 ||

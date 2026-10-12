@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -6,6 +6,32 @@ using UnityEngine.UI;
 
 public sealed class WDMatchUIV2Tests
 {
+    [Test]
+    public void RadarModalUsesBlockingBackdropAndExplicitConfirmationChrome()
+    {
+        var root = new GameObject("RadarModalFixture", typeof(RectTransform));
+        var theme = ScriptableObject.CreateInstance<WarDominionUITheme>();
+        try
+        {
+            root.AddComponent<WDMatchUIV2>().Build(theme, null, null, null);
+            Transform modal = root.transform.Find("RadarModal");
+            Transform panel = modal.Find("Panel");
+
+            Assert.That(modal.GetComponent<Image>().raycastTarget, Is.True);
+            Assert.That(modal.GetComponent<Button>(), Is.Not.Null);
+            Assert.That(panel.GetComponent<Image>().raycastTarget, Is.True);
+            Assert.That(panel.GetComponent<EventTrigger>(), Is.Not.Null);
+            Assert.That(panel.Find("Cancel"), Is.Not.Null);
+            Assert.That(panel.Find("Confirm"), Is.Not.Null);
+            Assert.That(modal.gameObject.activeSelf, Is.False);
+        }
+        finally
+        {
+            Object.DestroyImmediate(root);
+            Object.DestroyImmediate(theme);
+        }
+    }
+
     // 00. Contraste acompanha entries renderizadas, sem mudar layout/autoridade de jogadores.
     [TestCase(1920f)]
     [TestCase(2400f)]
@@ -39,7 +65,7 @@ public sealed class WDMatchUIV2Tests
                 row.gameObject.AddComponent<LayoutElement>().preferredHeight = 54;
                 LayoutRebuilder.ForceRebuildLayoutImmediate(entries);
                 contrast.Refresh();
-                Assert.That(panel.sizeDelta, Is.EqualTo(new Vector2(170, 54 * count + 22 * (count - 1) + 16)));
+                Assert.That(panel.sizeDelta, Is.EqualTo(new Vector2(234, 54 * count + 22 * (count - 1) + 16)));
                 Assert.That(entries.anchoredPosition, Is.EqualTo(new Vector2(-28, -334)));
                 // O padding é externo e aparece uma única vez em cada lado da lista.
                 var entryCorners = new Vector3[4]; entries.GetWorldCorners(entryCorners);
@@ -495,8 +521,286 @@ public sealed class WDMatchUIV2Tests
             .ResolveRegionPresentationColor(region), Is.EqualTo(Color.magenta));
     }
 
-    private sealed class PresentationSpy : IWDMatchUIPresentation
+    [Test]
+    public void WeaponPresentationRebindsToTheCurrentControllerWithoutAnotherAuthority()
     {
+        var root = new GameObject("WeaponBinding");
+        var other = new GameObject("ReplacementController");
+        try
+        {
+            var binding = root.AddComponent<WDMatchUIPresentationBinding>();
+            var first = root.AddComponent<WDWeaponMatchUIController>();
+            var second = other.AddComponent<WDWeaponMatchUIController>();
+            var spy = new PresentationSpy();
+            binding.Configure(null, first, null);
+            binding.Register(spy);
+            Assert.That(spy.Weapons, Is.SameAs(first));
+            binding.Configure(null, second, null);
+            Assert.That(spy.Weapons, Is.SameAs(second));
+        }
+        finally
+        {
+            Object.DestroyImmediate(root);
+            Object.DestroyImmediate(other);
+        }
+    }
+
+    [TestCase(1920f)]
+    [TestCase(2400f)]
+    public void ActionsUsesCanonicalDrawerAndCenteredTargetPanelInsideSafeArea(float width)
+    {
+        var root = new GameObject("ActionsSafeArea", typeof(RectTransform));
+        var theme = ScriptableObject.CreateInstance<WarDominionUITheme>();
+        try
+        {
+            var area = (RectTransform)root.transform;
+            area.sizeDelta = new Vector2(width, 1080);
+            var rect = WDUIFactory.Rect("Actions", area);
+            rect.anchorMin = Vector2.zero; rect.anchorMax = Vector2.one;
+            rect.offsetMin = rect.offsetMax = Vector2.zero;
+            rect.gameObject.AddComponent<WDMatchActionsView>().Build(theme);
+            var drawer = (RectTransform)rect.Find("ActionsDrawer");
+            var panel = (RectTransform)rect.Find("WeaponTargetPopup/Panel");
+            Assert.That(drawer.anchoredPosition, Is.EqualTo(new Vector2(295, -205)));
+            Assert.That(drawer.sizeDelta, Is.EqualTo(new Vector2(396, 854)));
+            Assert.That(drawer.GetComponent<Image>().color,
+                Is.EqualTo(new Color(11f / 255, 14f / 255, 18f / 255, .95f)));
+            Assert.That(drawer.GetComponent<Image>().sprite.border, Is.EqualTo(new Vector4(0, 13, 13, 13)),
+                "Apenas os cantos direitos do drawer são arredondados.");
+            Assert.That(drawer.Find("Collapse"), Is.Null);
+            Assert.That(drawer.GetComponent<Button>(), Is.Not.Null);
+            var outside = (RectTransform)rect.Find("ActionsOutside");
+            Assert.That(outside.GetSiblingIndex(), Is.LessThan(drawer.GetSiblingIndex()));
+            Assert.That(outside.GetComponent<Image>().color, Is.EqualTo(Color.clear));
+            Assert.That(outside.GetComponent<Image>().raycastTarget, Is.True);
+            Assert.That(outside.gameObject.activeSelf, Is.False);
+            var viewport = (RectTransform)drawer.Find("ListViewport");
+            Assert.That(viewport.anchoredPosition, Is.EqualTo(new Vector2(24, -99)));
+            Assert.That(viewport.sizeDelta, Is.EqualTo(new Vector2(348, 731)));
+            Assert.That(((RectTransform)drawer.Find("Title")).sizeDelta, Is.EqualTo(new Vector2(300, 34)));
+            Assert.That(((RectTransform)drawer.Find("Count")).sizeDelta, Is.EqualTo(new Vector2(300, 17)));
+
+            Assert.That(panel.sizeDelta, Is.EqualTo(new Vector2(1400, 620)));
+            Assert.That(panel.anchorMin, Is.EqualTo(new Vector2(.5f, .5f)));
+            foreach (var item in new[] { drawer, panel })
+            {
+                var corners = new Vector3[4]; item.GetWorldCorners(corners);
+                foreach (var corner in corners)
+                {
+                    Vector3 local = area.InverseTransformPoint(corner);
+                    Assert.That(local.x, Is.InRange(area.rect.xMin, area.rect.xMax));
+                    Assert.That(local.y, Is.InRange(area.rect.yMin, area.rect.yMax));
+                }
+            }
+            Assert.That(rect.GetComponent<Graphic>(), Is.Null, "A raiz não captura eventos quando a camada externa está inativa.");
+            Assert.That(panel.GetComponent<Button>(), Is.Not.Null, "Cliques internos são consumidos no painel.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(root);
+            Object.DestroyImmediate(theme);
+        }
+    }
+
+    // ============================================================
+    // 04. SETE INSTALAÇÕES TERRITORIAIS E HUB CONFIGURÁVEL
+    // ============================================================
+
+    [Test]
+    public void InstallationFamilyContainsExactlySevenAndRejectsRadarAndTransport()
+    {
+        string[] expected =
+        {
+            WDSupportWeaponIds.Bunker, WDSupportWeaponIds.Minefield,
+            WDSupportWeaponIds.FlakTower, WDStrategicWeaponIds.EnergyPlant,
+            WDStrategicWeaponIds.Artillery, WDStrategicWeaponIds.Rockets,
+            WDSpecialWeaponIds.Drone
+        };
+        Assert.That(expected, Has.All.Matches<string>(
+            WDInstallationHubFormatter.IsCanonicalInstallation));
+        Assert.That(expected, Is.Unique);
+        Assert.That(WDInstallationHubFormatter.IsCanonicalInstallation(
+            WDTacticalWeaponIds.Radar), Is.False);
+        Assert.That(WDInstallationHubFormatter.IsCanonicalInstallation(
+            WDSupportWeaponIds.AirTransport), Is.False);
+    }
+
+    [TestCase(WDSupportWeaponIds.Bunker, false)]
+    [TestCase(WDSupportWeaponIds.Minefield, false)]
+    [TestCase(WDSupportWeaponIds.FlakTower, false)]
+    [TestCase(WDStrategicWeaponIds.EnergyPlant, false)]
+    [TestCase(WDStrategicWeaponIds.Artillery, false)]
+    [TestCase(WDStrategicWeaponIds.Rockets, true)]
+    [TestCase(WDSpecialWeaponIds.Drone, true)]
+    public void InstallationHubSeparatesInformationFromCanonicalOperations(
+        string weaponId, bool operational)
+    {
+        var installation = new WDWeaponInstallationState("id", weaponId, "territory",
+            "p1", 3, 5, 2, 3, 2, true, 4);
+        var snapshot = new WDWeaponHudInstallationState(installation, weaponId, operational, 5);
+        WDInstallationHubPresentation model = WDInstallationHubFormatter.Format(snapshot);
+        Assert.That(model.Sectors, Has.Length.EqualTo(3));
+        Assert.That(model.IsOperational, Is.EqualTo(operational));
+        Assert.That(model.CanOperate, Is.EqualTo(operational));
+        Assert.That(model.AssetName, Is.Not.Empty);
+        if (weaponId == WDStrategicWeaponIds.Artillery)
+            StringAssert.Contains("AUTOMÁTICO", string.Join("|", model.Sectors));
+    }
+
+    [Test]
+    public void InstallationHubValuesComeFromTheReadOnlyInstallationSnapshot()
+    {
+        WDInstallationHubPresentation bunker = Hub(WDSupportWeaponIds.Bunker,
+            duration: 0, barrier: 5, charges: 0, payments: 0);
+        WDInstallationHubPresentation mine = Hub(WDSupportWeaponIds.Minefield,
+            duration: 0, barrier: 0, charges: 1, payments: 0);
+        WDInstallationHubPresentation flak = Hub(WDSupportWeaponIds.FlakTower,
+            duration: 3, barrier: 0, charges: 0, payments: 0);
+        WDInstallationHubPresentation plant = Hub(WDStrategicWeaponIds.EnergyPlant,
+            duration: 0, barrier: 0, charges: 0, payments: 3);
+        WDInstallationHubPresentation artillery = Hub(WDStrategicWeaponIds.Artillery,
+            duration: 0, barrier: 0, charges: 6, payments: 0);
+
+        StringAssert.Contains("5 RESTANTE", bunker.Sectors[0]);
+        StringAssert.Contains(WDTacticalWeaponTables.MineDamage(2).ToString(), mine.Sectors[0]);
+        StringAssert.Contains("3 ROUNDS", flak.Sectors[0]);
+        StringAssert.Contains("+" + WDStrategicWeaponTables.EnergyProduction(2), plant.Sectors[0]);
+        StringAssert.Contains("3 RESTANTES", plant.Sectors[1]);
+        StringAssert.Contains("ROUND 5", plant.Sectors[2]);
+        StringAssert.Contains("6 / 6", artillery.Sectors[0]);
+    }
+
+    private static WDInstallationHubPresentation Hub(string weaponId, int duration,
+        int barrier, int charges, int payments)
+    {
+        var state = new WDWeaponInstallationState("id-" + weaponId, weaponId, "territory",
+            "p1", duration, barrier, charges, payments, 2, true, 4);
+        return WDInstallationHubFormatter.Format(
+            new WDWeaponHudInstallationState(state, weaponId, false, 4));
+    }
+
+    [Test]
+    public void InstallationHubUsesFigmaGeometryBlockingOutsideAndIndependentActionTarget()
+    {
+        var root = new GameObject("InstallationHubFixture", typeof(RectTransform));
+        var theme = ScriptableObject.CreateInstance<WarDominionUITheme>();
+        try
+        {
+            root.AddComponent<WDMatchUIV2>().Build(theme, null, null, null);
+            Transform layer = root.transform.Find("MatchInstallationHub");
+            RectTransform hub = (RectTransform)layer.Find("InstallationHubRoot");
+            Transform outside = layer.Find("InstallationHubOutside");
+            Transform composition = hub.Find("ApprovedHubComposition");
+            Assert.That(hub.sizeDelta, Is.EqualTo(new Vector2(480f, 413f)));
+            Assert.That(composition, Is.Not.Null);
+            Assert.That(((RectTransform)composition).sizeDelta, Is.EqualTo(new Vector2(448f, 413f)));
+            Assert.That(hub.GetComponent<Image>().raycastTarget, Is.True);
+            Assert.That(hub.GetComponent<Button>(), Is.Not.Null);
+            Assert.That(outside.GetComponent<Image>().raycastTarget, Is.True);
+            Assert.That(outside.GetComponent<Button>(), Is.Not.Null);
+            Assert.That(composition.Find("CenterInfo").GetComponent<Button>(), Is.Not.Null);
+            Assert.That(hub.gameObject.activeSelf, Is.False);
+            Assert.That(outside.gameObject.activeSelf, Is.False);
+            Assert.That(composition.Find("SectorTop"), Is.Not.Null);
+            Assert.That(composition.Find("SectorMiddle"), Is.Not.Null);
+            Assert.That(composition.Find("SectorBottom"), Is.Not.Null);
+        }
+        finally
+        {
+            Object.DestroyImmediate(root);
+            Object.DestroyImmediate(theme);
+        }
+    }
+
+    [Test]
+    public void InstallationHubLoadsTheApprovedFigmaAssetFamily()
+    {
+        string[] assets =
+        {
+            "SegmentTop", "SegmentMiddle", "SegmentBottom", "Arc",
+            "CenterInfo", "CenterAction", "Bunker", "Minefield", "FlakTower",
+            "PowerPlant", "Artillery", "Rockets", "Drone"
+        };
+        foreach (string asset in assets)
+            Assert.That(Resources.Load<Texture2D>(
+                "UI/Match/FigmaCurrent/InstallationHubs/" + asset), Is.Not.Null, asset);
+    }
+
+    [Test]
+    public void InstallationStackingIsStableAndLeavesIndependentTouchTargets()
+    {
+        Vector2[] first = new Vector2[7];
+        for (int i = 0; i < first.Length; i++)
+            first[i] = WDWeaponInstallationMapPresenter.StackOffset(i, first.Length);
+        Assert.That(first, Is.Unique);
+        for (int i = 0; i < first.Length; i++)
+            Assert.That(WDWeaponInstallationMapPresenter.StackOffset(i, first.Length),
+                Is.EqualTo(first[i]));
+        Assert.That(WDWeaponInstallationMapPresenter.StackOffset(0, 1),
+            Is.EqualTo(new Vector2(0f, 32f)));
+    }
+
+    [TestCase(WDSupportWeaponIds.Bunker, "Bunker")]
+    [TestCase(WDSupportWeaponIds.Minefield, "Minefield")]
+    [TestCase(WDSupportWeaponIds.FlakTower, "FlakTower")]
+    [TestCase(WDStrategicWeaponIds.EnergyPlant, "PowerPlant")]
+    [TestCase(WDStrategicWeaponIds.Artillery, "Artillery")]
+    [TestCase(WDStrategicWeaponIds.Rockets, "Rockets")]
+    [TestCase(WDSpecialWeaponIds.Drone, "Drone")]
+    public void InstallationMarkerMapsEveryCanonicalWeaponToItsOfficialAsset(
+        string weaponId, string asset)
+    {
+        Assert.That(WDWeaponInstallationMapPresenter.AssetNameFor(weaponId),
+            Is.EqualTo(asset));
+        Assert.That(Resources.Load<Texture2D>(
+            "UI/Match/FigmaCurrent/InstallationHubs/" + asset), Is.Not.Null);
+    }
+
+    [Test]
+    public void InstallationHubPlacementClampsToSafeAreaAndAvoidsHudWhenSpaceExists()
+    {
+        var safe = new Rect(-960f, -540f, 1920f, 1080f);
+        var leftHud = new Rect(-948f, -345f, 252f, 710f);
+        var rightHud = new Rect(714f, -141f, 218f, 282f);
+        Vector2 size = new(333.899f, 414.189f);
+        Vector2 placed = WDMatchInstallationHubView.ChooseContextualPosition(
+            new Vector2(-760f, 280f), size, safe, leftHud, rightHud, 18f);
+        var hub = new Rect(placed - size * .5f, size);
+        Assert.That(safe.Contains(hub.min), Is.True);
+        Assert.That(safe.Contains(hub.max), Is.True);
+        Assert.That(hub.Overlaps(leftHud), Is.False);
+        Assert.That(hub.Overlaps(rightHud), Is.False);
+    }
+
+    [Test]
+    public void InstallationResolutionEventCarriesCanonicalTerritoryWithoutGameplayData()
+    {
+        ResolutionVisualEvent visual = ResolutionVisualEvent.InstallationImplemented(
+            TerritorioClique.Dono.Jogador1, WDStrategicWeaponIds.EnergyPlant, "Alaska");
+        Assert.That(visual.Type, Is.EqualTo(ResolutionVisualEventType.Installation));
+        Assert.That(visual.DestinationTerritoryId, Is.EqualTo("Alaska"));
+        Assert.That(visual.ContentId, Is.EqualTo(WDStrategicWeaponIds.EnergyPlant));
+        Assert.That(visual.Amount, Is.Zero);
+    }
+
+    [TestCase(WDSupportWeaponIds.Minefield)]
+    [TestCase(WDSupportWeaponIds.FlakTower)]
+    public void SecretInstallationsDoNotExposePresentationToUnauthorizedViewer(string weaponId)
+    {
+        Assert.That(WDWeaponMatchUIController.IsInstallationVisibleTo(
+            weaponId, "owner", "enemy", false), Is.False);
+        Assert.That(WDWeaponMatchUIController.IsInstallationVisibleTo(
+            weaponId, "owner", "owner", false), Is.True);
+        Assert.That(WDWeaponMatchUIController.IsInstallationVisibleTo(
+            weaponId, "owner", "ally", true), Is.True);
+        Assert.That(WDWeaponMatchUIController.IsInstallationVisibleTo(
+            WDSupportWeaponIds.Bunker, "owner", "enemy", false), Is.True);
+    }
+
+    private sealed class PresentationSpy : IWDMatchUIPresentation, IWDMatchWeaponPresentation
+    {
+        public WDWeaponMatchUIController Weapons { get; private set; }
+        public void BindWeapons(WDWeaponMatchUIController controller) => Weapons = controller;
         public int PresentCalls { get; private set; }
         public IWDMatchUtilityCommands Utilities { get; private set; }
         public void BindCommands(IMatchUICommands commands) { }

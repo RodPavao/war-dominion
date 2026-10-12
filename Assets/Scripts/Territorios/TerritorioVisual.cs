@@ -14,6 +14,18 @@ public class TerritorioVisual : MonoBehaviour
     // ==============================================
 
     private bool selecionado = false;
+    public bool TransferConfirmationHighlighted { get; private set; }
+    private float SelectionBrightness => TransferConfirmationHighlighted
+        ? .55f + .08f * Mathf.Sin(Time.unscaledTime * 4f) : intensidadePulso;
+
+    // Parâmetro da seleção existente; não cria outra representação do território.
+    public void SetTransferConfirmationHighlight(bool value)
+    {
+        TransferConfirmationHighlighted = value;
+        if (sr == null) sr = GetComponent<SpriteRenderer>();
+        if (sr != null) sr.color = SelectionRaised ? Color.Lerp(corBase, Color.white, SelectionBrightness) : corBase;
+        if (selectionSprite != null) selectionSprite.color = sr != null ? sr.color : corBase;
+    }
 
     [Header("Seleção")]
     [SerializeField]
@@ -48,6 +60,7 @@ public class TerritorioVisual : MonoBehaviour
 
     private void OnDisable()
     {
+        TransferConfirmationHighlighted = false;
         ClearSelectionVisual(true);
         if (conquestGlowObject != null)
             Destroy(conquestGlowObject);
@@ -60,7 +73,7 @@ public class TerritorioVisual : MonoBehaviour
             return;
 
         bool reforcoAtivo = Time.unscaledTime < fimDestaqueReforco;
-        if (!selecionado && !reforcoAtivo)
+        if (!SelectionRaised && !reforcoAtivo)
         {
             if (destaqueReforcoAtivo)
             {
@@ -70,8 +83,8 @@ public class TerritorioVisual : MonoBehaviour
             return;
         }
 
-        Color corAtual = selecionado
-            ? Color.Lerp(corBase, Color.white, intensidadePulso)
+        Color corAtual = SelectionRaised
+            ? Color.Lerp(corBase, Color.white, SelectionBrightness)
             : corBase;
 
         if (reforcoAtivo)
@@ -141,14 +154,14 @@ public class TerritorioVisual : MonoBehaviour
 
         corBase = ObterCorBaseTerritorial();
 
-        if (!selecionado)
+        if (!SelectionRaised)
         {
             sr.color = corBase;
         }
         else if (selectionSprite != null)
         {
             selectionSprite.color = Color.Lerp(
-                corBase, Color.white, intensidadePulso);
+                corBase, Color.white, SelectionBrightness);
         }
     }
 
@@ -181,6 +194,7 @@ public class TerritorioVisual : MonoBehaviour
 
     public void RestaurarCor()
     {
+        TransferConfirmationHighlighted = false;
         ClearSelectionVisual(true);
         selecionado = false;
 
@@ -189,31 +203,31 @@ public class TerritorioVisual : MonoBehaviour
 
     public void DestacarSelecao()
     {
-        if (sr == null)
-            sr = GetComponent<SpriteRenderer>();
-
-        if (territorio == null)
-            territorio =
-                GetComponent<TerritorioClique>();
-
-        if (sr == null ||
-            territorio == null)
-            return;
-
-        bool newlySelected = !selecionado;
-        corBase = ObterCorBaseTerritorial();
+        bool previous = SelectionRaised;
         selecionado = true;
-        EnsureSelectionVisual();
-        if (newlySelected)
-            AnimateSelectionScaleTo(1.055f, false);
+        RefreshSelectionVisual(previous);
     }
 
     public void RemoverDestaqueSelecao()
     {
-        bool wasSelected = selecionado;
+        TransferConfirmationHighlighted = false;
+        bool previous = SelectionRaised;
         selecionado = false;
-        if (wasSelected)
-            AnimateSelectionScaleTo(1f, true);
+        RefreshSelectionVisual(previous);
+    }
+
+    private void RefreshSelectionVisual(bool previous)
+    {
+        if (sr == null) sr = GetComponent<SpriteRenderer>();
+        if (territorio == null) territorio = GetComponent<TerritorioClique>();
+        if (sr == null || territorio == null) return;
+        corBase = ObterCorBaseTerritorial();
+        if (SelectionRaised)
+        {
+            EnsureSelectionVisual();
+            if (!previous) AnimateSelectionScaleTo(1.055f, false);
+        }
+        else if (previous) AnimateSelectionScaleTo(1f, true);
         AtualizarCor();
     }
 
@@ -286,7 +300,7 @@ public class TerritorioVisual : MonoBehaviour
         selectionSprite = spriteObject.AddComponent<SpriteRenderer>();
         selectionSprite.sprite = sr.sprite;
         selectionSprite.sharedMaterial = sr.sharedMaterial;
-        selectionSprite.color = Color.Lerp(corBase, Color.white, intensidadePulso);
+        selectionSprite.color = Color.Lerp(corBase, Color.white, SelectionBrightness);
         selectionSprite.sortingLayerID = sr.sortingLayerID;
         selectionSprite.sortingOrder = sr.sortingOrder;
         selectionSprite.flipX = sr.flipX;

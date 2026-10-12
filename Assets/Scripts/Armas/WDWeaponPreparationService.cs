@@ -201,7 +201,7 @@ public sealed class WDWeaponPreparationService
     private bool roundFrozen;
 
     // ============================================================
-    // 01. CICLO ISOLADO DA PREPARATION, SEM EXECUÇÃO OU CUSTOS
+    // 01. CICLO ISOLADO DA PREPARATION, COM RESERVA CANÔNICA DE ENERGY
     // ============================================================
 
     public int ActiveRound => activeRound;
@@ -292,6 +292,50 @@ public sealed class WDWeaponPreparationService
         return definition != null ? ResolveRequirement(definition, intentKind) : null;
     }
 
+    public WDWeaponProgrammingReason GetSelectionReason(
+        WDWeaponProgrammingRequest request)
+    {
+        if (request == null)
+            return WDWeaponProgrammingReason.WeaponNotFound;
+        WDWeaponDefinition definition = catalog.FindWeapon(request.WeaponId);
+        return definition == null
+            ? WDWeaponProgrammingReason.WeaponNotFound
+            : ValidateSelection(request, ResolveRequirement(definition, request.IntentKind));
+    }
+
+    public bool IsValidOriginTerritory(
+        string playerId, string weaponId, WDWeaponIntentKind intentKind,
+        string territoryId)
+    {
+        WDWeaponDefinition definition = catalog.FindWeapon(weaponId);
+        if (definition == null)
+            return false;
+        WDWeaponSelectionRequirement requirement = ResolveRequirement(definition, intentKind);
+        return Has(requirement, WDWeaponSelectionFields.OriginTerritory) &&
+            Matches(playerId, context.FindTerritory(territoryId), requirement.OriginRelation);
+    }
+
+    public bool IsValidTargetTerritory(
+        string playerId, string weaponId, WDWeaponIntentKind intentKind,
+        string originTerritoryId, string targetTerritoryId)
+    {
+        WDWeaponDefinition definition = catalog.FindWeapon(weaponId);
+        if (definition == null)
+            return false;
+        WDWeaponSelectionRequirement requirement = ResolveRequirement(definition, intentKind);
+        WDGameWeaponTerritoryView target = context.FindTerritory(targetTerritoryId);
+        if (!Has(requirement, WDWeaponSelectionFields.TargetTerritory) || target == null ||
+            target.State == WDWeaponTerritoryStateKind.Empty && !requirement.AllowsEmptyTarget ||
+            !Matches(playerId, target, requirement.TargetRelation))
+            return false;
+        if (requirement.RequiresDirectConnection &&
+            !context.GetNeighbours(originTerritoryId).Contains(targetTerritoryId))
+            return false;
+        return requirement.MaximumGraphDistance <= 0 ||
+            GraphDistance(originTerritoryId, targetTerritoryId,
+                requirement.MaximumGraphDistance) <= requirement.MaximumGraphDistance;
+    }
+
     // ============================================================
     // 03. PROGRAMAÇÃO, CANCELAMENTO E SUBSTITUIÇÃO EXPLÍCITA
     // ============================================================
@@ -301,28 +345,41 @@ public sealed class WDWeaponPreparationService
 
     public WDWeaponProgrammingResult Cancel(string playerId, string actionId)
     {
-        if (roundFrozen)
-            return Failure(WDWeaponProgrammingReason.RoundFrozen);
-        if (!preparationOpen)
-            return Failure(WDWeaponProgrammingReason.PreparationClosed);
-
-        WDWeaponAction action = actions.FirstOrDefault(item => item.ActionId == actionId);
-        if (action == null || action.Round != activeRound)
-            return Failure(WDWeaponProgrammingReason.ActionNotFound);
-        if (action.AuthorPlayerId != playerId)
-            return Failure(WDWeaponProgrammingReason.ActionNotOwned);
-        if (irreversibleActions.Contains(action.ActionId))
-            return Failure(WDWeaponProgrammingReason.IrreversibleAction);
+        WDWeaponProgrammingReason reason = GetCancellationReason(playerId, actionId);
+        if (reason != WDWeaponProgrammingReason.Success)
+            return Failure(reason);
+        WDWeaponAction action = actions.First(item => item.ActionId == actionId);
         string installationId = action.InstallationId;
         WDWeaponAction[] removed = actions.Where(item => item.ActionId == action.ActionId ||
             (!string.IsNullOrEmpty(installationId) &&
              item.InstallationId == installationId)).ToArray();
         actions.RemoveAll(item => removed.Contains(item));
         foreach (WDWeaponAction removedAction in removed)
+        {
             cardProgrammingActionIds.Remove(removedAction.ActionId);
+            RefundProgrammingEnergy(removedAction);
+        }
         return new WDWeaponProgrammingResult(
             WDWeaponProgrammingReason.Success,
             runtime.GetAvailability(playerId, action.WeaponId), action);
+    }
+
+    // A consulta e o comando compartilham as mesmas regras, sem estado visual paralelo.
+    public WDWeaponProgrammingReason GetCancellationReason(string playerId, string actionId)
+    {
+        if (roundFrozen)
+            return WDWeaponProgrammingReason.RoundFrozen;
+        if (!preparationOpen)
+            return WDWeaponProgrammingReason.PreparationClosed;
+
+        WDWeaponAction action = actions.FirstOrDefault(item => item.ActionId == actionId);
+        if (action == null || action.Round != activeRound)
+            return WDWeaponProgrammingReason.ActionNotFound;
+        if (action.AuthorPlayerId != playerId)
+            return WDWeaponProgrammingReason.ActionNotOwned;
+        if (irreversibleActions.Contains(action.ActionId))
+            return WDWeaponProgrammingReason.IrreversibleAction;
+        return WDWeaponProgrammingReason.Success;
     }
 
     public bool MarkIrreversible(string actionId) =>
@@ -348,6 +405,7 @@ public sealed class WDWeaponPreparationService
         {
             actions.Remove(current);
             cardProgrammingActionIds.Remove(current.ActionId);
+            RefundProgrammingEnergy(current);
         }
         return result;
     }
@@ -382,7 +440,8 @@ public sealed class WDWeaponPreparationService
     {
         preparationOpen = false;
         roundFrozen = true;
-        return GetRoundActions(activeRound);
+        return Order(actions.Where(item => item.Round == activeRound &&
+            item.State == WDWeaponActionState.Programmed));
     }
 
     private IReadOnlyList<WDWeaponAction> Order(IEnumerable<WDWeaponAction> source)
@@ -468,11 +527,29 @@ public sealed class WDWeaponPreparationService
             actionId, request.PlayerId, request.WeaponId, activeRound,
             phase, order, request.OriginTerritoryId, request.TargetTerritoryId,
             request.TargetPlayerId, request.InstallationId, request.Parameters);
+        if (!WDWeaponActionSemantics.IsPersistentInstallationOperation(action) &&
+            definition.EnergyCost > 0)
+        {
+            if (!runtime.TrySpendEnergy(request.PlayerId, definition.EnergyCost))
+                return new WDWeaponProgrammingResult(
+                    WDWeaponProgrammingReason.WeaponUnavailable,
+                    runtime.GetAvailability(request.PlayerId, request.WeaponId));
+            action.MarkEnergyCommitted();
+        }
         actions.Add(action);
         if (request.IntentKind == WDWeaponIntentKind.Standard)
             cardProgrammingActionIds.Add(action.ActionId);
         return new WDWeaponProgrammingResult(
             WDWeaponProgrammingReason.Success, availability, action);
+    }
+
+    private void RefundProgrammingEnergy(WDWeaponAction action)
+    {
+        if (action == null || !action.EnergyCommitted)
+            return;
+        int amount = catalog.FindWeapon(action.WeaponId)?.EnergyCost ?? 0;
+        if (amount > 0 && runtime.AddEnergy(action.AuthorPlayerId, amount))
+            action.MarkEnergyRefunded();
     }
 
     private static bool MustPrecedeProgrammingLimit(
@@ -538,6 +615,8 @@ public sealed class WDWeaponPreparationService
         WDWeaponDefinition definition, WDWeaponIntentKind intentKind)
     {
         string id = definition.Id;
+        if (id == WDTacticalWeaponIds.Radar)
+            return Target(WDWeaponTerritoryRelation.NonAllied, true);
         if (id == WDSpecialWeaponIds.Drone && intentKind == WDWeaponIntentKind.DroneShot)
             return new WDWeaponSelectionRequirement(
                 WDWeaponSelectionFields.TargetTerritory | WDWeaponSelectionFields.Installation,

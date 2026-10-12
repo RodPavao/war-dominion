@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 // 01. Perfis de Arsenal canônicos: local persistido, jogadores mock somente na sessão.
-public sealed class WDClanArmoryProfiles : IWDClanArmoryProfiles
+public sealed class WDClanArmoryProfiles : IWDClanArmoryProfiles, IWDClanEconomy
 {
     private readonly string localPlayerId;
     private readonly WDArmoryCatalogConfig catalog;
@@ -40,5 +40,26 @@ public sealed class WDClanArmoryProfiles : IWDClanArmoryProfiles
         if (playerId.Equals(localPlayerId, StringComparison.OrdinalIgnoreCase))
             localRepository.Save(profile);
         else remote[playerId] = profile;
+    }
+
+    // ============================================================
+    // 02. PORTA ECONÔMICA PARA CRIAÇÃO ATÔMICA DO CLÃ
+    // ============================================================
+    public bool TrySpendEmeralds(string playerId, int amount)
+    {
+        WDArmoryProfile profile = Load(playerId);
+        if (profile == null || !profile.SpendEmeralds(amount))
+            return false;
+        Save(playerId, profile);
+        return true;
+    }
+
+    public void RefundEmeralds(string playerId, int amount)
+    {
+        WDArmoryProfile profile = Load(playerId);
+        if (profile == null || amount <= 0)
+            return;
+        profile.SetCurrencies(profile.Coins, checked(profile.Emeralds + amount));
+        Save(playerId, profile);
     }
 }

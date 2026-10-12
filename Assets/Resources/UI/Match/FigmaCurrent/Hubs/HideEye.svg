@@ -1,0 +1,4 @@
+<svg width="35" height="25" viewBox="0 0 35 25" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path id="EyeContour" d="M1.5 12.5C5.5 5.5 11 1.5 17.5 1.5C24 1.5 29.5 5.5 33.5 12.5C29.5 19.5 24 23.5 17.5 23.5C11 23.5 5.5 19.5 1.5 12.5Z" stroke="#B8EAF2" stroke-opacity="0.9" stroke-width="2.5" stroke-linejoin="round"/>
+<circle id="Pupil" cx="17.5" cy="12.5" r="5.5" fill="#B8EAF2" fill-opacity="0.9"/>
+</svg>

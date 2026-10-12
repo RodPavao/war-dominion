@@ -177,6 +177,59 @@ public sealed class WDPlayerPrefsProfilePrivacyStore : IWDProfilePrivacyStore
     }
 }
 
+public interface IWDProfileIdentityStore
+{
+    WDProfileIdentityState Load();
+    void Save(WDProfileIdentityState state);
+}
+
+[Serializable]
+public sealed class WDProfileIdentityState
+{
+    public string nickname;
+    public string avatarId = "avatar_01";
+    public string skinId = "skin_02";
+}
+
+public sealed class WDMemoryProfileIdentityStore : IWDProfileIdentityStore
+{
+    private WDProfileIdentityState state;
+
+    public WDMemoryProfileIdentityStore(WDProfileIdentityState initial = null) =>
+        state = Copy(initial ?? new WDProfileIdentityState());
+
+    public WDProfileIdentityState Load() => Copy(state);
+    public void Save(WDProfileIdentityState value) => state = Copy(value);
+
+    private static WDProfileIdentityState Copy(WDProfileIdentityState value) => new()
+    {
+        nickname = value?.nickname,
+        avatarId = value?.avatarId ?? "avatar_01",
+        skinId = value?.skinId ?? "skin_02"
+    };
+}
+
+public sealed class WDPlayerPrefsProfileIdentityStore : IWDProfileIdentityStore
+{
+    private const string StorageKey = "WarDominion.Profile.Identity.v1";
+
+    public WDProfileIdentityState Load()
+    {
+        if (!PlayerPrefs.HasKey(StorageKey))
+            return new WDProfileIdentityState();
+        WDProfileIdentityState state = JsonUtility.FromJson<WDProfileIdentityState>(
+            PlayerPrefs.GetString(StorageKey));
+        return state ?? new WDProfileIdentityState();
+    }
+
+    public void Save(WDProfileIdentityState state)
+    {
+        PlayerPrefs.SetString(StorageKey, JsonUtility.ToJson(
+            state ?? new WDProfileIdentityState()));
+        PlayerPrefs.Save();
+    }
+}
+
 [Serializable]
 public sealed class WDProfileAchievement
 {
@@ -288,10 +341,11 @@ public sealed class WDProfileData
 
     public bool TryRename(string value)
     {
-        string normalized = value?.Trim();
-        if (string.IsNullOrWhiteSpace(normalized))
+        if (!WDUIContentContracts.IsValidNickname(value))
             return false;
-        Nickname = normalized;
+        // Espaços são identidade visual válida e devem permanecer exatamente
+        // como digitados; PlayerId continua sendo a identidade estável.
+        Nickname = value;
         return true;
     }
 
@@ -419,6 +473,7 @@ public sealed class WDProfileRepository
 {
     private readonly Dictionary<string, WDProfileData> profiles = new(StringComparer.Ordinal);
     private readonly IWDProfilePrivacyStore privacyStore;
+    private readonly IWDProfileIdentityStore identityStore;
     public WDProfileData LocalProfile { get; }
     public IReadOnlyList<WDProfileData> AllProfiles => profiles.Values.ToArray();
     public IReadOnlyList<WDProfileCosmetic> Cosmetics { get; }
@@ -433,16 +488,25 @@ public sealed class WDProfileRepository
     public WDDivisionCatalog Divisions { get; }
 
     public WDProfileRepository(WarDominionHomeData homeData,
-        IWDProfilePrivacyStore newPrivacyStore = null)
+        IWDProfilePrivacyStore newPrivacyStore = null,
+        IWDProfileIdentityStore newIdentityStore = null)
     {
         privacyStore = newPrivacyStore ?? new WDPlayerPrefsProfilePrivacyStore();
+        identityStore = newIdentityStore ?? new WDPlayerPrefsProfileIdentityStore();
         Divisions = WDDivisionCatalog.CreatePrototype();
-        string nickname = homeData != null && !string.IsNullOrWhiteSpace(homeData.Nickname)
+        WDProfileIdentityState persistedIdentity = identityStore.Load();
+        string nickname = WDUIContentContracts.IsValidNickname(persistedIdentity.nickname)
+            ? persistedIdentity.nickname
+            : homeData != null && WDUIContentContracts.IsValidNickname(homeData.Nickname)
             ? homeData.Nickname : "Guest4821";
         if (!nickname.StartsWith("Guest", StringComparison.OrdinalIgnoreCase) && nickname == "PLAYER")
             nickname = "Guest4821";
         LocalProfile = CreateProfile("WD-4821", nickname, "legionnaire", true,
             privacyStore.Load(), WDProfileSocialState.Self);
+        LocalProfile.Equip(WDProfileCosmeticCategory.Avatar,
+            NormalizeAvatarId(persistedIdentity.avatarId));
+        LocalProfile.Equip(WDProfileCosmeticCategory.TerritorySkin,
+            WDProfileSkinCatalog.Find(persistedIdentity.skinId)?.Id ?? WDProfileSkinCatalog.Default.Id);
         profiles[LocalProfile.PlayerId] = LocalProfile;
         profiles["WD-2847"] = CreateProfile("WD-2847", "Guest2847", "legionnaire", false,
             new WDProfilePrivacy(), WDProfileSocialState.Stranger);
@@ -456,7 +520,44 @@ public sealed class WDProfileRepository
         AddPrototypeProfile("WD-7331", "ShadowStalker", "conqueror", 2731);
         AddPrototypeProfile("WD-1291", "Guest1291", "soldier", 1180);
         AddPrototypeProfile("WD-6400", "RogueDominion", "warlord", 2610);
+        AddPrototypeProfile("WD-2044", "IronValkyrie", "elite", 1580);
+        AddPrototypeProfile("WD-3178", "AegisPrime", "centurion", 2140);
+        AddPrototypeProfile("WD-4263", "FrostMarshal", "commander", 2385);
+        AddPrototypeProfile("WD-5319", "CrimsonHawk", "legionnaire", 1840);
+        AddPrototypeProfile("WD-6472", "TitanWard", "warlord", 2530);
+        AddPrototypeProfile("WD-7526", "RavenCipher", "conqueror", 2710);
+        AddPrototypeProfile("WD-8641", "StormBanner", "dominator", 2870);
+        AddPrototypeProfile("WD-9085", "EmberLegion", "soldier", 1240);
+        AddPrototypeProfile("WD-9734", "AtlasSentinel", "supreme_commander", 2960);
         Cosmetics = CreateCosmetics();
+    }
+
+    public bool TryRenameLocal(string value)
+    {
+        if (!LocalProfile.TryRename(value))
+            return false;
+        SaveLocalIdentity();
+        return true;
+    }
+
+    public void SaveLocalIdentity()
+    {
+        identityStore.Save(new WDProfileIdentityState
+        {
+            nickname = LocalProfile.Nickname,
+            avatarId = WDProfileIdentityVisuals.EquippedCosmeticId(
+                LocalProfile, WDProfileCosmeticCategory.Avatar),
+            skinId = WDProfileIdentityVisuals.EquippedCosmeticId(
+                LocalProfile, WDProfileCosmeticCategory.TerritorySkin)
+        });
+    }
+
+    private static string NormalizeAvatarId(string value)
+    {
+        if (!string.IsNullOrWhiteSpace(value) && value.StartsWith("avatar_", StringComparison.Ordinal) &&
+            int.TryParse(value.Substring("avatar_".Length), out int index) && index >= 1 && index <= 10)
+            return $"avatar_{index:00}";
+        return "avatar_01";
     }
 
     public WDProfileData Find(string playerId) =>
@@ -521,7 +622,7 @@ public sealed class WDProfileRepository
             {
                 [WDProfileCosmeticCategory.Avatar] = "avatar_01",
                 [WDProfileCosmeticCategory.Frame] = "frame_01",
-                [WDProfileCosmeticCategory.TerritorySkin] = "skin_01",
+                [WDProfileCosmeticCategory.TerritorySkin] = "skin_02",
                 [WDProfileCosmeticCategory.Effect] = "effect_01"
             });
 
@@ -550,10 +651,19 @@ public sealed class WDProfileRepository
     private static IReadOnlyList<WDProfileCosmetic> CreateCosmetics()
     {
         var items = new List<WDProfileCosmetic>();
-        foreach (WDProfileCosmeticCategory category in Enum.GetValues(typeof(WDProfileCosmeticCategory)))
-            for (int i = 1; i <= 8; i++)
-                items.Add(new WDProfileCosmetic($"{CategoryPrefix(category)}_{i:00}",
-                    $"{CategoryLabel(category)} {i:00}", category, i <= 4));
+        for (int i = 1; i <= 10; i++)
+            items.Add(new WDProfileCosmetic($"avatar_{i:00}", string.Empty,
+                WDProfileCosmeticCategory.Avatar, true));
+        foreach (WDProfileSkinDefinition skin in WDProfileSkinCatalog.All)
+            items.Add(new WDProfileCosmetic(skin.Id, skin.DisplayName,
+                WDProfileCosmeticCategory.TerritorySkin, true));
+        for (int i = 1; i <= 8; i++)
+        {
+            items.Add(new WDProfileCosmetic($"frame_{i:00}", $"MOLDURA {i:00}",
+                WDProfileCosmeticCategory.Frame, i <= 4));
+            items.Add(new WDProfileCosmetic($"effect_{i:00}", $"EFEITO {i:00}",
+                WDProfileCosmeticCategory.Effect, i <= 4));
+        }
         return items;
     }
 
@@ -562,5 +672,202 @@ public sealed class WDProfileRepository
       WDProfileCosmeticCategory.TerritorySkin => "skin", _ => "effect" };
     public static string CategoryLabel(WDProfileCosmeticCategory value) => value switch
     { WDProfileCosmeticCategory.Avatar => "AVATAR", WDProfileCosmeticCategory.Frame => "MOLDURA",
-      WDProfileCosmeticCategory.TerritorySkin => "SKIN DE TERRITÓRIO", _ => "EFEITOS" };
+      WDProfileCosmeticCategory.TerritorySkin => "SKIN", _ => "EFEITOS" };
+}
+
+public sealed class WDProfileSkinDefinition
+{
+    public string Id { get; }
+    public string DisplayName { get; }
+    public Color Color { get; }
+
+    public WDProfileSkinDefinition(string id, string displayName, string hex)
+    {
+        Id = id;
+        DisplayName = displayName;
+        ColorUtility.TryParseHtmlString(hex, out Color color);
+        Color = color;
+    }
+}
+
+public static class WDProfileSkinCatalog
+{
+    public static readonly IReadOnlyList<WDProfileSkinDefinition> All = new[]
+    {
+        new WDProfileSkinDefinition("skin_01", "VERMELHO COMANDO", "#A0443A"),
+        new WDProfileSkinDefinition("skin_02", "AZUL AÇO", "#466A8A"),
+        new WDProfileSkinDefinition("skin_03", "VERDE MILITAR", "#587D62"),
+        new WDProfileSkinDefinition("skin_04", "ÂMBAR TÁTICO", "#B99A4C"),
+        new WDProfileSkinDefinition("skin_05", "CIANO OPERACIONAL", "#3E929C"),
+        new WDProfileSkinDefinition("skin_06", "VIOLETA ESTRATÉGICO", "#625078"),
+        new WDProfileSkinDefinition("skin_07", "GRAFITE", "#50545A"),
+        new WDProfileSkinDefinition("skin_08", "BRANCO ÁRTICO", "#D7DAD4"),
+        new WDProfileSkinDefinition("skin_09", "BRONZE", "#95704E"),
+        new WDProfileSkinDefinition("skin_10", "BORDÔ", "#632E4B")
+    };
+
+    public static WDProfileSkinDefinition Default => All[1];
+    public static WDProfileSkinDefinition Find(string id) =>
+        All.FirstOrDefault(item => item.Id == id);
+}
+
+// ============================================================
+// 04. RESOLUÇÃO VISUAL DA IDENTIDADE CANÔNICA DO JOGADOR
+// ============================================================
+
+public static class WDDivisionVisuals
+{
+    public const string Root = "UI/Home/FigmaPhase1A/Canonical/";
+    public const float CalibrationReferenceSide = 160f;
+
+    public readonly struct EmblemCalibration
+    {
+        public float Scale { get; }
+        public float OffsetX { get; }
+        public float OffsetY { get; }
+
+        public EmblemCalibration(float scale, float offsetX, float offsetY)
+        {
+            Scale = scale;
+            OffsetX = offsetX;
+            OffsetY = offsetY;
+        }
+    }
+
+    private static readonly IReadOnlyDictionary<string, EmblemCalibration> Calibrations =
+        new Dictionary<string, EmblemCalibration>(StringComparer.Ordinal)
+        {
+            ["division_recruit"] = new(.760f, -2f, 0f),
+            ["division_soldier"] = new(.980f, 0f, 0f),
+            ["division_elite"] = new(.860f, -8f, 10f),
+            ["division_legionnaire"] = new(.900f, 0f, -10f),
+            ["division_centurion"] = new(.720f, -8f, 0f),
+            ["division_commander"] = new(.960f, 0f, 0f),
+            ["division_warlord"] = new(.980f, -2f, 0f),
+            ["division_conqueror"] = new(.880f, -4f, 6f),
+            ["division_supreme_commander"] = new(.940f, -2f, -2f),
+            ["division_dominator"] = new(.960f, -2f, 4f),
+            ["division_veteran"] = new(.980f, -6f, 6f)
+        };
+
+    public static Texture2D ResolveEmblem(WDDivisionDefinition division)
+    {
+        if (string.IsNullOrWhiteSpace(division?.EmblemId))
+            return null;
+        return Resources.Load<Texture2D>(Root + division.EmblemId);
+    }
+
+    public static Texture2D ResolveMedallion() =>
+        Resources.Load<Texture2D>(Root + "HomeDivisionMedallionGold");
+
+    public static EmblemCalibration ResolveCalibration(WDDivisionDefinition division)
+    {
+        return division != null &&
+            Calibrations.TryGetValue(division.EmblemId, out EmblemCalibration calibration)
+                ? calibration
+                : new EmblemCalibration(1f, 0f, 0f);
+    }
+
+    public static void ApplyCalibration(RectTransform symbol,
+        WDDivisionDefinition division, float compositionSide)
+    {
+        ApplyCalibration(symbol, ResolveCalibration(division), compositionSide);
+    }
+
+    public static void ApplyCalibration(RectTransform symbol,
+        EmblemCalibration calibration, float compositionSide)
+    {
+        if (symbol == null)
+            return;
+
+        float canonicalSide = Mathf.Max(0f, compositionSide);
+        float sizeRatio = canonicalSide / CalibrationReferenceSide;
+        symbol.anchorMin = symbol.anchorMax = symbol.pivot = new Vector2(.5f, .5f);
+        symbol.sizeDelta = new Vector2(canonicalSide, canonicalSide);
+        symbol.anchoredPosition = new Vector2(
+            calibration.OffsetX * sizeRatio,
+            calibration.OffsetY * sizeRatio);
+        symbol.localScale = Vector3.one * calibration.Scale;
+    }
+}
+
+public static class WDProfileIdentityVisuals
+{
+    public const string Root = "UI/Profile/FigmaPhase6/Canonical/";
+    private const string CommonLockPath = "UI/Common/Icons/icon_lock";
+
+    public static string EquippedCosmeticId(
+        WDProfileData profile, WDProfileCosmeticCategory category)
+    {
+        if (profile != null && profile.Equipped.TryGetValue(category, out string id))
+            return id;
+        return string.Empty;
+    }
+
+    public static Texture2D ResolveAvatar(WDProfileData profile) =>
+        ResolveAvatar(EquippedCosmeticId(profile, WDProfileCosmeticCategory.Avatar));
+
+    public static Texture2D ResolveAvatar(string avatarId)
+    {
+        if (!string.IsNullOrWhiteSpace(avatarId))
+        {
+            Texture2D texture = Resources.Load<Texture2D>(Root + "Avatars/" + avatarId);
+            if (texture != null)
+                return texture;
+        }
+        return Resources.Load<Texture2D>(Root + "Avatars/avatar_01");
+    }
+
+    public static Texture2D ResolveFactionAvatar(string factionId)
+    {
+        if (string.IsNullOrWhiteSpace(factionId))
+            return null;
+        return Resources.Load<Texture2D>(
+            $"UI/Factions/Canonical/{factionId}/{factionId}");
+    }
+
+    public static Texture2D ResolveIcon(string iconId) =>
+        Resources.Load<Texture2D>(Root + "Icons/" + iconId);
+
+    public static Texture2D ResolveLockIcon()
+    {
+        Texture2D texture = Resources.Load<Texture2D>(CommonLockPath);
+        if (texture != null)
+            return texture;
+        Sprite sprite = Resources.Load<Sprite>(CommonLockPath);
+        if (sprite != null)
+            return sprite.texture;
+        Sprite[] sprites = Resources.LoadAll<Sprite>(CommonLockPath);
+        return sprites.Length > 0 ? sprites[0].texture : null;
+    }
+
+    public static Texture2D ResolveAchievement(string achievementId)
+    {
+        string asset = achievementId switch
+        {
+            "first_win" => "achievement_trophy",
+            "supreme_tactician" => "achievement_medal",
+            "loyal_legionnaire" => "achievement_shield",
+            "war_veteran" => "achievement_swords",
+            _ => string.Empty
+        };
+        return string.IsNullOrEmpty(asset) ? null :
+            Resources.Load<Texture2D>(Root + "Achievements/" + asset);
+    }
+
+    public static Texture2D ResolveCosmeticThumbnail(
+        WDProfileCosmeticCategory category, string cosmeticId)
+    {
+        if (string.IsNullOrWhiteSpace(cosmeticId))
+            return null;
+        string folder = category switch
+        {
+            WDProfileCosmeticCategory.Avatar => "Avatars/",
+            WDProfileCosmeticCategory.Frame => "Frames/",
+            WDProfileCosmeticCategory.TerritorySkin => "TerritorySkins/",
+            _ => string.Empty
+        };
+        return string.IsNullOrEmpty(folder) ? null :
+            Resources.Load<Texture2D>(Root + folder + cosmeticId);
+    }
 }

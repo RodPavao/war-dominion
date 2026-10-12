@@ -62,18 +62,18 @@ public sealed class WDArmoryCatalogCanonicalTests
         var expected = new Dictionary<string, string>
         {
             ["air_strike"] = "Ataque Aéreo", ["reinforcements"] = "Reforços",
-            ["air_transport"] = "Transporte Aéreo", ["flak_tower"] = "Flak Tower",
+            ["air_transport"] = "Transporte Aéreo", ["flak_tower"] = "Defesa Antiaérea",
             ["bunker"] = "Bunker", ["reserve_troops"] = "Tropas Reservas",
             ["troop_recovery"] = "Recuperação de Tropas", ["mercenaries"] = "Mercenários",
             ["minefield"] = "Campo Minado", ["blitzkrieg"] = "Blitzkrieg",
-            ["transfer_nullifier"] = "Anulador de Transferência", ["sniper"] = "Sniper",
+            ["transfer_nullifier"] = "Bloqueio de Transferência", ["sniper"] = "Sniper",
             ["kamikaze"] = "Kamikaze", ["paratroopers"] = "Paraquedistas",
             ["radar"] = "Radar",
             ["sabotage"] = "Sabotagem", ["energy_plant"] = "Central de Energia",
-            ["long_range_bomb"] = "Bomba de Longo Alcance", ["peace"] = "Paz",
+            ["long_range_bomb"] = "Ataque de Precisão", ["peace"] = "Paz",
             ["artillery"] = "Artilharia", ["rockets"] = "Foguetes",
-            ["drone"] = "Drone", ["atomic_bomb"] = "Bomba Atômica",
-            ["war_propaganda"] = "Propaganda de Guerra", ["chemical_bomb"] = "Bomba Química",
+            ["drone"] = "Drone", ["atomic_bomb"] = "Ataque Nuclear",
+            ["war_propaganda"] = "Propaganda", ["chemical_bomb"] = "Bomba Química",
             ["infiltrator"] = "Infiltrado"
         };
 
@@ -132,7 +132,7 @@ public sealed class WDArmoryCatalogCanonicalTests
     }
 
     [Test]
-    public void DroneAndRadarUseCanonicalInstallationContracts()
+    public void DroneIsInstallationAndRadarIsDirectTacticalAction()
     {
         WDWeaponDefinition drone = catalog.FindWeapon(WDSpecialWeaponIds.Drone);
         WDWeaponDefinition radar = catalog.FindWeapon(WDTacticalWeaponIds.Radar);
@@ -142,7 +142,8 @@ public sealed class WDArmoryCatalogCanonicalTests
         Assert.That(drone.CanTargetEmptyTerritory, Is.True);
         Assert.That(radar.CategoryId, Is.EqualTo("tactical"));
         Assert.That(radar.MaximumLevel, Is.EqualTo(1));
-        Assert.That(radar.IsInstallation, Is.True);
-        Assert.That(radar.Charges, Is.EqualTo(1));
+        Assert.That(radar.IsInstallation, Is.False);
+        Assert.That(radar.Charges, Is.Zero);
+        Assert.That(radar.BehaviorType, Is.EqualTo(WDWeaponBehaviorType.Specialized));
     }
 }

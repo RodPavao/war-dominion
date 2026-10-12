@@ -55,6 +55,15 @@ public sealed class WDArmoryTests
     }
 
     [Test]
+    public void DeckNameUsesSharedTwentyFourCharacterLimit()
+    {
+        Assert.That(service.RenameDeck(0, new string('D', 24)), Is.EqualTo(WDArmoryEditResult.Success));
+        Assert.That(profile.GetDeck(0).Name, Is.EqualTo(new string('D', 24)));
+        Assert.That(service.RenameDeck(0, new string('X', 25)), Is.EqualTo(WDArmoryEditResult.InvalidName));
+        Assert.That(profile.GetDeck(0).Name, Is.EqualTo(new string('D', 24)));
+    }
+
+    [Test]
     public void VipExpirationLocksWithoutDeletingComposition()
     {
         service.SetVipForDevelopment(true);

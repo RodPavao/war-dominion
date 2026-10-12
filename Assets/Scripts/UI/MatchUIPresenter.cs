@@ -220,7 +220,7 @@ public sealed class MatchUIPresenter : MonoBehaviour
                     controlled++;
 
             string displayName = participant.Kind == WDMatchParticipantKind.Local &&
-                !string.IsNullOrWhiteSpace(participant.Nickname)
+                WDUIContentContracts.IsValidNickname(participant.Nickname)
                 ? participant.Nickname
                 : participant.Kind == WDMatchParticipantKind.Local
                     ? "Jogador"

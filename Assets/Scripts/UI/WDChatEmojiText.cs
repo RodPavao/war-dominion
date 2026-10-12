@@ -27,7 +27,7 @@ public static class WDChatEmojiText
 #endif
     }
 
-    public static void Apply(TMP_Text text)
+    public static void Apply(TMP_Text text, bool picker = false)
     {
         RegisterLifetime();
         text.richText = false;
@@ -59,7 +59,7 @@ public static class WDChatEmojiText
         }
         ProtectOwnedResources(null);
         text.font = local;
-        WDChatEmojiColor.Apply(text);
+        WDChatEmojiColor.Apply(text, picker);
     }
 
     // 01.2. O clone possui material/atlas próprios. Fonte TTF e fallbacks são emprestados.

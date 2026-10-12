@@ -87,9 +87,6 @@ public sealed class WarDominionUITheme : ScriptableObject
     [SerializeField, Min(2)] private int planningDashStride = 3;
     [SerializeField, Range(0f, 0.5f)] private float preparedArrowCurveFactor = 0.18f;
     [SerializeField, Min(0f)] private float preparedArrowMaxCurveHeight = 70f;
-    [SerializeField, Min(8f)] private float preparedArrowAmountSize = 17f;
-    [SerializeField, Min(0f)] private float preparedArrowAmountOffset = 18f;
-    [SerializeField, Min(8f)] private float preparedOriginMarkerSize = 38f;
 
     // ============================================================
     // 06. PRIMEIRA COREOGRAFIA VISUAL DE ATAQUE
@@ -99,13 +96,6 @@ public sealed class WarDominionUITheme : ScriptableObject
     [SerializeField, Min(0.05f)] private float attackTravelDuration = 0.75f;
     [SerializeField, Min(0.05f)] private float attackImpactDuration = 0.30f;
     [SerializeField, Min(0f)] private float attackResultDuration = 0.80f;
-    [SerializeField, Min(12f)] private float attackIndicatorSize = 42f;
-    [SerializeField, Min(8f)] private float attackIndicatorTextSize = 18f;
-    [SerializeField, Min(8f)] private float attackPulseSize = 54f;
-    [SerializeField, Min(1f)] private float attackRouteThickness = 4f;
-    [SerializeField, Range(0f, 1f)] private float attackImpactIntensity = 0.85f;
-    [SerializeField, Min(8f)] private float attackResultTextSize = 20f;
-    [SerializeField, Min(0f)] private float attackResultOffset = 42f;
     [SerializeField, Range(0f, 0.5f)] private float attackCurveFactor = 0.18f;
     [SerializeField, Min(0f)] private float attackMaxCurveHeight = 1.1f;
 
@@ -151,15 +141,9 @@ public sealed class WarDominionUITheme : ScriptableObject
     [SerializeField, Min(8f)] private float typeSection = 16f;
     [SerializeField, Min(8f)] private float typeButton = 15f;
     [SerializeField, Min(8f)] private float typeBody = 14f;
-    [SerializeField, Min(8f)] private float typeNumber = 27f;
     [SerializeField, Min(8f)] private float typeMicro = 11f;
 
     [Header("Espaçamento e Componentes")]
-    [SerializeField, Min(1f)] private float spacingXs = 4f;
-    [SerializeField, Min(1f)] private float spacingSm = 8f;
-    [SerializeField, Min(1f)] private float spacingMd = 14f;
-    [SerializeField, Min(1f)] private float spacingLg = 22f;
-    [SerializeField, Min(1f)] private float panelBorderWidth = 1f;
     [SerializeField, Min(24f)] private float buttonHeight = 42f;
     [SerializeField, Min(0.01f)] private float microAnimationDuration = 0.14f;
 
@@ -169,7 +153,97 @@ public sealed class WarDominionUITheme : ScriptableObject
 
     [Header("Fluxo e HUD")]
     [SerializeField, Range(1f, 1.5f)] private float mapThumbnailInnerScale = 1.18f;
-    [SerializeField, Range(0.08f, 0.5f)] private float actionsDrawerDuration = 0.20f;
+
+    // ============================================================
+    // 10. MASTER PREMIUM TACTICAL — TIPOGRAFIA
+    // ============================================================
+
+    [Header("Master Premium Tactical — Tipografia")]
+    [Tooltip("Fonte canônica para títulos e ações. Não substitui as fontes legadas automaticamente.")]
+    [SerializeField] private Font masterTitleAndActionFont;
+    [Tooltip("Fonte canônica para informações funcionais. Não substitui as fontes legadas automaticamente.")]
+    [SerializeField] private Font masterFunctionalFont;
+
+    [Header("Master Premium Tactical — TMP Font Assets")]
+    [SerializeField] private TMP_FontAsset masterGabaritoBold;
+    [SerializeField] private TMP_FontAsset masterGabaritoExtraBold;
+    [SerializeField] private TMP_FontAsset masterGabaritoBlack;
+    [SerializeField] private TMP_FontAsset masterInterRegular;
+    [SerializeField] private TMP_FontAsset masterInterMedium;
+    [SerializeField] private TMP_FontAsset masterInterSemiBold;
+
+    // ============================================================
+    // 11. MASTER PREMIUM TACTICAL — CORES E OPACIDADES
+    // ============================================================
+
+    [Header("Master Premium Tactical — Superfícies")]
+    [SerializeField] private Color masterBackground = new Color32(6, 9, 13, 255);
+    [SerializeField] private Color masterSurfacePrimary = new Color32(11, 14, 18, 240);
+    [SerializeField] private Color masterSurfaceNavigation = new Color32(10, 16, 24, 232);
+    [SerializeField] private Color masterSurfaceElevated = new Color32(18, 22, 28, 242);
+    [SerializeField] private Color masterSurfaceModal = new Color32(11, 14, 18, 248);
+    [SerializeField] private Color masterOverlay = new Color32(0, 0, 0, 184);
+
+    [Header("Master Premium Tactical — Acentos e Texto")]
+    [SerializeField] private Color masterGold = new Color32(197, 155, 99, 255);
+    [SerializeField] private Color masterGoldSoft = new Color32(197, 155, 99, 122);
+    [SerializeField] private Color masterCyan = new Color32(13, 194, 219, 255);
+    [SerializeField] private Color masterCyanSoft = new Color32(13, 194, 219, 92);
+    [SerializeField] private Color masterTextPrimary = new Color32(245, 246, 248, 255);
+    [SerializeField] private Color masterTextSecondary = new Color32(184, 199, 209, 255);
+    [SerializeField] private Color masterTextMuted = new Color32(142, 146, 154, 255);
+    [SerializeField] private Color masterBorderNeutral = new Color32(64, 87, 97, 184);
+
+    [Header("Master Premium Tactical — Estados Semânticos")]
+    [SerializeField] private Color masterSuccess = new Color32(56, 184, 122, 255);
+    [SerializeField] private Color masterWarning = new Color32(242, 171, 51, 255);
+    [SerializeField] private Color masterDanger = new Color32(224, 71, 64, 255);
+    [SerializeField] private Color masterDisabled = new Color32(79, 92, 97, 184);
+
+    // ============================================================
+    // 12. MASTER PREMIUM TACTICAL — ESCALAS
+    // ============================================================
+
+    [Header("Master Premium Tactical — Espaçamento")]
+    [SerializeField, Min(0f)] private float masterSpacing4 = 4f;
+    [SerializeField, Min(0f)] private float masterSpacing8 = 8f;
+    [SerializeField, Min(0f)] private float masterSpacing12 = 12f;
+    [SerializeField, Min(0f)] private float masterSpacing16 = 16f;
+    [SerializeField, Min(0f)] private float masterSpacing24 = 24f;
+    [SerializeField, Min(0f)] private float masterSpacing32 = 32f;
+    [SerializeField, Min(0f)] private float masterSpacing48 = 48f;
+
+    [Header("Master Premium Tactical — Raios e Bordas")]
+    [SerializeField, Min(0f)] private float masterRadius6 = 6f;
+    [SerializeField, Min(0f)] private float masterRadius8 = 8f;
+    [SerializeField, Min(0f)] private float masterRadius12 = 12f;
+    [SerializeField, Min(0f)] private float masterRadius24 = 24f;
+    [SerializeField, Min(0f)] private float masterBorder1 = 1f;
+    [SerializeField, Min(0f)] private float masterBorder2 = 2f;
+
+    // ============================================================
+    // 13. MASTER PREMIUM TACTICAL — RECURSOS FÍSICOS
+    // ============================================================
+
+    [Header("Master Premium Tactical — Sprites Compartilhados")]
+    [SerializeField] private Sprite masterChevronLeftIcon;
+    [SerializeField] private Sprite masterCoinIcon;
+    [SerializeField] private Sprite masterGemIcon;
+    [SerializeField] private Sprite masterBellIcon;
+    [SerializeField] private Sprite masterRoundedFill;
+    [SerializeField] private Sprite masterRoundedOutline;
+
+    [Header("Master Premium Tactical — Sprites do Arsenal")]
+    [SerializeField] private Sprite masterArmoryEditIcon;
+    [SerializeField] private Sprite masterArmoryLockIcon;
+    [SerializeField] private Sprite masterArmorySaveIcon;
+    [SerializeField] private Sprite masterArmoryRemoveIcon;
+    [SerializeField] private Sprite masterArmoryAddIcon;
+    [SerializeField] private Sprite masterArmorySearchIcon;
+    [SerializeField] private Sprite masterArmoryUpgradeIcon;
+    [SerializeField] private Sprite masterArmoryEnergyIcon;
+    [SerializeField] private Sprite masterArmoryArrowRightIcon;
+    [SerializeField] private Sprite masterArmoryBackground;
 
     public TMP_FontAsset FonteDisplay => fonteDisplay;
     public TMP_FontAsset FonteInterface => fonteInterface != null ? fonteInterface : fonteDisplay;
@@ -215,19 +289,9 @@ public sealed class WarDominionUITheme : ScriptableObject
     public int PlanningDashStride => planningDashStride;
     public float PreparedArrowCurveFactor => preparedArrowCurveFactor;
     public float PreparedArrowMaxCurveHeight => preparedArrowMaxCurveHeight;
-    public float PreparedArrowAmountSize => preparedArrowAmountSize;
-    public float PreparedArrowAmountOffset => preparedArrowAmountOffset;
-    public float PreparedOriginMarkerSize => preparedOriginMarkerSize;
     public float AttackTravelDuration => attackTravelDuration;
     public float AttackImpactDuration => attackImpactDuration;
     public float AttackResultDuration => attackResultDuration;
-    public float AttackIndicatorSize => attackIndicatorSize;
-    public float AttackIndicatorTextSize => attackIndicatorTextSize;
-    public float AttackPulseSize => attackPulseSize;
-    public float AttackRouteThickness => attackRouteThickness;
-    public float AttackImpactIntensity => attackImpactIntensity;
-    public float AttackResultTextSize => attackResultTextSize;
-    public float AttackResultOffset => attackResultOffset;
     public float AttackCurveFactor => attackCurveFactor;
     public float AttackMaxCurveHeight => attackMaxCurveHeight;
     public float ReinforcementEntryDuration => reinforcementEntryDuration;
@@ -257,15 +321,72 @@ public sealed class WarDominionUITheme : ScriptableObject
     public float TypeSection => typeSection;
     public float TypeButton => typeButton;
     public float TypeBody => typeBody;
-    public float TypeNumber => typeNumber;
     public float TypeMicro => typeMicro;
-    public float SpacingXs => spacingXs;
-    public float SpacingSm => spacingSm;
-    public float SpacingMd => spacingMd;
-    public float SpacingLg => spacingLg;
-    public float PanelBorderWidth => panelBorderWidth;
     public float ButtonHeight => buttonHeight;
     public float MicroAnimationDuration => microAnimationDuration;
     public float MapThumbnailInnerScale => mapThumbnailInnerScale;
-    public float ActionsDrawerDuration => actionsDrawerDuration;
+
+    // ============================================================
+    // 14. MASTER PREMIUM TACTICAL — API SOMENTE LEITURA
+    // ============================================================
+
+    public Font MasterTitleAndActionFont => masterTitleAndActionFont;
+    public Font MasterFunctionalFont => masterFunctionalFont;
+    public TMP_FontAsset MasterGabaritoBold => masterGabaritoBold;
+    public TMP_FontAsset MasterGabaritoExtraBold => masterGabaritoExtraBold;
+    public TMP_FontAsset MasterGabaritoBlack => masterGabaritoBlack;
+    public TMP_FontAsset MasterInterRegular => masterInterRegular;
+    public TMP_FontAsset MasterInterMedium => masterInterMedium;
+    public TMP_FontAsset MasterInterSemiBold => masterInterSemiBold;
+
+    public Color MasterBackground => masterBackground;
+    public Color MasterSurfacePrimary => masterSurfacePrimary;
+    public Color MasterSurfaceNavigation => masterSurfaceNavigation;
+    public Color MasterSurfaceElevated => masterSurfaceElevated;
+    public Color MasterSurfaceModal => masterSurfaceModal;
+    public Color MasterOverlay => masterOverlay;
+    public Color MasterGold => masterGold;
+    public Color MasterGoldSoft => masterGoldSoft;
+    public Color MasterCyan => masterCyan;
+    public Color MasterCyanSoft => masterCyanSoft;
+    public Color MasterTextPrimary => masterTextPrimary;
+    public Color MasterTextSecondary => masterTextSecondary;
+    public Color MasterTextMuted => masterTextMuted;
+    public Color MasterBorderNeutral => masterBorderNeutral;
+    public Color MasterSuccess => masterSuccess;
+    public Color MasterWarning => masterWarning;
+    public Color MasterDanger => masterDanger;
+    public Color MasterDisabled => masterDisabled;
+
+    public float MasterSpacing4 => masterSpacing4;
+    public float MasterSpacing8 => masterSpacing8;
+    public float MasterSpacing12 => masterSpacing12;
+    public float MasterSpacing16 => masterSpacing16;
+    public float MasterSpacing24 => masterSpacing24;
+    public float MasterSpacing32 => masterSpacing32;
+    public float MasterSpacing48 => masterSpacing48;
+
+    public float MasterRadius6 => masterRadius6;
+    public float MasterRadius8 => masterRadius8;
+    public float MasterRadius12 => masterRadius12;
+    public float MasterRadius24 => masterRadius24;
+    public float MasterBorder1 => masterBorder1;
+    public float MasterBorder2 => masterBorder2;
+
+    public Sprite MasterChevronLeftIcon => masterChevronLeftIcon;
+    public Sprite MasterCoinIcon => masterCoinIcon;
+    public Sprite MasterGemIcon => masterGemIcon;
+    public Sprite MasterBellIcon => masterBellIcon;
+    public Sprite MasterRoundedFill => masterRoundedFill;
+    public Sprite MasterRoundedOutline => masterRoundedOutline;
+    public Sprite MasterArmoryEditIcon => masterArmoryEditIcon;
+    public Sprite MasterArmoryLockIcon => masterArmoryLockIcon;
+    public Sprite MasterArmorySaveIcon => masterArmorySaveIcon;
+    public Sprite MasterArmoryRemoveIcon => masterArmoryRemoveIcon;
+    public Sprite MasterArmoryAddIcon => masterArmoryAddIcon;
+    public Sprite MasterArmorySearchIcon => masterArmorySearchIcon;
+    public Sprite MasterArmoryUpgradeIcon => masterArmoryUpgradeIcon;
+    public Sprite MasterArmoryEnergyIcon => masterArmoryEnergyIcon;
+    public Sprite MasterArmoryArrowRightIcon => masterArmoryArrowRightIcon;
+    public Sprite MasterArmoryBackground => masterArmoryBackground;
 }

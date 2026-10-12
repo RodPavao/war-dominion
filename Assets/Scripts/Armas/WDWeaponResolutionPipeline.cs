@@ -81,6 +81,16 @@ public sealed class WDWeaponActionScheduler
         entry.StartCooldown(definition.CooldownRounds);
         return true;
     }
+
+    internal static bool CommitRuntimeUse(
+        WDWeaponDefinition definition, WDWeaponRuntimeEntry entry)
+    {
+        if (definition == null || entry == null)
+            return false;
+        entry.RecordUse();
+        entry.StartCooldown(definition.CooldownRounds);
+        return true;
+    }
 }
 
 public static class WDWeaponActionValidator
@@ -262,7 +272,8 @@ public sealed class WDWeaponResolutionPipeline
             (usesActivationCost && !action.CostCommitted && runtimeEntry.CooldownRemaining > 0) ||
             (usesActivationCost && !action.CostCommitted && definition.UseLimit > 0 &&
              runtimeEntry.Uses >= definition.UseLimit) ||
-            (usesActivationCost && !action.CostCommitted && player.Energy < definition.EnergyCost))
+             (usesActivationCost && !action.CostCommitted && !action.EnergyCommitted &&
+              player.Energy < definition.EnergyCost))
             return Fail(action, "Arma indisponível, em cooldown, sem uso ou sem Energy.");
 
         WDWeaponRevalidationResult validation =
@@ -281,8 +292,10 @@ public sealed class WDWeaponResolutionPipeline
 
         if (usesActivationCost && !action.CostCommitted)
         {
-            if (!WDWeaponActionScheduler.CommitCost(
-                    definition, player, runtimeEntry))
+            bool committed = action.EnergyCommitted
+                ? WDWeaponActionScheduler.CommitRuntimeUse(definition, runtimeEntry)
+                : WDWeaponActionScheduler.CommitCost(definition, player, runtimeEntry);
+            if (!committed)
                 return Fail(action, "Energy ou estado runtime insuficiente na execução.");
             action.MarkCostCommitted();
         }

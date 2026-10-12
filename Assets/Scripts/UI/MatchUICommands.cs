@@ -102,22 +102,32 @@ public sealed class MatchUICommands : IMatchUICommands
         foreach (OrdemTerrestre ordem in gameManager.OrdensPreparadas)
         {
             if (ordem.PosicaoNaFila == posicaoNaFila)
-                return gameManager.CancelarOrdem(ordem);
+            {
+                bool removed = gameManager.CancelarOrdem(ordem);
+                AtualizarApresentacao();
+                return removed;
+            }
         }
 
         return false;
     }
 
-    public bool RemoverDistribuicaoReforco(int distribuicaoId) =>
-        gameManager != null && gameManager.DesfazerDistribuicaoReforco(distribuicaoId);
+    public bool RemoverDistribuicaoReforco(int distribuicaoId)
+    {
+        bool removed = gameManager != null && gameManager.DesfazerDistribuicaoReforco(distribuicaoId);
+        AtualizarApresentacao();
+        return removed;
+    }
 
-    public void SelecionarDestinatarioTransferencia(TerritorioClique.Dono jogador) =>
-        gameManager?.SelecionarDestinatarioTransferencia(jogador);
-    public void ConfirmarTransferencia() => gameManager?.ConfirmarTransferenciaPreparada();
+    public void SelecionarDestinatarioTransferencia(TerritorioClique.Dono jogador)
+    { gameManager?.SelecionarDestinatarioTransferencia(jogador); AtualizarApresentacao(); }
+    public void ConfirmarTransferencia()
+    { gameManager?.ConfirmarTransferenciaPreparada(); AtualizarApresentacao(); }
 
-    public void RemoverTransferencia() => gameManager?.RemoverTransferencia();
-    public void CancelarSelecaoTransferencia() =>
-        gameManager?.CancelarSelecaoTransferencia();
+    public void RemoverTransferencia()
+    { gameManager?.RemoverTransferencia(); AtualizarApresentacao(); }
+    public void CancelarSelecaoTransferencia()
+    { gameManager?.CancelarSelecaoTransferencia(); AtualizarApresentacao(); }
     public void EnviarAcoes() => gameManager?.EnviarAcoes();
     public void CancelarEnvio() => gameManager?.CancelarEnvio();
     public bool UsarCarta(int slotIndex)

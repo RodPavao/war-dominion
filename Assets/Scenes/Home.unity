@@ -168,8 +168,19 @@ MonoBehaviour:
   backgroundTexture: {fileID: 2800000, guid: 1a77115c83a36bd4cb84bf50e279b7ca, type: 3}
   playBackgroundTexture: {fileID: 2800000, guid: 155cd536fd807bd44bb6039e59484744, type: 3}
   matchmakingBackgroundTexture: {fileID: 2800000, guid: 7f300526cdf93c346be60bb431e2a3bf, type: 3}
+  chatBackgroundTexture: {fileID: 2800000, guid: bbd21da3b310e474b8cdf060e619708d, type: 3}
+  friendsBackgroundTexture: {fileID: 2800000, guid: 6d66931bd14c86d41a381fc6e03e42dc, type: 3}
+  settingsBackgroundTexture: {fileID: 2800000, guid: 5dee04cfd76efbc42ba612a4675d80b5, type: 3}
+  rankingBackgroundTexture: {fileID: 2800000, guid: f5d1708a2bc20ab49b46c62d7df8a153, type: 3}
+  storeBackgroundTexture: {fileID: 2800000, guid: 44b996e743dbc2141a6dd1a0ec1becfe, type: 3}
   warDominionOpening16x9Texture: {fileID: 2800000, guid: 10893875d7c28a0428c4c81337ac38c1, type: 3}
   warDominionOpeningUltrawideTexture: {fileID: 2800000, guid: 4f6d381c2b7a4b248c069d21f63eb8aa, type: 3}
+  gabaritoBlack: {fileID: 0}
+  gabaritoMedium: {fileID: 0}
+  gabaritoBold: {fileID: 0}
+  gabaritoSemiBold: {fileID: 0}
+  gabaritoExtraBold: {fileID: 0}
+  geistMedium: {fileID: 0}
 --- !u!1 &1974318952
 GameObject:
   m_ObjectHideFlags: 0

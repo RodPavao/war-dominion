@@ -197,12 +197,12 @@ public sealed class WDMapVoteControllerTests
         }
 
         WDMatchModeDefinition threeVsThree = config.Modes.Single(mode => mode.Id == "3x3");
-        Assert.That(threeVsThree.Availability, Is.EqualTo(WDContentAvailability.ComingSoon));
+        Assert.That(threeVsThree.Availability, Is.EqualTo(WDContentAvailability.Available));
         Assert.That(threeVsThree.ShowInStandardPlaySelection, Is.True);
         Assert.That(threeVsThree.Submodes.Select(submode => submode.Id),
             Is.EqualTo(new[] { "normal" }));
         Assert.That(threeVsThree.Submodes[0].Availability,
-            Is.EqualTo(WDContentAvailability.ComingSoon));
+            Is.EqualTo(WDContentAvailability.Available));
         Assert.That(config.Modes.Single(mode => mode.Id == "1x1").Submodes
             .Single(item => item.Id == "deckbuilder").Availability,
             Is.EqualTo(WDContentAvailability.ComingSoon));
@@ -267,8 +267,9 @@ public sealed class WDMapVoteControllerTests
     }
 
     [Test]
-    public void PlayPanel_ThreeVsThreeIsVisibleButCannotStartQueue()
+    public void PlayPanel_ThreeVsThreeOffersOnlyNormalAndCanStartQueue()
     {
+        WDMatchSetup prior = WDMatchSetupContext.Current;
         GameObject root = BuildPlayPanel(out WDHomeMatchFlowPanel panel);
         try
         {
@@ -276,13 +277,25 @@ public sealed class WDMapVoteControllerTests
             Button threeVsThree = FindButton(root, "BATALHA 3V3");
 
             Assert.That(threeVsThree, Is.Not.Null);
-            Assert.That(threeVsThree.interactable, Is.False);
+            Assert.That(threeVsThree.interactable, Is.True);
             Assert.That(panel.IsMatchmakingActive, Is.False);
             Assert.That(panel.CurrentScreen, Is.EqualTo(WDHomeMatchFlowScreen.OfficialMatches));
+            threeVsThree.onClick.Invoke();
+            Assert.That(VisibleOptionTitles(root), Is.EquivalentTo(new[] { "NORMAL" }));
+            Button normal = FindButton(root, "NORMAL");
+            Assert.That(normal.interactable, Is.True);
+            normal.onClick.Invoke();
+            Assert.That(panel.IsMatchmakingActive, Is.False, "Escolher submodo ainda exige formação da equipe.");
+            FindButton(root, "EQUIPE ALEATÓRIA").onClick.Invoke();
+            Assert.That(panel.IsMatchmakingActive, Is.True);
+            InvokeBack(root);
+            Assert.That(panel.IsMatchmakingActive, Is.False);
         }
         finally
         {
             Object.DestroyImmediate(root);
+            WDMatchSetupContext.Clear();
+            if (prior != null) WDMatchSetupContext.Store(prior);
         }
     }
 
@@ -468,7 +481,84 @@ public sealed class WDMapVoteControllerTests
         }
     }
 
-    private static GameObject BuildPlayPanel(out WDHomeMatchFlowPanel panel)
+    [TestCase(WDContentAvailability.Available)]
+    [TestCase(WDContentAvailability.ComingSoon)]
+    public void ThreeVsThreeCardResolvesCanonicalIconAndAvailabilityChrome(WDContentAvailability availability)
+    {
+        // Clone isolado: testar o estado histórico não altera o catálogo oficial.
+        var config = Object.Instantiate(LoadFlowConfig());
+        GameObject root = null;
+        try
+        {
+            var mode = config.Modes.Single(item => item.Id == "3x3");
+            typeof(WDMatchModeDefinition).GetField("availability",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).SetValue(mode, availability);
+            var background = UnityEditor.AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Art/Backgrounds/Play/Play.png");
+            Assert.That(background, Is.Not.Null, "A apresentação Figma requer o background oficial, como no Home.");
+            root = BuildPlayPanel(out _, config, background);
+            FindVisiblePlayCard(root, "PARTIDAS").onClick.Invoke();
+            bool active = availability == WDContentAvailability.Available;
+            string expected = active ? "ThreeVsThreeHelmetActive" : "ThreeVsThreeHelmet";
+            var cardButton = FindVisiblePlayCard(root, mode.DisplayName);
+            Transform card = cardButton.transform;
+            var images = root.GetComponentsInChildren<RawImage>();
+            var iconFrame = card.Find("IconFrame");
+            Assert.That(iconFrame, Is.Not.Null, "O card deve possuir a camada do ícone principal.");
+            var icons = iconFrame.GetComponentsInChildren<RawImage>();
+            Assert.That(icons, Has.Length.EqualTo(1), "A camada principal deve conter exatamente um pictograma do modo.");
+            var icon = icons.Single();
+            var expectedTexture = Resources.Load<Texture2D>("UI/Home/PlayFinal/" + expected);
+            Assert.That(expectedTexture, Is.Not.Null);
+            Assert.That(icon.texture, Is.SameAs(expectedTexture));
+            Assert.That(card.GetComponentsInChildren<RawImage>().Count(image => image.texture == expectedTexture),
+                Is.EqualTo(1), "O capacete não pode estar duplicado em outra camada do card.");
+            Assert.That(icon.color, Is.EqualTo(Color.white), "O acabamento pertence ao asset, sem tint aproximado.");
+            var oppositeTexture = Resources.Load<Texture2D>("UI/Home/PlayFinal/" +
+                (active ? "ThreeVsThreeHelmet" : "ThreeVsThreeHelmetActive"));
+            Assert.That(oppositeTexture, Is.Not.Null);
+            Assert.That(images.Any(image => image.texture == oppositeTexture), Is.False);
+            Assert.That(card.GetComponent<Button>().interactable, Is.EqualTo(active));
+            var lockLayer = card.Find("Lock");
+            Assert.That(lockLayer != null, Is.EqualTo(!active));
+            var lockTexture = Resources.Load<Texture2D>("UI/Home/PlayFinal/ThreeVsThreeLock");
+            Assert.That(lockTexture, Is.Not.Null);
+            Assert.That(card.GetComponentsInChildren<RawImage>().Count(image => image.texture == lockTexture),
+                Is.EqualTo(active ? 0 : 1), "O cadeado é um indicador separado, exclusivo de ComingSoon.");
+            if (!active)
+            {
+                var lockImages = lockLayer.GetComponentsInChildren<RawImage>();
+                Assert.That(lockImages, Has.Length.EqualTo(1));
+                Assert.That(lockImages.Single().texture, Is.SameAs(lockTexture));
+            }
+            var label = card.Find("Availability");
+            Assert.That(label != null, Is.EqualTo(!active));
+            if (!active) Assert.That(label.GetComponent<TMP_Text>().text, Is.EqualTo("EM BREVE"));
+            foreach (string other in new[] { "FfaTarget", "OneVsOneSwords", "TwoVsTwo" })
+            {
+                var otherIcon = images.Single(image => image.texture != null && image.texture.name == other);
+                Assert.That(otherIcon.texture, Is.SameAs(Resources.Load<Texture2D>("UI/Home/PlayFinal/" + other)));
+                Assert.That(otherIcon.color, Is.EqualTo(Color.white));
+            }
+            Assert.That(mode.Submodes.Select(submode => submode.Id), Is.EqualTo(new[] { "normal" }));
+            Assert.That(mode.Submodes[0].Availability, Is.EqualTo(WDContentAvailability.Available));
+        }
+        finally
+        {
+            if (root != null) Object.DestroyImmediate(root);
+            Object.DestroyImmediate(config);
+        }
+    }
+
+    private static Button FindVisiblePlayCard(GameObject root, string title)
+    {
+        var matches = root.GetComponentsInChildren<Button>()
+            .Where(button => button.GetComponentsInChildren<TMP_Text>().Any(text => text.text == title)).ToArray();
+        Assert.That(matches, Has.Length.EqualTo(1), "Deve existir um único card visível: " + title);
+        return matches.Single();
+    }
+
+    private static GameObject BuildPlayPanel(out WDHomeMatchFlowPanel panel, WarDominionMatchFlowConfig config = null,
+        Texture2D playBackground = null)
     {
         WarDominionUITheme theme = Resources.Load<WarDominionUITheme>(
             "UI/WarDominionUITheme");
@@ -476,7 +566,8 @@ public sealed class WDMapVoteControllerTests
             "UI/Home/WDArmoryCatalogConfig");
         var root = new GameObject("PlayPanelTest", typeof(RectTransform));
         panel = root.AddComponent<WDHomeMatchFlowPanel>();
-        panel.Build(theme, LoadFlowConfig(), LoadProfile(), armory, null);
+        panel.Build(theme, config != null ? config : LoadFlowConfig(), LoadProfile(), armory, null,
+            newPlayBackgroundTexture: playBackground);
         panel.Open();
         return root;
     }
@@ -624,7 +715,7 @@ public sealed class WDMapVoteControllerTests
             new WDMatchmakingRequest(mode, submode, "random_teammate"),
             LoadMap("Classic"), LoadProfile(), 0);
 
-        Assert.That(mode.Availability, Is.EqualTo(WDContentAvailability.ComingSoon));
+        Assert.That(mode.Availability, Is.EqualTo(WDContentAvailability.Available));
         Assert.That(setup.Participants, Has.Count.EqualTo(6));
         Assert.That(setup.Participants.Select(item => item.TeamIndex),
             Is.EqualTo(new[] { 0, 1, 0, 1, 0, 1 }));

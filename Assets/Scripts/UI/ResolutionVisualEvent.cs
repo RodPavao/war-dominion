@@ -9,6 +9,7 @@ public enum ResolutionVisualEventType
     Reinforcement,
     Transfer,
     RegionConquest,
+    Installation,
     Card,
     Other
 }
@@ -43,6 +44,7 @@ public sealed class ResolutionVisualEvent
     public TerritorioClique.Dono PreviousOwner { get; }
     public TerritorioClique.Dono NewOwner { get; }
     public string ContentId { get; }
+    public string InstallationId { get; }
     public string RegionId { get; }
     public IReadOnlyList<string> RegionTerritoryIds { get; }
 
@@ -62,7 +64,8 @@ public sealed class ResolutionVisualEvent
         TerritorioClique.Dono newOwner,
         string contentId,
         string regionId = null,
-        IEnumerable<string> regionTerritoryIds = null)
+        IEnumerable<string> regionTerritoryIds = null,
+        string installationId = null)
     {
         Type = type;
         Result = result;
@@ -78,6 +81,7 @@ public sealed class ResolutionVisualEvent
         PreviousOwner = previousOwner;
         NewOwner = newOwner;
         ContentId = contentId ?? string.Empty;
+        InstallationId = installationId ?? string.Empty;
         RegionId = regionId ?? string.Empty;
         RegionTerritoryIds = (regionTerritoryIds ?? Array.Empty<string>()).ToArray();
     }
@@ -147,6 +151,20 @@ public sealed class ResolutionVisualEvent
             conquered, previousOwner, newOwner, string.Empty);
     }
 
+    public static ResolutionVisualEvent AirTransportMovement(
+        TerritorioClique.Dono player, string originId, string destinationId,
+        int amount, int originBefore, int originAfter, int destinationBefore,
+        int destinationAfter, TerritorioClique.Dono destinationOwner,
+        string installationId)
+    {
+        return new ResolutionVisualEvent(
+            ResolutionVisualEventType.Movement, ResolutionVisualResult.Completed,
+            player, originId, destinationId, amount,
+            originBefore, originAfter, destinationBefore, destinationAfter,
+            false, destinationOwner, destinationOwner, WDSupportWeaponIds.AirTransport,
+            installationId: installationId);
+    }
+
     public static ResolutionVisualEvent TerritoryHandoff(
         TerritorioClique.Dono player,
         TerritorioClique.Dono recipient,
@@ -203,6 +221,26 @@ public sealed class ResolutionVisualEvent
             ResolutionVisualEventType.Card, ResolutionVisualResult.Completed, player,
             string.Empty, string.Empty, 0, 0, 0, 0, 0, false,
             TerritorioClique.Dono.Neutro, TerritorioClique.Dono.Neutro, content);
+    }
+
+    public static ResolutionVisualEvent InstallationImplemented(
+        TerritorioClique.Dono player, string weaponId, string territoryId,
+        string installationId = null)
+    {
+        return new ResolutionVisualEvent(
+            ResolutionVisualEventType.Installation, ResolutionVisualResult.Completed,
+            player, string.Empty, territoryId, 0, 0, 0, 0, 0, false,
+            player, player, weaponId, installationId: installationId);
+    }
+
+    public static ResolutionVisualEvent InstallationTransported(
+        TerritorioClique.Dono player, string weaponId, string originTerritoryId,
+        string destinationTerritoryId, string installationId)
+    {
+        return new ResolutionVisualEvent(
+            ResolutionVisualEventType.Installation, ResolutionVisualResult.Completed,
+            player, originTerritoryId, destinationTerritoryId, 0, 0, 0, 0, 0, false,
+            player, player, weaponId, installationId: installationId);
     }
 
     // ============================================================

@@ -70,6 +70,30 @@ public sealed class WDMatchChatViewTests
         }
     }
 
+    [Test]
+    public void MatchUsesGeneralChatVisualCategoriesWithoutChangingOverlayGeometry()
+    {
+        using var f = new Fixture();
+        f.Open();
+        Transform columns = f.Panel.Find("Columns");
+        Assert.That(((RectTransform)f.Panel).sizeDelta, Is.EqualTo(new Vector2(1400, 760)));
+        Assert.That(f.Composer.textComponent.fontSize, Is.EqualTo(WDChatHubPanel.MessageFontSize));
+        Assert.That(((TMP_Text)f.Composer.placeholder).fontSize, Is.EqualTo(18));
+        Assert.That(f.Composer.textComponent.spriteAsset, Is.SameAs(WDChatEmojiColor.SpriteAsset));
+        Assert.That(columns.Find("Conversation/Header/Name").GetComponent<TMP_Text>().fontSize,
+            Is.EqualTo(WDChatHubPanel.HeadingFontSize));
+        Assert.That(columns.Find("Friends/Count").GetComponent<TMP_Text>().fontSize,
+            Is.EqualTo(WDChatHubPanel.StatusFontSize));
+        Assert.That(columns.Find("Friends/Title").GetComponent<TMP_Text>().fontSize, Is.EqualTo(12));
+        Assert.That(columns.Find("Friends/ViewAll/Label").GetComponent<TMP_Text>().fontSize, Is.EqualTo(14));
+        foreach (string path in new[] { "Left", "Conversation", "Friends", "Conversation/Header",
+            "Conversation/Composer", "Conversation/Composer/Field" })
+            Assert.That(columns.Find(path).GetComponent<Image>().color.a, Is.EqualTo(.95f), path);
+        foreach (string name in new[] { "Attachment", "Emoji", "Send" })
+            Assert.That(columns.Find("Conversation/Composer/Field/" + name).GetComponent<Button>(), Is.Not.Null);
+        Assert.That(f.Chat.GetComponentInChildren<WDChatEmojiPicker>(true), Is.Not.Null);
+    }
+
     // 02. Um callback, uma autoridade e exclusividade real da apresentação V2.
     [TestCase(1)]
     [TestCase(2)]
@@ -147,7 +171,8 @@ public sealed class WDMatchChatViewTests
         using var f = new Fixture();
         f.Root.AddComponent<Canvas>();
         f.Open();
-        Assert.That(f.Composer.lineType, Is.EqualTo(TMP_InputField.LineType.SingleLine));
+        Assert.That(f.Composer.lineType, Is.EqualTo(TMP_InputField.LineType.MultiLineNewline));
+        Assert.That(f.Composer.characterLimit, Is.EqualTo(WDUIContentContracts.ChatMessageMaxLength));
         Assert.That(f.Composer.textComponent.fontSize, Is.EqualTo(20));
         int before = f.Channel.Messages.Count;
         // Changed é síncrono: uma tentativa reentrante também não pode duplicar envio.

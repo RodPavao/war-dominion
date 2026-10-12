@@ -238,7 +238,9 @@ public sealed class WDChatEmojiPickerTests
             typeof(WDChatEmojiColor).GetMethod("Release", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)
                 .Invoke(null, null);
             var shared = WDChatEmojiColor.SpriteAsset;
-            Assert.That(shared, Is.SameAs(imported));
+            Assert.That(shared, Is.Not.SameAs(imported));
+            Assert.That(imported.spriteGlyphTable.Count, Is.EqualTo(34));
+            Assert.That(imported.spriteGlyphTable[0].metrics.height, Is.EqualTo(120));
             shared.UpdateLookupTables();
             Assert.That(shared.spriteCharacterTable.Count, Is.EqualTo(34));
             Assert.That(shared.spriteGlyphTable.Count, Is.EqualTo(34));
@@ -282,7 +284,10 @@ public sealed class WDChatEmojiPickerTests
             }
         f.Picker.Toggle();
         var cell = f.Root.transform.Find("EmojiPickerLayer/Popup/Viewport/Grid/Emoji0/Label").GetComponent<TMP_Text>();
-        Assert.That(cell.spriteAsset, Is.SameAs(shared));
+        Assert.That(cell.spriteAsset.material, Is.SameAs(shared.material));
+        Assert.That(cell.spriteAsset.spriteSheet, Is.SameAs(shared.spriteSheet));
+        Assert.That(cell.spriteAsset.spriteGlyphTable[0].metrics.height, Is.EqualTo(120));
+        Assert.That(cell.fontSize, Is.EqualTo(28));
         cell.GetPreferredValues(48, 48);
         Assert.That(cell.textInfo.characterInfo[0].elementType, Is.EqualTo(TMP_TextElementType.Sprite));
     }
@@ -308,10 +313,10 @@ public sealed class WDChatEmojiPickerTests
         foreach (var glyph in asset.spriteGlyphTable)
         {
             Assert.That(glyph.scale, Is.EqualTo(1));
-            Assert.That(glyph.metrics.width, Is.EqualTo(120));
-            Assert.That(glyph.metrics.height, Is.EqualTo(120));
-            Assert.That(glyph.metrics.horizontalBearingY, Is.EqualTo(108));
-            Assert.That(glyph.metrics.horizontalAdvance, Is.EqualTo(120));
+            Assert.That(glyph.metrics.width, Is.EqualTo(150));
+            Assert.That(glyph.metrics.height, Is.EqualTo(150));
+            Assert.That(glyph.metrics.horizontalBearingY, Is.EqualTo(123));
+            Assert.That(glyph.metrics.horizontalAdvance, Is.EqualTo(150));
         }
         foreach (var category in WDChatEmojiPicker.Catalog)
         foreach (var value in category)
@@ -324,10 +329,31 @@ public sealed class WDChatEmojiPickerTests
             Assert.That(info[1].index, Is.EqualTo(1));
             Assert.That(info[1].stringLength, Is.EqualTo(value.Length));
             Assert.That(info[2].index, Is.EqualTo(1 + value.Length));
-            Assert.That(info[1].topRight.y - info[1].bottomLeft.y, Is.EqualTo(size * 1.2f).Within(.01f), value);
+            Assert.That(info[1].topRight.y - info[1].bottomLeft.y, Is.EqualTo(size * 1.5f).Within(.01f), value);
             Assert.That(info[1].textElement.scale, Is.EqualTo(1));
             Assert.That(text.text, Is.EqualTo("A" + value + "B"));
         }
+    }
+
+    [TestCase(14f)]
+    [TestCase(20f)]
+    public void InlineEmojiEnlargementPreservesLineMetricsAndImportedAtlas(float size)
+    {
+        using var f = new Fixture();
+        var text = f.Input.textComponent;
+        text.fontSize = size;
+        text.text = "A😎B";
+        WDChatEmojiColor.Apply(text, picker: true);
+        var original = text.spriteAsset;
+        float originalHeight = text.GetPreferredValues(600, 100).y;
+        WDChatEmojiColor.Apply(text);
+        Assert.That(text.GetPreferredValues(600, 100).y, Is.EqualTo(originalHeight).Within(.01f));
+        Assert.That(text.spriteAsset.spriteSheet, Is.SameAs(original.spriteSheet));
+        Assert.That(text.spriteAsset.material, Is.SameAs(original.material));
+        Assert.That(original.spriteGlyphTable[0].metrics.height, Is.EqualTo(120));
+        Assert.That(text.spriteAsset.spriteGlyphTable[0].metrics.height, Is.EqualTo(150));
+        Assert.That(text.text, Is.EqualTo("A😎B"));
+        Assert.That(text.fontSize, Is.EqualTo(size));
     }
 
     [Test]

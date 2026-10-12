@@ -14,6 +14,7 @@ public class WDArmyCounterViewTests
     [TestCase(99)]
     [TestCase(100)]
     [TestCase(999)]
+    [TestCase(2147483647)]
     public void TroopValueUpdatesTheSameTmpWithoutOverflow(int value)
     {
         GameObject root = new("PremiumCounterValueTest");
@@ -30,9 +31,14 @@ public class WDArmyCounterViewTests
             Assert.That(view.TroopText.text, Is.EqualTo(value.ToString()));
             Assert.That(view.TroopText, Is.SameAs(originalText));
             Assert.That(view.VisualRoot, Is.SameAs(originalRoot));
-            Assert.That(view.TroopText.overflowMode, Is.EqualTo(TextOverflowModes.Overflow));
+            Assert.That(view.TroopText.overflowMode, Is.EqualTo(TextOverflowModes.Truncate));
+            Assert.That(view.TroopText.enableAutoSizing, Is.True);
+            Assert.That(view.TroopText.fontSizeMin, Is.GreaterThanOrEqualTo(1.1f));
             Assert.That(view.TroopText.transform.localScale, Is.EqualTo(Vector3.one));
-            Assert.That(view.TroopText.GetPreferredValues(value.ToString()).x,
+            Assert.That(view.TroopText.rectTransform.sizeDelta.x,
+                Is.EqualTo(WDArmyCounterView.NumberWidth));
+            Assert.That(WDArmyCounterView.NumberWidth, Is.LessThan(WDArmyCounterView.FrameWidth));
+            Assert.That(view.TroopText.GetRenderedValues(false).x,
                 Is.LessThanOrEqualTo(view.TroopText.rectTransform.sizeDelta.x));
         }
         finally { Object.DestroyImmediate(root); }

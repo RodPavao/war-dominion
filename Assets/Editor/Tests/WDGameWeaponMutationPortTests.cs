@@ -296,7 +296,7 @@ public sealed class WDGameWeaponMutationPortTests
     {
         string[] destroyed = { WDSupportWeaponIds.Bunker, WDSupportWeaponIds.FlakTower };
         string[] abandoned = { WDStrategicWeaponIds.EnergyPlant, WDStrategicWeaponIds.Artillery,
-            WDStrategicWeaponIds.Rockets, WDSpecialWeaponIds.Drone, WDTacticalWeaponIds.Radar };
+            WDStrategicWeaponIds.Rockets, WDSpecialWeaponIds.Drone };
         foreach (string id in destroyed.Concat(abandoned))
             Assert.That(port.Install("install-" + id,
                 Installation("i-" + id, id, "owned")).Succeeded, Is.True, id);
@@ -320,7 +320,7 @@ public sealed class WDGameWeaponMutationPortTests
     {
         string[] abandoned = { WDSupportWeaponIds.Bunker, WDSupportWeaponIds.FlakTower,
             WDStrategicWeaponIds.EnergyPlant, WDStrategicWeaponIds.Artillery,
-            WDStrategicWeaponIds.Rockets, WDSpecialWeaponIds.Drone, WDTacticalWeaponIds.Radar };
+            WDStrategicWeaponIds.Rockets, WDSpecialWeaponIds.Drone };
         Assert.That(port.Install("install-mine", Installation("i-mine",
             WDSupportWeaponIds.Minefield, "owned")).Succeeded, Is.True);
         foreach (string id in abandoned)
@@ -345,7 +345,6 @@ public sealed class WDGameWeaponMutationPortTests
     [TestCase(WDStrategicWeaponIds.Artillery)]
     [TestCase(WDStrategicWeaponIds.Rockets)]
     [TestCase(WDSpecialWeaponIds.Drone)]
-    [TestCase(WDTacticalWeaponIds.Radar)]
     public void AlliedTransportTransfersInstallationWithoutResettingState(string weaponId)
     {
         WDWeaponInstallationState installation = Installation(
@@ -373,7 +372,6 @@ public sealed class WDGameWeaponMutationPortTests
     [TestCase(WDStrategicWeaponIds.Artillery)]
     [TestCase(WDStrategicWeaponIds.Rockets)]
     [TestCase(WDSpecialWeaponIds.Drone)]
-    [TestCase(WDTacticalWeaponIds.Radar)]
     public void CapturePreservesInstallationStateWithoutWeaponRuntimeCost(string weaponId)
     {
         WDWeaponInstallationState installation = Installation(
@@ -405,6 +403,19 @@ public sealed class WDGameWeaponMutationPortTests
         Assert.That(player.Energy, Is.EqualTo(50));
         Assert.That(player.GetWeapon(weaponId).CooldownRemaining, Is.EqualTo(2));
         Assert.That(player.GetWeapon(weaponId).Uses, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void RadarCannotEnterTerritorialInstallationRegistry()
+    {
+        WDWeaponInstallationState radar = Installation(
+            "invalid-radar", WDTacticalWeaponIds.Radar, "owned");
+
+        Assert.That(port.Install("reject-radar", radar).Reason,
+            Is.EqualTo(WDGameWeaponMutationReason.InvalidInstallation));
+        Assert.That(registry.Find(radar.InstallationId), Is.Null);
+        Assert.That(WDWeaponInstallationRegistry.IsAirTransportAllowed(
+            WDTacticalWeaponIds.Radar), Is.False);
     }
 
     [Test]

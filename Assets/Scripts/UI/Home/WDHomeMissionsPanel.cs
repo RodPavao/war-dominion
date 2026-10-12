@@ -2,18 +2,30 @@ using System;
 using System.Linq;
 using TMPro;
 using UnityEngine;
-using UnityEngine.Events;
 using UnityEngine.UI;
 
 [DisallowMultipleComponent]
 public sealed class WDHomeMissionsPanel : MonoBehaviour
 {
+    private const string MissionRoot = "UI/Missions/Canonical/";
+    private const string BannerRoot = MissionRoot + "Banners/";
+    private const float CardWidth = 436f;
+    private const float CardHeight = 320f;
+    private const float CardGap = 16f;
+    private const float GridTop = 74f;
+
+    private static readonly Color Gold = C("C59B63");
+    private static readonly Color Text = C("F8FAFC");
+    private static readonly Color Muted = C("64748B");
+    private static readonly Color Navy = C("08111D");
+    private static readonly Color Border = C("1E3A5F");
+
     private WarDominionUITheme theme;
     private WDMissionRepository repository;
     private WDNavigationStack navigation;
+    private Action<bool> setHomeCompositionVisible;
     private RectTransform content;
     private GameObject detail;
-    private int currentPage;
 
     public bool IsOpen => gameObject.activeSelf;
     public bool IsDetailOpen => detail != null;
@@ -21,36 +33,60 @@ public sealed class WDHomeMissionsPanel : MonoBehaviour
     public WDMissionRepository Repository => repository;
 
     // ============================================================
-    // 01. CONSTRUÇÃO E NAVEGAÇÃO GLOBAL ÚNICA
+    // 01. CONSTRUÇÃO E NAVEGAÇÃO
     // ============================================================
 
     public void Build(WarDominionUITheme newTheme, WDMissionRepository missionRepository,
         WDNavigationStack navigationStack)
+        => Build(newTheme, missionRepository, navigationStack, null);
+
+    public void Build(WarDominionUITheme newTheme, WDMissionRepository missionRepository,
+        WDNavigationStack navigationStack, Action<bool> homeCompositionVisibility)
     {
         theme = newTheme ?? throw new ArgumentNullException(nameof(newTheme));
         repository = missionRepository ?? throw new ArgumentNullException(nameof(missionRepository));
         navigation = navigationStack ?? throw new ArgumentNullException(nameof(navigationStack));
+        setHomeCompositionVisible = homeCompositionVisibility;
         Image blocker = gameObject.AddComponent<Image>();
-        blocker.color = new Color(0.005f, 0.015f, 0.025f, 0.96f); blocker.raycastTarget = true;
+        blocker.color = Color.clear;
+        blocker.raycastTarget = true;
+
+        Texture2D backgroundTexture = Resources.Load<Texture2D>(MissionRoot + "MissionsBackground");
+        RectTransform backgroundRoot = WDHomeUIFactory.Rect("MissionsFullscreenBackground", transform);
+        WDHomeUIFactory.Stretch(backgroundRoot);
+        RawImage background = backgroundRoot.gameObject.AddComponent<RawImage>();
+        background.texture = backgroundTexture;
+        background.raycastTarget = false;
+        AspectRatioFitter crop = backgroundRoot.gameObject.AddComponent<AspectRatioFitter>();
+        crop.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;
+        crop.aspectRatio = backgroundTexture != null
+            ? (float)backgroundTexture.width / backgroundTexture.height
+            : 16f / 9f;
+
+        Image scrim = WDHomeUIFactory.Image("MissionsReadabilityScrim", transform,
+            new Color(.01f, .025f, .045f, .32f));
+        WDHomeUIFactory.Stretch(scrim.rectTransform);
+        scrim.raycastTarget = false;
+
         content = WDHomeUIFactory.Rect("MissionsContent", transform);
-        WDHomeUIFactory.Stretch(content, 54f, 40f, 54f, 40f);
+        WDHomeUIFactory.Stretch(content);
         gameObject.SetActive(false);
     }
 
-    public void Open()
+    public void Open() => navigation.Push(new WDNavigationContext("missions", Restore));
+
+    private void Restore(object _)
     {
-        currentPage = 0;
-        navigation.Push(new WDNavigationContext("missions", _ =>
-        {
-            transform.SetAsLastSibling();
-            Render();
-        }));
+        setHomeCompositionVisible?.Invoke(false);
+        transform.SetAsLastSibling();
+        Render();
     }
 
     public void HideFromNavigation()
     {
         CloseDetail();
         gameObject.SetActive(false);
+        setHomeCompositionVisible?.Invoke(true);
     }
 
     public bool TryHandleLocalBack()
@@ -61,157 +97,343 @@ public sealed class WDHomeMissionsPanel : MonoBehaviour
     }
 
     // ============================================================
-    // 02. COLEÇÃO, DESCOBERTAS E ESTADOS UNIVERSAIS
+    // 02. FRAME FIGMA 467:2 E RESUMO DA COLEÇÃO
     // ============================================================
 
     private void Render()
     {
         gameObject.SetActive(true);
         Clear(content);
-        AddButton(content, "Back", "<  VOLTAR", () => navigation.TryBack(),
-            new Vector2(0.01f, 0.91f), new Vector2(0.13f, 0.99f));
-        AddText(content, "Title", "MISSÕES", 30f, theme.TextoPrincipal,
-            new Vector2(0.38f, 0.91f), new Vector2(0.62f, 0.99f), TextAlignmentOptions.Center);
+
+        RectTransform frame = Rect("MissionsResponsiveShell", content, 0f, 0f, 0f, 0f);
+        WDHomeUIFactory.Stretch(frame);
+
+        RectTransform header = Surface("Header", frame, 0f, 0f, 1920f, 110f,
+            new Color(Navy.r, Navy.g, Navy.b, .88f));
+        StretchHorizontal(header, 0f, 0f);
+        Rule(header, 0f, 109f, 1920f, Gold, .72f);
+        WDHomeBackButtonFactory.BuildCanonical(header, () => navigation.TryBack());
+        Rule(header, 828f, 54f, 36f, Gold, .60f, 2f);
+        TextMeshProUGUI title = Label(header, "Title", "MISSÕES", 34f, Text, 0f, 32f, 168f, 48f,
+            TextAlignmentOptions.Center, "Inter-ExtraBold", 2f);
+        CenterTop(title.rectTransform, 0f, 32f, 168f, 48f);
+        Rule(header, 1056f, 54f, 36f, Gold, .60f, 2f);
+
+        RectTransform summary = Surface("SummaryBar", frame, 0f, 110f, 1920f, 72f,
+            new Color(Navy.r, Navy.g, Navy.b, .94f));
+        StretchHorizontal(summary, 0f, 0f);
+        Rule(summary, 0f, 71f, 1920f, Gold, .62f);
 
         if (repository.State != WDMissionCollectionState.Ready || repository.TotalCount == 0)
         {
             string message = repository.State switch
             {
                 WDMissionCollectionState.Loading => "CARREGANDO MISSÕES...",
-                WDMissionCollectionState.Error => "NÃO FOI POSSÍVEL CARREGAR · TENTAR NOVAMENTE",
+                WDMissionCollectionState.Error => "NÃO FOI POSSÍVEL CARREGAR",
                 WDMissionCollectionState.Unavailable => "MISSÕES INDISPONÍVEIS / OFFLINE",
                 _ => "NENHUMA MISSÃO DISPONÍVEL"
             };
-            AddText(content, "UniversalState", message, 20f, theme.TextoSecundario,
-                new Vector2(0.15f, 0.35f), new Vector2(0.85f, 0.62f), TextAlignmentOptions.Center);
+            Label(frame, "UniversalState", message, 20f, Muted,
+                360f, 440f, 1200f, 100f, TextAlignmentOptions.Center, "Gabarito-Medium");
             return;
         }
 
         int discovered = repository.DiscoveredCount;
-        AddText(content, "Discoveries", $"DESCOBERTAS\n{discovered} / {repository.TotalCount}",
-            16f, theme.Acento, new Vector2(0.03f, 0.79f), new Vector2(0.18f, 0.89f));
-        RectTransform bar = Panel("DiscoveryBar", content, new Vector2(0.19f, 0.82f), new Vector2(0.70f, 0.86f));
-        Image fill = WDHomeUIFactory.Image("Fill", bar, theme.Acento);
-        fill.rectTransform.anchorMin = Vector2.zero;
-        fill.rectTransform.anchorMax = new Vector2(repository.TotalCount == 0 ? 0f :
-            (float)discovered / repository.TotalCount, 1f);
-        fill.rectTransform.offsetMin = fill.rectTransform.offsetMax = Vector2.zero;
-        AddText(content, "Collection", $"COLEÇÃO PERMANENTE · {repository.TotalCount} MISSÕES",
-            14f, theme.TextoSecundario, new Vector2(0.03f, 0.72f), new Vector2(0.45f, 0.79f));
+        Label(summary, "DiscoveriesCaption", "DESCOBERTAS", 12f, Gold,
+            40f, 13f, 120f, 18f, TextAlignmentOptions.Left, "Inter-Bold", 1.44f);
+        Label(summary, "DiscoveriesValue", $"{discovered} / {repository.TotalCount}", 18f, Text,
+            40f, 32f, 120f, 26f, TextAlignmentOptions.Left, "Inter-Bold");
+        RectTransform progress = Surface("ProgressTrack", summary, 176f, 31f, 460f, 10f,
+            C("1E2D42"), 5);
+        float ratio = repository.TotalCount == 0 ? 0f : (float)discovered / repository.TotalCount;
+        RectTransform fill = Surface("ProgressFill", progress, 0f, 0f, 460f * ratio, 10f,
+            Gold, 5);
+        fill.GetComponent<Image>().raycastTarget = false;
 
-        int pageCount = Mathf.Max(1, Mathf.CeilToInt(repository.TotalCount / 8f));
-        currentPage = Mathf.Clamp(currentPage, 0, pageCount - 1);
-        if (currentPage > 0)
-            AddButton(content, "PreviousPage", "< ANTERIORES", () => ChangePage(-1),
-                new Vector2(0.70f, 0.73f), new Vector2(0.82f, 0.79f));
-        AddText(content, "Page", $"{currentPage + 1}/{pageCount}", 13f, theme.TextoSecundario,
-            new Vector2(0.82f, 0.73f), new Vector2(0.88f, 0.79f), TextAlignmentOptions.Center);
-        if (currentPage < pageCount - 1)
-            AddButton(content, "NextPage", "PRÓXIMAS >", () => ChangePage(1),
-                new Vector2(0.88f, 0.73f), new Vector2(0.98f, 0.79f));
-
-        WDMissionPresentation[] visible = repository.PresentAll()
-            .Skip(currentPage * 8).Take(8).ToArray();
-        for (int i = 0; i < visible.Length; i++)
-        {
-            int column = i % 4; int row = i / 4;
-            float left = 0.03f + column * 0.242f;
-            float top = 0.70f - row * 0.30f;
-            WDMissionPresentation mission = visible[i];
-            string state = mission.IsHidden ? "NÃO DESCOBERTA" : mission.Status == WDMissionStatus.Completed
-                ? mission.IsRepeatable ? $"CONQUISTADA ×{mission.CompletionCount}" : "CONQUISTADA"
-                : $"EM PROGRESSO · {mission.Current}/{mission.Target}";
-            WDUIPremiumButton card = AddButton(content, $"Mission_{mission.MissionId}", string.Empty,
-                () => OpenDetail(mission.MissionId), new Vector2(left, top - 0.25f),
-                new Vector2(left + 0.225f, top));
-            AddText(card.transform, "MissionTitle", mission.Title, 17f, theme.TextoPrincipal,
-                new Vector2(0.06f, 0.54f), new Vector2(0.94f, 0.88f), TextAlignmentOptions.Center);
-            AddText(card.transform, "MissionState", mission.IsHidden ? "MISSÃO SECRETA\nNÃO DESCOBERTA" : state,
-                13f, mission.IsHidden ? theme.TextoSecundario : theme.Acento,
-                new Vector2(0.06f, 0.12f), new Vector2(0.94f, 0.48f), TextAlignmentOptions.Center);
-        }
+        BuildCollection(frame, discovered);
     }
 
     // ============================================================
-    // 03. DETALHE INTERNO SEM NOVO NÍVEL DE NAVEGAÇÃO
+    // 03. COLEÇÃO DESCOBERTA E TEASER ÚNICO
+    // ============================================================
+
+    private void BuildCollection(RectTransform frame, int discovered)
+    {
+        const float viewportHeight = 898f;
+        RectTransform viewport = Rect("CollectionViewport", frame, 0f, 182f, 1852f, viewportHeight);
+        StretchHorizontal(viewport, 0f, 68f);
+        Image viewportHit = viewport.gameObject.AddComponent<Image>();
+        viewportHit.color = Color.clear;
+        viewportHit.raycastTarget = true;
+        viewport.gameObject.AddComponent<RectMask2D>();
+
+        WDMissionPresentation[] missions = repository.PresentAll()
+            .Where(item => !item.IsHidden)
+            .ToArray();
+        int cardCount = missions.Length + (discovered < repository.TotalCount ? 1 : 0);
+        int rowsCount = Mathf.Max(1, Mathf.CeilToInt(cardCount / 4f));
+
+        RectTransform gridHost = WDHomeUIFactory.Rect("CanonicalGridHost", viewport);
+        gridHost.anchorMin = gridHost.anchorMax = new Vector2(.5f, 1f);
+        gridHost.pivot = new Vector2(.5f, 1f);
+        gridHost.anchoredPosition = Vector2.zero;
+        gridHost.sizeDelta = new Vector2(1852f, 0f);
+        RectTransform grid = WDHomeUIFactory.Rect("CollectionGrid", gridHost);
+        grid.anchorMin = new Vector2(0f, 1f);
+        grid.anchorMax = new Vector2(1f, 1f);
+        grid.pivot = new Vector2(.5f, 1f);
+        grid.anchoredPosition = Vector2.zero;
+        float naturalHeight = GridTop + rowsCount * CardHeight +
+            Mathf.Max(0, rowsCount - 1) * CardGap + 60f;
+        grid.sizeDelta = new Vector2(0f, Mathf.Max(viewportHeight, naturalHeight));
+
+        for (int i = 0; i < missions.Length; i++) MissionCard(grid, missions[i], i);
+        if (discovered < repository.TotalCount) SecretCard(grid, missions.Length);
+
+        Scrollbar scrollbar = CreateScrollbar(frame, 1852f, 182f, 8f, viewportHeight);
+        RightTop(scrollbar.transform as RectTransform, 60f, 182f, 8f, viewportHeight);
+        ScrollRect scroll = viewport.gameObject.AddComponent<ScrollRect>();
+        scroll.viewport = viewport;
+        scroll.content = grid;
+        scroll.horizontal = false;
+        scroll.vertical = true;
+        scroll.movementType = ScrollRect.MovementType.Clamped;
+        scroll.inertia = true;
+        scroll.decelerationRate = .135f;
+        scroll.scrollSensitivity = 42f;
+        scroll.verticalScrollbar = scrollbar;
+        scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.Permanent;
+        scroll.verticalNormalizedPosition = 1f;
+
+        Surface("RightBorder", frame, 1860f, 182f, 60f, viewportHeight,
+            new Color(Navy.r, Navy.g, Navy.b, .60f));
+        RightTop(frame.Find("RightBorder") as RectTransform, 0f, 182f, 60f, viewportHeight);
+    }
+
+    private static void StretchHorizontal(RectTransform rect, float left, float right)
+    {
+        rect.anchorMin = new Vector2(0f, 1f); rect.anchorMax = Vector2.one;
+        rect.pivot = new Vector2(.5f, 1f); rect.offsetMin = new Vector2(left, rect.offsetMin.y);
+        rect.offsetMax = new Vector2(-right, rect.offsetMax.y);
+    }
+    private static void CenterTop(RectTransform rect, float x, float y, float w, float h)
+    { rect.anchorMin = rect.anchorMax = new Vector2(.5f, 1f); rect.pivot = new Vector2(.5f, 1f); rect.anchoredPosition = new Vector2(x, -y); rect.sizeDelta = new Vector2(w, h); }
+    private static void RightTop(RectTransform rect, float right, float y, float w, float h)
+    { rect.anchorMin = rect.anchorMax = new Vector2(1f, 1f); rect.pivot = new Vector2(1f, 1f); rect.anchoredPosition = new Vector2(-right, -y); rect.sizeDelta = new Vector2(w, h); }
+
+    private void MissionCard(RectTransform parent, WDMissionPresentation mission, int index)
+    {
+        Vector2 position = CardPosition(index);
+        RectTransform card = Surface("Mission_" + mission.MissionId, parent,
+            position.x, position.y, CardWidth, CardHeight,
+            new Color(Navy.r, Navy.g, Navy.b, .86f), 14);
+        Image cardSurface = card.GetComponent<Image>();
+        cardSurface.raycastTarget = true;
+        WDHomeUIFactory.AddThinRoundedBorder(card, Gold, 14);
+        AddCardShadow(card);
+
+        RawImage banner = Texture("CanonicalBanner", card,
+            Resources.Load<Texture2D>(BannerRoot + mission.ArtKey));
+        Place(banner.rectTransform, 0f, 0f, CardWidth, CardHeight);
+        PreserveAspect(banner, AspectRatioFitter.AspectMode.EnvelopeParent);
+        Button hit = card.gameObject.AddComponent<Button>();
+        hit.targetGraphic = cardSurface;
+        hit.transition = Selectable.Transition.None;
+        hit.onClick.AddListener(() => OpenDetail(mission.MissionId));
+
+        RectTransform count = Surface("CompletionCount", card,
+            294f, 226f, 128f, 24f, new Color(Gold.r, Gold.g, Gold.b, .15f), 8);
+        WDHomeUIFactory.AddThinRoundedBorder(count,
+            new Color(Gold.r, Gold.g, Gold.b, .27f), 8);
+        Label(count, "Label", $"CONQUISTADA ×{mission.CompletionCount}", 11f, Gold,
+            6f, 0f, 116f, 24f, TextAlignmentOptions.Center, "Inter-Bold", .66f);
+    }
+
+    private void SecretCard(RectTransform parent, int index)
+    {
+        Vector2 position = CardPosition(index);
+        RectTransform card = Surface("SecretMissionTeaser", parent,
+            position.x, position.y, CardWidth, CardHeight,
+            new Color(.024f, .047f, .086f, .80f), 14);
+        WDHomeUIFactory.AddThinRoundedBorder(card, Border, 14);
+        AddCardShadow(card);
+        RectTransform art = Surface("SecretArt", card, 14f, 14f, 408f, 200f,
+            new Color(.039f, .071f, .112f, .95f), 10);
+        WDHomeUIFactory.AddThinRoundedBorder(art, Border, 10);
+        RawImage lockIcon = Texture("Lock", art,
+            WDProfileIdentityVisuals.ResolveLockIcon());
+        Place(lockIcon.rectTransform, 190f, 58f, 28f, 28f);
+        lockIcon.color = Muted;
+        Label(art, "Question", "???", 18f, Muted, 114f, 94f, 180f, 28f,
+            TextAlignmentOptions.Center, "Inter-ExtraBold", .36f);
+        Label(art, "Secret", "MISSÃO SECRETA", 11f, Muted, 114f, 130f, 180f, 20f,
+            TextAlignmentOptions.Center, "Inter-Bold", .66f);
+        Label(art, "Undiscovered", "NÃO DESCOBERTA", 11f, C("334155"), 114f, 158f,
+            180f, 20f, TextAlignmentOptions.Center, "Inter-Bold", .66f);
+    }
+
+    private static Vector2 CardPosition(int index)
+    {
+        int column = index % 4;
+        int row = index / 4;
+        return new Vector2(40f + column * (CardWidth + CardGap),
+            GridTop + row * (CardHeight + CardGap));
+    }
+
+
+    // ============================================================
+    // 04. DETALHE EXISTENTE, SEM REGRAS NOVAS
     // ============================================================
 
     private void OpenDetail(string missionId)
     {
         CloseDetail();
         WDMissionPresentation mission = repository.Present(missionId);
-        if (mission == null) return;
+        if (mission == null || mission.IsHidden) return;
         CurrentDetailMissionId = missionId;
         RectTransform overlay = WDHomeUIFactory.Rect("MissionDetail", transform);
         WDHomeUIFactory.Stretch(overlay);
         detail = overlay.gameObject;
-        Image veil = detail.AddComponent<Image>(); veil.color = new Color(0f, 0f, 0f, 0.80f); veil.raycastTarget = true;
-        RectTransform panel = Panel("Panel", overlay, new Vector2(0.24f, 0.20f), new Vector2(0.76f, 0.80f));
-        string body = mission.IsHidden
-            ? "MISSÃO SECRETA\nNÃO DESCOBERTA"
-            : $"{mission.Description}\n\nCONDIÇÃO\n{mission.Condition}\n\n" +
-              $"PROGRESSO: {mission.Current}/{mission.Target}\nESTADO: {StatusLabel(mission)}\n" +
-              (mission.IsRepeatable ? $"CONCLUSÕES: {mission.CompletionCount}\n" : string.Empty) +
-              (string.IsNullOrEmpty(mission.Reward) ? string.Empty : $"RECOMPENSA: {mission.Reward}");
-        AddText(panel, "DetailTitle", mission.Title, 25f, theme.TextoPrincipal,
-            new Vector2(0.06f, 0.78f), new Vector2(0.94f, 0.94f), TextAlignmentOptions.Center);
-        AddText(panel, "DetailBody", body, 16f, theme.TextoSecundario,
-            new Vector2(0.08f, 0.24f), new Vector2(0.92f, 0.75f), TextAlignmentOptions.Center);
+        Image veil = detail.AddComponent<Image>();
+        veil.color = new Color(0f, 0f, 0f, .82f);
+        veil.raycastTarget = true;
+        RectTransform panel = Surface("Panel", overlay, 560f, 280f, 800f, 520f,
+            new Color(Navy.r, Navy.g, Navy.b, .98f), 16);
+        WDHomeUIFactory.AddThinRoundedBorder(panel, Gold, 16);
+        Label(panel, "DetailTitle", mission.Title, 25f, Text,
+            40f, 36f, 720f, 44f, TextAlignmentOptions.Center, "Gabarito-Bold");
+        Label(panel, "DetailState", $"CONQUISTADA ×{mission.CompletionCount}", 16f, Gold,
+            80f, 126f, 640f, 60f, TextAlignmentOptions.Center, "Inter-Bold");
         AddButton(panel, "CloseDetail", "VOLTAR À COLEÇÃO", CloseDetail,
-            new Vector2(0.25f, 0.06f), new Vector2(0.75f, 0.18f));
-    }
-
-    private static string StatusLabel(WDMissionPresentation mission) =>
-        mission.Status == WDMissionStatus.Completed
-            ? mission.IsRepeatable ? $"CONQUISTADA ×{mission.CompletionCount}" : "CONQUISTADA"
-            : "EM PROGRESSO";
-
-    private void ChangePage(int delta)
-    {
-        currentPage += delta;
-        Render();
+            200f, 420f, 400f, 52f);
     }
 
     private void CloseDetail()
     {
         if (detail != null) DestroyNow(detail);
-        detail = null; CurrentDetailMissionId = null;
+        detail = null;
+        CurrentDetailMissionId = null;
     }
 
     // ============================================================
-    // 04. COMPONENTES VISUAIS PROVISÓRIOS
+    // 05. PRIMITIVAS VISUAIS LOCAIS
     // ============================================================
 
-    private RectTransform Panel(string name, Transform parent, Vector2 min, Vector2 max)
+    private Scrollbar CreateScrollbar(Transform parent, float x, float y,
+        float width, float height)
     {
-        RectTransform rect = WDHomeUIFactory.Rect(name, parent);
-        rect.anchorMin = min; rect.anchorMax = max; rect.offsetMin = rect.offsetMax = Vector2.zero;
-        Image image = rect.gameObject.AddComponent<Image>(); image.color = theme.BackgroundElevated;
-        Outline outline = rect.gameObject.AddComponent<Outline>(); outline.effectColor = theme.BorderNeutral;
+        RectTransform rail = Surface("ScrollbarRail", parent, x, y, width, height,
+            new Color(.043f, .071f, .125f, .80f), 3);
+        Scrollbar scrollbar = rail.gameObject.AddComponent<Scrollbar>();
+        scrollbar.direction = Scrollbar.Direction.BottomToTop;
+        RectTransform sliding = WDHomeUIFactory.Rect("SlidingArea", rail);
+        WDHomeUIFactory.Stretch(sliding, 1f, 20f, 1f, 20f);
+        RectTransform handle = Surface("Handle", sliding, 0f, 0f, 6f, 180f, Gold, 3);
+        handle.anchorMin = Vector2.zero;
+        handle.anchorMax = Vector2.one;
+        handle.offsetMin = handle.offsetMax = Vector2.zero;
+        scrollbar.handleRect = handle;
+        scrollbar.targetGraphic = handle.GetComponent<Image>();
+        return scrollbar;
+    }
+
+    private void AddButton(Transform parent, string name, string value, Action action,
+        float x, float y, float width, float height)
+    {
+        RectTransform rect = Surface(name, parent, x, y, width, height,
+            new Color(.106f, .114f, .133f, .70f), 23);
+        rect.GetComponent<Image>().raycastTarget = true;
+        WDHomeUIFactory.AddThinRoundedBorder(rect, Gold, 23);
+        Button button = rect.gameObject.AddComponent<Button>();
+        button.targetGraphic = rect.GetComponent<Image>();
+        button.onClick.AddListener(() => action());
+        Label(rect, "Label", value, 16f, Gold, 8f, 0f, width - 16f, height,
+            TextAlignmentOptions.Center, "Gabarito-Black", 1.5f);
+    }
+
+    private static RectTransform Surface(string name, Transform parent,
+        float x, float y, float width, float height, Color color, int radius = 0)
+    {
+        RectTransform rect = Rect(name, parent, x, y, width, height);
+        Image image = rect.gameObject.AddComponent<Image>();
+        image.color = color;
+        image.raycastTarget = false;
+        if (radius > 0) WDHomeUIFactory.ApplyRounded(image, radius);
         return rect;
     }
 
-    private TextMeshProUGUI AddText(Transform parent, string name, string value, float size,
-        Color color, Vector2 min, Vector2 max, TextAlignmentOptions alignment = TextAlignmentOptions.Left)
-    {
-        TextMeshProUGUI text = WDHomeUIFactory.Text(name, parent, theme, value, size, color, alignment);
-        text.rectTransform.anchorMin = min; text.rectTransform.anchorMax = max;
-        text.rectTransform.offsetMin = text.rectTransform.offsetMax = Vector2.zero;
-        return text;
-    }
-
-    private WDUIPremiumButton AddButton(Transform parent, string name, string label,
-        UnityAction action, Vector2 min, Vector2 max)
+    private static RawImage Texture(string name, Transform parent, Texture2D texture)
     {
         RectTransform rect = WDHomeUIFactory.Rect(name, parent);
-        rect.anchorMin = min; rect.anchorMax = max; rect.offsetMin = rect.offsetMax = Vector2.zero;
-        WDUIPremiumButton button = rect.gameObject.AddComponent<WDUIPremiumButton>();
-        button.Build(theme, label, action); return button;
+        RawImage image = rect.gameObject.AddComponent<RawImage>();
+        image.texture = texture;
+        image.color = Color.white;
+        image.raycastTarget = false;
+        return image;
+    }
+
+    private static TextMeshProUGUI Label(Transform parent, string name, string value,
+        float size, Color color, float x, float y, float width, float height,
+        TextAlignmentOptions alignment, string font, float spacing = 0f)
+    {
+        RectTransform rect = Rect(name, parent, x, y, width, height);
+        TextMeshProUGUI label = rect.gameObject.AddComponent<TextMeshProUGUI>();
+        label.text = value;
+        label.fontSize = size;
+        label.color = color;
+        label.alignment = alignment;
+        label.font = WDHomeTypography.Load(font);
+        label.characterSpacing = spacing;
+        label.textWrappingMode = TextWrappingModes.NoWrap;
+        label.overflowMode = TextOverflowModes.Ellipsis;
+        label.raycastTarget = false;
+        return label;
+    }
+
+    private static void Rule(Transform parent, float x, float y, float width,
+        Color color, float alpha, float height = 1f)
+    {
+        color.a = alpha;
+        Surface("Rule", parent, x, y, width, height, color);
+    }
+
+    private static void AddCardShadow(RectTransform card)
+    {
+        Shadow shadow = card.gameObject.AddComponent<Shadow>();
+        shadow.effectColor = new Color(0f, 0f, 0f, .31f);
+        shadow.effectDistance = new Vector2(0f, -6f);
+        shadow.useGraphicAlpha = true;
+    }
+
+    private static RectTransform Rect(string name, Transform parent,
+        float x, float y, float width, float height)
+    {
+        RectTransform rect = WDHomeUIFactory.Rect(name, parent);
+        rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0f, 1f);
+        rect.anchoredPosition = new Vector2(x, -y);
+        rect.sizeDelta = new Vector2(width, height);
+        return rect;
+    }
+
+    private static void Place(RectTransform rect, float x, float y, float width, float height)
+    {
+        rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0f, 1f);
+        rect.anchoredPosition = new Vector2(x, -y);
+        rect.sizeDelta = new Vector2(width, height);
+    }
+
+    private static void PreserveAspect(RawImage image, AspectRatioFitter.AspectMode mode)
+    {
+        if (image?.texture == null) return;
+        AspectRatioFitter aspect = image.gameObject.AddComponent<AspectRatioFitter>();
+        aspect.aspectMode = mode;
+        aspect.aspectRatio = (float)image.texture.width / image.texture.height;
     }
 
     private static void Clear(Transform parent)
     {
-        for (int i = parent.childCount - 1; i >= 0; i--) DestroyNow(parent.GetChild(i).gameObject);
+        for (int i = parent.childCount - 1; i >= 0; i--)
+            DestroyNow(parent.GetChild(i).gameObject);
     }
 
     private static void DestroyNow(UnityEngine.Object value)
@@ -219,5 +441,11 @@ public sealed class WDHomeMissionsPanel : MonoBehaviour
         if (value == null) return;
         if (Application.isPlaying) UnityEngine.Object.Destroy(value);
         else UnityEngine.Object.DestroyImmediate(value);
+    }
+
+    private static Color C(string hex)
+    {
+        ColorUtility.TryParseHtmlString("#" + hex, out Color color);
+        return color;
     }
 }

@@ -253,9 +253,9 @@ public sealed class WDUIPremiumButton : MonoBehaviour,
         if (pressed && enabled) color = Color.Lerp(color, Color.black, 0.18f);
         background.color = color;
         transform.localScale = Vector3.one * (pressed && enabled ? 0.975f : 1f);
-        if (label != null) label.color = enabled
-            ? (useCustomLabelColor ? customLabelColor : theme.TextoPrincipal)
-            : theme.TextoSecundario;
+        if (label != null) label.color = useCustomLabelColor
+            ? customLabelColor
+            : enabled ? theme.TextoPrincipal : theme.TextoSecundario;
     }
 }
 

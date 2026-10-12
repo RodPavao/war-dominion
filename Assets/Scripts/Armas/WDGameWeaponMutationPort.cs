@@ -37,6 +37,8 @@ public interface IWDGameWeaponTerritoryMutationPort
 {
     WDGameWeaponMutationResult AddTroops(string mutationId, string territoryId, int amount);
     WDGameWeaponMutationResult RemoveTroops(string mutationId, string territoryId, int amount);
+    WDGameWeaponMutationResult MoveTroops(
+        string mutationId, string originTerritoryId, string targetTerritoryId, int amount);
     WDGameWeaponMutationResult MakeOccupied(
         string mutationId, string territoryId, string playerId, int troops);
     WDGameWeaponMutationResult MakeNeutral(string mutationId, string territoryId);
@@ -120,7 +122,8 @@ public sealed class WDWeaponInstallationRegistry
     {
         if (installation == null || string.IsNullOrWhiteSpace(installation.InstallationId) ||
             string.IsNullOrWhiteSpace(installation.WeaponId) ||
-            string.IsNullOrWhiteSpace(installation.TerritoryId))
+            string.IsNullOrWhiteSpace(installation.TerritoryId) ||
+            installation.WeaponId == WDTacticalWeaponIds.Radar)
             return WDGameWeaponMutationReason.InvalidInstallation;
         if (installations.ContainsKey(installation.InstallationId))
             return WDGameWeaponMutationReason.DuplicateInstallation;
@@ -139,8 +142,7 @@ public sealed class WDWeaponInstallationRegistry
         weaponId == WDStrategicWeaponIds.EnergyPlant ||
         weaponId == WDStrategicWeaponIds.Artillery ||
         weaponId == WDStrategicWeaponIds.Rockets ||
-        weaponId == WDSpecialWeaponIds.Drone ||
-        weaponId == WDTacticalWeaponIds.Radar;
+        weaponId == WDSpecialWeaponIds.Drone;
 
     internal void ApplyTerritoryLifecycle(
         string territoryId, string ownerPlayerId, WDWeaponTerritoryStateKind state)
@@ -156,8 +158,7 @@ public sealed class WDWeaponInstallationRegistry
                 else if (item.WeaponId == WDStrategicWeaponIds.EnergyPlant ||
                          item.WeaponId == WDStrategicWeaponIds.Rockets ||
                          item.WeaponId == WDStrategicWeaponIds.Artillery ||
-                         item.WeaponId == WDSpecialWeaponIds.Drone ||
-                         item.WeaponId == WDTacticalWeaponIds.Radar)
+                         item.WeaponId == WDSpecialWeaponIds.Drone)
                     item.Abandon();
             }
             else if (state == WDWeaponTerritoryStateKind.Neutral)
@@ -228,6 +229,40 @@ public sealed class WDGameWeaponMutationPort : IWDGameWeaponMutationPort
         return remaining == 0
             ? Apply(territoryId, string.Empty, 0, WDWeaponTerritoryStateKind.Empty, amount)
             : Apply(territoryId, territory.OwnerPlayerId, remaining, territory.State, amount);
+    });
+
+    public WDGameWeaponMutationResult MoveTroops(
+        string mutationId, string originTerritoryId, string targetTerritoryId,
+        int amount) => Execute(mutationId, () =>
+    {
+        if (string.IsNullOrWhiteSpace(originTerritoryId) ||
+            string.IsNullOrWhiteSpace(targetTerritoryId) ||
+            originTerritoryId == targetTerritoryId || amount <= 0)
+            return Fail(WDGameWeaponMutationReason.InvalidAmount);
+        WDGameWeaponTerritoryView origin = source.FindTerritory(originTerritoryId);
+        WDGameWeaponTerritoryView target = source.FindTerritory(targetTerritoryId);
+        if (origin == null || target == null)
+            return Fail(WDGameWeaponMutationReason.TerritoryNotFound);
+        if (origin.State != WDWeaponTerritoryStateKind.Occupied ||
+            target.State != WDWeaponTerritoryStateKind.Occupied ||
+            string.IsNullOrEmpty(origin.OwnerPlayerId) ||
+            string.IsNullOrEmpty(target.OwnerPlayerId) ||
+            origin.Troops - amount < 1)
+            return Fail(WDGameWeaponMutationReason.InsufficientTroops);
+
+        int originAfter = origin.Troops - amount;
+        int targetAfter = target.Troops + amount;
+        if (!source.TryApplyTerritory(originTerritoryId, origin.OwnerPlayerId,
+                originAfter, WDWeaponTerritoryStateKind.Occupied))
+            return Fail(WDGameWeaponMutationReason.InvalidState);
+        if (!source.TryApplyTerritory(targetTerritoryId, target.OwnerPlayerId,
+                targetAfter, WDWeaponTerritoryStateKind.Occupied))
+        {
+            source.TryApplyTerritory(originTerritoryId, origin.OwnerPlayerId,
+                origin.Troops, WDWeaponTerritoryStateKind.Occupied);
+            return Fail(WDGameWeaponMutationReason.InvalidState);
+        }
+        return Ok(amount);
     });
 
     public WDGameWeaponMutationResult MakeOccupied(

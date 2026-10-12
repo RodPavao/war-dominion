@@ -35,6 +35,448 @@ public static class WDHomeTypography
     }
 }
 
+public readonly struct WDHomeBackButtonContent
+{
+    public readonly Button Button;
+    public readonly Image Chevron;
+    public readonly TextMeshProUGUI Label;
+
+    public WDHomeBackButtonContent(Button button, Image chevron, TextMeshProUGUI label)
+    {
+        Button = button;
+        Chevron = chevron;
+        Label = label;
+    }
+}
+
+public static class WDHomeBackButtonFactory
+{
+    public const string CanonicalChevronPath = "UI/Clan/Canonical/icon_chevron_left";
+    public static readonly Vector2 CanonicalPosition = new Vector2(64f, 16f);
+    public static readonly Vector2 CanonicalSize = new Vector2(140f, 46f);
+    public static readonly Color CanonicalGold = new Color(.773f, .608f, .388f, 1f);
+    public static readonly Color CanonicalSurface = new Color(.106f, .114f, .133f, .70f);
+
+    public static WDHomeBackButtonContent BuildCanonical(Transform parent, UnityAction action)
+    {
+        RectTransform root = WDHomeUIFactory.Rect("Back", parent);
+        root.anchorMin = root.anchorMax = root.pivot = new Vector2(0f, 1f);
+        root.anchoredPosition = new Vector2(CanonicalPosition.x, -CanonicalPosition.y);
+        root.sizeDelta = CanonicalSize;
+        Image surface = root.gameObject.AddComponent<Image>();
+        surface.color = CanonicalSurface;
+        surface.raycastTarget = true;
+        WDHomeUIFactory.ApplyRounded(surface, 23);
+        WDHomeUIFactory.AddThinRoundedBorder(root, CanonicalGold, 23);
+        return Build(root, action, CanonicalGold, new Vector2(24f, 15f),
+            new Vector2(16f, 16f), new Vector2(48f, 7f), new Vector2(76f, 32f));
+    }
+
+    public static WDHomeBackButtonContent Build(RectTransform root, UnityAction action,
+        Color color, Vector2 iconPosition, Vector2 iconSize, Vector2 labelPosition,
+        Vector2 labelSize, float fontSize = 16f, float characterSpacing = 1.5f,
+        TextAlignmentOptions alignment = TextAlignmentOptions.Center)
+    {
+        Button button = root.GetComponent<Button>() ?? root.gameObject.AddComponent<Button>();
+        button.targetGraphic = root.GetComponent<Graphic>();
+        if (button.targetGraphic != null) button.targetGraphic.raycastTarget = true;
+        button.transition = Selectable.Transition.None;
+        button.onClick.RemoveAllListeners();
+        if (action != null) button.onClick.AddListener(action);
+
+        RectTransform iconRoot = WDHomeUIFactory.Rect("Chevron", root);
+        PlaceTop(iconRoot, iconPosition, iconSize);
+        Image icon = iconRoot.gameObject.AddComponent<Image>();
+        icon.sprite = Resources.Load<Sprite>(CanonicalChevronPath);
+        icon.color = color;
+        icon.preserveAspect = true;
+        icon.raycastTarget = false;
+
+        TextMeshProUGUI label = WDHomeUIFactory.Text("Label", root, null, "VOLTAR",
+            fontSize, color, alignment);
+        label.font = WDHomeTypography.Load("Gabarito-Black");
+        label.characterSpacing = characterSpacing;
+        label.fontStyle = FontStyles.Normal;
+        label.raycastTarget = false;
+        PlaceTop(label.rectTransform, labelPosition, labelSize);
+        return new WDHomeBackButtonContent(button, icon, label);
+    }
+
+    public static WDUIPremiumButton BuildPremium(RectTransform root, WarDominionUITheme theme,
+        UnityAction action, Color color, Vector2 iconPosition, Vector2 iconSize,
+        Vector2 labelPosition, Vector2 labelSize, float fontSize = 16f,
+        float characterSpacing = 1.5f)
+    {
+        WDUIPremiumButton premium = root.gameObject.AddComponent<WDUIPremiumButton>();
+        premium.Build(theme, "VOLTAR", action);
+        TextMeshProUGUI label = root.GetComponentInChildren<TextMeshProUGUI>();
+        label.font = WDHomeTypography.Load("Gabarito-Black");
+        label.fontSize = fontSize;
+        label.characterSpacing = characterSpacing;
+        label.fontStyle = FontStyles.Normal;
+        label.color = color;
+        label.alignment = TextAlignmentOptions.Center;
+        PlaceTop(label.rectTransform, labelPosition, labelSize);
+
+        RectTransform iconRoot = WDHomeUIFactory.Rect("Chevron", root);
+        PlaceTop(iconRoot, iconPosition, iconSize);
+        Image icon = iconRoot.gameObject.AddComponent<Image>();
+        icon.sprite = Resources.Load<Sprite>(CanonicalChevronPath);
+        icon.color = color;
+        icon.preserveAspect = true;
+        icon.raycastTarget = false;
+        return premium;
+    }
+
+    private static void PlaceTop(RectTransform rect, Vector2 position, Vector2 size)
+    {
+        rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0f, 1f);
+        rect.anchoredPosition = new Vector2(position.x, -position.y);
+        rect.sizeDelta = size;
+    }
+}
+
+// ============================================================
+// 00. HEADER UNIVERSAL PREMIUM TACTICAL
+// ============================================================
+public readonly struct WDUniversalHeaderContent
+{
+    public readonly RectTransform Root;
+    public readonly Button BackButton;
+    public readonly TextMeshProUGUI CoinValue;
+    public readonly TextMeshProUGUI GemValue;
+    public readonly Button NotificationButton;
+
+    public WDUniversalHeaderContent(RectTransform root, Button backButton,
+        TextMeshProUGUI coinValue, TextMeshProUGUI gemValue, Button notificationButton)
+    {
+        Root = root;
+        BackButton = backButton;
+        CoinValue = coinValue;
+        GemValue = gemValue;
+        NotificationButton = notificationButton;
+    }
+}
+
+public static class WDUniversalHeaderFactory
+{
+    public static WDUniversalHeaderContent BuildInset(Transform parent,
+        WarDominionUITheme theme, string title, UnityAction backAction,
+        UnityAction notificationAction)
+    {
+        if (theme == null) throw new System.ArgumentNullException(nameof(theme));
+        RectTransform root = WDHomeUIFactory.Rect("Header", parent);
+        PlaceTop(root, new Vector2(32f, 24f), new Vector2(1856f, 72f));
+        AddArsenalPanelSurface(root, theme);
+
+        // 00.1. Mesma árvore visual do Arsenal V2: superfície Master sem a
+        // borda circular legada do botão canônico da Home.
+        RectTransform backRoot = WDHomeUIFactory.Rect("Back", root);
+        PlaceTop(backRoot, new Vector2(24f, 13f), new Vector2(140f, 46f));
+        Image backSurface = backRoot.gameObject.AddComponent<Image>();
+        backSurface.sprite = theme.MasterRoundedFill;
+        backSurface.type = Image.Type.Sliced;
+        backSurface.color = theme.MasterSurfaceElevated;
+        backSurface.raycastTarget = true;
+        WDHomeBackButtonContent back = WDHomeBackButtonFactory.Build(backRoot,
+            backAction, theme.MasterGold, new Vector2(16f, 15f),
+            new Vector2(16f, 16f), new Vector2(8f, 7f),
+            new Vector2(124f, 32f), 14f);
+        back.Chevron.sprite = theme.MasterChevronLeftIcon;
+        back.Label.font = theme.MasterGabaritoBold ?? back.Label.font;
+        back.Label.margin = new Vector4(22f, 0f, 0f, 0f);
+        WDUniversalControlFactory.AddGoldOutline(backRoot, theme);
+
+        TextMeshProUGUI heading = WDHomeUIFactory.Text("Title", root,
+            theme, title, 34f, theme.MasterTextPrimary,
+            TextAlignmentOptions.Center);
+        heading.font = theme.MasterGabaritoBlack ?? heading.font;
+        heading.fontStyle = FontStyles.Normal;
+        heading.raycastTarget = false;
+        heading.rectTransform.anchorMin = heading.rectTransform.anchorMax =
+            heading.rectTransform.pivot = new Vector2(.5f, .5f);
+        heading.rectTransform.anchoredPosition = Vector2.zero;
+        heading.rectTransform.sizeDelta = new Vector2(500f, 48f);
+
+        RectTransform economy = WDHomeUIFactory.Rect("Economy", root);
+        economy.anchorMin = economy.anchorMax = economy.pivot = new Vector2(1f, .5f);
+        economy.anchoredPosition = new Vector2(-24f, 0f);
+        economy.sizeDelta = new Vector2(248f, 32f);
+        HorizontalLayoutGroup layout = economy.gameObject.AddComponent<HorizontalLayoutGroup>();
+        layout.spacing = 10f;
+        layout.childAlignment = TextAnchor.MiddleRight;
+        layout.childControlWidth = layout.childControlHeight = false;
+        layout.childForceExpandWidth = layout.childForceExpandHeight = false;
+
+        TextMeshProUGUI coins = BuildEconomyPill("Coins", economy, theme,
+            theme.MasterCoinIcon);
+        TextMeshProUGUI gems = BuildEconomyPill("Gems", economy, theme,
+            theme.MasterGemIcon);
+        Button bell = BuildBell(economy, theme, notificationAction);
+        return new WDUniversalHeaderContent(root, back.Button, coins, gems, bell);
+    }
+
+    private static TextMeshProUGUI BuildEconomyPill(string name, Transform parent,
+        WarDominionUITheme theme, Sprite iconSprite)
+    {
+        RectTransform root = WDHomeUIFactory.Rect(name, parent);
+        root.sizeDelta = new Vector2(96f, 32f);
+        Image surface = root.gameObject.AddComponent<Image>();
+        surface.sprite = theme.MasterRoundedFill;
+        surface.type = surface.sprite != null ? Image.Type.Sliced : Image.Type.Simple;
+        surface.color = theme.MasterSurfaceElevated;
+        surface.raycastTarget = false;
+        LayoutElement element = root.gameObject.AddComponent<LayoutElement>();
+        element.preferredWidth = 96f;
+        element.preferredHeight = 32f;
+        RectTransform iconRoot = WDHomeUIFactory.Rect("Icon", root);
+        iconRoot.anchorMin = iconRoot.anchorMax = iconRoot.pivot = new Vector2(0f, .5f);
+        iconRoot.anchoredPosition = new Vector2(12f, 0f);
+        iconRoot.sizeDelta = new Vector2(16f, 16f);
+        Image icon = iconRoot.gameObject.AddComponent<Image>();
+        icon.sprite = iconSprite;
+        icon.color = Color.white;
+        icon.preserveAspect = true;
+        icon.raycastTarget = false;
+        TextMeshProUGUI value = WDHomeUIFactory.Text("Value", root,
+            theme, "0", 15f, theme.MasterTextPrimary,
+            TextAlignmentOptions.Right);
+        value.font = theme.MasterGabaritoBold ?? value.font;
+        WDHomeUIFactory.Stretch(value.rectTransform, 32f, 4f, 8f, 4f);
+        value.raycastTarget = false;
+        WDUniversalControlFactory.AddGoldOutline(root, theme);
+        return value;
+    }
+
+    private static Button BuildBell(Transform parent, WarDominionUITheme theme,
+        UnityAction action)
+    {
+        RectTransform root = WDHomeUIFactory.Rect("NotificationCenter", parent);
+        root.sizeDelta = new Vector2(36f, 32f);
+        Image surface = root.gameObject.AddComponent<Image>();
+        surface.sprite = theme.MasterRoundedFill;
+        surface.type = surface.sprite != null ? Image.Type.Sliced : Image.Type.Simple;
+        surface.color = theme.MasterSurfaceElevated;
+        LayoutElement element = root.gameObject.AddComponent<LayoutElement>();
+        element.preferredWidth = 36f;
+        element.preferredHeight = 32f;
+        Button button = root.gameObject.AddComponent<Button>();
+        button.targetGraphic = surface;
+        button.transition = Selectable.Transition.None;
+        if (action != null) button.onClick.AddListener(action);
+        RectTransform iconRoot = WDHomeUIFactory.Rect("Bell", root);
+        iconRoot.anchorMin = iconRoot.anchorMax = iconRoot.pivot = new Vector2(.5f, .5f);
+        iconRoot.anchoredPosition = Vector2.zero;
+        iconRoot.sizeDelta = new Vector2(18f, 18f);
+        Image icon = iconRoot.gameObject.AddComponent<Image>();
+        icon.sprite = theme.MasterBellIcon;
+        icon.color = theme.MasterTextSecondary;
+        icon.preserveAspect = true;
+        icon.raycastTarget = false;
+        WDUniversalControlFactory.AddGoldOutline(root, theme);
+        return button;
+    }
+
+    private static void PlaceTop(RectTransform rect, Vector2 position, Vector2 size)
+    {
+        rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0f, 1f);
+        rect.anchoredPosition = new Vector2(position.x, -position.y);
+        rect.sizeDelta = size;
+    }
+
+    private static void AddArsenalPanelSurface(RectTransform root,
+        WarDominionUITheme theme)
+    {
+        Image surface = root.gameObject.AddComponent<Image>();
+        surface.sprite = theme.MasterRoundedFill;
+        surface.type = Image.Type.Sliced;
+        surface.color = new Color(9f / 255f, 14f / 255f, 19f / 255f, .91f);
+        surface.raycastTarget = true;
+        RectTransform borderRoot = WDHomeUIFactory.Rect("Border", root);
+        WDHomeUIFactory.Stretch(borderRoot);
+        Image border = borderRoot.gameObject.AddComponent<Image>();
+        border.sprite = theme.MasterRoundedOutline;
+        border.type = Image.Type.Sliced;
+        border.color = new Color(theme.MasterGold.r, theme.MasterGold.g,
+            theme.MasterGold.b, .24f);
+        border.raycastTarget = false;
+    }
+}
+
+// ============================================================
+// 00.2. SUPERFÍCIE EXTERNA COMPARTILHADA COM O ARSENAL V2
+// ============================================================
+public static class WDUniversalPanelFactory
+{
+    public static RectTransform Build(Transform parent, WarDominionUITheme theme,
+        string name, float x, float y, float width, float height,
+        float surfaceAlpha = .91f)
+    {
+        RectTransform root = WDHomeUIFactory.Rect(name, parent);
+        root.anchorMin = root.anchorMax = root.pivot = new Vector2(0f, 1f);
+        root.anchoredPosition = new Vector2(x, -y);
+        root.sizeDelta = new Vector2(width, height);
+        Image surface = root.gameObject.AddComponent<Image>();
+        surface.sprite = theme.MasterRoundedFill;
+        surface.type = Image.Type.Sliced;
+        surface.color = new Color(9f / 255f, 14f / 255f, 19f / 255f,
+            Mathf.Clamp01(surfaceAlpha));
+        surface.raycastTarget = true;
+        RectTransform borderRoot = WDHomeUIFactory.Rect("Border", root);
+        WDHomeUIFactory.Stretch(borderRoot);
+        Image border = borderRoot.gameObject.AddComponent<Image>();
+        border.sprite = theme.MasterRoundedOutline;
+        border.type = Image.Type.Sliced;
+        border.color = new Color(theme.MasterGold.r, theme.MasterGold.g,
+            theme.MasterGold.b, .24f);
+        border.raycastTarget = false;
+        return root;
+    }
+
+    // 00.3. A moldura deve ser o último Graphic do painel. Conteúdo interno
+    // encostado nas bordas não pode ocultar o traço externo de 1 px.
+    public static void BringOutlineToFront(RectTransform panel)
+    {
+        Transform border = panel != null ? panel.Find("Border") : null;
+        if (border != null) border.SetAsLastSibling();
+    }
+}
+
+// ============================================================
+// 00.4. CONTORNO UNIVERSAL DOS CONTROLES DE HEADER
+// ============================================================
+public static class WDUniversalControlFactory
+{
+    public static Image AddGoldOutline(RectTransform root,
+        WarDominionUITheme theme)
+    {
+        Transform existing = root.Find("Border");
+        Image border = existing != null ? existing.GetComponent<Image>() : null;
+        if (border == null)
+        {
+            RectTransform borderRoot = WDHomeUIFactory.Rect("Border", root);
+            WDHomeUIFactory.Stretch(borderRoot);
+            border = borderRoot.gameObject.AddComponent<Image>();
+        }
+        border.sprite = theme.MasterRoundedOutline;
+        border.type = Image.Type.Sliced;
+        border.color = new Color(theme.MasterGold.r, theme.MasterGold.g,
+            theme.MasterGold.b, .24f);
+        border.raycastTarget = false;
+        border.transform.SetAsLastSibling();
+        return border;
+    }
+}
+
+// ============================================================
+// 00. CONTRATOS DE CONTEUDO COMPARTILHADOS
+// ============================================================
+//
+// A validacao pertence aos dominios. Views apenas espelham estes valores para
+// oferecer feedback imediato, sem criar uma segunda autoridade.
+public static class WDUIContentContracts
+{
+    public const int NicknameMinLength = 3;
+    public const int NicknameMaxLength = 20;
+    public const int ClanNameMinLength = 3;
+    public const int ClanNameMaxLength = 30;
+    public const int ClanTagMinLength = 2;
+    public const int ClanTagMaxLength = 10;
+    public const int ClanDescriptionMaxLength = 200;
+    public const int DeckNameMaxLength = 24;
+    public const int ChatMessageMaxLength = 500;
+    public const int SearchMaxLength = 40;
+
+    public static bool IsValidNickname(string value) =>
+        value != null && value.Length >= NicknameMinLength &&
+        value.Length <= NicknameMaxLength;
+
+    public static bool IsValidClanName(string value) => IsTrimmedLengthInRange(
+        value, ClanNameMinLength, ClanNameMaxLength);
+
+    public static bool IsValidClanTag(string value) => IsTrimmedLengthInRange(
+        value, ClanTagMinLength, ClanTagMaxLength);
+
+    public static bool IsValidClanDescription(string value) =>
+        (value ?? string.Empty).Trim().Length <= ClanDescriptionMaxLength;
+
+    public static bool IsValidDeckName(string value) =>
+        !string.IsNullOrWhiteSpace(value) && value.Trim().Length <= DeckNameMaxLength;
+
+    public static bool IsValidChatMessage(string value) =>
+        !string.IsNullOrWhiteSpace(value) && value.Length <= ChatMessageMaxLength;
+
+    public static string NormalizeSearch(string value)
+    {
+        string normalized = value?.Trim() ?? string.Empty;
+        return normalized.Length <= SearchMaxLength
+            ? normalized : normalized.Substring(0, SearchMaxLength);
+    }
+
+    private static bool IsTrimmedLengthInRange(string value, int minimum, int maximum)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return false;
+        int length = value.Trim().Length;
+        return length >= minimum && length <= maximum;
+    }
+}
+
+public enum WDUITextPolicy
+{
+    FixedLabel,
+    SingleLineEllipsis,
+    BoundedWrap,
+    ScrollableBody
+}
+
+public static class WDUITextPolicies
+{
+    public const float MinimumReadableFontSize = 11f;
+
+    public static void Apply(TMP_Text text, WDUITextPolicy policy, int maximumLines = 0)
+    {
+        if (text == null) return;
+        text.enableAutoSizing = false;
+        text.maxVisibleLines = maximumLines > 0 ? maximumLines : 99999;
+        switch (policy)
+        {
+            case WDUITextPolicy.FixedLabel:
+                text.textWrappingMode = TextWrappingModes.NoWrap;
+                text.overflowMode = TextOverflowModes.Truncate;
+                break;
+            case WDUITextPolicy.SingleLineEllipsis:
+                text.textWrappingMode = TextWrappingModes.NoWrap;
+                text.overflowMode = TextOverflowModes.Ellipsis;
+                text.maxVisibleLines = 1;
+                break;
+            case WDUITextPolicy.BoundedWrap:
+                text.textWrappingMode = TextWrappingModes.Normal;
+                text.overflowMode = TextOverflowModes.Ellipsis;
+                break;
+            case WDUITextPolicy.ScrollableBody:
+                text.textWrappingMode = TextWrappingModes.Normal;
+                text.overflowMode = TextOverflowModes.Overflow;
+                break;
+        }
+    }
+}
+
+public static class WDNumberFormatter
+{
+    public static string Full(int value) => value.ToString("N0");
+
+    public static string CompactEconomy(int value)
+    {
+        long magnitude = value == int.MinValue ? (long)int.MaxValue + 1 : System.Math.Abs((long)value);
+        if (magnitude < 1000) return Full(value);
+        double divisor = magnitude >= 1000000 ? 1000000d : 1000d;
+        string suffix = magnitude >= 1000000 ? " mi" : " mil";
+        double scaled = value / divisor;
+        string pattern = System.Math.Abs(scaled) < 10d ? "0.##" : "0.#";
+        return scaled.ToString(pattern) + suffix;
+    }
+}
+
 public static class WDHomeMobileLayout
 {
     // 01. A plataforma e a orientação definem o perfil ergonômico; a proporção
@@ -107,9 +549,19 @@ public static class WDHomeMobileLayout
         if (back.sizeDelta != backSize) back.sizeDelta = backSize;
         if (label.rectTransform.sizeDelta != labelSize)
             label.rectTransform.sizeDelta = labelSize;
+        label.rectTransform.anchorMin = label.rectTransform.anchorMax =
+            label.rectTransform.pivot = new Vector2(.5f, .5f);
+        label.rectTransform.anchoredPosition = Vector2.zero;
         if (!Mathf.Approximately(label.fontSize, fontSize)) label.fontSize = fontSize;
         if (!Mathf.Approximately(label.characterSpacing, spacing))
             label.characterSpacing = spacing;
+        if (back.Find("Chevron") is RectTransform chevron)
+        {
+            float scale = mobile ? 1.625f : 1f;
+            chevron.anchorMin = chevron.anchorMax = chevron.pivot = new Vector2(0f, 1f);
+            chevron.anchoredPosition = new Vector2(17f * scale, -15f * scale);
+            chevron.sizeDelta = Vector2.one * (16f * scale);
+        }
     }
 
     // 03. As descrições recebem um ganho próprio de legibilidade, sem escalar
@@ -123,8 +575,16 @@ public static class WDHomeMobileLayout
 
 public static class WDHomeUIFactory
 {
+    public const float CanonicalCoinMinimum = 110f;
+    public const float CanonicalGemMinimum = 80f;
+    public const float CanonicalResourceSpacing = 16f;
+    public static readonly Color CanonicalResourceSurface =
+        new Color(.106f, .114f, .133f, .90f);
+    public static readonly Color CanonicalResourceBorder =
+        new Color(.773f, .608f, .388f, .20f);
     private static readonly Dictionary<int, Sprite> roundedSprites = new Dictionary<int, Sprite>();
     private static readonly Dictionary<int, Sprite> borderSprites = new Dictionary<int, Sprite>();
+    private static readonly Dictionary<int, Sprite> thinBorderSprites = new Dictionary<int, Sprite>();
 
     // ============================================================
     // 00. SUPERFICIES ARREDONDADAS REUTILIZAVEIS DA HOME
@@ -210,8 +670,81 @@ public static class WDHomeUIFactory
         return border;
     }
 
+    public static Image AddThinRoundedBorder(RectTransform target, Color color, int radius)
+    {
+        radius = Mathf.Clamp(radius, 4, 140);
+        if (!thinBorderSprites.TryGetValue(radius, out Sprite sprite))
+        {
+            int size = radius * 2 + 4;
+            var texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            texture.name = "WDHomeThinBorder_" + radius;
+            texture.hideFlags = HideFlags.DontSave;
+            var pixels = new Color32[size * size];
+            float half = size * 0.5f;
+            const float thickness = 1f;
+            for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                float ax = Mathf.Abs(x + 0.5f - half);
+                float ay = Mathf.Abs(y + 0.5f - half);
+                float outerDx = Mathf.Max(0f, ax - (half - radius));
+                float outerDy = Mathf.Max(0f, ay - (half - radius));
+                float outer = Mathf.Clamp01(radius + 0.5f -
+                    Mathf.Sqrt(outerDx * outerDx + outerDy * outerDy));
+                float innerRadius = radius - thickness;
+                float innerDx = Mathf.Max(0f, ax - (half - radius - thickness));
+                float innerDy = Mathf.Max(0f, ay - (half - radius - thickness));
+                float inner = Mathf.Clamp01(innerRadius + 0.5f -
+                    Mathf.Sqrt(innerDx * innerDx + innerDy * innerDy));
+                pixels[y * size + x] = new Color32(255, 255, 255,
+                    (byte)Mathf.RoundToInt(outer * (1f - inner) * 255f));
+            }
+            texture.SetPixels32(pixels);
+            texture.Apply(false, true);
+            float edge = radius + 1f;
+            sprite = Sprite.Create(texture, new Rect(0f, 0f, size, size),
+                new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect,
+                new Vector4(edge, edge, edge, edge));
+            sprite.hideFlags = HideFlags.DontSave;
+            thinBorderSprites.Add(radius, sprite);
+        }
+        Image border = Image("ThinBorder", target, color);
+        Stretch(border.rectTransform);
+        border.sprite = sprite;
+        border.type = UnityEngine.UI.Image.Type.Sliced;
+        border.raycastTarget = false;
+        return border;
+    }
+
+    // 00.1.1. Campos realmente editáveis compartilham o caret nativo e um
+    // único estado de foco discreto; nenhum cursor visual paralelo é criado.
+    public static void ConfigureEditableInputVisuals(TMP_InputField input,
+        Graphic targetGraphic, Image focusBorder, Color idleBorder, Color focusColor)
+    {
+        if (input == null) return;
+        input.interactable = true;
+        input.readOnly = false;
+        input.onFocusSelectAll = false;
+        input.customCaretColor = true;
+        input.caretColor = focusColor;
+        input.caretWidth = 2;
+        input.caretBlinkRate = 0.55f;
+        input.selectionColor = new Color(focusColor.r, focusColor.g, focusColor.b, 0.28f);
+        input.targetGraphic = targetGraphic;
+        input.navigation = Navigation.defaultNavigation;
+        if (input.textComponent != null)
+            input.textComponent.raycastTarget = false;
+        if (input.placeholder is Graphic placeholder)
+            placeholder.raycastTarget = false;
+        if (focusBorder == null) return;
+        focusBorder.color = idleBorder;
+        input.onSelect.AddListener(_ => focusBorder.color = focusColor);
+        input.onDeselect.AddListener(_ => focusBorder.color = idleBorder);
+    }
+
     // 00.2. A largura do recurso vem do texto efetivo e mantém ícone, espaçamento e padding.
-    public static float FitResourcePill(TextMeshProUGUI value, float minimumWidth)
+    public static float FitResourcePill(TextMeshProUGUI value, float minimumWidth,
+        float maximumWidth = float.PositiveInfinity)
     {
         RectTransform pill = (RectTransform)value.transform.parent;
         RectTransform icon = pill.Find("Icon") as RectTransform;
@@ -222,7 +755,7 @@ public static class WDHomeUIFactory
         float iconWidth = icon.rect.width > 0f ? icon.rect.width : icon.sizeDelta.x;
         float textWidth = Mathf.Ceil(value.GetPreferredValues(value.text).x) + 4f;
         float textLeft = left + iconWidth + spacing;
-        float width = Mathf.Max(minimumWidth, textLeft + textWidth + right);
+        float width = Mathf.Clamp(textLeft + textWidth + right, minimumWidth, maximumWidth);
         pill.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, width);
         icon.anchorMin = icon.anchorMax = new Vector2(0f, 0.5f);
         icon.pivot = new Vector2(0.5f, 0.5f);
@@ -237,6 +770,23 @@ public static class WDHomeUIFactory
         return width;
     }
 
+    // 00.2.1. Economia usa valor completo enquanto cabe. Somente a superfície
+    // compacta passa à abreviação, sem modificar o valor mantido pelo domínio.
+    public static void SetResourcePillValue(TextMeshProUGUI value, int amount,
+        float minimumWidth, float maximumWidth)
+    {
+        if (value == null) return;
+        value.text = WDNumberFormatter.Full(amount);
+        RectTransform icon = value.transform.parent.Find("Icon") as RectTransform;
+        float iconWidth = icon != null && icon.rect.width > 0f ? icon.rect.width
+            : icon != null ? icon.sizeDelta.x : 0f;
+        float required = 12f + iconWidth + 10f +
+            Mathf.Ceil(value.GetPreferredValues(value.text).x) + 4f + 12f;
+        if (required > maximumWidth)
+            value.text = WDNumberFormatter.CompactEconomy(amount);
+        FitResourcePill(value, minimumWidth, maximumWidth);
+    }
+
     // 00.3. Uma única autoridade posiciona os três irmãos a partir da borda direita.
     public static void LayoutResourceGroup(
         TextMeshProUGUI coins, TextMeshProUGUI emeralds,
@@ -244,8 +794,8 @@ public static class WDHomeUIFactory
         float spacing = 16f)
     {
         if (coins == null || emeralds == null || notification == null) return;
-        float emeraldWidth = FitResourcePill(emeralds, emeraldMinimum);
-        FitResourcePill(coins, coinMinimum);
+        float emeraldWidth = FitResourcePill(emeralds, emeraldMinimum, 150f);
+        FitResourcePill(coins, coinMinimum, 180f);
         float notificationLeft = notification.anchoredPosition.x -
             notification.pivot.x * notification.rect.width;
         float centerY = notification.anchoredPosition.y +
@@ -301,6 +851,74 @@ public static class WDHomeUIFactory
         text.textWrappingMode = TextWrappingModes.Normal;
         text.raycastTarget = false;
         return text;
+    }
+
+    public static TextMeshProUGUI BuildFixedResourcePill(string name, Transform parent,
+        Texture2D iconTexture, Vector2 size, Color surfaceColor, Color borderColor,
+        int radius, Vector2 iconPosition, Vector2 iconSize, Vector2 valuePosition,
+        Vector2 valueSize, float valueFontSize, Color valueColor,
+        TextAlignmentOptions valueAlignment, out RectTransform pill)
+    {
+        pill = Rect(name, parent);
+        pill.sizeDelta = size;
+        Image surface = pill.gameObject.AddComponent<Image>();
+        surface.color = surfaceColor;
+        surface.raycastTarget = true;
+        ApplyRounded(surface, radius);
+        if (borderColor.a > 0f)
+            AddThinRoundedBorder(pill, borderColor, radius);
+
+        RectTransform iconRect = Rect("Icon", pill);
+        iconRect.anchorMin = iconRect.anchorMax = iconRect.pivot = new Vector2(0f, 1f);
+        iconRect.anchoredPosition = new Vector2(iconPosition.x, -iconPosition.y);
+        iconRect.sizeDelta = iconSize;
+        RawImage icon = iconRect.gameObject.AddComponent<RawImage>();
+        icon.texture = iconTexture;
+        icon.raycastTarget = false;
+
+        TextMeshProUGUI value = Text("Value", pill, null, "0", valueFontSize,
+            valueColor, valueAlignment);
+        value.font = WDHomeTypography.Load("Gabarito-Bold");
+        value.rectTransform.anchorMin = value.rectTransform.anchorMax =
+            value.rectTransform.pivot = new Vector2(0f, 1f);
+        value.rectTransform.anchoredPosition = new Vector2(valuePosition.x, -valuePosition.y);
+        value.rectTransform.sizeDelta = valueSize;
+        return value;
+    }
+
+    public static TextMeshProUGUI BuildCanonicalResourcePill(string name, Transform parent,
+        string iconName, float width, out RectTransform pill)
+    {
+        float iconSize = iconName == "Coin" ? 10f : 16f;
+        return BuildFixedResourcePill(name, parent,
+            Resources.Load<Texture2D>("UI/Home/FigmaPhase1A/" + iconName),
+            new Vector2(width, 40f), CanonicalResourceSurface, CanonicalResourceBorder, 20,
+            new Vector2(24f, (40f - iconSize) * .5f), new Vector2(iconSize, iconSize),
+            new Vector2(42f, 6f), new Vector2(width - 52f, 28f), 16f,
+            new Color(.961f, .965f, .973f, 1f), TextAlignmentOptions.Right, out pill);
+    }
+
+    public static RectTransform BuildCanonicalNotification(Transform parent, UnityAction action)
+    {
+        RectTransform root = Rect("NotificationCenter", parent);
+        root.sizeDelta = new Vector2(48f, 48f);
+        Image surface = root.gameObject.AddComponent<Image>();
+        surface.color = CanonicalResourceSurface;
+        surface.raycastTarget = true;
+        ApplyRounded(surface, 24);
+        AddThinRoundedBorder(root, CanonicalResourceBorder, 24);
+        Button button = root.gameObject.AddComponent<Button>();
+        button.targetGraphic = surface;
+        button.transition = Selectable.Transition.None;
+        if (action != null) button.onClick.AddListener(action);
+        RectTransform iconRect = Rect("Bell", root);
+        iconRect.anchorMin = iconRect.anchorMax = iconRect.pivot = new Vector2(.5f, .5f);
+        iconRect.anchoredPosition = Vector2.zero;
+        iconRect.sizeDelta = new Vector2(20f, 20f);
+        RawImage icon = iconRect.gameObject.AddComponent<RawImage>();
+        icon.texture = Resources.Load<Texture2D>("UI/Home/FigmaPhase1A/Bell");
+        icon.raycastTarget = false;
+        return root;
     }
 
     public static void Stretch(RectTransform rect, float left = 0f, float bottom = 0f, float right = 0f, float top = 0f)

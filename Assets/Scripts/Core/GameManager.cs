@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -386,12 +386,6 @@ public class GameManager : MonoBehaviour
                 gameObject.AddComponent<GerenciadorRodada>();
         }
 
-        HUDPreparacao hudLegado = GetComponent<HUDPreparacao>();
-        if (hudLegado == null)
-            hudLegado = gameObject.AddComponent<HUDPreparacao>();
-        // 01. A apresentação IMGUI está aposentada; seus comandos permanecem no GameManager.
-        hudLegado.enabled = false;
-
         MatchUIPresenter matchUIPresenter =
             GetComponent<MatchUIPresenter>();
 
@@ -428,7 +422,11 @@ public class GameManager : MonoBehaviour
         DistribuidorTerritorios distribuidor =
             FindAnyObjectByType<DistribuidorTerritorios>();
         if (distribuidor != null)
+        {
             distribuidor.GarantirDistribuicaoInicial();
+            // Configuração impossível não pode iniciar uma partida parcialmente distribuída.
+            if (!distribuidor.DistribuicaoInicialExecutada) yield break;
+        }
         else
             AplicarParticipantesDoMatchSetupAoTabuleiro();
         InicializarRandomCards();
@@ -591,6 +589,7 @@ public class GameManager : MonoBehaviour
     private void LiberarEIniciarPartida()
     {
         bloqueioInicioPartida = false;
+        uiCompositionRoot?.SincronizarBloqueioEntrada();
         gerenciadorRodada.IniciarPartida();
     }
 
@@ -869,23 +868,25 @@ public class GameManager : MonoBehaviour
             ? weaponPreparation.GetEligibleInfiltratorWeapons(playerId, opponentPlayerId)
             : System.Array.Empty<WDInfiltratorWeaponTarget>();
 
-    public WDRadarUseResult UsarRadarDurantePreparacao(string commandId,
-        string playerId, string installationId, string targetTerritoryId)
+    // Radar é uma ação tática direta. Programação, execução imediata e compromisso
+    // irreversível compartilham a mesma ação canônica, sem instalação intermediária.
+    public WDRadarUseResult UsarRadarDurantePreparacao(
+        string playerId, string targetTerritoryId)
     {
         if (!PodeEditarPreparacao || weaponPreparation == null ||
             weaponExecutionCoordinator == null)
             return new WDRadarUseResult(WDRadarUseStatus.Invalid);
-        WDRadarUseResult result = weaponExecutionCoordinator.UseRadarDuringPreparation(commandId, playerId,
-            installationId, targetTerritoryId,
-            weaponPreparation.GetRoundActions(RodadaAtual));
+        WDWeaponProgrammingResult programming = ProgramarArma(
+            new WDWeaponProgrammingRequest(playerId, WDTacticalWeaponIds.Radar,
+                targetTerritoryId: targetTerritoryId));
+        if (!programming.Succeeded)
+            return new WDRadarUseResult(WDRadarUseStatus.Invalid);
+        WDRadarUseResult result = weaponExecutionCoordinator.UseRadarDuringPreparation(
+            programming.Action.ActionId, programming.Action);
         if (result.Status == WDRadarUseStatus.Used)
-        {
-            WDWeaponAction radarAction = weaponPreparation.GetRoundActions(RodadaAtual)
-                .FirstOrDefault(item => item.WeaponId == WDTacticalWeaponIds.Radar &&
-                    item.AuthorPlayerId == playerId && item.InstallationId == installationId);
-            if (radarAction != null)
-                weaponPreparation.MarkIrreversible(radarAction.ActionId);
-        }
+            weaponPreparation.MarkIrreversible(programming.Action.ActionId);
+        else
+            CancelarAcaoArma(playerId, programming.Action.ActionId);
         return result;
     }
 
@@ -1095,6 +1096,8 @@ public class GameManager : MonoBehaviour
         }
 
         modoAcao = ModoAcao.Transferir;
+        GetComponent<WDWeaponMatchUIController>()?.CancelSelection();
+        GetComponentInChildren<WDMatchInformationalOverlayController>(true)?.CancelTacticalSelection();
         CancelarSelecaoTransferencia();
         CancelarSelecaoAtual();
         IReadOnlyList<TerritorioClique.Dono> destinatarios =
@@ -1172,7 +1175,7 @@ public class GameManager : MonoBehaviour
 
         WDMatchInformationalOverlayController informational =
             GetComponentInChildren<WDMatchInformationalOverlayController>(true);
-        if (informational != null && informational.HandleTerritory(territorio.idTerritorio))
+        if (!EmModoTransferencia && informational != null && informational.HandleTerritory(territorio.idTerritorio))
             return;
 
         if (EmSelecaoInicial)
@@ -1184,16 +1187,35 @@ public class GameManager : MonoBehaviour
         if (!PodeEditarPreparacao)
             return;
 
-        WDWeaponMatchUIController weaponUI = GetComponent<WDWeaponMatchUIController>();
-        if (weaponUI != null && weaponUI.HandleTerritory(territorio.idTerritorio))
+        // Transferência é o modo master; seleção de arma não pode consumir este toque.
+        if (modoAcao == ModoAcao.Transferir)
         {
+            ClicarTerritorioTransferencia(territorio);
             GetComponent<MatchUIPresenter>()?.SolicitarSnapshotAtual();
             return;
         }
 
-        if (modoAcao == ModoAcao.Transferir)
+        WDWeaponMatchUIController weaponUI = GetComponent<WDWeaponMatchUIController>();
+        WDWeaponHudSelectionStage weaponStage = weaponUI != null
+            ? weaponUI.Stage : WDWeaponHudSelectionStage.None;
+        bool selectingAirTransport = weaponUI != null &&
+            weaponUI.SelectedWeaponId == WDSupportWeaponIds.AirTransport;
+        bool selectingInstallation = weaponUI != null &&
+            WDInstallationHubFormatter.IsCanonicalInstallation(weaponUI.SelectedWeaponId);
+        if (weaponUI != null && weaponUI.HandleTerritory(territorio.idTerritorio))
         {
-            ClicarTerritorioTransferencia(territorio);
+            if (selectingAirTransport && weaponUI.LastTerritorySelectionAccepted &&
+                (weaponStage == WDWeaponHudSelectionStage.Origin ||
+                 weaponStage == WDWeaponHudSelectionStage.TargetTerritory))
+                AtualizarHighlightsPreparacao();
+            // O gesto aceito usa a linguagem canônica de seleção e já inicia a
+            // volta ao estado normal. A ação programada permanece na fila.
+            if (selectingInstallation && !weaponUI.IsSelecting)
+            {
+                territorio.DestacarSelecao();
+                territorio.RemoverDestaqueSelecao();
+            }
+            GetComponent<MatchUIPresenter>()?.SolicitarSnapshotAtual();
             return;
         }
 
@@ -1459,21 +1481,15 @@ public class GameManager : MonoBehaviour
         IReadOnlyList<TerritorioClique.Dono> destinatarios =
             ObterDestinatariosTransferencia();
 
-        if (destinatarios.Contains(destinatarioTransferenciaSelecionado))
-        {
-            TentarPrepararTransferenciaPara(destinatarioTransferenciaSelecionado);
-            return;
-        }
-
-        if (destinatarios.Count > 1)
-        {
-            feedbackTransferencia = "Escolha o aliado antes de selecionar o território.";
-            territorioTransferenciaSelecionado = null;
-            AtualizarHighlightsPreparacao();
-            return;
-        }
-
-        feedbackTransferencia = "Transferência indisponível: nenhum aliado encontrado.";
+        // Seleção nunca programa. A mesma autoridade registra somente na confirmação.
+        if (destinatarios.Count == 1)
+            destinatarioTransferenciaSelecionado = destinatarios[0];
+        feedbackTransferencia = destinatarios.Count == 0
+            ? "Transferência indisponível: nenhum aliado encontrado."
+            : destinatarios.Contains(destinatarioTransferenciaSelecionado)
+                ? "Confirme a transferência do território selecionado."
+                : "Escolha o aliado destinatário.";
+        if (destinatarios.Count == 0) territorioTransferenciaSelecionado = null;
         AtualizarHighlightsPreparacao();
     }
 
@@ -1518,7 +1534,9 @@ public class GameManager : MonoBehaviour
         }
 
         destinatarioTransferenciaSelecionado = jogador;
-        feedbackTransferencia = $"Destinatário: {jogador}. Selecione um território seu.";
+        feedbackTransferencia = territorioTransferenciaSelecionado == null
+            ? $"Destinatário: {jogador}. Selecione um território seu."
+            : "Confirme a transferência do território selecionado.";
     }
 
     private void TentarPrepararTransferenciaPara(
@@ -1805,10 +1823,49 @@ public class GameManager : MonoBehaviour
             TerritorioClique.Dono owner = participant == null
                 ? TerritorioClique.Dono.Neutro
                 : (TerritorioClique.Dono)(participant.SlotIndex + 1);
-            events.Add(ResolutionVisualEvent.WeaponCard(owner, entry.WeaponId,
-                entry.WeaponStatus.Value.ToString()));
+            bool installationWeapon =
+                WDInstallationHubFormatter.IsCanonicalInstallation(entry.WeaponId);
+            WDAirTransportResolutionSnapshot transport = entry.WeaponId ==
+                WDSupportWeaponIds.AirTransport
+                ? weaponRoundRuntime?.FindAirTransport(entry.StableId) : null;
+            if (transport != null && entry.WeaponStatus.Value ==
+                    WDIntegratedWeaponExecutionStatus.Executed)
+            {
+                TerritorioClique.Dono destinationOwner = ResolverDonoParticipante(
+                    transport.DestinationOwnerPlayerId);
+                events.Add(ResolutionVisualEvent.AirTransportMovement(owner,
+                    transport.OriginTerritoryId, transport.DestinationTerritoryId,
+                    transport.Amount, transport.OriginBefore, transport.OriginAfter,
+                    transport.DestinationBefore, transport.DestinationAfter,
+                    destinationOwner, transport.InstallationId));
+                continue;
+            }
+            // Instalações usam o evento territorial estruturado abaixo. O card
+            // textual genérico expunha WeaponId/status em inglês por um frame.
+            if (!installationWeapon)
+                events.Add(ResolutionVisualEvent.WeaponCard(owner, entry.WeaponId,
+                    entry.WeaponStatus.Value.ToString()));
+            WDWeaponAction action = result.FrozenActions.FirstOrDefault(item =>
+                item.ActionId == entry.StableId);
+            WDWeaponInstallationState installed = action == null ||
+                entry.WeaponStatus.Value != WDIntegratedWeaponExecutionStatus.Executed ||
+                !WDInstallationHubFormatter.IsCanonicalInstallation(entry.WeaponId)
+                ? null : weaponInstallationRegistry?.Find(action.InstallationId);
+            if (installed != null && installed.WeaponId == entry.WeaponId &&
+                installed.TerritoryId == action.TargetTerritoryId)
+                events.Add(ResolutionVisualEvent.InstallationImplemented(owner,
+                    installed.WeaponId, installed.TerritoryId,
+                    installed.InstallationId));
         }
         return events;
+    }
+
+    private TerritorioClique.Dono ResolverDonoParticipante(string playerId)
+    {
+        WDMatchParticipant participant = MatchSetupAtual?.Participants
+            .FirstOrDefault(item => item.PlayerId == playerId);
+        return participant == null ? TerritorioClique.Dono.Neutro
+            : (TerritorioClique.Dono)(participant.SlotIndex + 1);
     }
 
     // =====================================================
@@ -2036,7 +2093,18 @@ public class GameManager : MonoBehaviour
         foreach (TerritorioClique territorio in MapaAtivo.ObterTerritoriosOuCena())
         {
             if (DeveManterHighlight(territorio))
+            {
                 territorio.DestacarSelecao();
+                WDWeaponMatchUIController weaponUI =
+                    GetComponent<WDWeaponMatchUIController>();
+                bool airTransportRoute = weaponUI != null &&
+                    weaponUI.SelectedWeaponId == WDSupportWeaponIds.AirTransport &&
+                    (territorio.idTerritorio == weaponUI.CurrentOriginId ||
+                     territorio.idTerritorio == weaponUI.CurrentTargetId);
+                if (airTransportRoute)
+                    territorio.GetComponent<TerritorioVisual>()?
+                        .SetTransferConfirmationHighlight(true);
+            }
             else
                 territorio.RemoverDestaqueSelecao();
         }
@@ -2059,8 +2127,17 @@ public class GameManager : MonoBehaviour
             territorio == territorioTransferenciaSelecionado)
             return true;
 
+        WDWeaponMatchUIController weaponUI = GetComponent<WDWeaponMatchUIController>();
+        if (weaponUI != null &&
+            weaponUI.SelectedWeaponId == WDSupportWeaponIds.AirTransport &&
+            (territorio.idTerritorio == weaponUI.CurrentOriginId ||
+             territorio.idTerritorio == weaponUI.CurrentTargetId))
+            return true;
+
         return false;
     }
+
+    public void SincronizarHighlightsPreparacao() => AtualizarHighlightsPreparacao();
 
 #if UNITY_EDITOR
     // =====================================================

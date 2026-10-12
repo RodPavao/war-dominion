@@ -572,50 +572,59 @@ public sealed class WDWeaponExecutionCoordinatorTests
         AssertRuntime("p3", WDStrategicWeaponIds.Peace, 200, 3, 0);
     }
 
-    [Test]
-    public void RadarPreparationUseIsPrivateIdempotentAndRemovedAfterReveal()
+    [TestCase("enemy")]
+    [TestCase("neutral")]
+    [TestCase("empty")]
+    public void RadarPreparationUseIsDirectPrivateIdempotentAndCreatesNoInstallation(
+        string territoryId)
     {
-        var radar = new WDWeaponInstallationState("radar-live", WDTacticalWeaponIds.Radar,
-            "owned", "p1", 0, 0, 1, 0, 1, true, 0);
-        Assert.That(mutations.Install("install-radar-fixture", radar).Succeeded, Is.True);
+        WDWeaponAction radar = Action(WDTacticalWeaponIds.Radar, territoryId);
 
         WDRadarUseResult first = coordinator.UseRadarDuringPreparation(
-            "scan-1", "p1", radar.InstallationId, "enemy", Array.Empty<WDWeaponAction>());
+            radar.ActionId, radar);
         WDRadarUseResult duplicate = coordinator.UseRadarDuringPreparation(
-            "scan-1", "p1", radar.InstallationId, "enemy", Array.Empty<WDWeaponAction>());
+            radar.ActionId, radar);
 
         Assert.That(first.Status, Is.EqualTo(WDRadarUseStatus.Used));
         Assert.That(first.Reveal.CanBeReadBy("p1"), Is.True);
         Assert.That(first.Reveal.CanBeReadBy("p2"), Is.False);
         Assert.That(duplicate.Status, Is.EqualTo(WDRadarUseStatus.AlreadyProcessed));
-        Assert.That(registry.Find(radar.InstallationId), Is.Null);
+        Assert.That(registry.GetAll().Any(item =>
+            item.WeaponId == WDTacticalWeaponIds.Radar), Is.False);
+        AssertRuntime("p1", WDTacticalWeaponIds.Radar, 175, 3, 1);
+        Assert.That(coordinator.Execute(radar).Status,
+            Is.EqualTo(WDIntegratedWeaponExecutionStatus.AlreadyProcessed),
+            "A Resolution não pode executar uma segunda leitura nem cobrar novamente.");
+        AssertRuntime("p1", WDTacticalWeaponIds.Radar, 175, 3, 1);
 
         source.CurrentRound = 2;
         roundState.BeginRound(2);
-        Assert.That(roundState.GetRadarResult("scan-1", "p1"), Is.Null);
+        Assert.That(roundState.GetRadarResult(radar.ActionId, "p1"), Is.Null);
     }
 
     [Test]
-    public void RadarInstalledThisRoundScansRegardlessOfProgrammedSniper()
+    public void RadarDirectScanIgnoresTerritorialSniperAndPeace()
     {
-        var newRadar = new WDWeaponInstallationState("radar-new", WDTacticalWeaponIds.Radar,
-            "owned", "p1", 0, 0, 1, 0, 1, true, 1);
-        Assert.That(mutations.Install("install-radar-new", newRadar).Succeeded, Is.True);
-        Assert.That(coordinator.UseRadarDuringPreparation("scan-new", "p1", "radar-new",
-            "enemy", Array.Empty<WDWeaponAction>()).Status,
-            Is.EqualTo(WDRadarUseStatus.Used));
-
-        mutations.RemoveInstallation("remove-new", "radar-new");
-        var oldRadar = new WDWeaponInstallationState("radar-old", WDTacticalWeaponIds.Radar,
-            "owned", "p1", 0, 0, 1, 0, 1, true, 0);
-        Assert.That(mutations.Install("install-radar-old", oldRadar).Succeeded, Is.True);
-        WDWeaponAction sniper = Action(WDTacticalWeaponIds.Sniper, "owned", "p3");
-        WDRadarUseResult result = coordinator.UseRadarDuringPreparation(
-            "scan-with-sniper", "p1", "radar-old", "enemy", new[] { sniper });
+        roundState.BlockOrigin("owned");
+        roundState.EstablishPeace("p1", "p3");
+        WDWeaponAction radar = Action(WDTacticalWeaponIds.Radar, "enemy");
+        WDRadarUseResult result = coordinator.UseRadarDuringPreparation(radar.ActionId, radar);
         Assert.That(result.Status, Is.EqualTo(WDRadarUseStatus.Used));
         Assert.That(result.Reveal.CanBeReadBy("p1"), Is.True);
-        Assert.That(oldRadar.ChargesRemaining, Is.Zero);
-        Assert.That(registry.Find("radar-old"), Is.Null);
+        Assert.That(registry.GetAll().Any(item =>
+            item.WeaponId == WDTacticalWeaponIds.Radar), Is.False);
+    }
+
+    [TestCase("owned")]
+    [TestCase("ally")]
+    public void RadarDirectScanRejectsOwnAndAlliedTerritories(string territoryId)
+    {
+        WDWeaponAction radar = Action(WDTacticalWeaponIds.Radar, territoryId);
+
+        Assert.That(coordinator.UseRadarDuringPreparation(radar.ActionId, radar).Status,
+            Is.EqualTo(WDRadarUseStatus.Invalid));
+        AssertRuntime("p1", WDTacticalWeaponIds.Radar, 200, 0, 0);
+        Assert.That(roundState.GetRadarResult(radar.ActionId, "p1"), Is.Null);
     }
 
     [Test]
@@ -664,17 +673,15 @@ public sealed class WDWeaponExecutionCoordinatorTests
     {
         var flak = new WDWeaponInstallationState("enemy-flak", WDSupportWeaponIds.FlakTower,
             "enemy", "p3", 3, 0, 0, 0, 4, true, 0);
-        var radar = new WDWeaponInstallationState("radar-cover", WDTacticalWeaponIds.Radar,
-            "owned", "p1", 0, 0, 1, 0, 1, true, 0);
         Assert.That(mutations.Install("install-enemy-flak", flak).Succeeded, Is.True);
-        Assert.That(mutations.Install("install-radar-cover", radar).Succeeded, Is.True);
+        WDWeaponAction radar = Action(WDTacticalWeaponIds.Radar, "enemy");
 
-        WDRadarUseResult result = coordinator.UseRadarDuringPreparation("scan-cover",
-            "p1", radar.InstallationId, "enemy", Array.Empty<WDWeaponAction>());
+        WDRadarUseResult result = coordinator.UseRadarDuringPreparation(
+            radar.ActionId, radar);
 
         Assert.That(result.Status, Is.EqualTo(WDRadarUseStatus.Used));
         Assert.That(result.Reveal.HasFlakCoverage, Is.True);
-        Assert.That(roundState.GetRadarResult("scan-cover", "p2"), Is.Null);
+        Assert.That(roundState.GetRadarResult(radar.ActionId, "p2"), Is.Null);
     }
 
     [Test]
@@ -968,7 +975,6 @@ public sealed class WDWeaponExecutionCoordinatorTests
     [TestCase(WDStrategicWeaponIds.Artillery, 0, 0, 5, 0)]
     [TestCase(WDStrategicWeaponIds.Rockets, 0, 0, 2, 0)]
     [TestCase(WDSpecialWeaponIds.Drone, 0, 0, 2, 0)]
-    [TestCase(WDTacticalWeaponIds.Radar, 0, 0, 1, 0)]
     public void AirTransportPreservesCanonicalInstallationState(
         string weaponId, int duration, int barrier, int charges, int payments)
     {
@@ -1014,21 +1020,10 @@ public sealed class WDWeaponExecutionCoordinatorTests
     }
 
     [Test]
-    public void RadarHistoryRemainsPrivateAfterUnusedRadarIsTransported()
+    public void RadarIsNotAnAirTransportInstallation()
     {
-        var radar = new WDWeaponInstallationState("moving-radar", WDTacticalWeaponIds.Radar,
-            "owned", "p1", 0, 0, 1, 0, 1, true, 0);
-        Assert.That(mutations.Install("moving-radar-fixture", radar).Succeeded, Is.True);
-        Assert.That(roundState.StoreRadarResult(new WDRadarRevealResult(
-            1, "enemy", true, "p1", "historic-scan")), Is.True);
-
-        AssertExecuted(Action(WDSupportWeaponIds.AirTransport, "ally", origin: "owned",
-            installationId: radar.InstallationId,
-            parameters: new[] { new WDWeaponActionParameter("troops", "1") }));
-
-        Assert.That(radar.OwnerPlayerId, Is.EqualTo("p2"));
-        Assert.That(roundState.GetRadarResult("historic-scan", "p1"), Is.Not.Null);
-        Assert.That(roundState.GetRadarResult("historic-scan", "p2"), Is.Null);
+        Assert.That(WDWeaponInstallationRegistry.IsAirTransportAllowed(
+            WDTacticalWeaponIds.Radar), Is.False);
     }
 
     [TestCase(WDSupportWeaponIds.Bunker, 0, 7, 0, 0)]
@@ -1037,7 +1032,6 @@ public sealed class WDWeaponExecutionCoordinatorTests
     [TestCase(WDStrategicWeaponIds.Artillery, 0, 0, 5, 0)]
     [TestCase(WDStrategicWeaponIds.Rockets, 0, 0, 2, 0)]
     [TestCase(WDSpecialWeaponIds.Drone, 0, 0, 2, 0)]
-    [TestCase(WDTacticalWeaponIds.Radar, 0, 0, 1, 0)]
     public void NeutralThenCapturePreservesCanonicalInstallationState(
         string weaponId, int duration, int barrier, int charges, int payments)
     {
@@ -1564,28 +1558,6 @@ public sealed class WDWeaponExecutionCoordinatorTests
     }
 
     [Test]
-    public void HudCardInteractivityUsesCanonicalAvailability()
-    {
-        var available = new WDWeaponHudCardState("radar", "Radar", 1, 25, 0,
-            WDWeaponAvailabilityReason.Available, false, false);
-        var insufficient = new WDWeaponHudCardState("radar", "Radar", 1, 25, 0,
-            WDWeaponAvailabilityReason.InsufficientEnergy, false, false);
-        var cooldown = new WDWeaponHudCardState("radar", "Radar", 1, 25, 2,
-            WDWeaponAvailabilityReason.Cooldown, false, false);
-
-        Assert.That(WarDominionMatchHUD.IsCardInteractable(available, true), Is.True);
-        Assert.That(WarDominionMatchHUD.IsCardInteractable(insufficient, true), Is.False);
-        Assert.That(WarDominionMatchHUD.IsCardInteractable(cooldown, true), Is.False);
-        Assert.That(WarDominionMatchHUD.IsCardInteractable(available, false), Is.False);
-        Assert.That(WarDominionMatchHUD.ShouldAcceptInsufficientEnergyClick(
-            insufficient, true), Is.True);
-        Assert.That(WarDominionMatchHUD.ShouldAcceptInsufficientEnergyClick(
-            cooldown, true), Is.False);
-        Assert.That(WarDominionMatchHUD.ShouldAcceptInsufficientEnergyClick(
-            insufficient, false), Is.False);
-    }
-
-    [Test]
     public void WeaponCardIgnoresHoverButKeepsPressFeedback()
     {
         var cardObject = new GameObject("TouchFirstWeaponCard");
@@ -1610,65 +1582,6 @@ public sealed class WDWeaponExecutionCoordinatorTests
         {
             UnityEngine.Object.DestroyImmediate(cardObject);
             UnityEngine.Object.DestroyImmediate(testTheme);
-        }
-    }
-
-    [Test]
-    public void WeaponCardStatusKeepsEnergyCostVisibleAcrossLockAndAvailability()
-    {
-        var lockedRoundOne = new WDWeaponHudCardState(
-            WDSpecialWeaponIds.Infiltrator, "Infiltrado", 1, 20, 2,
-            WDWeaponAvailabilityReason.InitialRoundLock, false, false);
-        var lockedRoundTwo = new WDWeaponHudCardState(
-            WDSpecialWeaponIds.Infiltrator, "Infiltrado", 1, 20, 1,
-            WDWeaponAvailabilityReason.InitialRoundLock, false, false);
-        var insufficient = new WDWeaponHudCardState(
-            WDSpecialWeaponIds.Infiltrator, "Infiltrado", 1, 20, 0,
-            WDWeaponAvailabilityReason.InsufficientEnergy, false, false);
-        var cooldown = new WDWeaponHudCardState(
-            WDSpecialWeaponIds.Infiltrator, "Infiltrado", 1, 20, 4,
-            WDWeaponAvailabilityReason.Cooldown, false, false);
-
-        Assert.That(WarDominionMatchHUD.FormatCardStatus(lockedRoundOne, 0),
-            Is.EqualTo("BLOQUEADA 2  |  E 20"));
-        Assert.That(WarDominionMatchHUD.FormatCardStatus(lockedRoundTwo, 0),
-            Is.EqualTo("BLOQUEADA 1  |  E 20"));
-        Assert.That(WarDominionMatchHUD.FormatCardStatus(insufficient, 0),
-            Is.EqualTo("ENERGIA 0/20"));
-        Assert.That(WarDominionMatchHUD.FormatCardStatus(cooldown, 0),
-            Is.EqualTo("CD 4  |  E 20"));
-    }
-
-    [Test]
-    public void ActionsControlOccupiesCompactPositionWithOrWithoutTeams()
-    {
-        Assert.That(WarDominionMatchHUD.ActionsControlTop(false), Is.EqualTo(-803f));
-        Assert.That(WarDominionMatchHUD.ActionsControlTop(true), Is.EqualTo(-803f));
-        Assert.That(WarDominionMatchHUD.ActionsControlTop(true) -
-            WarDominionMatchHUD.ActionsControlTop(false), Is.Zero);
-    }
-
-    // 01. A mesma seleção deve ativar somente uma das duas composições de HUD.
-    [Test]
-    public void MatchHudSelectionKeepsNewAndLegacyModesExclusive()
-    {
-        var newHud = new GameObject("FinalMatchHUD");
-        var legacyHud = new GameObject("LegacyHUD");
-        Canvas legacy = legacyHud.AddComponent<Canvas>();
-        try
-        {
-            UICompositionRoot.ApplyHudMode(newHud, legacy, true);
-            Assert.That(newHud.activeSelf, Is.False);
-            Assert.That(legacy.enabled, Is.False);
-
-            UICompositionRoot.ApplyHudMode(newHud, legacy, false);
-            Assert.That(newHud.activeSelf, Is.False);
-            Assert.That(legacy.enabled, Is.False);
-        }
-        finally
-        {
-            UnityEngine.Object.DestroyImmediate(legacyHud);
-            UnityEngine.Object.DestroyImmediate(newHud);
         }
     }
 

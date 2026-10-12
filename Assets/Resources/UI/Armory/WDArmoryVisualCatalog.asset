@@ -1,0 +1,67 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 68e9d7c7f959ff94a8ba4690a1800fc8, type: 3}
+  m_Name: WDArmoryVisualCatalog
+  m_EditorClassIdentifier: Assembly-CSharp::WDArmoryVisualCatalog
+  weapons:
+  - weaponId: drone
+    artwork: {fileID: 2800000, guid: 7ea4a365f4db98d4590ff2c2a0126de7, type: 3}
+  - weaponId: atomic_bomb
+    artwork: {fileID: 2800000, guid: c19ebeacd2dcd014ca902aa26456f761, type: 3}
+  - weaponId: war_propaganda
+    artwork: {fileID: 2800000, guid: 669b878780a4d9943823964c7ac2cdef, type: 3}
+  - weaponId: chemical_bomb
+    artwork: {fileID: 2800000, guid: 24a6eceefaf0abf45a9c634d415f6a4c, type: 3}
+  - weaponId: infiltrator
+    artwork: {fileID: 2800000, guid: e340d08ca74efcc449961afb0b824f7c, type: 3}
+  - weaponId: sabotage
+    artwork: {fileID: 2800000, guid: 45d6d3430c7ef1043a96cba8cea3975d, type: 3}
+  - weaponId: energy_plant
+    artwork: {fileID: 2800000, guid: 171d84fc45a68b44ebe3dd20e1769bb6, type: 3}
+  - weaponId: long_range_bomb
+    artwork: {fileID: 2800000, guid: 7bd3120627e659745931cc0177456b73, type: 3}
+  - weaponId: peace
+    artwork: {fileID: 2800000, guid: 1d5fdd9f5e9cc27439f835ac16f62240, type: 3}
+  - weaponId: artillery
+    artwork: {fileID: 2800000, guid: e02eeecaf5c442e4baf6c9d537770c51, type: 3}
+  - weaponId: rockets
+    artwork: {fileID: 2800000, guid: c94cdc3098815d644addd7ee52293d0d, type: 3}
+  - weaponId: minefield
+    artwork: {fileID: 2800000, guid: fcaceef6d15057b46b31439296e70aa0, type: 3}
+  - weaponId: blitzkrieg
+    artwork: {fileID: 2800000, guid: 79fedb1a6ab68db4688046c81a77d1ee, type: 3}
+  - weaponId: transfer_nullifier
+    artwork: {fileID: 2800000, guid: 25ff8a08ded7e9a47b87ee14b6ce55d9, type: 3}
+  - weaponId: sniper
+    artwork: {fileID: 2800000, guid: 01f92215b23c9c54dafd8aac12c57e47, type: 3}
+  - weaponId: kamikaze
+    artwork: {fileID: 2800000, guid: a011debce1360a74a91567ef86f33ad2, type: 3}
+  - weaponId: paratroopers
+    artwork: {fileID: 2800000, guid: 2ba18d8c191f7f146b831169b0294751, type: 3}
+  - weaponId: radar
+    artwork: {fileID: 2800000, guid: fc9cd0090c01c074d8801c9256563221, type: 3}
+  - weaponId: air_strike
+    artwork: {fileID: 2800000, guid: 3e4efa16bef97834c8f9aec8379f0b3c, type: 3}
+  - weaponId: reinforcements
+    artwork: {fileID: 2800000, guid: 16d795d887986dd40a01e9314c4aa12e, type: 3}
+  - weaponId: air_transport
+    artwork: {fileID: 2800000, guid: dbcae1ab9bb913f4b9500af88b4fdb2a, type: 3}
+  - weaponId: flak_tower
+    artwork: {fileID: 2800000, guid: d6ed092079230e34f9aef7c4a79413bd, type: 3}
+  - weaponId: bunker
+    artwork: {fileID: 2800000, guid: 9549b54a1bb92ce46830687924856f65, type: 3}
+  - weaponId: reserve_troops
+    artwork: {fileID: 2800000, guid: 15a1842da930bd748957e843df8ce729, type: 3}
+  - weaponId: troop_recovery
+    artwork: {fileID: 2800000, guid: 76b40908bef89a842ad389c73ea797e9, type: 3}
+  - weaponId: mercenaries
+    artwork: {fileID: 2800000, guid: 798ea288d8bf8a64f92d3d266516ace1, type: 3}

@@ -65,10 +65,10 @@ public sealed class WDMatchChatView : MonoBehaviour
         RectTransform clipped = Surface("Columns", panel, 1, 1, 1398, 723,
             new Color(10f / 255f, 15f / 255f, 19f / 255f, .8f), 12);
         clipped.gameObject.AddComponent<Mask>().showMaskGraphic = true;
-        RectTransform left = Surface("Left", clipped, 0, 0, 279, 723, Side);
+        RectTransform left = Surface("Left", clipped, 0, 0, 279, 723, Alpha(Side, WDChatVisualStyle.ReadableAlpha));
         RectTransform center = Surface("Conversation", clipped, 279, 0, 770, 723,
-            new Color(10f / 255f, 15f / 255f, 19f / 255f, .55f));
-        RectTransform right = Surface("Friends", clipped, 1049, 0, 349, 723, Side);
+            new Color(10f / 255f, 15f / 255f, 19f / 255f, WDChatVisualStyle.ReadableAlpha));
+        RectTransform right = Surface("Friends", clipped, 1049, 0, 349, 723, Alpha(Side, WDChatVisualStyle.ReadableAlpha));
         Surface("Divider", clipped, 278, 0, 1, 723, Alpha(Border, .8f));
         Surface("Divider", clipped, 1048, 0, 1, 723, Alpha(Border, .8f));
         BuildLeft(left);
@@ -85,45 +85,45 @@ public sealed class WDMatchChatView : MonoBehaviour
         matchOutline = WDHomeUIFactory.AddRoundedBorder(matchButton.transform as RectTransform, Alpha(Cyan, .6f), 16);
         matchDot = Dot(matchButton.transform, "Selected", 227, 18, 8, Cyan).gameObject;
         Icon(matchButton.transform, "Globe", 13, 13, 18, 18);
-        Label(matchButton.transform, "Label", "PARTIDA", 43, 0, 175, 44, 12, Color.white, true);
+        Label(matchButton.transform, "Label", "PARTIDA", 43, 0, 175, 44, WDChatVisualStyle.Control, Color.white, true);
         clanButton = Button("Clan", parent, 15, 61, 248, 44, () => Select(repository?.ClanChannel));
         clanSelection = clanButton.GetComponent<Image>();
         clanOutline = WDHomeUIFactory.AddRoundedBorder(clanButton.transform as RectTransform, Color.clear, 16);
         Icon(clanButton.transform, "Clan", 13, 13, 18, 18);
-        Label(clanButton.transform, "Label", "CLÃ", 43, 0, 175, 44, 12, Muted, true);
-        Label(parent, "RecentsTitle", "RECENTES", 15, 129, 190, 24, 10, Muted, true).characterSpacing = 1.8f;
+        Label(clanButton.transform, "Label", "CLÃ", 43, 0, 175, 44, WDChatVisualStyle.Control, Muted, true);
+        Label(parent, "RecentsTitle", "RECENTES", 15, 129, 190, 24, WDChatVisualStyle.Section, Muted, true).characterSpacing = 1.8f;
         Button add = Button("NewConversation", parent, 219, 119, 44, 44, ToggleSearch);
         Icon(add.transform, "Plus", 14, 14, 16, 16);
         Scroll("Recents", parent, 15, 165, 248, 476, out recentContent);
         Button support = Button("Support", parent, 15, 663, 242, 44, null,
-            new Color(14f / 255f, 23f / 255f, 29f / 255f, .55f), Border);
+            new Color(14f / 255f, 23f / 255f, 29f / 255f, WDChatVisualStyle.ReadableAlpha), Border);
         Icon(support.transform, "Support", 13, 13, 18, 18);
-        Label(support.transform, "Label", "SUPORTE", 43, 0, 180, 44, 12, Color.white, true);
+        Label(support.transform, "Label", "SUPORTE", 43, 0, 180, 44, WDChatVisualStyle.Control, Color.white, true);
     }
 
     private void BuildConversation(RectTransform parent)
     {
-        RectTransform header = Surface("Header", parent, 0, 0, 769, 89, Alpha(Side, .5f));
+        RectTransform header = Surface("Header", parent, 0, 0, 769, 89, Alpha(Side, WDChatVisualStyle.ReadableAlpha));
         Icon(header, "HexCyan", 20, 17, 48, 48);
         headerPresence = Dot(header, "Presence", 59, 55, 10, Green).gameObject;
-        title = Label(header, "Name", string.Empty, 80, 8, 460, 28, 22, Color.white, true);
+        title = Label(header, "Name", string.Empty, 80, 8, 460, 28, WDChatVisualStyle.Heading, Color.white, true);
         onlineBadge = Surface("OnlineBadge", header, 545, 13, 64, 18, Alpha(Green, .2f), 9).gameObject;
-        Label(onlineBadge.transform, "Label", "ONLINE", 4, 0, 56, 18, 9, Green, true,
+        Label(onlineBadge.transform, "Label", "ONLINE", 4, 0, 56, 18, WDChatVisualStyle.Section, Green, true,
             TextAlignmentOptions.Center);
-        subtitle = Label(header, "Status", string.Empty, 80, 38, 560, 24, 14, Muted);
+        subtitle = Label(header, "Status", string.Empty, 80, 38, 560, 24, WDChatVisualStyle.Status, Muted);
         optionsButton = Button("Options", header, 707, 18, 44, 44,
-            () => optionsPopup.SetActive(!optionsPopup.activeSelf), Alpha(Border, .3f), Border);
+            () => optionsPopup.SetActive(!optionsPopup.activeSelf), Alpha(Side, WDChatVisualStyle.ReadableAlpha), Border);
         Icon(optionsButton.transform, "Options", 15.25f, 20.5f, 13.5f, 3);
         Surface("Divider", parent, 0, 88, 769, 1, Alpha(Border, .8f));
         messagesScroll = Scroll("Messages", parent, 0, 89, 769, 546, out messagesContent);
         empty = Label(messagesScroll.viewport, "Empty", string.Empty, 24, 180, 721, 90, 14, Muted,
             false, TextAlignmentOptions.Center);
         empty.textWrappingMode = TextWrappingModes.Normal;
-        RectTransform form = Surface("Composer", parent, 0, 635, 769, 88, Alpha(Side, .55f));
+        RectTransform form = Surface("Composer", parent, 0, 635, 769, 88, Alpha(Side, WDChatVisualStyle.ReadableAlpha));
         Surface("Divider", form, 0, 0, 769, 1, Alpha(Border, .8f));
         RectTransform field = Surface("Field", form, 16, 16, 737, 56,
-            new Color(10f / 255f, 15f / 255f, 19f / 255f, .8f), 12,
-            new Color(54f / 255f, 85f / 255f, 100f / 255f));
+            new Color(10f / 255f, 15f / 255f, 19f / 255f, WDChatVisualStyle.ReadableAlpha), 12,
+            Border);
         Button attachment = Button("Attachment", field, 11, 6, 44, 44, null);
         Icon(attachment.transform, "Plus", 12, 12, 20, 20);
         composer = Input("MessageInput", field, 112, 6, 552, 44, "Digite uma mensagem...");
@@ -131,8 +131,8 @@ public sealed class WDMatchChatView : MonoBehaviour
         Button emojiButton = Button("Emoji", field, 60, 6, 44, 44, () => { });
         emojiPicker = emojiButton.gameObject.AddComponent<WDChatEmojiPicker>();
         emojiPicker.Build(composer, emojiButton, panel);
-        composer.textComponent.fontSize = 20;
-        ((TMP_Text)composer.placeholder).fontSize = 18;
+        composer.textComponent.fontSize = WDChatVisualStyle.Message;
+        ((TMP_Text)composer.placeholder).fontSize = WDChatVisualStyle.Placeholder;
         composer.onSubmit.AddListener(_ => SendDraft());
         composer.onValueChanged.AddListener(_ => RefreshSendState());
         sendButton = Button("Send", field, 675, 6, 44, 44, SendDraft, Cyan);
@@ -140,23 +140,23 @@ public sealed class WDMatchChatView : MonoBehaviour
 
         optionsPopup = Surface("ChannelOptions", parent, 481, 70, 270, 52, Side, 12, Border).gameObject;
         Button mute = Button("Mute", optionsPopup.transform, 4, 4, 262, 44, ToggleMute);
-        muteLabel = Label(mute.transform, "Label", string.Empty, 12, 0, 238, 44, 12, Color.white);
+        muteLabel = Label(mute.transform, "Label", string.Empty, 12, 0, 238, 44, WDChatVisualStyle.Control, Color.white);
         optionsPopup.SetActive(false);
         BuildSearch(parent);
     }
 
     private void BuildFriends(RectTransform parent)
     {
-        friendsTitle = Label(parent, "Title", "AMIGOS ONLINE", 16, 9, 250, 18, 10, Muted, true);
+        friendsTitle = Label(parent, "Title", "AMIGOS ONLINE", 16, 9, 250, 18, WDChatVisualStyle.Section, Muted, true);
         friendsTitle.characterSpacing = 1.8f;
-        friendsCount = Label(parent, "Count", string.Empty, 16, 29, 280, 20, 12, Color.white);
+        friendsCount = Label(parent, "Count", string.Empty, 16, 29, 280, 20, WDChatVisualStyle.Status, Color.white);
         RectTransform friendIcon = Surface("FriendIcon", parent, 304, 13, 28, 28, Alpha(Green, .1f), 14);
         Icon(friendIcon, "Friends", 7, 7, 14, 14);
         Surface("Divider", parent, 16, 57, 317, 1, Alpha(Border, .8f));
         Scroll("FriendsList", parent, 16, 83, 317, 158, out friendsContent);
         Button viewAll = Button("ViewAll", parent, 16, 253, 317, 44, ToggleAllFriends,
             Alpha(Cyan, .1f), Alpha(Cyan, .4f));
-        viewAllLabel = Label(viewAll.transform, "Label", "VER TODOS", 70, 0, 152, 44, 10, Cyan, true,
+        viewAllLabel = Label(viewAll.transform, "Label", "VER TODOS", 70, 0, 152, 44, WDChatVisualStyle.Control, Cyan, true,
             TextAlignmentOptions.Center);
         viewAllLabel.characterSpacing = 1f;
         Icon(viewAll.transform, "ArrowRight", 191, 15, 14, 14);
@@ -295,14 +295,14 @@ public sealed class WDMatchChatView : MonoBehaviour
         {
             string other = OtherParticipant(channel);
             Button row = Button("Recent_" + channel.Id, recentContent, 0, y, 248, 52,
-                () => Select(channel), channel.Id == selectedId ? Alpha(Border, .3f) : Color.clear);
+                () => Select(channel), channel.Id == selectedId ? WDChatVisualStyle.SelectedConversation : Color.clear);
             Icon(row.transform, channel.Id == selectedId ? "HexCyan" : "HexNeutral", 8, 8, 36, 36);
             if (other != null && repository.Social.PresenceOf(other) != WDSocialPresence.Offline)
                 Dot(row.transform, "Online", 36, 34, 8, Green);
-            Label(row.transform, "Name", channel.DisplayName, 52, 7, 168, 18, 15, Color.white, true)
+            Label(row.transform, "Name", channel.DisplayName, 52, 5, 168, 20, WDChatVisualStyle.Name, Color.white, true)
                 .font = WDHomeTypography.Load("Inter-SemiBold");
             var preview = Label(row.transform, "Preview", channel.Messages.LastOrDefault()?.Text ?? string.Empty,
-                52, 26, 168, 17, 14, Muted);
+                52, 25, 168, 27, WDChatVisualStyle.Preview, Muted);
             WDChatEmojiText.Apply(preview);
             // Ellipsis considera altura também: usar o espaço restante da linha
             // permite a ascendente do sprite + descendente da fonte, sem truncar emojis.
@@ -332,9 +332,9 @@ public sealed class WDMatchChatView : MonoBehaviour
             bool isOnline = repository.Social.PresenceOf(profile.PlayerId) != WDSocialPresence.Offline;
             Icon(row.transform, isOnline ? "HexCyan" : "HexNeutral", 0, 4, 36, 36);
             if (isOnline) Dot(row.transform, "Online", 28, 32, 8, Green);
-            Label(row.transform, "Name", profile.Nickname, 44, 5, 260, 18, 15, Color.white, true)
+            Label(row.transform, "Name", profile.Nickname, 44, 5, 260, 20, WDChatVisualStyle.Name, Color.white, true)
                 .font = WDHomeTypography.Load("Inter-SemiBold");
-            Label(row.transform, "Presence", PresenceText(profile.PlayerId), 44, 23, 260, 16, 10,
+            Label(row.transform, "Presence", PresenceText(profile.PlayerId), 44, 25, 260, 19, WDChatVisualStyle.Status,
                 isOnline ? Green : Muted);
             y += 48;
         }
@@ -368,19 +368,19 @@ public sealed class WDMatchChatView : MonoBehaviour
             if (system) x = 144;
             RectTransform bubble = Surface("Bubble", row, x, 0, 480, 48,
                 sent ? Alpha(Cyan, .15f) : Alpha(Side, .9f), 16, sent ? Alpha(Cyan, .6f) : Border);
-            TextMeshProUGUI text = Label(bubble, "Body", message.Text, 17, 10, 446, 26, 20, Color.white);
+            TextMeshProUGUI text = Label(bubble, "Body", message.Text, 17, 12, 446, 24, WDChatVisualStyle.Message, Color.white);
             WDChatEmojiText.Apply(text);
             text.textWrappingMode = TextWrappingModes.Normal;
             text.overflowMode = TextOverflowModes.Overflow;
             text.alignment = TextAlignmentOptions.TopLeft;
-            float textHeight = Mathf.Max(24, text.GetPreferredValues(446, Mathf.Infinity).y);
+            float textHeight = Mathf.Max(23, text.GetPreferredValues(446, Mathf.Infinity).y);
             float bubbleHeight = textHeight + 24;
             text.rectTransform.sizeDelta = new Vector2(446, textHeight);
             bubble.sizeDelta = new Vector2(480, bubbleHeight);
             string sender = repository.Profiles.Find(message.SenderId)?.Nickname ?? message.SenderId;
             string stamp = message.Timestamp.ToLocalTime().ToString("HH:mm");
             string metadata = sent || system ? stamp : sender + " · " + stamp;
-            Label(row, "Timestamp", metadata, x, bubbleHeight + 4, 480, 15, 12, Muted,
+            Label(row, "Timestamp", metadata, x, bubbleHeight + 4, 480, 15, WDChatVisualStyle.Timestamp, Muted,
                 false, sent ? TextAlignmentOptions.Right : TextAlignmentOptions.Left);
             if (!sent && !system) Icon(row, "HexNeutral", 24, bubbleHeight - 6, 30, 30);
             row.sizeDelta = new Vector2(769, bubbleHeight + 19);
@@ -451,7 +451,7 @@ public sealed class WDMatchChatView : MonoBehaviour
     {
         searchPanel = Surface("NewConversationPanel", parent, 24, 110, 721, 152,
             new Color(10f / 255f, 15f / 255f, 19f / 255f, .98f), 12, Border).gameObject;
-        Label(searchPanel.transform, "Title", "NOVA CONVERSA", 16, 8, 680, 28, 14, Color.white, true);
+        Label(searchPanel.transform, "Title", "NOVA CONVERSA", 16, 8, 680, 28, WDChatVisualStyle.Heading, Color.white, true);
         RectTransform inputBox = Surface("Input", searchPanel.transform, 16, 48, 544, 48, Side, 12, Border);
         searchInput = Input("SearchInput", inputBox, 12, 2, 520, 44, "Nickname ou ID exato");
         Button find = Button("Open", searchPanel.transform, 576, 48, 129, 48, () =>
@@ -460,8 +460,8 @@ public sealed class WDMatchChatView : MonoBehaviour
             if (result == null) feedback.text = "Jogador não encontrado.";
             else OpenPrivate(result.PlayerId);
         }, Alpha(Cyan, .15f), Cyan);
-        Label(find.transform, "Label", "ABRIR", 0, 0, 129, 48, 12, Cyan, true, TextAlignmentOptions.Center);
-        feedback = Label(searchPanel.transform, "Feedback", string.Empty, 16, 105, 688, 36, 12, Muted);
+        Label(find.transform, "Label", "ABRIR", 0, 0, 129, 48, WDChatVisualStyle.Control, Cyan, true, TextAlignmentOptions.Center);
+        feedback = Label(searchPanel.transform, "Feedback", string.Empty, 16, 105, 688, 36, WDChatVisualStyle.Status, Muted);
         searchPanel.SetActive(false);
     }
 
@@ -580,10 +580,16 @@ public sealed class WDMatchChatView : MonoBehaviour
         RectTransform viewport = Rect("Viewport", rect, 0, 0, w, h);
         viewport.gameObject.AddComponent<RectMask2D>();
         input.textViewport = viewport;
-        input.textComponent = Label(viewport, "Text", string.Empty, 0, 0, w, h, 14, Color.white);
+        input.textComponent = Label(viewport, "Text", string.Empty, 0, 0, w, h, WDChatVisualStyle.Message, Color.white);
         input.textComponent.overflowMode = TextOverflowModes.Overflow;
-        input.placeholder = Label(viewport, "Placeholder", placeholder, 0, 0, w, h, 14, Muted);
-        input.lineType = TMP_InputField.LineType.SingleLine;
+        input.placeholder = Label(viewport, "Placeholder", placeholder, 0, 0, w, h, WDChatVisualStyle.Placeholder, Muted);
+        bool message = name == "MessageInput";
+        input.lineType = message
+            ? TMP_InputField.LineType.MultiLineNewline : TMP_InputField.LineType.SingleLine;
+        input.characterLimit = message
+            ? WDUIContentContracts.ChatMessageMaxLength : WDUIContentContracts.SearchMaxLength;
+        WDUITextPolicies.Apply(input.textComponent, message
+            ? WDUITextPolicy.ScrollableBody : WDUITextPolicy.SingleLineEllipsis);
         input.richText = false;
         input.targetGraphic = rect.GetComponent<Image>();
         input.selectionColor = Alpha(Cyan, .3f);

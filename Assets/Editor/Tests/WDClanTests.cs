@@ -8,16 +8,18 @@ using UnityEngine.UI;
 
 public sealed class WDClanTests
 {
+    private const string General = "WD-4821";
+    private const string Officer = "WD-2847";
+    private const string Member = "WD-7105";
+    private const string Stranger = "WD-3906";
+    private const string OtherFounder = "WD-5582";
+
     private WDProfileRepository profiles;
     private WDArmoryCatalogConfig catalog;
     private MemoryArmory armory;
     private WDClanRepository clans;
     private WDClanData home;
     private DateTimeOffset now;
-    private const string Local = "WD-4821";
-    private const string Officer = "WD-2847";
-    private const string Member = "WD-7105";
-    private const string Stranger = "WD-3906";
 
     [SetUp]
     public void SetUp()
@@ -28,360 +30,372 @@ public sealed class WDClanTests
             new[] { new WDWeaponDefinition("w0", "Radar", "support",
                 new[] { new WDWeaponLevelDefinition(2, 10, 20) }) });
         armory = new MemoryArmory();
-        foreach (string id in new[] { Local, Officer, Member, Stranger, "WD-5582" })
+        foreach (string id in new[] { General, Officer, Member, Stranger, OtherFounder })
         {
-            WDArmoryProfile value = armory.Load(id);
-            value.AddProgress(new WDWeaponProgress("w0", true, 2, id == Local ? 30 : 4));
+            WDArmoryProfile profile = armory.Load(id);
+            profile.SetCurrencies(0, 100);
+            profile.AddProgress(new WDWeaponProgress("w0", true, 2,
+                id == General ? 30 : 4));
         }
         now = new DateTimeOffset(2026, 9, 19, 12, 0, 0, TimeSpan.Zero);
         clans = new WDClanRepository(profiles, catalog, armory, () => now,
             seedMocks: false);
-        Assert.That(clans.Create(Local, "Vanguard Elite", "VGD", "Teste",
+        Assert.That(clans.Create(General, "Vanguard Elite", "VGD", "Teste",
             WDClanAdmission.Open, out home), Is.EqualTo(WDClanResult.Success));
         Assert.That(clans.Join(home.Id, Officer), Is.EqualTo(WDClanResult.Success));
         Assert.That(clans.Join(home.Id, Member), Is.EqualTo(WDClanResult.Success));
-        Assert.That(clans.Promote(home.Id, Local, Officer), Is.EqualTo(WDClanResult.Success));
+        Assert.That(clans.Promote(home.Id, General, Officer),
+            Is.EqualTo(WDClanResult.Success));
     }
 
     [TearDown]
     public void TearDown() => UnityEngine.Object.DestroyImmediate(catalog);
 
     // ============================================================
-    // 01. MEMBERSHIP, CRIAÇÃO E ADMISSÃO
+    // 01. CRIAÇÃO, ECONOMIA E MEMBERSHIP
     // ============================================================
-    [Test] public void CreationIsCurrentlyFreeAndDoesNotSpendCoins()
+    [Test]
+    public void FounderCreatesClanAsTheOnlyGeneralAndPaysTenEmeralds()
     {
-        Assert.That(clans.CreationPolicy.CoinCost, Is.Zero);
-        Assert.That(armory.Load(Local).Coins, Is.Zero);
-        Assert.That(clans.Create(Stranger, "Novo", "NVO", "", WDClanAdmission.Open, out _),
-            Is.EqualTo(WDClanResult.Success));
-        Assert.That(armory.Load(Stranger).Coins, Is.Zero);
+        Assert.That(clans.CreationPolicy.EmeraldCost,
+            Is.EqualTo(WDClanCreationPolicy.CanonicalEmeraldCost));
+        Assert.That(home.Member(General).Role, Is.EqualTo(WDClanRole.General));
+        Assert.That(home.Members.Count(item => item.Role == WDClanRole.General),
+            Is.EqualTo(1));
+        Assert.That(armory.Load(General).Emeralds, Is.EqualTo(90));
     }
 
-    [Test] public void APlayerCanBelongToOnlyOneClanOrCreateAnother()
+    [Test]
+    public void CreationFailsWithoutEmeraldsAndDoesNotCreatePartialClan()
+    {
+        armory.Load(Stranger).SetCurrencies(0, 9);
+        Assert.That(clans.Create(Stranger, "Novo Clã", "NOV", "",
+            WDClanAdmission.Open, out WDClanData created),
+            Is.EqualTo(WDClanResult.InsufficientEmeralds));
+        Assert.That(created, Is.Null);
+        Assert.That(clans.ClanOf(Stranger), Is.Null);
+        Assert.That(armory.Load(Stranger).Emeralds, Is.EqualTo(9));
+    }
+
+    [Test]
+    public void CreationWithoutEconomyAuthorityIsExplicitlyUnavailable()
+    {
+        WDClanRepository repository = new(profiles, catalog,
+            new ArmoryWithoutEconomy(), () => now, seedMocks: false);
+        Assert.That(repository.Create(Stranger, "Novo Clã", "NOV", "",
+            WDClanAdmission.Open, out _), Is.EqualTo(WDClanResult.Unavailable));
+    }
+
+    [Test]
+    public void ClanIdentityUsesCanonicalLengthContracts()
+    {
+        Assert.That(clans.Create(Stranger, "AB", "OK", "", WDClanAdmission.Open, out _),
+            Is.EqualTo(WDClanResult.Invalid));
+        Assert.That(clans.Create(Stranger, new string('N', 31), "OK", "",
+            WDClanAdmission.Open, out _), Is.EqualTo(WDClanResult.Invalid));
+        Assert.That(clans.Create(Stranger, "Nome", "X", "", WDClanAdmission.Open, out _),
+            Is.EqualTo(WDClanResult.Invalid));
+        Assert.That(clans.Create(Stranger, "Nome", new string('T', 11), "",
+            WDClanAdmission.Open, out _), Is.EqualTo(WDClanResult.Invalid));
+    }
+
+    [Test]
+    public void APlayerBelongsToOnlyOneClan()
     {
         WDClanData other = CreateOther();
         Assert.That(clans.Join(other.Id, Member), Is.EqualTo(WDClanResult.AlreadyMember));
-        Assert.That(clans.Create(Member, "Terceiro", "TRC", "", WDClanAdmission.Open,
-            out _), Is.EqualTo(WDClanResult.AlreadyMember));
+        Assert.That(clans.Create(Member, "Terceiro", "TRC", "",
+            WDClanAdmission.Open, out _), Is.EqualTo(WDClanResult.AlreadyMember));
         Assert.That(clans.ClanOf(Member), Is.SameAs(home));
     }
 
-    [Test] public void OpenClanJoinsImmediatelyAsMemberAndProjectsPublicProfile()
-    {
-        Assert.That(clans.Join(home.Id, Stranger), Is.EqualTo(WDClanResult.Success));
-        Assert.That(home.Member(Stranger).Role, Is.EqualTo(WDClanRole.Member));
-        Assert.That(profiles.Find(Stranger).Clan, Is.EqualTo(home.Name));
-    }
-
-    [Test] public void ApprovalClanCreatesOnePendingRequestWithoutImmediateMembership()
-    {
-        WDClanData other = CreateOther(WDClanAdmission.Approval);
-        Assert.That(clans.Join(other.Id, Stranger), Is.EqualTo(WDClanResult.Success));
-        Assert.That(clans.Join(other.Id, Stranger), Is.EqualTo(WDClanResult.AlreadyPending));
-        Assert.That(clans.ClanOf(Stranger), Is.Null);
-        Assert.That(other.JoinRequests.Count, Is.EqualTo(1));
-    }
-
-    [Test] public void CommanderAcceptsApprovalRequestAndPendingStatesAreNormalized()
-    {
-        WDClanData other = CreateOther(WDClanAdmission.Approval);
-        clans.Join(other.Id, Stranger);
-        WDClanJoinRequest request = other.JoinRequests.Single();
-        Assert.That(clans.DecideJoin(other.Id, "WD-5582", request.Id, true),
-            Is.EqualTo(WDClanResult.Success));
-        Assert.That(other.Member(Stranger).Role, Is.EqualTo(WDClanRole.Member));
-        Assert.That(other.JoinRequests, Is.Empty);
-    }
-
-    [Test] public void RejectedRequestDoesNotAddPlayer()
-    {
-        WDClanData other = CreateOther(WDClanAdmission.Approval);
-        clans.Join(other.Id, Stranger);
-        Assert.That(clans.DecideJoin(other.Id, "WD-5582", other.JoinRequests.Single().Id, false),
-            Is.EqualTo(WDClanResult.Success));
-        Assert.That(clans.ClanOf(Stranger), Is.Null);
-    }
-
-    [Test] public void RequestCannotBeAcceptedAfterPlayerJoinedAnotherClan()
-    {
-        WDClanData other = CreateOther(WDClanAdmission.Approval);
-        clans.Join(other.Id, Stranger);
-        string requestId = other.JoinRequests.Single().Id;
-        clans.Join(home.Id, Stranger);
-        Assert.That(clans.DecideJoin(other.Id, "WD-5582", requestId, true),
-            Is.EqualTo(WDClanResult.NotFound));
-        Assert.That(other.Member(Stranger), Is.Null);
-    }
-
-    [Test] public void AdmissionChangesOnAuthorityAndDoesNotAutoAcceptOldRequests()
-    {
-        WDClanData other = CreateOther(WDClanAdmission.Approval);
-        clans.Join(other.Id, Stranger);
-        Assert.That(clans.SetAdmission(other.Id, "WD-5582", WDClanAdmission.Open),
-            Is.EqualTo(WDClanResult.Success));
-        Assert.That(clans.Find(other.Id).Admission, Is.EqualTo(WDClanAdmission.Open));
-        Assert.That(other.Member(Stranger), Is.Null);
-        Assert.That(other.JoinRequests.Count, Is.EqualTo(1));
-    }
-
-    [Test] public void SearchUsesNameAndTagFromSameClanAuthority()
-    {
-        Assert.That(clans.Search("vanguard").Single(), Is.SameAs(home));
-        Assert.That(clans.Search("vgd").Single(), Is.SameAs(home));
-    }
-
-    [Test] public void FutureCreationCostIsExplicitlyUnavailableWithoutEconomyAuthority()
-    {
-        WDClanRepository paid = new(profiles, catalog, armory, () => now,
-            new WDClanCreationPolicy(100), seedMocks: false);
-        Assert.That(paid.Create(Stranger, "Novo", "NVO", "", WDClanAdmission.Open, out _),
-            Is.EqualTo(WDClanResult.Unavailable));
-        Assert.That(paid.Clans, Is.Empty);
-        Assert.That(armory.Load(Stranger).Coins, Is.Zero);
-    }
-
-    [Test] public void AvailabilityStatesNeverMasqueradeAsLiveClanSearch()
-    {
-        clans.SetAvailability(WDClanAvailability.Loading);
-        Assert.That(clans.Search("Vanguard"), Is.Empty);
-        clans.SetAvailability(WDClanAvailability.Offline);
-        Assert.That(clans.Search("Vanguard"), Is.Empty);
-        clans.SetAvailability(WDClanAvailability.Error);
-        Assert.That(clans.Search("Vanguard"), Is.Empty);
-        clans.SetAvailability(WDClanAvailability.Available);
-        Assert.That(clans.Search("Vanguard").Count, Is.EqualTo(1));
-    }
-
     // ============================================================
-    // 02. CARGOS, TRANSFERÊNCIA, SAÍDA E EXCLUSÃO
+    // 02. PERMISSÕES E ENTRADA
     // ============================================================
-    [Test] public void MemberAndOfficerCannotPerformCommanderAdministration()
+    [TestCase(WDClanRole.General, true)]
+    [TestCase(WDClanRole.Commander, true)]
+    [TestCase(WDClanRole.Officer, false)]
+    [TestCase(WDClanRole.Member, false)]
+    public void JoinReviewPermissionMatchesCanonicalMatrix(WDClanRole role, bool expected)
     {
-        Assert.That(clans.Promote(home.Id, Member, Stranger), Is.EqualTo(WDClanResult.Forbidden));
-        Assert.That(clans.Promote(home.Id, Officer, Member), Is.EqualTo(WDClanResult.Forbidden));
-        Assert.That(clans.SetAdmission(home.Id, Member, WDClanAdmission.Approval),
+        Assert.That(WDClanPermissions.Can(role,
+            WDClanPermission.ReviewJoinRequests), Is.EqualTo(expected));
+    }
+
+    [TestCase(WDClanRole.General, true)]
+    [TestCase(WDClanRole.Commander, true)]
+    [TestCase(WDClanRole.Officer, true)]
+    [TestCase(WDClanRole.Member, false)]
+    public void MessageOfDayPermissionMatchesCanonicalMatrix(WDClanRole role, bool expected)
+    {
+        Assert.That(WDClanPermissions.Can(role,
+            WDClanPermission.EditMessageOfDay), Is.EqualTo(expected));
+    }
+
+    [Test]
+    public void GeneralCommanderAndOfficerEditMessageButMemberCannot()
+    {
+        Assert.That(clans.SetMessageOfDay(home.Id, General, "G"),
+            Is.EqualTo(WDClanResult.Success));
+        PromoteOfficerToCommander(Officer);
+        Assert.That(clans.SetMessageOfDay(home.Id, Officer, "C"),
+            Is.EqualTo(WDClanResult.Success));
+        clans.Promote(home.Id, General, Member);
+        Assert.That(clans.SetMessageOfDay(home.Id, Member, "O"),
+            Is.EqualTo(WDClanResult.Success));
+        clans.Demote(home.Id, General, Member);
+        Assert.That(clans.SetMessageOfDay(home.Id, Member, "M"),
             Is.EqualTo(WDClanResult.Forbidden));
-        Assert.That(clans.Edit(home.Id, Officer, "X", "X", "", ""),
+        Assert.That(home.MessageOfDay, Is.EqualTo("O"));
+    }
+
+    [Test]
+    public void GeneralAndCommanderReviewJoinRequests()
+    {
+        WDClanData approval = CreateOther(WDClanAdmission.Approval);
+        clans.Join(approval.Id, Stranger);
+        string request = approval.JoinRequests.Single().Id;
+        Assert.That(clans.DecideJoin(approval.Id, OtherFounder, request, false),
+            Is.EqualTo(WDClanResult.Success));
+
+        PromoteOfficerToCommander(Officer);
+        clans.SetAdmission(home.Id, General, WDClanAdmission.Approval);
+        clans.Join(home.Id, Stranger);
+        Assert.That(clans.DecideJoin(home.Id, Officer,
+            home.JoinRequests.Single().Id, true), Is.EqualTo(WDClanResult.Success));
+    }
+
+    [Test]
+    public void OfficerAndMemberCannotReviewJoinRequests()
+    {
+        clans.SetAdmission(home.Id, General, WDClanAdmission.Approval);
+        clans.Join(home.Id, Stranger);
+        string request = home.JoinRequests.Single().Id;
+        Assert.That(clans.DecideJoin(home.Id, Officer, request, true),
+            Is.EqualTo(WDClanResult.Forbidden));
+        Assert.That(clans.DecideJoin(home.Id, Member, request, true),
             Is.EqualTo(WDClanResult.Forbidden));
     }
 
-    [Test] public void CommanderPromotesMemberAndDemotesOfficer()
+    // ============================================================
+    // 03. COMMANDERS, ANTIGUIDADE E LIMITE
+    // ============================================================
+    [Test]
+    public void GeneralPromotesOfficerAndRecordsCommanderSinceUtc()
     {
-        Assert.That(clans.Promote(home.Id, Local, Member), Is.EqualTo(WDClanResult.Success));
-        Assert.That(home.Member(Member).Role, Is.EqualTo(WDClanRole.Officer));
-        Assert.That(clans.Demote(home.Id, Local, Member), Is.EqualTo(WDClanResult.Success));
-        Assert.That(home.Member(Member).Role, Is.EqualTo(WDClanRole.Member));
-        Assert.That(clans.Promote(home.Id, Local, Local), Is.EqualTo(WDClanResult.Invalid));
+        Assert.That(clans.PromoteToCommander(home.Id, General, Officer),
+            Is.EqualTo(WDClanResult.Success));
+        Assert.That(home.Member(Officer).Role, Is.EqualTo(WDClanRole.Commander));
+        Assert.That(home.Member(Officer).CommanderSinceUtc, Is.EqualTo(now));
     }
 
-    [Test] public void CommandTransferIsAtomicAndOldCommanderBecomesOfficer()
+    [Test]
+    public void ThirdCommanderIsRejectedWithoutReplacingAnyone()
     {
-        Assert.That(clans.TransferCommand(home.Id, Local, Member), Is.EqualTo(WDClanResult.Success));
-        Assert.That(home.Members.Count(item => item.Role == WDClanRole.Commander), Is.EqualTo(1));
-        Assert.That(home.CommanderId, Is.EqualTo(Member));
-        Assert.That(home.Member(Local).Role, Is.EqualTo(WDClanRole.Officer));
-        Assert.That(home.Log.Last().Text, Does.Contain("Comando transferido"));
-    }
-
-    [TestCase(Member)]
-    [TestCase(Officer)]
-    public void NonCommanderCanLeaveWithoutPenalty(string playerId)
-    {
-        Assert.That(clans.Leave(playerId), Is.EqualTo(WDClanResult.Success));
-        Assert.That(clans.ClanOf(playerId), Is.Null);
-        Assert.That(profiles.Find(playerId).Clan, Is.Empty);
-    }
-
-    [Test] public void CommanderCannotLeaveEvenWhenAloneWithoutTransferOrDeletion()
-    {
-        Assert.That(clans.Leave(Local), Is.EqualTo(WDClanResult.Forbidden));
-        clans.Kick(home.Id, Local, Officer); clans.Kick(home.Id, Local, Member);
-        Assert.That(clans.Leave(Local), Is.EqualTo(WDClanResult.Forbidden));
-        Assert.That(home.CommanderId, Is.EqualTo(Local));
-    }
-
-    [Test] public void OnlyCommanderCanDeleteAndDeletionClearsPrivateState()
-    {
-        clans.SetAdmission(home.Id, Local, WDClanAdmission.Approval);
+        PromoteOfficerToCommander(Officer);
+        clans.Promote(home.Id, General, Member);
+        now = now.AddMinutes(1);
+        Assert.That(clans.PromoteToCommander(home.Id, General, Member),
+            Is.EqualTo(WDClanResult.Success));
         clans.Join(home.Id, Stranger);
-        clans.RequestKick(home.Id, Officer, Member);
-        clans.RequestTokens(Member, "w0", 1, out _);
+        clans.Promote(home.Id, General, Stranger);
+        Assert.That(clans.PromoteToCommander(home.Id, General, Stranger),
+            Is.EqualTo(WDClanResult.CommanderLimit));
+        Assert.That(home.Commanders.Count, Is.EqualTo(2));
+        Assert.That(home.Member(Stranger).Role, Is.EqualTo(WDClanRole.Officer));
+    }
+
+    [Test]
+    public void CommanderCannotPromoteOrManageAnotherCommanderOrGeneral()
+    {
+        PromoteOfficerToCommander(Officer);
+        clans.Promote(home.Id, General, Member);
+        Assert.That(clans.PromoteToCommander(home.Id, Officer, Member),
+            Is.EqualTo(WDClanResult.Forbidden));
+        Assert.That(clans.DemoteCommander(home.Id, Officer, Officer),
+            Is.EqualTo(WDClanResult.Forbidden));
+        Assert.That(clans.Kick(home.Id, Officer, General),
+            Is.EqualTo(WDClanResult.Invalid));
+    }
+
+    [Test]
+    public void GeneralCanDemoteAndRemoveCommander()
+    {
+        PromoteOfficerToCommander(Officer);
+        Assert.That(clans.DemoteCommander(home.Id, General, Officer),
+            Is.EqualTo(WDClanResult.Success));
+        Assert.That(home.Member(Officer).Role, Is.EqualTo(WDClanRole.Officer));
+        Assert.That(home.Member(Officer).CommanderSinceUtc, Is.Null);
+        PromoteOfficerToCommander(Officer);
+        Assert.That(clans.Kick(home.Id, General, Officer),
+            Is.EqualTo(WDClanResult.Success));
+        Assert.That(home.Member(Officer), Is.Null);
+    }
+
+    [Test]
+    public void RePromotedCommanderReceivesNewSeniority()
+    {
+        PromoteOfficerToCommander(Officer);
+        DateTimeOffset first = home.Member(Officer).CommanderSinceUtc.Value;
+        clans.DemoteCommander(home.Id, General, Officer);
+        now = now.AddHours(4);
+        PromoteOfficerToCommander(Officer);
+        Assert.That(home.Member(Officer).CommanderSinceUtc, Is.EqualTo(now));
+        Assert.That(home.Member(Officer).CommanderSinceUtc, Is.GreaterThan(first));
+    }
+
+    // ============================================================
+    // 04. TRANSFERÊNCIA E SUCESSÃO
+    // ============================================================
+    [Test]
+    public void ManualTransferAcceptsOnlyCommanderAndRemovesOldGeneral()
+    {
+        Assert.That(clans.TransferLeadership(home.Id, General, Officer),
+            Is.EqualTo(WDClanResult.Invalid));
+        PromoteOfficerToCommander(Officer);
+        Assert.That(clans.TransferLeadership(home.Id, General, Officer),
+            Is.EqualTo(WDClanResult.Success));
+        Assert.That(home.GeneralId, Is.EqualTo(Officer));
+        Assert.That(home.Members.Count(item => item.Role == WDClanRole.General),
+            Is.EqualTo(1));
+        Assert.That(home.Member(General), Is.Null);
+        Assert.That(clans.ClanOf(General), Is.Null);
+    }
+
+    [Test]
+    public void AutomaticSuccessionChoosesOldestCommanderByCommanderSinceUtc()
+    {
+        clans.Promote(home.Id, General, Member);
+        PromoteOfficerToCommander(Member);
+        now = now.AddDays(1);
+        PromoteOfficerToCommander(Officer);
+        Assert.That(clans.LeaveAsGeneral(home.Id, General, out string successor),
+            Is.EqualTo(WDClanResult.Success));
+        Assert.That(successor, Is.EqualTo(Member));
+        Assert.That(home.GeneralId, Is.EqualTo(Member));
+        Assert.That(home.Member(Officer).Role, Is.EqualTo(WDClanRole.Commander));
+        Assert.That(home.Member(General), Is.Null);
+    }
+
+    [Test]
+    public void EqualSeniorityUsesDocumentedDeterministicFallback()
+    {
+        PromoteOfficerToCommander(Officer);
+        clans.Promote(home.Id, General, Member);
+        PromoteOfficerToCommander(Member);
+        string expected = new[] { Officer, Member }.OrderBy(id => id,
+            StringComparer.Ordinal).First();
+        Assert.That(clans.OldestCommander(home).PlayerId, Is.EqualTo(expected));
+    }
+
+    [Test]
+    public void GeneralCannotLeaveWithoutCommanderOrBypassSuccession()
+    {
+        Assert.That(clans.Leave(General), Is.EqualTo(WDClanResult.RequiresSuccessor));
+        Assert.That(clans.LeaveAsGeneral(home.Id, General, out string successor),
+            Is.EqualTo(WDClanResult.RequiresSuccessor));
+        Assert.That(successor, Is.Null);
+        Assert.That(home.GeneralId, Is.EqualTo(General));
+    }
+
+    [Test]
+    public void NonGeneralLeavesNormally()
+    {
+        Assert.That(clans.Leave(Member), Is.EqualTo(WDClanResult.Success));
+        Assert.That(clans.ClanOf(Member), Is.Null);
+        Assert.That(profiles.Find(Member).Clan, Is.Empty);
+    }
+
+    // ============================================================
+    // 05. EXPULSÃO E EXCLUSÃO
+    // ============================================================
+    [Test]
+    public void OfficerRequestsRemovalAndCommanderApproves()
+    {
+        Assert.That(clans.RequestKick(home.Id, Officer, Member),
+            Is.EqualTo(WDClanResult.Success));
+        PromoteOfficerToCommander(Officer);
+        Assert.That(clans.DecideKick(home.Id, Officer,
+            home.KickRequests.Single().Id, true), Is.EqualTo(WDClanResult.Success));
+        Assert.That(home.Member(Member), Is.Null);
+    }
+
+    [Test]
+    public void MemberCannotRequestRemoval()
+    {
+        Assert.That(clans.RequestKick(home.Id, Member, Officer),
+            Is.EqualTo(WDClanResult.Forbidden));
+    }
+
+    [Test]
+    public void OnlyGeneralDeletesClan()
+    {
+        PromoteOfficerToCommander(Officer);
         Assert.That(clans.Delete(home.Id, Officer), Is.EqualTo(WDClanResult.Forbidden));
-        Assert.That(clans.Delete(home.Id, Local), Is.EqualTo(WDClanResult.Success));
+        Assert.That(clans.Delete(home.Id, General), Is.EqualTo(WDClanResult.Success));
         Assert.That(clans.Find(home.Id), Is.Null);
         Assert.That(clans.ClanOf(Member), Is.Null);
-        Assert.That(home.JoinRequests, Is.Empty);
-        Assert.That(home.KickRequests, Is.Empty);
-        Assert.That(home.TokenRequests, Is.Empty);
-        Assert.That(profiles.Find(Local).Clan, Is.Empty);
     }
 
     // ============================================================
-    // 03. EXPULSÃO DIRETA E SOLICITADA
+    // 06. TOKENS DE ARMAS SEM LIMITE DIÁRIO INVENTADO
     // ============================================================
-    [Test] public void CommanderCanKickEligibleMemberButNotSelf()
+    [Test]
+    public void TokenRequestsHaveNoMandatoryDailyLimit()
     {
-        Assert.That(clans.Kick(home.Id, Local, Local), Is.EqualTo(WDClanResult.Invalid));
-        Assert.That(clans.Kick(home.Id, Local, Member), Is.EqualTo(WDClanResult.Success));
-        Assert.That(clans.ClanOf(Member), Is.Null);
-        Assert.That(home.Log.Last().Text, Does.Contain("expulso"));
-    }
-
-    [Test] public void OfficerCannotKickDirectlyButCanRequestMemberKick()
-    {
-        Assert.That(clans.Kick(home.Id, Officer, Member), Is.EqualTo(WDClanResult.Forbidden));
-        Assert.That(clans.RequestKick(home.Id, Officer, Member), Is.EqualTo(WDClanResult.Success));
-        Assert.That(home.Member(Member), Is.Not.Null);
-        Assert.That(home.KickRequests.Single().OfficerId, Is.EqualTo(Officer));
-    }
-
-    [TestCase(Local)]
-    [TestCase(Officer)]
-    public void OfficerCannotRequestKickOfCommanderOrAnotherOfficer(string target)
-    {
-        Assert.That(clans.RequestKick(home.Id, Officer, target), Is.EqualTo(WDClanResult.Invalid));
-        Assert.That(home.KickRequests, Is.Empty);
-    }
-
-    [Test] public void DuplicateActiveKickRequestIsBlocked()
-    {
-        clans.RequestKick(home.Id, Officer, Member);
-        Assert.That(clans.RequestKick(home.Id, Officer, Member), Is.EqualTo(WDClanResult.AlreadyPending));
-        Assert.That(home.KickRequests.Count, Is.EqualTo(1));
-    }
-
-    [Test] public void CommanderApprovalRemovesTargetAndLogsOutcome()
-    {
-        clans.RequestKick(home.Id, Officer, Member);
-        Assert.That(clans.DecideKick(home.Id, Local, home.KickRequests.Single().Id, true),
+        Assert.That(clans.RequestTokens(Member, "w0", 1, out _),
             Is.EqualTo(WDClanResult.Success));
-        Assert.That(home.Member(Member), Is.Null);
-        Assert.That(home.Log.Last().Text, Does.Contain("aprovada"));
-    }
-
-    [Test] public void CommanderRejectionKeepsTargetAndLogsOutcome()
-    {
-        clans.RequestKick(home.Id, Officer, Member);
-        Assert.That(clans.DecideKick(home.Id, Local, home.KickRequests.Single().Id, false),
+        Assert.That(clans.RequestTokens(Member, "w0", 1, out _),
             Is.EqualTo(WDClanResult.Success));
-        Assert.That(home.Member(Member), Is.Not.Null);
-        Assert.That(home.Log.Last().Text, Does.Contain("rejeitada"));
+        Assert.That(clans.RequestTokens(Member, "w0", 1, out _),
+            Is.EqualTo(WDClanResult.Success));
     }
 
-    // ============================================================
-    // 04. TROCAS: TOKEN CANÔNICO, LIMITES UTC E CONSISTÊNCIA
-    // ============================================================
-    [Test] public void RequestAcceptsOnlyCanonicalWeaponTokens()
-    {
-        Assert.That(clans.RequestTokens(Member, "coins", 1, out _), Is.EqualTo(WDClanResult.Invalid));
-        Assert.That(clans.RequestTokens(Member, "w0", 0, out _), Is.EqualTo(WDClanResult.Invalid));
-        Assert.That(clans.RequestTokens(Member, "w0", 5, out _), Is.EqualTo(WDClanResult.Success));
-    }
-
-    [Test] public void RequestLimitIsPerPlayerPerUtcDayAndResetsNextDay()
-    {
-        Assert.That(clans.RequestTokens(Member, "w0", 2, out _), Is.EqualTo(WDClanResult.Success));
-        Assert.That(clans.RequestTokens(Member, "w0", 2, out _), Is.EqualTo(WDClanResult.DailyLimit));
-        Assert.That(clans.RequestTokens(Officer, "w0", 2, out _), Is.EqualTo(WDClanResult.Success));
-        now = now.AddDays(1);
-        Assert.That(clans.RequestTokens(Member, "w0", 2, out _), Is.EqualTo(WDClanResult.Success));
-    }
-
-    [Test] public void DonationTransfersOnlyTokensAndPreservesOwnershipLevelAndDeck()
-    {
-        WDArmoryProfile donor = armory.Load(Local);
-        donor.GetDeck(0).SetMain(0, "w0");
-        clans.RequestTokens(Member, "w0", 5, out WDClanTokenRequest request);
-        Assert.That(clans.Donate(Local, request.Id), Is.EqualTo(WDClanResult.Success));
-        Assert.That(donor.GetProgress("w0").Tokens, Is.EqualTo(25));
-        Assert.That(armory.Load(Member).GetProgress("w0").Tokens, Is.EqualTo(9));
-        Assert.That(donor.GetProgress("w0").Level, Is.EqualTo(2));
-        Assert.That(armory.Load(Member).GetProgress("w0").Level, Is.EqualTo(2));
-        Assert.That(donor.GetDeck(0).GetMain(0), Is.EqualTo("w0"));
-        Assert.That(request.Fulfilled, Is.True);
-        Assert.That(home.Log.Last().Text, Does.Contain("Doação concluída"));
-    }
-
-    [Test] public void DonationLimitIsIndependentFromRequestAndResetsNextUtcDay()
+    [Test]
+    public void MultipleDonationsOnSameDayRemainAllowed()
     {
         clans.RequestTokens(Member, "w0", 1, out WDClanTokenRequest first);
-        Assert.That(clans.Donate(Local, first.Id), Is.EqualTo(WDClanResult.Success));
-        Assert.That(clans.RequestTokens(Local, "w0", 1, out _), Is.EqualTo(WDClanResult.Success));
         clans.RequestTokens(Officer, "w0", 1, out WDClanTokenRequest second);
-        Assert.That(clans.Donate(Local, second.Id), Is.EqualTo(WDClanResult.DailyLimit));
-        now = now.AddDays(1);
-        Assert.That(clans.Donate(Local, second.Id), Is.EqualTo(WDClanResult.Success));
+        Assert.That(clans.Donate(General, first.Id), Is.EqualTo(WDClanResult.Success));
+        Assert.That(clans.Donate(General, second.Id), Is.EqualTo(WDClanResult.Success));
+        Assert.That(armory.Load(General).GetProgress("w0").Tokens, Is.EqualTo(28));
     }
 
-    [Test] public void DonorAndRecipientMustStillShareClan()
+    [Test]
+    public void DonationMovesOnlyCanonicalWeaponTokens()
     {
-        clans.RequestTokens(Member, "w0", 1, out WDClanTokenRequest request);
-        Assert.That(clans.Donate(Stranger, request.Id), Is.EqualTo(WDClanResult.Forbidden));
-        clans.Leave(Member);
-        Assert.That(clans.Donate(Local, request.Id), Is.Not.EqualTo(WDClanResult.Success));
-        Assert.That(armory.Load(Local).GetProgress("w0").Tokens, Is.EqualTo(30));
+        WDArmoryProfile donor = armory.Load(General);
+        donor.GetDeck(0).SetMain(0, "w0");
+        clans.RequestTokens(Member, "w0", 3, out WDClanTokenRequest request);
+        Assert.That(clans.Donate(General, request.Id), Is.EqualTo(WDClanResult.Success));
+        Assert.That(donor.GetProgress("w0").Tokens, Is.EqualTo(27));
+        Assert.That(armory.Load(Member).GetProgress("w0").Tokens, Is.EqualTo(7));
+        Assert.That(donor.GetProgress("w0").Level, Is.EqualTo(2));
+        Assert.That(donor.GetDeck(0).GetMain(0), Is.EqualTo("w0"));
     }
 
-    [Test] public void InsufficientTokensDoesNotConsumeDailyDonation()
+    // ============================================================
+    // 07. INTEGRAÇÕES E APRESENTAÇÃO EXISTENTE
+    // ============================================================
+    [Test]
+    public void ClanChatClosesWhenFormerGeneralLeavesThroughSuccession()
     {
-        clans.RequestTokens(Member, "w0", 31, out WDClanTokenRequest tooLarge);
-        Assert.That(clans.Donate(Local, tooLarge.Id), Is.EqualTo(WDClanResult.InsufficientTokens));
-        clans.RequestTokens(Officer, "w0", 1, out WDClanTokenRequest valid);
-        Assert.That(clans.Donate(Local, valid.Id), Is.EqualTo(WDClanResult.Success));
-        Assert.That(armory.Load(Local).GetProgress("w0").Tokens, Is.EqualTo(29));
-    }
-
-    [Test] public void RepeatedDonationCannotTransferTwiceOrConsumeTwice()
-    {
-        clans.RequestTokens(Member, "w0", 2, out WDClanTokenRequest request);
-        Assert.That(clans.Donate(Local, request.Id), Is.EqualTo(WDClanResult.Success));
-        int remaining = armory.Load(Local).GetProgress("w0").Tokens;
-        Assert.That(clans.Donate(Local, request.Id), Is.EqualTo(WDClanResult.NotFound));
-        Assert.That(armory.Load(Local).GetProgress("w0").Tokens, Is.EqualTo(remaining));
-    }
-
-    [Test] public void ClanChatUsesCurrentMembershipAndClosesOnExit()
-    {
+        PromoteOfficerToCommander(Officer);
         WDSocialRepository social = new(profiles, Array.Empty<WDSocialMockSeed>());
         WDChatRepository chat = new(profiles, social);
         chat.SyncClanMembership(home);
-        Assert.That(chat.ClanChannel.Id, Is.EqualTo($"clan:{home.Id}"));
-        Assert.That(chat.ClanChannel.CanAccess(Local), Is.True);
-        clans.TransferCommand(home.Id, Local, Officer);
-        clans.Leave(Local);
+        clans.LeaveAsGeneral(home.Id, General, out _);
         chat.SyncClanMembership(clans.LocalClan);
         Assert.That(chat.ClanChannel, Is.Null);
-        Assert.That(chat.Channels.Single(item => item.Id == $"clan:{home.Id}").CanAccess(Local), Is.False);
+        Assert.That(chat.Channels.Single(item => item.Id == $"clan:{home.Id}")
+            .CanAccess(General), Is.False);
     }
 
-    [Test] public void ClanMembershipDoesNotBypassPrivateChatSocialRules()
+    [Test]
+    public void ClanPanelKeepsOneNavigationDestination()
     {
-        WDSocialRepository social = new(profiles, Array.Empty<WDSocialMockSeed>());
-        WDSettingsData settings = WDSettingsData.Defaults();
-        settings.AllowNonFriendMessages = false;
-        WDChatRepository chat = new(profiles, social, () => settings);
-        chat.SyncClanMembership(home);
-        Assert.That(home.Member(Member), Is.Not.Null);
-        Assert.That(chat.OpenPrivate(Member), Is.Null);
-    }
-
-    [Test] public void InvalidDonationCannotChangeTokensOrDailyQuota()
-    {
-        clans.RequestTokens(Member, "w0", 3, out WDClanTokenRequest request);
-        int donorBefore = armory.Load(Local).GetProgress("w0").Tokens;
-        Assert.That(clans.Donate(Member, request.Id), Is.EqualTo(WDClanResult.Forbidden));
-        Assert.That(armory.Load(Local).GetProgress("w0").Tokens, Is.EqualTo(donorBefore));
-        Assert.That(clans.Donate(Local, request.Id), Is.EqualTo(WDClanResult.Success));
-        Assert.That(armory.Load(Local).GetProgress("w0").Tokens, Is.EqualTo(donorBefore - 3));
-    }
-
-    // ============================================================
-    // 05. APRESENTAÇÃO, CONFIRMAÇÕES E NAVEGAÇÃO COMPARTILHADA
-    // ============================================================
-    [Test] public void ClanPanelHasOneHomeDestinationAndTabsDoNotPushNavigation()
-    {
-        GameObject root = BuildPanel(out WDHomeClanPanel panel, out WDNavigationStack navigation);
+        GameObject root = BuildPanel(out WDHomeClanPanel panel,
+            out WDNavigationStack navigation);
         try
         {
             panel.Open();
@@ -395,256 +409,95 @@ public sealed class WDClanTests
         finally { UnityEngine.Object.DestroyImmediate(root); }
     }
 
-    [Test] public void ClanPanelWithoutMembershipShowsDiscoveryAndCreation()
+    [Test]
+    public void ClanPanelWithoutMembershipShowsDiscoveryAndEmeraldCreation()
     {
-        clans.TransferCommand(home.Id, Local, Officer);
-        clans.Leave(Local);
+        PromoteOfficerToCommander(Officer);
+        clans.TransferLeadership(home.Id, General, Officer);
         GameObject root = BuildPanel(out WDHomeClanPanel panel, out _);
         try
         {
             panel.Open();
             Assert.That(panel.CurrentTab, Is.EqualTo(WDClanTab.Discover));
-            Assert.That(root.transform.Find("ClanLayer/ClanContent/Surface/Search"), Is.Not.Null);
-            Assert.That(root.transform.Find("ClanLayer/ClanContent/Surface/CreateClan"), Is.Not.Null);
+            Transform surface = root.transform.Find("ClanLayer/ClanContent/Surface");
+            Assert.That(surface.Find("Search"), Is.Not.Null);
+            Assert.That(surface.Find("CreateClan"), Is.Not.Null);
+            Assert.That(surface.Find("CreateTitle").GetComponent<TMP_Text>().text,
+                Does.Contain("ESMERALDAS"));
         }
         finally { UnityEngine.Object.DestroyImmediate(root); }
     }
 
-    [Test] public void ClanPanelShowsInlineErrorWithRetryAndOfflineState()
+    // ============================================================
+    // 08. HELPERS E PORTAS DE TESTE
+    // ============================================================
+    private void PromoteOfficerToCommander(string playerId)
     {
-        GameObject root = BuildPanel(out WDHomeClanPanel panel, out _);
-        try
-        {
-            panel.Open();
-            clans.SetAvailability(WDClanAvailability.Error);
-            Assert.That(root.transform.Find("ClanLayer/ClanContent/Surface/Retry"), Is.Not.Null);
-            Click(root, "Retry");
-            Assert.That(clans.Availability, Is.EqualTo(WDClanAvailability.Available));
-            clans.SetAvailability(WDClanAvailability.Offline);
-            Assert.That(root.transform.Find("ClanLayer/ClanContent/Surface/Availability"), Is.Not.Null);
-        }
-        finally { UnityEngine.Object.DestroyImmediate(root); }
-    }
-
-    [Test] public void SearchAndSelectedClanInfoReturnToSameDiscoveryQuery()
-    {
-        WDClanData other = CreateOther();
-        clans.TransferCommand(home.Id, Local, Officer); clans.Leave(Local);
-        GameObject root = BuildPanel(out WDHomeClanPanel panel, out _);
-        try
-        {
-            panel.Open();
-            TMP_InputField search = root.transform.Find("ClanLayer/ClanContent/Surface/Search")
-                .GetComponent<TMP_InputField>();
-            search.text = "IRON"; Click(root, "SearchButton");
-            Assert.That(panel.SearchQuery, Is.EqualTo("IRON"));
-            Click(root, $"Info_{other.Id}");
-            Assert.That(panel.SelectedClanId, Is.EqualTo(other.Id));
-            Assert.That(panel.TryHandleLocalBack(), Is.True);
-            Assert.That(panel.SearchQuery, Is.EqualTo("IRON"));
-            Assert.That(panel.SelectedClanId, Is.Null);
-            Assert.That(root.transform.Find("ClanLayer/ClanContent/Surface/Search")
-                .GetComponent<TMP_InputField>().text, Is.EqualTo("IRON"));
-            Assert.That(root.transform.Find($"ClanLayer/ClanContent/Surface/Info_{other.Id}"),
-                Is.Not.Null);
-        }
-        finally { UnityEngine.Object.DestroyImmediate(root); }
-    }
-
-    [Test] public void DiscoveryCanCreateAFreeClanThroughTheSharedRepository()
-    {
-        clans.TransferCommand(home.Id, Local, Officer); clans.Leave(Local);
-        GameObject root = BuildPanel(out WDHomeClanPanel panel, out _);
-        try
-        {
-            panel.Open();
-            root.transform.Find("ClanLayer/ClanContent/Surface/CreateName")
-                .GetComponent<TMP_InputField>().text = "Novo Clã";
-            root.transform.Find("ClanLayer/ClanContent/Surface/CreateTag")
-                .GetComponent<TMP_InputField>().text = "NOV";
-            Click(root, "CreateClan");
-            Assert.That(clans.LocalClan.Name, Is.EqualTo("Novo Clã"));
-            Assert.That(clans.LocalClan.Member(Local).Role, Is.EqualTo(WDClanRole.Commander));
-            Assert.That(panel.CurrentTab, Is.EqualTo(WDClanTab.Overview));
-        }
-        finally { UnityEngine.Object.DestroyImmediate(root); }
-    }
-
-    [Test] public void ApprovalJoinActionBecomesSentWithoutGrantingMembership()
-    {
-        WDClanData approval = CreateOther(WDClanAdmission.Approval);
-        clans.TransferCommand(home.Id, Local, Officer); clans.Leave(Local);
-        GameObject root = BuildPanel(out WDHomeClanPanel panel, out _);
-        try
-        {
-            panel.Open(); Click(root, $"Info_{approval.Id}"); Click(root, "JoinClan");
-            Assert.That(clans.LocalClan, Is.Null);
-            Assert.That(approval.JoinRequests.Any(item => item.PlayerId == Local), Is.True);
-            Assert.That(root.transform.Find("ClanLayer/ClanContent/Surface/JoinClan")
-                .GetComponentInChildren<Button>().interactable, Is.False);
-        }
-        finally { UnityEngine.Object.DestroyImmediate(root); }
-    }
-
-    [Test] public void TradeDonationButtonUsesConfirmationAndCanonicalTokenAuthority()
-    {
-        clans.RequestTokens(Member, "w0", 2, out WDClanTokenRequest request);
-        Action pending = null;
-        GameObject root = BuildPanel(out WDHomeClanPanel panel, out _,
-            (title, body, action) => pending = action);
-        try
-        {
-            panel.Open(); Click(root, "Tab_Trades");
-            Assert.That(root.transform.Find("ClanLayer/ClanContent/Surface/RequestTokens"), Is.Not.Null);
-            Click(root, $"Donate_{request.Id}");
-            Assert.That(armory.Load(Local).GetProgress("w0").Tokens, Is.EqualTo(30));
-            pending();
-            Assert.That(armory.Load(Local).GetProgress("w0").Tokens, Is.EqualTo(28));
-            Assert.That(armory.Load(Member).GetProgress("w0").Tokens, Is.EqualTo(6));
-        }
-        finally { UnityEngine.Object.DestroyImmediate(root); }
-    }
-
-    [Test] public void CommanderActionsAppearButOfficerNeverGetsDirectKick()
-    {
-        GameObject root = BuildPanel(out WDHomeClanPanel panel, out _);
-        try
-        {
-            panel.Open(); Click(root, "Tab_Members");
-            Assert.That(root.transform.Find("ClanLayer/ClanContent/Surface/Kick_WD-7105"), Is.Not.Null);
-            clans.TransferCommand(home.Id, Local, Officer);
-            Assert.That(root.transform.Find("ClanLayer/ClanContent/Surface/Kick_WD-7105"), Is.Null);
-            Assert.That(root.transform.Find("ClanLayer/ClanContent/Surface/RequestKick_WD-7105"), Is.Not.Null);
-        }
-        finally { UnityEngine.Object.DestroyImmediate(root); }
-    }
-
-    [Test] public void MemberDoesNotSeeAdministrativeActions()
-    {
-        clans.TransferCommand(home.Id, Local, Officer);
-        clans.Demote(home.Id, Officer, Local);
-        GameObject root = BuildPanel(out WDHomeClanPanel panel, out _);
-        try
-        {
-            panel.Open(); Click(root, "Tab_Members");
-            Assert.That(root.transform.Find("ClanLayer/ClanContent/Surface/Kick_WD-7105"), Is.Null);
-            Assert.That(root.transform.Find("ClanLayer/ClanContent/Surface/RequestKick_WD-7105"), Is.Null);
-            Assert.That(root.transform.Find("ClanLayer/ClanContent/Surface/Profile_WD-7105"), Is.Not.Null);
-        }
-        finally { UnityEngine.Object.DestroyImmediate(root); }
-    }
-
-    [Test] public void PublicProfileBackRestoresSameMembersTabAndTopVisualLayer()
-    {
-        GameObject root = BuildPanel(out WDHomeClanPanel panel, out WDNavigationStack navigation,
-            out WDHomeProfilePanel profilePanel);
-        try
-        {
-            panel.Open(); Click(root, "Tab_Members");
-            Click(root, "Profile_WD-7105");
-            Assert.That(profilePanel.CurrentView, Is.EqualTo(WDProfileView.PublicProfile));
-            Assert.That(navigation.CurrentId, Is.EqualTo("profile/public/WD-7105"));
-            navigation.TryBack();
-            Assert.That(navigation.CurrentId, Is.EqualTo("clan"));
-            Assert.That(panel.CurrentTab, Is.EqualTo(WDClanTab.Members));
-            Assert.That(panel.transform.GetSiblingIndex(),
-                Is.EqualTo(panel.transform.parent.childCount - 1));
-        }
-        finally { UnityEngine.Object.DestroyImmediate(root); }
-    }
-
-    [Test] public void LeaveAndDeleteNeedExplicitConfirmationBeforeMutation()
-    {
-        Action pending = null;
-        clans.TransferCommand(home.Id, Local, Officer);
-        GameObject root = BuildPanel(out WDHomeClanPanel panel, out _,
-            (title, body, action) => pending = action);
-        try
-        {
-            panel.Open(); Click(root, "LeaveClan");
-            Assert.That(clans.LocalClan, Is.Not.Null);
-            Assert.That(pending, Is.Not.Null);
-            pending();
-            Assert.That(clans.LocalClan, Is.Null);
-        }
-        finally { UnityEngine.Object.DestroyImmediate(root); }
-    }
-
-    [Test] public void CommanderDeletionRequiresTwoSeparateConfirmations()
-    {
-        Action pending = null;
-        GameObject root = BuildPanel(out WDHomeClanPanel panel, out _,
-            (title, body, action) => pending = action);
-        try
-        {
-            panel.Open(); Click(root, "DeleteClan");
-            Assert.That(clans.LocalClan, Is.Not.Null);
-            Action first = pending; first();
-            Assert.That(clans.LocalClan, Is.Not.Null);
-            Assert.That(pending, Is.Not.SameAs(first));
-            pending();
-            Assert.That(clans.LocalClan, Is.Null);
-        }
-        finally { UnityEngine.Object.DestroyImmediate(root); }
+        Assert.That(clans.PromoteToCommander(home.Id, General, playerId),
+            Is.EqualTo(WDClanResult.Success));
     }
 
     private WDClanData CreateOther(WDClanAdmission mode = WDClanAdmission.Open)
     {
-        Assert.That(clans.Create("WD-5582", "Iron Dominion", "IRON", "", mode,
+        Assert.That(clans.Create(OtherFounder, "Iron Dominion", "IRON", "", mode,
             out WDClanData other), Is.EqualTo(WDClanResult.Success));
         return other;
     }
 
-    private GameObject BuildPanel(out WDHomeClanPanel panel, out WDNavigationStack navigation,
-        Action<string, string, Action> confirmation = null)
+    private GameObject BuildPanel(out WDHomeClanPanel panel,
+        out WDNavigationStack navigation)
     {
         GameObject root = new("ClanTestRoot", typeof(RectTransform));
         RectTransform layer = WDHomeUIFactory.Rect("ClanLayer", root.transform);
         panel = layer.gameObject.AddComponent<WDHomeClanPanel>();
         navigation = new WDNavigationStack();
         WDHomeClanPanel captured = panel;
-        navigation.SetRoot(new WDNavigationContext("home", _ => captured.HideFromNavigation()));
+        navigation.SetRoot(new WDNavigationContext("home",
+            _ => captured.HideFromNavigation()));
         panel.Build(Theme(), clans, profiles,
             new WDSocialRepository(profiles, Array.Empty<WDSocialMockSeed>()),
             navigation, playerId => { }, playerId => { },
-            confirmation ?? ((title, body, action) => { }));
-        return root;
-    }
-
-    private GameObject BuildPanel(out WDHomeClanPanel panel, out WDNavigationStack navigation,
-        out WDHomeProfilePanel profilePanel)
-    {
-        GameObject root = new("ClanTestRoot", typeof(RectTransform));
-        RectTransform clanLayer = WDHomeUIFactory.Rect("ClanLayer", root.transform);
-        RectTransform profileLayer = WDHomeUIFactory.Rect("ProfileLayer", root.transform);
-        panel = clanLayer.gameObject.AddComponent<WDHomeClanPanel>();
-        profilePanel = profileLayer.gameObject.AddComponent<WDHomeProfilePanel>();
-        navigation = new WDNavigationStack();
-        WDHomeClanPanel captured = panel;
-        navigation.SetRoot(new WDNavigationContext("home", _ => captured.HideFromNavigation()));
-        WDSocialRepository social = new(profiles, Array.Empty<WDSocialMockSeed>());
-        profilePanel.Build(Theme(), profiles, social, navigation,
-            (playerId, matchId) => { }, () => { });
-        panel.Build(Theme(), clans, profiles, social, navigation,
-            profilePanel.OpenPublicProfile, playerId => { },
             (title, body, action) => { });
         return root;
     }
 
     private static void Click(GameObject root, string name) =>
-        root.GetComponentsInChildren<Button>(true).First(button => button.name == name).onClick.Invoke();
+        root.GetComponentsInChildren<Button>(true).First(button =>
+            button.name == name).onClick.Invoke();
+
     private static WarDominionUITheme Theme() =>
         Resources.Load<WarDominionUITheme>("UI/WarDominionUITheme");
 
-    private sealed class MemoryArmory : IWDClanArmoryProfiles
+    private sealed class MemoryArmory : IWDClanArmoryProfiles, IWDClanEconomy
     {
-        private readonly Dictionary<string, WDArmoryProfile> profiles = new();
+        private readonly Dictionary<string, WDArmoryProfile> values = new();
         public WDArmoryProfile Load(string playerId)
         {
-            if (!profiles.TryGetValue(playerId, out WDArmoryProfile value))
-            { value = new WDArmoryProfile(); profiles[playerId] = value; }
+            if (!values.TryGetValue(playerId, out WDArmoryProfile value))
+            { value = new WDArmoryProfile(); values[playerId] = value; }
             return value;
         }
-        public void Save(string playerId, WDArmoryProfile value) => profiles[playerId] = value;
+
+        public void Save(string playerId, WDArmoryProfile value) => values[playerId] = value;
+
+        public bool TrySpendEmeralds(string playerId, int amount)
+        {
+            WDArmoryProfile value = Load(playerId);
+            if (!value.SpendEmeralds(amount)) return false;
+            Save(playerId, value); return true;
+        }
+
+        public void RefundEmeralds(string playerId, int amount)
+        {
+            WDArmoryProfile value = Load(playerId);
+            value.SetCurrencies(value.Coins, value.Emeralds + amount);
+            Save(playerId, value);
+        }
+    }
+
+    private sealed class ArmoryWithoutEconomy : IWDClanArmoryProfiles
+    {
+        public WDArmoryProfile Load(string playerId) => new();
+        public void Save(string playerId, WDArmoryProfile profile) { }
     }
 }

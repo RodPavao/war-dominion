@@ -1,0 +1,37 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="43" height="43" viewBox="0 0 43 43" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="WD Tactical / TRANSFERIR / Icon" filter="url(#filter0_dddd_0_29)">
+<path fill-rule="evenodd" clip-rule="evenodd" d="M24.3065 14.5C24.3065 15.4193 24.1432 16.3295 23.826 17.1788C23.5087 18.0281 23.0437 18.7997 22.4575 19.4497C21.8712 20.0998 21.1753 20.6154 20.4093 20.9672C19.6434 21.3189 18.8225 21.5 17.9934 21.5C17.1644 21.5 16.3435 21.3189 15.5775 20.9672C14.8116 20.6154 14.1156 20.0998 13.5294 19.4497C12.9432 18.7997 12.4782 18.0281 12.1609 17.1788C11.8436 16.3295 11.6804 15.4193 11.6804 14.5C11.6804 12.6435 12.3455 10.863 13.5294 9.55025C14.7133 8.2375 16.3191 7.5 17.9934 7.5C19.6678 7.5 21.2735 8.2375 22.4575 9.55025C23.6414 10.863 24.3065 12.6435 24.3065 14.5ZM28.3876 31.58C28.4995 32.0409 28.5143 32.5243 28.4307 32.9926C28.3472 33.4609 28.1676 33.9016 27.9058 34.2806C27.644 34.6595 27.3071 34.9667 26.9212 35.1781C26.5352 35.3896 26.1105 35.4997 25.68 35.5H10.3041C9.87358 35.4997 9.44889 35.3896 9.06292 35.1781C8.67694 34.9667 8.34002 34.6595 8.07825 34.2806C7.81648 33.9016 7.63687 33.4609 7.55333 32.9926C7.46979 32.5243 7.48456 32.0409 7.5965 31.58L8.42421 28.15C8.72281 26.9095 9.38253 25.8131 10.3009 25.0311C11.2192 24.2491 12.3448 23.8253 13.5027 23.8256H22.4813C23.6384 23.829 24.7624 24.2542 25.6801 25.0356C26.5978 25.817 27.2583 26.9114 27.5599 28.15L28.3876 31.58ZM25.008 7.5C24.559 7.5 24.1171 7.55444 23.6963 7.65556C24.5511 8.52612 25.2338 9.58392 25.7011 10.762C26.1683 11.9402 26.41 13.213 26.4109 14.5C26.4109 17.2067 25.3587 19.6411 23.6963 21.3444C24.1171 21.4456 24.559 21.5 25.008 21.5C28.4872 21.5 31.321 18.3578 31.321 14.5C31.321 10.6422 28.4872 7.5 25.008 7.5ZM34.5758 28.15L35.4035 31.58V31.5722C35.5154 32.0332 35.5302 32.5165 35.4467 32.9848C35.3631 33.4531 35.1835 33.8938 34.9218 34.2728C34.66 34.6518 34.3231 34.9589 33.9371 35.1703C33.5511 35.3818 33.1264 35.4919 32.6959 35.4922H29.6993C30.534 34.17 30.8006 32.5444 30.4218 30.9733L29.5941 27.5433C29.2526 26.1291 28.5713 24.8442 27.623 23.8256H29.4973C30.6543 23.829 31.7783 24.2542 32.696 25.0356C33.6137 25.817 34.2742 26.9114 34.5758 28.15Z" fill="#FFC94A"/>
+</g>
+<defs>
+<filter id="filter0_dddd_0_29" x="-1.99176e-09" y="0" width="43" height="43" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feOffset/>
+<feGaussianBlur stdDeviation="1"/>
+<feComposite in2="hardAlpha" operator="out"/>
+<feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 0.788235 0 0 0 0 0.290196 0 0 0 0.8 0"/>
+<feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_0_29"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feOffset/>
+<feGaussianBlur stdDeviation="3.5"/>
+<feComposite in2="hardAlpha" operator="out"/>
+<feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 0.788235 0 0 0 0 0.290196 0 0 0 0.48 0"/>
+<feBlend mode="normal" in2="effect1_dropShadow_0_29" result="effect2_dropShadow_0_29"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feMorphology radius="1" operator="dilate" in="SourceAlpha" result="effect3_dropShadow_0_29"/>
+<feOffset/>
+<feGaussianBlur stdDeviation="1"/>
+<feComposite in2="hardAlpha" operator="out"/>
+<feColorMatrix type="matrix" values="0 0 0 0 0.012 0 0 0 0 0.02 0 0 0 0 0.035 0 0 0 0.95 0"/>
+<feBlend mode="normal" in2="effect2_dropShadow_0_29" result="effect3_dropShadow_0_29"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feMorphology radius="1.5" operator="dilate" in="SourceAlpha" result="effect4_dropShadow_0_29"/>
+<feOffset/>
+<feGaussianBlur stdDeviation="3"/>
+<feComposite in2="hardAlpha" operator="out"/>
+<feColorMatrix type="matrix" values="0 0 0 0 0.012 0 0 0 0 0.02 0 0 0 0 0.035 0 0 0 0.7 0"/>
+<feBlend mode="normal" in2="effect3_dropShadow_0_29" result="effect4_dropShadow_0_29"/>
+<feBlend mode="normal" in="SourceGraphic" in2="effect4_dropShadow_0_29" result="shape"/>
+</filter>
+</defs>
+</svg>

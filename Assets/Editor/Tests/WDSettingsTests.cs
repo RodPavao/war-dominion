@@ -93,6 +93,54 @@ public sealed class WDSettingsTests
         Assert.That(runtime.AudioApplications, Is.GreaterThan(1));
     }
 
+    [Test]
+    public void MutePersistsSeparatelyFromVolumeAndAudioDefaultsRestoreBoth()
+    {
+        var store = new MemoryStore();
+        var runtime = new RuntimeSpy();
+        var repository = new WDSettingsRepository(store, runtime);
+        repository.SetMasterVolume(.43f);
+        repository.SetMasterMuted(true);
+        Assert.That(runtime.Master, Is.Zero);
+        Assert.That(repository.Current.MasterVolume, Is.EqualTo(.43f));
+        var restoredRuntime = new RuntimeSpy();
+        var restored = new WDSettingsRepository(store, restoredRuntime);
+        Assert.That(restored.Current.MasterMuted, Is.True);
+        Assert.That(restoredRuntime.Master, Is.Zero);
+        restored.SetMasterVolume(2f);
+        Assert.That(restored.Current.MasterVolume, Is.EqualTo(1));
+        Assert.That(restoredRuntime.Master, Is.Zero);
+        restored.SetMasterMuted(false);
+        Assert.That(restoredRuntime.Master, Is.EqualTo(1));
+        restored.SetMasterVolume(0);
+        restored.SetMasterMuted(true);
+        restored.SetMasterMuted(false);
+        Assert.That(restoredRuntime.Master, Is.Zero);
+        restored.SetMasterMuted(true);
+        restored.RestoreAudioDefaults();
+        Assert.That(restored.Current.MasterMuted, Is.False);
+        Assert.That(restoredRuntime.Master, Is.EqualTo(.8f));
+    }
+
+    [Test]
+    public void OlderSettingsDefaultToUnmutedAndMatchRuntimeAppliesEffectiveVolume()
+    {
+        var legacy = UnityEngine.JsonUtility.FromJson<WDSettingsData>("{\"MasterVolume\":0.37}");
+        Assert.That(legacy.MasterMuted, Is.False);
+        float previous = UnityEngine.AudioListener.volume;
+        try
+        {
+            var repository = new WDSettingsRepository(new MemoryStore(), new WDMatchSettingsRuntime());
+            repository.SetMasterVolume(.37f);
+            Assert.That(UnityEngine.AudioListener.volume, Is.EqualTo(.37f));
+            repository.SetMasterMuted(true);
+            Assert.That(UnityEngine.AudioListener.volume, Is.Zero);
+            repository.SetMasterMuted(false);
+            Assert.That(UnityEngine.AudioListener.volume, Is.EqualTo(.37f));
+        }
+        finally { UnityEngine.AudioListener.volume = previous; }
+    }
+
     [TestCase(WDFrameRateLimit.Fps30, 30)]
     [TestCase(WDFrameRateLimit.Fps60, 60)]
     [TestCase(WDFrameRateLimit.Fps120, 120)]

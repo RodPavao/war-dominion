@@ -18,6 +18,7 @@ public sealed class WDSettingsData
     public WDResolutionPresentationSpeed ResolutionSpeed = WDResolutionPresentationSpeed.Normal;
     public bool Vibration = true;
     public float MasterVolume = 0.8f;
+    public bool MasterMuted;
     public float MusicVolume = 0.7f;
     public float SfxVolume = 0.9f;
     public WDFrameRateLimit FrameRate = WDFrameRateLimit.Fps60;
@@ -118,6 +119,8 @@ public sealed class WDSettingsRepository
     private readonly IWDSettingsRuntime runtime;
 
     public WDSettingsData Current { get; private set; }
+    public event Action AudioChanged;
+    public float EffectiveMasterVolume => Current.MasterMuted ? 0f : Current.MasterVolume;
     public float ResolutionPlaybackSpeed =>
         Current.ResolutionSpeed == WDResolutionPresentationSpeed.Accelerated ? 2f : 1f;
 
@@ -137,6 +140,7 @@ public sealed class WDSettingsRepository
         Save(data => data.ResolutionSpeed = value);
     public void SetVibration(bool value) => Save(data => data.Vibration = value);
     public void SetMasterVolume(float value) => SaveAudio(data => data.MasterVolume = value);
+    public void SetMasterMuted(bool value) => SaveAudio(data => data.MasterMuted = value);
     public void SetMusicVolume(float value) => SaveAudio(data => data.MusicVolume = value);
     public void SetSfxVolume(float value) => SaveAudio(data => data.SfxVolume = value);
     public void SetFrameRate(WDFrameRateLimit value) => SaveGraphics(data => data.FrameRate = value);
@@ -165,6 +169,7 @@ public sealed class WDSettingsRepository
         SaveAudio(data =>
         {
             data.MasterVolume = defaults.MasterVolume;
+            data.MasterMuted = defaults.MasterMuted;
             data.MusicVolume = defaults.MusicVolume;
             data.SfxVolume = defaults.SfxVolume;
         });
@@ -230,7 +235,7 @@ public sealed class WDSettingsRepository
 
     private void ApplyRuntime()
     {
-        runtime.ApplyAudio(Current.MasterVolume, Current.MusicVolume, Current.SfxVolume);
+        runtime.ApplyAudio(EffectiveMasterVolume, Current.MusicVolume, Current.SfxVolume);
         runtime.ApplyGraphics(Current.FrameRate, Current.GraphicsQuality, Current.Fullscreen);
     }
 
@@ -244,7 +249,8 @@ public sealed class WDSettingsRepository
     private void SaveAudio(Action<WDSettingsData> mutate)
     {
         Save(mutate);
-        runtime.ApplyAudio(Current.MasterVolume, Current.MusicVolume, Current.SfxVolume);
+        runtime.ApplyAudio(EffectiveMasterVolume, Current.MusicVolume, Current.SfxVolume);
+        AudioChanged?.Invoke();
     }
 
     private void SaveGraphics(Action<WDSettingsData> mutate)

@@ -52,19 +52,15 @@ MonoBehaviour:
   arrowColorOpacity: 0.82
   preparedArrowEnergyLength: 54
   preparedArrowEnergyThickness: 2
-  preparedArrowAmountSize: 17
-  preparedArrowAmountOffset: 18
-  preparedOriginMarkerSize: 38
+  planningBeamSpeed: 0.62
+  planningDashStride: 3
+  preparedArrowCurveFactor: 0.18
+  preparedArrowMaxCurveHeight: 70
   attackTravelDuration: 0.75
   attackImpactDuration: 0.3
   attackResultDuration: 0.8
-  attackIndicatorSize: 42
-  attackIndicatorTextSize: 18
-  attackPulseSize: 54
-  attackRouteThickness: 4
-  attackImpactIntensity: 0.85
-  attackResultTextSize: 20
-  attackResultOffset: 42
+  attackCurveFactor: 0.18
+  attackMaxCurveHeight: 1.1
   reinforcementEntryDuration: 0.28
   reinforcementReactionDuration: 0.32
   reinforcementExitDuration: 0.28
@@ -92,14 +88,62 @@ MonoBehaviour:
   typeSection: 16
   typeButton: 15
   typeBody: 14
-  typeNumber: 27
   typeMicro: 11
-  spacingXs: 4
-  spacingSm: 8
-  spacingMd: 14
-  spacingLg: 22
-  panelBorderWidth: 1
   buttonHeight: 42
   microAnimationDuration: 0.14
   mapThumbnailInnerScale: 1.18
-  actionsDrawerDuration: 0.2
+  masterTitleAndActionFont: {fileID: 12800000, guid: 01871786102449cfba3061fe9a6a2a50, type: 3}
+  masterFunctionalFont: {fileID: 12800000, guid: 8e755c71357fbb30e5bdbb904f94b0d0, type: 3}
+  masterGabaritoBold: {fileID: 11400000, guid: 72c6a932eee12884cb79de2a886a55f4, type: 2}
+  masterGabaritoExtraBold: {fileID: 11400000, guid: ebbfa02e8a30462488ad0b6ed98bf771, type: 2}
+  masterGabaritoBlack: {fileID: 11400000, guid: 69d2bf7fe594e5c46a983d3db50da807, type: 2}
+  masterInterRegular: {fileID: 11400000, guid: 14226202e0236034495eb461aaf51d1f, type: 2}
+  masterInterMedium: {fileID: 11400000, guid: 2af52a010acefd145a469b68d08a9d8c, type: 2}
+  masterInterSemiBold: {fileID: 11400000, guid: cc7742ef61a3b9b448a3865b563bd076, type: 2}
+  masterBackground: {r: 0.023529412, g: 0.03529412, b: 0.050980393, a: 1}
+  masterSurfacePrimary: {r: 0.043137256, g: 0.05490196, b: 0.07058824, a: 0.9411765}
+  masterSurfaceNavigation: {r: 0.039215688, g: 0.0627451, b: 0.09411765, a: 0.9098039}
+  masterSurfaceElevated: {r: 0.07058824, g: 0.08627451, b: 0.10980392, a: 0.9490196}
+  masterSurfaceModal: {r: 0.043137256, g: 0.05490196, b: 0.07058824, a: 0.972549}
+  masterOverlay: {r: 0, g: 0, b: 0, a: 0.72156864}
+  masterGold: {r: 0.77254903, g: 0.60784316, b: 0.3882353, a: 1}
+  masterGoldSoft: {r: 0.77254903, g: 0.60784316, b: 0.3882353, a: 0.47843137}
+  masterCyan: {r: 0.050980393, g: 0.7607843, b: 0.85882354, a: 1}
+  masterCyanSoft: {r: 0.050980393, g: 0.7607843, b: 0.85882354, a: 0.36078432}
+  masterTextPrimary: {r: 0.9607843, g: 0.9647059, b: 0.972549, a: 1}
+  masterTextSecondary: {r: 0.72156864, g: 0.78039217, b: 0.81960785, a: 1}
+  masterTextMuted: {r: 0.5568628, g: 0.57254905, b: 0.6039216, a: 1}
+  masterBorderNeutral: {r: 0.2509804, g: 0.34117648, b: 0.38039216, a: 0.72156864}
+  masterSuccess: {r: 0.21960784, g: 0.72156864, b: 0.47843137, a: 1}
+  masterWarning: {r: 0.9490196, g: 0.67058825, b: 0.2, a: 1}
+  masterDanger: {r: 0.8784314, g: 0.2784314, b: 0.2509804, a: 1}
+  masterDisabled: {r: 0.30980393, g: 0.36078432, b: 0.38039216, a: 0.72156864}
+  masterSpacing4: 4
+  masterSpacing8: 8
+  masterSpacing12: 12
+  masterSpacing16: 16
+  masterSpacing24: 24
+  masterSpacing32: 32
+  masterSpacing48: 48
+  masterRadius6: 6
+  masterRadius8: 8
+  masterRadius12: 12
+  masterRadius24: 24
+  masterBorder1: 1
+  masterBorder2: 2
+  masterChevronLeftIcon: {fileID: 21300000, guid: 310d76e8fe35c7049af59a4a5ddb585a, type: 3}
+  masterCoinIcon: {fileID: 21300000, guid: c684fafe0312bbb419b62f039e9da671, type: 3}
+  masterGemIcon: {fileID: 21300000, guid: d28ee9c9cb2b25948934cb249c9b1325, type: 3}
+  masterBellIcon: {fileID: 21300000, guid: b7a19be74c2f260459cadd2ce9629875, type: 3}
+  masterRoundedFill: {fileID: 21300000, guid: eca1a2122e04907438ea58928cb7cb40, type: 3}
+  masterRoundedOutline: {fileID: 21300000, guid: 7e7300477b5ce8e429b11ebe992ebed6, type: 3}
+  masterArmoryEditIcon: {fileID: 21300000, guid: a1ee31be8dfd23a4a98a687356719724, type: 3}
+  masterArmoryLockIcon: {fileID: 21300000, guid: 4054190d731579345ae0d7ee6c36a202, type: 3}
+  masterArmorySaveIcon: {fileID: 21300000, guid: 74da9999594420846a15d765dbbc4d77, type: 3}
+  masterArmoryRemoveIcon: {fileID: 21300000, guid: 650037cef19050447828fc1d7a640ecf, type: 3}
+  masterArmoryAddIcon: {fileID: 21300000, guid: 1f3ce5cea38302141ae7c1951f5b684a, type: 3}
+  masterArmorySearchIcon: {fileID: 21300000, guid: 89f343c65f8c8244ca20bb769425c2d5, type: 3}
+  masterArmoryUpgradeIcon: {fileID: 21300000, guid: eae406e1d11926748a41aa5168feca68, type: 3}
+  masterArmoryEnergyIcon: {fileID: 21300000, guid: 579bf13033c98f64eb0e30a318452c8d, type: 3}
+  masterArmoryArrowRightIcon: {fileID: 21300000, guid: 991dddc37520c364287476812c9e62b5, type: 3}
+  masterArmoryBackground: {fileID: 21300000, guid: 40cd0820a9926cd4999563e7d270be85, type: 3}

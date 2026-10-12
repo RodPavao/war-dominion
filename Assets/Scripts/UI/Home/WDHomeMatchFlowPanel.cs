@@ -658,7 +658,8 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
         RectTransform avatar = PlayRect("Avatar", account,
             new Vector2(0f, 0.5f), new Vector2(32f, 0f), new Vector2(48f, 48f));
         PlaySurface(avatar, new Color(0.12f, 0.14f, 0.17f, 1f), 24, PlayGold);
-        PlayIcon(avatar, "HomeAvatar", 42f);
+        PlayIcon(avatar, WDProfileIdentityVisuals.ResolveAvatar(profileRepository.LocalProfile),
+            "ProfileAvatar", 42f);
         playNicknameLabel = PlayText("Nickname", account, string.Empty, 18f,
             PlayWhite, new Vector2(0f, 0.5f), new Vector2(164f, 11f),
             new Vector2(198f, 26f));
@@ -667,52 +668,37 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
             new Vector2(198f, 18f));
 
         RectTransform resources = PlayRect("Resources", playSafeArea,
-            new Vector2(1f, 1f), new Vector2(-64f, -40f), new Vector2(332f, 52f),
+            new Vector2(1f, 1f), new Vector2(-64f, -40f), new Vector2(270f, 52f),
             new Vector2(1f, 1f));
         playResourceGroup = resources;
-        playCoinsLabel = BuildPlayResource(resources, "Coins", "Coin", 118f);
-        playEmeraldsLabel = BuildPlayResource(resources, "Emeralds", "Gem", 118f);
-        RectTransform bell = PlayRect("Notifications", resources,
-            new Vector2(1f, 1f), Vector2.zero, new Vector2(48f, 48f),
-            new Vector2(1f, 1f));
+        playCoinsLabel = BuildPlayResource(resources, "Coins", "Coin", 110f);
+        playEmeraldsLabel = BuildPlayResource(resources, "Emeralds", "Gem", 80f);
+        RectTransform bell = WDHomeUIFactory.BuildCanonicalNotification(resources,
+            openNotifications == null ? null : () => openNotifications.Invoke());
+        bell.anchorMin = bell.anchorMax = bell.pivot = Vector2.one;
+        bell.anchoredPosition = Vector2.zero;
         playNotificationRect = bell;
-        PlaySurface(bell, new Color(0.106f, 0.114f, 0.133f, 0.7f), 24,
-            new Color(1f, 1f, 1f, 0.07f));
-        PlayIcon(bell, "Bell", 20f);
-        if (openNotifications != null)
-            bell.gameObject.AddComponent<Button>().onClick.AddListener(
-                () => openNotifications.Invoke());
 
         playTitleLabel = PlayText("ScreenTitle", playSafeArea, string.Empty, 48f,
             PlayWhite, new Vector2(0f, 1f), new Vector2(64f, -170f),
             new Vector2(1000f, 65f), TextAlignmentOptions.MidlineLeft,
             new Vector2(0f, 1f));
         playTitleLabel.gameObject.SetActive(false);
-        RectTransform back = PlayRect("Back", playSafeArea,
-            new Vector2(0f, 1f), new Vector2(64f, -40f),
-            new Vector2(140f, 46f), new Vector2(0f, 1f));
-        playBackRect = back;
-        PlaySurface(back, new Color(0.106f, 0.114f, 0.133f, 0.7f), 25, PlayGold);
-        Button backButtonVisual = back.gameObject.AddComponent<Button>();
-        backButtonVisual.onClick.AddListener(Back);
-        playBackLabel = PlayText("Label", back, "‹  VOLTAR", 16f, PlayGold,
-            new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(132f, 40f));
+        WDHomeBackButtonContent backContent =
+            WDHomeBackButtonFactory.BuildCanonical(playSafeArea, Back);
+        playBackRect = (RectTransform)backContent.Button.transform;
+        playBackLabel = backContent.Label;
     }
 
     private TextMeshProUGUI BuildPlayResource(
         Transform parent, string name, string iconName, float width)
     {
-        RectTransform pill = PlayRect(name, parent, new Vector2(1f, 1f),
-            Vector2.zero, new Vector2(width, 40f), new Vector2(1f, 0.5f));
-        PlaySurface(pill, new Color(0.106f, 0.114f, 0.133f, 0.9f), 20,
-            new Color(1f, 1f, 1f, 0.07f));
-        RectTransform icon = PlayRect("Icon", pill,
-            new Vector2(0f, 0.5f), new Vector2(22f, 0f), new Vector2(16f, 16f));
-        PlayIcon(icon, iconName, 16f);
-        return PlayText("Value", pill, string.Empty, 16f, PlayWhite,
-            new Vector2(1f, 0.5f), new Vector2(-48f, 0f),
-            new Vector2(75f, 28f), TextAlignmentOptions.Right,
-            new Vector2(1f, 0.5f));
+        TextMeshProUGUI value = WDHomeUIFactory.BuildCanonicalResourcePill(
+            name, parent, iconName, width, out RectTransform pill);
+        pill.anchorMin = pill.anchorMax = new Vector2(1f, 1f);
+        pill.pivot = new Vector2(1f, .5f);
+        pill.anchoredPosition = Vector2.zero;
+        return value;
     }
 
     private void RenderPlayVisual(string title, string subtitle, IReadOnlyList<Option> options)
@@ -752,10 +738,10 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
         playFeedbackLabel.text = string.Empty;
         playNicknameLabel.text = profileRepository.LocalProfile.Nickname;
         WDArmoryProfile wallet = armoryRepository?.Load(armoryCatalog);
-        playCoinsLabel.text = wallet?.Coins.ToString("N0") ?? "0";
-        playEmeraldsLabel.text = wallet?.Emeralds.ToString("N0") ?? "0";
+        WDHomeUIFactory.SetResourcePillValue(playCoinsLabel, wallet?.Coins ?? 0, 110f, 180f);
+        WDHomeUIFactory.SetResourcePillValue(playEmeraldsLabel, wallet?.Emeralds ?? 0, 80f, 150f);
         WDHomeUIFactory.LayoutResourceGroup(playCoinsLabel, playEmeraldsLabel,
-            playNotificationRect, 116f, 86f);
+            playNotificationRect, 110f, 80f);
 
         for (int i = playCardsRoot.childCount - 1; i >= 0; i--)
         {
@@ -797,6 +783,7 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
         if (button.interactable) button.onClick.AddListener(option.Action);
 
         string iconName = PlayCardIcon(option.Title, hub, matches, team);
+        iconName = ResolvePlayIconState(iconName, option.Availability);
         if (!string.IsNullOrEmpty(iconName))
         {
             float iconY = (friendlyHub ? -92f : hub ? -150f : matches ? -105f : -130f) * s;
@@ -875,6 +862,17 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
         }
     }
 
+    // Variantes exportadas do Figma: preservar a arte de cada estado sem tint.
+    private static readonly IReadOnlyDictionary<string, string> AvailablePlayIcons =
+        new Dictionary<string, string>
+        {
+            ["PlayFinal/ThreeVsThreeHelmet"] = "PlayFinal/ThreeVsThreeHelmetActive"
+        };
+
+    private static string ResolvePlayIconState(string asset, WDContentAvailability availability) =>
+        asset != null && availability == WDContentAvailability.Available &&
+        AvailablePlayIcons.TryGetValue(asset, out string active) ? active : asset;
+
     private static string PlayCardIcon(string title, bool hub, bool matches, bool team)
     {
         if (hub)
@@ -917,7 +915,6 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
         if (playBackRect != null)
         {
             playBackRect.anchoredPosition = new Vector2(64f, -40f);
-            WDHomeMobileLayout.ApplyBackControl(playBackRect, playBackLabel);
         }
 
         // 09.2. O texto acompanha a largura real de cada card depois do layout.
@@ -1004,9 +1001,16 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
             ? "UI/Home/" + asset : "UI/Home/FigmaPhase1A/" + asset;
         Texture2D texture = Resources.Load<Texture2D>(resourcePath);
         if (texture == null) return;
+        PlayIcon(parent, texture, asset, size, tint);
+    }
+
+    private static void PlayIcon(Transform parent, Texture2D texture, string objectName,
+        float size, Color? tint = null)
+    {
+        if (texture == null) return;
         // 09.1. O pictograma mantém proporção nativa e nunca recebe upscale.
         float scale = Mathf.Min(1f, size / Mathf.Max(texture.width, texture.height));
-        RectTransform icon = PlayRect(asset, parent,
+        RectTransform icon = PlayRect(objectName, parent,
             new Vector2(0.5f, 0.5f), Vector2.zero,
             new Vector2(texture.width * scale, texture.height * scale));
         RawImage image = icon.gameObject.AddComponent<RawImage>();

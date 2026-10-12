@@ -91,7 +91,6 @@ public sealed class WDRadarRevealResult
 public enum WDRadarUseStatus
 {
     Used,
-    BlockedBySniper,
     Invalid,
     AlreadyProcessed
 }

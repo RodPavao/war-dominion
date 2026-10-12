@@ -15,8 +15,6 @@ public sealed class UICompositionRoot : MonoBehaviour
     // ============================================================
 
     private const string CaminhoTema = "UI/WarDominionUITheme";
-    public const string ChaveHUDNovo = "WarDominion.UI.HUDNovoAtivo";
-    public static bool IsNewHudSelected() => true;
     private MatchUIPresenter presenter;
     private RectTransform safeArea;
     private RoundAnnouncementView roundAnnouncement;
@@ -26,11 +24,13 @@ public sealed class UICompositionRoot : MonoBehaviour
     private ReinforcementResolutionPresenter reinforcementResolutionPresenter;
     private TransferResolutionPresenter transferResolutionPresenter;
     private WeaponResolutionPresenter weaponResolutionPresenter;
+    private InstallationResolutionPresenter installationResolutionPresenter;
     private ResolutionVisualStateCoordinator resolutionVisualStateCoordinator;
     private PreparedActionsOverlayController preparedActionsOverlay;
     private WDMatchUIPresentationBinding presentationBinding;
     private WDMatchUIV2 matchUIV2;
     private WDWeaponMatchUIController weaponUI;
+    private WDWeaponInstallationMapPresenter installationMapPresenter;
     private WDMatchInformationalOverlayController informationalOverlay;
     private IWDMatchUtilityCommands matchUtilities;
     private WDInitialTerritorySelectionView initialTerritorySelectionView;
@@ -199,6 +199,10 @@ public sealed class UICompositionRoot : MonoBehaviour
             mapOverlayLayer.gameObject.AddComponent<WeaponResolutionPresenter>();
         weaponResolutionPresenter.Configure(tema);
 
+        installationResolutionPresenter =
+            mapOverlayLayer.gameObject.AddComponent<InstallationResolutionPresenter>();
+        installationResolutionPresenter.Configure(tema);
+
         resolutionVisualStateCoordinator =
             mapOverlayLayer.gameObject.AddComponent<ResolutionVisualStateCoordinator>();
 
@@ -239,6 +243,16 @@ public sealed class UICompositionRoot : MonoBehaviour
             WDMatchSetupContext.ExitToHome);
         presentationBinding.Register(matchUIV2);
 
+        // 05.2. Marcadores territoriais leem o mesmo snapshot do controller e
+        // encaminham a abertura para a única apresentação registrada.
+        installationMapPresenter = mapOverlayLayer.gameObject.GetComponent<WDWeaponInstallationMapPresenter>() ??
+            mapOverlayLayer.gameObject.AddComponent<WDWeaponInstallationMapPresenter>();
+        installationMapPresenter.Configure(safeArea, tema, weaponUI,
+            presentationBinding.ShowInstallationHub);
+        // O presenter territorial também coordena apenas o estado visual prévio
+        // dos fades de implantação; o registry continua sendo a autoridade lógica.
+        resolutionSequence.RefreshPresenters();
+
         RectTransform initialSelectionRect = CriarCamada("InitialTerritorySelection", modalLayer);
         initialTerritorySelectionView =
             initialSelectionRect.gameObject.AddComponent<WDInitialTerritorySelectionView>();
@@ -246,7 +260,6 @@ public sealed class UICompositionRoot : MonoBehaviour
         RectTransform resultRect = CriarCamada("MatchResult", modalLayer);
         resultView = resultRect.gameObject.AddComponent<WDMatchResultView>();
         resultView.Build(tema);
-        RetireLegacyPresentations();
         AtualizarSafeArea(true);
     }
 
@@ -344,7 +357,17 @@ public sealed class UICompositionRoot : MonoBehaviour
         presentationBinding?.Configure(presenter?.Comandos, weaponUI,
             informationalOverlay, matchUtilities);
         presentationBinding?.Present(state);
-        informationalOverlay?.Present(state);
+
+// ============================================================
+// 04.1. RADAR — SINCRONIZAÇÃO IMEDIATA DA APRESENTAÇÃO
+// ============================================================
+// O Radar possui um estágio transitório próprio (RadarConfirmation)
+// fora do MatchUIState. Reapresenta esse estado no mesmo ciclo do
+// snapshot para que a confirmação apareça no primeiro clique válido.
+matchUIV2?.RefreshRadarPresentation();
+
+informationalOverlay?.Present(state);
+
         PresentMatchResult(state);
 
         bool entrouEmResolucao =
@@ -405,38 +428,11 @@ public sealed class UICompositionRoot : MonoBehaviour
         roundAnnouncement.ExibirInicioRound(round);
     }
 
-    // ============================================================
-    // 05. APOSENTADORIA DAS APRESENTAÇÕES ACUMULADAS
-    // ============================================================
-
-    public void DefinirHUDNovoAtivo(bool ativo)
-    {
-        RetireLegacyPresentations();
-    }
+    public void SincronizarBloqueioEntrada() =>
+        initialTerritorySelectionView?.RefreshInputState();
 
     public void RegisterMatchPresentation(IWDMatchUIPresentation presentation) =>
         presentationBinding?.Register(presentation);
-
-    private void RetireLegacyPresentations()
-    {
-        HUDPreparacao legacy = GetComponent<HUDPreparacao>();
-        if (legacy != null)
-            legacy.enabled = false;
-        Transform accumulatedCanvasHud = safeArea != null
-            ? safeArea.Find("FinalMatchHUD")
-            : null;
-        if (accumulatedCanvasHud != null)
-            accumulatedCanvasHud.gameObject.SetActive(false);
-    }
-
-    public static void ApplyHudMode(GameObject newHud, Behaviour legacyHud, bool useNewHud)
-    {
-        // Compatibilidade de testes/ferramentas antigas: nenhuma composição aposentada assume autoridade.
-        if (legacyHud != null)
-            legacyHud.enabled = false;
-        if (newHud != null)
-            newHud.SetActive(false);
-    }
 }
 
 public sealed class WDMatchExitView : MonoBehaviour

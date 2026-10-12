@@ -600,8 +600,8 @@ Drone é uma arma própria do War Dominion.
 ### [DEFINITIVO — EXECUÇÃO CANÔNICA] Radar
 
 - Energia: 25; cooldown 3; Tática de nível único.
-- Instalação fixa de inteligência, alcance global e exatamente uma revelação.
-- Radar recém-instalado na Resolution só pode ser usado a partir da Preparation seguinte.
+- Ação direta de alcance global durante a Preparation; não cria instalação territorial.
+- Após seleção de alvo e confirmação irreversível, executa exatamente uma revelação imediata e compromete Energy, cooldown e uso.
 - O resultado revela somente presença/ausência de cobertura Flak, vale até o fim do round e é privado: somente o autor pode consultá-lo; aliados precisam usar seu próprio Radar.
 
 ### [DEFINITIVO — IMPLEMENTADO NO DOMÍNIO V1] Central de Energia
@@ -786,7 +786,7 @@ A coluna 6+ representa seis ou mais territórios perdidos. As tropas entram no p
 - Resolve em fase própria anterior à Paz e às demais ações anuláveis. Pode bloquear Paz ou instalação de Drone programada naquele round, mas não outro Infiltrado.
 - A ação bloqueada não executa nem paga custo/cooldown. Alvo cancelado/ausente invalida o Infiltrado sem cobrança e sem redirecionamento.
 - Se vários Infiltrados mirarem o mesmo `ActionId`, o primeiro pela ordem oficial/ordem de programação/ID executa; posteriores ficam `Superseded` sem custo.
-- Não bloqueia operações de Drone, Radar, Foguetes ou Artilharia já instalados. Sniper permanece responsável por impedir operações persistentes no round.
+- Não bloqueia operações de Drone, Foguetes ou Artilharia já instalados. Radar confirmado já produziu sua leitura imediata e não possui estado territorial a desligar.
 
 ### [DEFINITIVO — IMPLEMENTADO NO DOMÍNIO V1] Recuperação de Tropas
 
@@ -863,7 +863,7 @@ O HUD usa a mesma tela-base nas duas fases. O deck permanece à esquerda em grad
 
 A disponibilidade visual das cartas representa diretamente o runtime canônico: Energy, cooldown, lock inicial, nível, loadout e limites de uso. Como todos começam com zero Energy, no primeiro round a Central de Energia é a única carta naturalmente utilizável entre cartas com custo positivo; isso não deve ser contornado pela UI. Cartas sem Energy suficiente exibem explicitamente a relação Energy atual/custo. Travas iniciais e cooldowns mantêm também o custo canônico visível, sem confundir o relógio da trava com o cooldown próprio da arma.
 
-Durante cada Preparation, um jogador pode programar no máximo uma nova utilização de cada `WeaponId`. Cancelar validamente essa programação libera a carta para nova programação no mesmo round. Operações de instalações persistentes — como varredura do Radar, disparos de Drone ou Foguetes e operação automática da Artilharia — não constituem segunda utilização da carta.
+Durante cada Preparation, um jogador pode programar no máximo uma nova utilização de cada `WeaponId`. Cancelar validamente essa programação libera a carta para nova programação no mesmo round. Operações de instalações persistentes — como disparos de Drone ou Foguetes e operação automática da Artilharia — não constituem segunda utilização da carta. Radar é uso direto da carta e torna-se irreversível após a confirmação e leitura imediata.
 
 Regiões é uma camada estritamente informativa baseada em `DefinicaoMapa.Regioes`: colore temporariamente os territórios, mostra nome e bônus reais e bloqueia a interpretação de cliques como gameplay enquanto estiver ativa. Desativar restaura a aparência territorial canônica.
 
@@ -1119,7 +1119,7 @@ O catálogo real de Armas e Progressão pode ser editado em **War Dominion > Con
 
 Permanecem funcionais, reutilizáveis e ainda não aprovados visualmente como resultado final:
 
-- `WarDominionMatchHUD`;
+- `WDMatchUIV2` e suas views registradas por `WDMatchUIPresentationBinding`;
 - `WDUIPremiumComponents`;
 - `PreparedActionArrowView`;
 - presenters visuais de resolução;
@@ -1131,6 +1131,9 @@ Permanecem funcionais, reutilizáveis e ainda não aprovados visualmente como re
 - feedbacks visuais.
 
 A infraestrutura funcional desses elementos pode ser preservada enquanto a apresentação é substituída ou refinada no passe premium.
+
+`WarDominionMatchHUD` foi formalmente aposentado. O código e os assets exclusivos dessa
+apresentação histórica estão isolados em `Assets/_Legacy/Match/RetiredHUD/`.
 
 ## 11. Preparação e Resolução
 
@@ -1485,16 +1488,15 @@ Ao atualizar:
   máximo um por instalação/round. Danos primeiro/segundo por nível: 1/1, 2/1, 2/2,
   3/2, 3/3 e 4/3. Instalação, captura e transporte preservam sequência, cargas e
   último round de disparo.
-- Radar é instalação fixa global de inteligência, N1, Energy 25, cooldown 3 e uma
-  revelação. A instalação criada na Resolution só poderá ser usada na Preparation
-  seguinte. O resultado futuro será efêmero até o fim do round e não revelará nível,
-  posição da Flak ou outras instalações.
+- Radar é ação tática direta global, N1, Energy 25, cooldown 3 e uma revelação
+  imediata após confirmação irreversível. Não cria instalação. O resultado é efêmero
+  até o fim do round e não revela nível, posição da Flak ou outras instalações.
 - Lifecycle em VAZIO: Mina permanece; Bunker e Flak são destruídos; Central,
-  Artilharia, Foguetes, Drone e Radar permanecem abandonados. Em NEUTRO, todas as
+  Artilharia, Foguetes e Drone permanecem abandonados. Em NEUTRO, todas as
   instalações permanecem fisicamente; Mina conserva o instalador original e as
   demais ficam abandonadas/inoperantes.
 - Captura preserva integralmente o estado restante e não cobra Energy, cooldown ou
-  uso. Transporte Aéreo aceita Flak, Central, Artilharia, Foguetes, Drone ou Radar;
+  uso. Transporte Aéreo aceita Flak, Central, Artilharia, Foguetes ou Drone;
   Mina e Bunker não são transportáveis. Para destino aliado, somente a instalação
   selecionada muda de território e passa ao aliado, sem reinicialização.
 - Mina temporariamente desarmada não dispara na ocupação e, ao rearmar, continua
@@ -1518,9 +1520,9 @@ Ao atualizar:
   por Sniper foi revogada pelas regras ativas posteriores.
   Alvos inimigos, Neutros e Vazios são válidos; Vazio consome carga com dano efetivo
   zero. O segundo disparo remove a instalação.
-- Radar existente no início da Preparation usa uma porta imediata idempotente do
-  `WDWeaponExecutionCoordinator`. Instalação do round corrente é inelegível. A leitura
-  privada do autor detecta somente cobertura Flak e expira no próximo `BeginRound`.
+- Radar usa uma porta imediata idempotente do `WDWeaponExecutionCoordinator`, sem
+  instalação intermediária. A leitura privada do autor detecta somente cobertura
+  Flak e expira no próximo `BeginRound`.
   Flak, Paz e Sniper não bloqueiam a varredura.
 - O contrato histórico por `ActionId` foi substituído por
   `TargetPlayerId + TargetWeaponId`; consultar a seção ativa de Infiltrado.
@@ -1543,7 +1545,7 @@ Ao atualizar:
 - O HUD apresenta oito armas em grade 2 × 4, Energy real, tropas disponíveis e cronômetro.
 - Transferência aparece somente em partidas com aliados. A lista AÇÕES reúne reforços, ações terrestres, transferências, armas programadas e operações de instalações.
 - Cartas distinguem disponível, selecionando, programada/cooldown prospectivo, cooldown real e indisponível.
-- Cancelar uma instalação cancela deterministicamente suas operações dependentes ainda reversíveis. Um Radar que já revelou informação é irreversível.
+- Cancelar uma instalação cancela deterministicamente suas operações dependentes ainda reversíveis. Radar não é instalação: antes da confirmação sua seleção pode ser descartada sem efeito; depois da leitura imediata sua ação é irreversível.
 - Blitzkrieg concede imediatamente seu limite terrestre ampliado durante a Preparation. Tropas Reservas e Recuperação concedem imediatamente um pool provisório distribuível, sem cobrar Energy/cooldown antes da Resolution.
 - Ordens que excedam o limite normal e distribuições vinculadas ao benefício guardam dependência da ação de arma. Cancelar ou substituir a ação remove deterministicamente essas dependências e restaura limite, tropas disponíveis, territórios, Energy, cooldown e usos ao estado equivalente a nunca programá-la.
 - A Resolution continua sendo a autoridade canônica: ela valida a ação e compromete seus custos, mas não duplica um benefício de planejamento que já foi materializado pela Preparation.
@@ -1560,15 +1562,17 @@ Ao atualizar:
 - O Infiltrado executado recebe cooldown próprio 4; um Infiltrado atingido recebe cooldown forçado 3.
 - Operações de instalações persistentes já existentes não são bloqueadas por essa seleção de arma.
 - O bloqueio aplica-se ao uso/acionamento programado da carta naquele round; não
-  desliga Radar, Drone, Foguetes, Artilharia, Flak, Central ou instalação persistente
+  desfaz uma leitura de Radar já confirmada nem desliga Drone, Foguetes, Artilharia, Flak, Central ou instalação persistente
   equivalente já existente.
 
 ## Radar [REGRA ATIVA]
 
-- Radar tem uma revelação e pode usá-la na mesma Preparation em que a instalação é programada.
+- Radar é uma ação tática direta e não cria, captura, abandona ou transporta instalação.
+- A seleção de inimigo, Neutro ou Vazio é reversível até a confirmação explícita.
 - A varredura é imediata, idempotente e revela somente se o território investigado possui cobertura de Flak.
 - O resultado pertence exclusivamente ao autor, dura apenas o round atual e não expõe nível, posição da Flak nem outras instalações.
-- Sniper não interfere com instalação, varredura, carga ou resultado do Radar.
+- A confirmação compromete Energy, cooldown e uso e torna a ação irreversível; a Resolution não repete a leitura.
+- Sniper territorial não interfere com seleção, varredura ou resultado do Radar.
 - Flak, Paz e Infiltrado não bloqueiam a varredura. A Resolution apenas representa o evento já ocorrido, sem segunda execução e sem mecanismo especial de retry por Sniper.
 
 ## Sniper [REGRA ATIVA]
@@ -1590,7 +1594,7 @@ Ao atualizar:
 
 ## Instalações, transporte e sigilo [REGRA ATIVA]
 
-- Transporte Aéreo move tropas e, no máximo, uma instalação explicitamente transportável: Flak, Central, Artilharia, Foguetes, Drone ou Radar.
+- Transporte Aéreo move tropas e, no máximo, uma instalação explicitamente transportável: Flak, Central, Artilharia, Foguetes ou Drone.
 - A quantidade é escolhida na Preparation entre 1 e o menor valor entre capacidade por nível (5/7/10/12/15/18) e tropas da origem menos a guarnição obrigatória de 1.
 - Ao chegar em território aliado, a instalação passa ao aliado e preserva integralmente nível, cargas, munição, duração e demais estados; isso não concede desbloqueio permanente.
 - Bunker e Campo Minado não são transportáveis.

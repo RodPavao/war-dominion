@@ -879,32 +879,40 @@ MonoBehaviour:
     destinoId: Siberia
     tipo: 0
     bidirecional: 1
-  - origemId: Alberta
-    destinoId: Greenland
-    tipo: 0
-    bidirecional: 1
-  - origemId: Alaska
-    destinoId: EastUSA
-    tipo: 0
-    bidirecional: 1
-  - origemId: Alberta
-    destinoId: Quebec
-    tipo: 0
-    bidirecional: 1
   - origemId: Kamchatka
     destinoId: Yukon
     tipo: 0
     bidirecional: 1
-  - origemId: EastAustralia
-    destinoId: Indonesia
+  - origemId: Alaska
+    destinoId: Yukon
     tipo: 0
     bidirecional: 1
-  - origemId: Alaska
-    destinoId: Greenland
+  - origemId: Greenland
+    destinoId: Yukon
     tipo: 0
     bidirecional: 1
-  - origemId: Alaska
+  - origemId: Greenland
     destinoId: Quebec
+    tipo: 0
+    bidirecional: 1
+  - origemId: Alaska
+    destinoId: Alberta
+    tipo: 0
+    bidirecional: 1
+  - origemId: Alberta
+    destinoId: WestUSA
+    tipo: 0
+    bidirecional: 1
+  - origemId: EastUSA
+    destinoId: Ontario
+    tipo: 0
+    bidirecional: 1
+  - origemId: Arabia
+    destinoId: Italy
+    tipo: 0
+    bidirecional: 1
+  - origemId: Indonesia
+    destinoId: WestAustralia
     tipo: 0
     bidirecional: 1
   condicoesEstrategicas: []

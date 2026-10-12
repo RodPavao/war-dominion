@@ -13,18 +13,20 @@ public static class WDChatEmojiColor
         public string unicode = string.Empty;
         public int index = 0, x = 0, y = 0, width = 0, height = 0;
     }
+    private const float InlineGlyphScale = 1.25f;
     private static TMP_SpriteAsset asset;
+    private static TMP_SpriteAsset pickerAsset;
     private static Entry[] entries;
     private static Dictionary<char, List<Entry>> starts = new();
     private static bool registered;
     public static TMP_SpriteAsset SpriteAsset { get { Ensure(); return asset; } }
 
-    public static void Apply(TMP_Text text)
+    public static void Apply(TMP_Text text, bool picker = false)
     {
         Ensure();
         text.richText = false;
         text.tintAllSprites = false;
-        text.spriteAsset = asset;
+        text.spriteAsset = picker ? pickerAsset : asset;
         if (!(text.textPreprocessor is Presentation)) text.textPreprocessor = new Presentation();
     }
 
@@ -106,9 +108,31 @@ public static class WDChatEmojiColor
             if (!lookup.TryGetValue(entry.unicode[0], out var list)) lookup[entry.unicode[0]] = list = new List<Entry>();
             list.Add(entry);
         }
+        // A apresentação inline possui métricas próprias; atlas/material/asset
+        // importados continuam intactos e o picker mantém sua escala aprovada.
+        var inline = UnityEngine.Object.Instantiate(candidate);
+        inline.name = "Chat Noto Color Inline";
+        inline.hideFlags = HideFlags.DontSave;
+        inline.spriteGlyphTable.Clear();
+        inline.spriteCharacterTable.Clear();
+        foreach (var source in candidate.spriteGlyphTable)
+        {
+            var metrics = source.metrics;
+            float extraHeight = metrics.height * (InlineGlyphScale - 1);
+            var glyph = new TMP_SpriteGlyph(source.index,
+                new UnityEngine.TextCore.GlyphMetrics(metrics.width * InlineGlyphScale, metrics.height + extraHeight,
+                    metrics.horizontalBearingX, metrics.horizontalBearingY + extraHeight / 2,
+                    metrics.horizontalAdvance * InlineGlyphScale), source.glyphRect, source.scale, source.atlasIndex);
+            inline.spriteGlyphTable.Add(glyph);
+        }
+        foreach (var source in candidate.spriteCharacterTable)
+            inline.spriteCharacterTable.Add(new TMP_SpriteCharacter(source.unicode, inline,
+                inline.spriteGlyphTable[(int)source.glyphIndex]) { name = source.name, scale = source.scale });
+        inline.UpdateLookupTables();
         entries = catalog;
         starts = lookup;
-        asset = candidate;
+        pickerAsset = candidate;
+        asset = inline;
         if (!registered)
         {
             registered = true;
@@ -121,8 +145,10 @@ public static class WDChatEmojiColor
 
     private static void Release()
     {
-        // Resources possui o asset, atlas e material. Liberar só referências locais.
+        // Só o clone de métricas é nosso; atlas/material pertencem a Resources.
+        if (asset != null) UnityEngine.Object.DestroyImmediate(asset);
         asset = null;
+        pickerAsset = null;
         entries = null;
         starts.Clear();
         Application.quitting -= Release;

@@ -9,6 +9,9 @@
 
 # Local-only project backups
 _LocalBackups/
+Backups/
+_LegacyQuarantine/
+Legacy/Assets/Movidos manualmente/
 
 # Local temporary workspace and editor backups
 .utmp/

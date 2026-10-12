@@ -19,7 +19,8 @@ public sealed class WDMatchSettingsView : MonoBehaviour
     private RectTransform[] targets;
     private WDMatchChatBackdropFilter backdropFilter;
     private Slider master, music, sfx;
-    private Button confirmLeave;
+    private Button confirmLeave, requestLeave, masterMute;
+    private Image masterMuteCircle, masterMuteIcon;
     private bool confirming, leaving;
     private readonly List<Sprite> sprites = new();
 
@@ -41,7 +42,8 @@ public sealed class WDMatchSettingsView : MonoBehaviour
         Label(panel, "Subtitle", "AJUSTES DA BATALHA ATUAL", 22.4f, 61.8f, 675.2f, 13, 11.2f, Muted, false);
         var audio = Surface("Audio", panel, 22.4f, 94, 675.2f, 271.4f, Dark, 13, Alpha(Gold, .25f));
         Label(audio, "Title", "ÁUDIO", 14.4f, 14.4f, 646.4f, 17, 14.4f, Gold);
-        master = AudioRow(audio, "Master", "VOLUME GERAL", 42.6f, value => repository?.SetMasterVolume(value));
+        master = AudioRow(audio, "Master", "VOLUME GERAL", 42.6f, value => repository?.SetMasterVolume(value),
+            () => { if (repository != null) repository.SetMasterMuted(!repository.Current.MasterMuted); });
         music = AudioRow(audio, "Music", "MÚSICA", 121.8f, null);
         sfx = AudioRow(audio, "Sfx", "EFEITOS SONOROS", 201, null);
         Surface("Divider1", audio, 14.4f, 109.8f, 646.4f, .8f, Alpha(Gold, .2f));
@@ -62,7 +64,7 @@ public sealed class WDMatchSettingsView : MonoBehaviour
         var manual = MakeButton("Manual", panel, "MANUAL", 22.4f, 626, 144, 44.8f, 14.4f, Dark, Gold, null, 11, Alpha(Gold, .2f));
         DimUnavailable(manual.transform);
         MakeButton("Return", panel, "VOLTAR À PARTIDA", 176, 626, 336, 44.8f, 16, Gold, Dark, () => utilities?.CloseActive());
-        MakeButton("RequestLeave", panel, "ABANDONAR PARTIDA", 521.6f, 626, 176, 44.8f, 14.4f,
+        requestLeave = MakeButton("RequestLeave", panel, "ABANDONAR PARTIDA", 521.6f, 626, 176, 44.8f, 14.4f,
             new Color32(90, 31, 31, 255), new Color32(255, 184, 184, 255), RequestLeave, 11, new Color32(217, 76, 76, 255));
         confirmation = Surface("LeaveConfirmation", transform, 0, 0, 400, 220, Dark, 20, Gold);
         ShieldPanel(confirmation);
@@ -80,7 +82,9 @@ public sealed class WDMatchSettingsView : MonoBehaviour
     // 03. Binding sem callbacks durante refresh. Capacidades ausentes não simulam ações.
     public void Bind(WDSettingsRepository settings, Action exit)
     {
+        if (repository != null) repository.AudioChanged -= Refresh;
         repository = settings;
+        if (repository != null) repository.AudioChanged += Refresh;
         leave = exit;
         Refresh();
     }
@@ -92,9 +96,14 @@ public sealed class WDMatchSettingsView : MonoBehaviour
         if (master == null) return;
         master.interactable = repository != null;
         master.SetValueWithoutNotify(repository?.Current.MasterVolume ?? 0);
+        masterMute.interactable = repository != null;
+        bool muted = repository?.Current.MasterMuted == true;
+        masterMuteCircle.color = muted ? Gold : Dark;
+        masterMuteIcon.color = muted ? Dark : Color.white;
         music.SetValueWithoutNotify(repository?.Current.MusicVolume ?? 0);
         sfx.SetValueWithoutNotify(repository?.Current.SfxVolume ?? 0);
         confirmLeave.interactable = leave != null && !leaving;
+        requestLeave.interactable = leave != null && !leaving;
         // A preferência histórica de Resolution não é aplicada à V2/Fast Forward.
         // Sem autoridade ativa, ambos os grupos permanecem neutros/desabilitados.
     }
@@ -118,7 +127,7 @@ public sealed class WDMatchSettingsView : MonoBehaviour
 
     private void RequestLeave()
     {
-        if (utilities?.ActiveModule != WDMatchUtilityModule.Settings || leaving) return;
+        if (utilities?.ActiveModule != WDMatchUtilityModule.Settings || leaving || leave == null) return;
         confirming = true;
         ShowStage();
     }
@@ -182,7 +191,8 @@ public sealed class WDMatchSettingsView : MonoBehaviour
     }
 
     // 06. Sliders uGUI recebem pointer/drag de mouse e touch pelo EventSystem existente.
-    private Slider AudioRow(Transform parent, string name, string caption, float y, UnityAction<float> changed)
+    private Slider AudioRow(Transform parent, string name, string caption, float y, UnityAction<float> changed,
+        UnityAction muteChanged = null)
     {
         var row = Rect(name, parent, 14.4f, y, 646.4f, 56);
         Label(row, "Label", caption, 0, 20.5f, 144, 15, 12.8f, Color.white);
@@ -203,12 +213,17 @@ public sealed class WDMatchSettingsView : MonoBehaviour
         slider.handleRect = handle.rectTransform;
         slider.interactable = changed != null;
         if (changed != null) slider.onValueChanged.AddListener(changed);
-        var mute = MakeButton("Mute", row, "", 610, 6, 44, 44, 1, Color.clear, Gold, null);
+        var mute = MakeButton("Mute", row, "", 610, 6, 44, 44, 1, Color.clear, Gold, muteChanged);
         var circle = Surface("GlyphCircle", mute.transform, 7.6f, 7.6f, 28.8f, 28.8f, Dark, 14, Gold);
         circle.GetComponent<Image>().raycastTarget = false;
-        Icon(circle, "Volume", 7.2f, 7.2f, 14.4f, 14.4f);
-        // 06.1. Atenua só o mute do volume ativo; nas linhas ausentes, o conjunto inteiro.
-        DimUnavailable(changed == null ? row : mute.transform);
+        var icon = Icon(circle, "Volume", 7.2f, 7.2f, 14.4f, 14.4f);
+        if (muteChanged != null)
+        {
+            masterMute = mute;
+            masterMuteCircle = circle.GetComponent<Image>();
+            masterMuteIcon = icon;
+        }
+        if (changed == null) DimUnavailable(row);
         return slider;
     }
 
@@ -287,6 +302,7 @@ public sealed class WDMatchSettingsView : MonoBehaviour
 
     private void OnDestroy()
     {
+        if (repository != null) repository.AudioChanged -= Refresh;
         foreach (var sprite in sprites)
             if (Application.isPlaying) Destroy(sprite); else DestroyImmediate(sprite);
     }

@@ -1,0 +1,58 @@
+# WD 16:9 — Dark World Promotion
+
+- Timestamp: 2026-09-12T17:13:58.2466349-03:00
+- HEAD: `72137fcb310e9873d09c1961f553ea717dcc4dbc`
+- Backup: `_LocalBackups/WD16x9_PrePromotion_dark_world_20260912_171316`
+- Result: **DARK WORLD PROMOTED**
+- Background: `Assets/Mapas/Dark World/Arte/DarkWorld_Remaster.png` → `Assets/Mapas/Dark World/Arte/WD_Map_DarkWorld_Background_16x9_v01.png`
+- TerritoryIds: 43
+- Paths: 43
+- Multipartes: 0
+- Counters preserved/repositioned: 21/22
+- Connections hash: `40AAA3B5BDC7E3A1EF694A28C026B09E6ED64926A071D31B3BF1163296890254`
+- Regions hash: `8F7247F4597B5B3EFF92806FC5477550947750723C79BCCD3173729F5F248E69`
+- Generated assets:
+  - `Assets/Mapas/Dark World/Runtime16x9`
+  - `Assets/Mapas/Dark World/Runtime16x9/Babushka.png`
+  - `Assets/Mapas/Dark World/Runtime16x9/BadenBaden.png`
+  - `Assets/Mapas/Dark World/Runtime16x9/Braveland.png`
+  - `Assets/Mapas/Dark World/Runtime16x9/CentralBase.png`
+  - `Assets/Mapas/Dark World/Runtime16x9/ColdCoast.png`
+  - `Assets/Mapas/Dark World/Runtime16x9/CrowsHome.png`
+  - `Assets/Mapas/Dark World/Runtime16x9/Cube.png`
+  - `Assets/Mapas/Dark World/Runtime16x9/DarknessRoom.png`
+  - `Assets/Mapas/Dark World/Runtime16x9/Demetrius.png`
+  - `Assets/Mapas/Dark World/Runtime16x9/FantasyRoom.png`
+  - `Assets/Mapas/Dark World/Runtime16x9/FlathiaIsland.png`
+  - `Assets/Mapas/Dark World/Runtime16x9/Garin.png`
+  - `Assets/Mapas/Dark World/Runtime16x9/Haeox.png`
+  - `Assets/Mapas/Dark World/Runtime16x9/Hevll.png`
+  - `Assets/Mapas/Dark World/Runtime16x9/KsIsland.png`
+  - `Assets/Mapas/Dark World/Runtime16x9/Lai.png`
+  - `Assets/Mapas/Dark World/Runtime16x9/Lineker.png`
+  - `Assets/Mapas/Dark World/Runtime16x9/Maki.png`
+  - `Assets/Mapas/Dark World/Runtime16x9/Marcias.png`
+  - `Assets/Mapas/Dark World/Runtime16x9/Mariliand.png`
+  - `Assets/Mapas/Dark World/Runtime16x9/MillaSunderland.png`
+  - `Assets/Mapas/Dark World/Runtime16x9/Montreux.png`
+  - `Assets/Mapas/Dark World/Runtime16x9/Nai.png`
+  - `Assets/Mapas/Dark World/Runtime16x9/NewSahara.png`
+  - `Assets/Mapas/Dark World/Runtime16x9/OffRoad.png`
+  - `Assets/Mapas/Dark World/Runtime16x9/PalmTowner.png`
+  - `Assets/Mapas/Dark World/Runtime16x9/PeachLand.png`
+  - `Assets/Mapas/Dark World/Runtime16x9/Potros.png`
+  - `Assets/Mapas/Dark World/Runtime16x9/Putfire.png`
+  - `Assets/Mapas/Dark World/Runtime16x9/PutfireDistrict.png`
+  - `Assets/Mapas/Dark World/Runtime16x9/RebeccaIsland.png`
+  - `Assets/Mapas/Dark World/Runtime16x9/Sheppard.png`
+  - `Assets/Mapas/Dark World/Runtime16x9/SodherNoor.png`
+  - `Assets/Mapas/Dark World/Runtime16x9/SpearOfTheGods.png`
+  - `Assets/Mapas/Dark World/Runtime16x9/TALand.png`
+  - `Assets/Mapas/Dark World/Runtime16x9/Talisporto.png`
+  - `Assets/Mapas/Dark World/Runtime16x9/Tarantula.png`
+  - `Assets/Mapas/Dark World/Runtime16x9/Tigershitman.png`
+  - `Assets/Mapas/Dark World/Runtime16x9/Trinit.png`
+  - `Assets/Mapas/Dark World/Runtime16x9/ValBay.png`
+  - `Assets/Mapas/Dark World/Runtime16x9/ValeriaHeart.png`
+  - `Assets/Mapas/Dark World/Runtime16x9/WhiteWall.png`
+  - `Assets/Mapas/Dark World/Runtime16x9/Widows.png`

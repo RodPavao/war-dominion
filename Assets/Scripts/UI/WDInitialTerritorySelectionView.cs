@@ -41,6 +41,8 @@ public sealed class WDInitialTerritorySelectionView : MonoBehaviour
             theme.TextoSecundario, TextAlignmentOptions.Center);
         territoryText = WDUIFactory.Text("Territory", parent, theme, theme.TypeTitle,
             theme.TextoPrincipal, TextAlignmentOptions.Center);
+        WDUITextPolicies.Apply(stageText, WDUITextPolicy.FixedLabel);
+        WDUITextPolicies.Apply(territoryText, WDUITextPolicy.SingleLineEllipsis);
         confirmButton = CreateButton(parent, theme, "CONFIRMAR",
             () => gameManager?.ConfirmarEscolhaInicialProvisoria());
         CreateButton(parent, theme, "CANCELAR",
@@ -48,6 +50,8 @@ public sealed class WDInitialTerritorySelectionView : MonoBehaviour
     }
 
     private void Update() => Refresh(false);
+
+    public void RefreshInputState() => Refresh(true);
 
     private void Refresh(bool force)
     {

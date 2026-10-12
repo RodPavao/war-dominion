@@ -7,6 +7,7 @@ public sealed class WDArmyCounterView : MonoBehaviour
 {
     public enum VisualState { Normal, Selected, Reinforcement, AttackActive, Damage, Neutral, Empty }
     public const float FrameWidth = 0.59f;
+    public const float NumberWidth = 0.48f;
     private static readonly Color NeutralAccent = new(0.86f, 0.76f, 0.57f, 1f);
     private static Sprite bodySprite;
     private TerritorioClique territorio;
@@ -35,7 +36,10 @@ public sealed class WDArmyCounterView : MonoBehaviour
         QuantidadeExibida = Mathf.Max(0, quantidade);
         if (!GarantirComposicao()) return;
         troopNumber.text = QuantidadeExibida.ToString();
-        troopNumber.fontSize = troopNumber.text.Length <= 1 ? 4.2f : troopNumber.text.Length == 2 ? 3.7f : 2.8f;
+        troopNumber.fontSizeMax = troopNumber.text.Length <= 1 ? 4.2f
+            : troopNumber.text.Length == 2 ? 3.7f : 2.8f;
+        troopNumber.fontSizeMin = 1.1f;
+        troopNumber.enableAutoSizing = true;
         troopNumber.ForceMeshUpdate(true, true);
     }
     public void Exibir(int quantidade, Color cor) => Exibir(quantidade, cor, VisualState.Normal);
@@ -105,15 +109,19 @@ public sealed class WDArmyCounterView : MonoBehaviour
         text.localScale = Vector3.one;
         TMP_FontAsset font = Resources.Load<TMP_FontAsset>("Fonts & Materials/BebasNeue-Regular SDF");
         if (font != null) troopNumber.font = font;
-        troopNumber.rectTransform.sizeDelta = new Vector2(0.46f, 0.46f);
+        // A caixa invisível continua dentro do frame de 0,59. Os 0,02 extras
+        // acomodam o maior int completo no limite legível de fonte 1,1.
+        troopNumber.rectTransform.sizeDelta = new Vector2(NumberWidth, 0.46f);
         troopNumber.enabled = true;
         troopNumber.fontStyle = FontStyles.Bold;
         troopNumber.fontWeight = FontWeight.Bold;
         troopNumber.alignment = TextAlignmentOptions.Center;
         troopNumber.verticalAlignment = VerticalAlignmentOptions.Middle;
         troopNumber.textWrappingMode = TextWrappingModes.NoWrap;
-        troopNumber.overflowMode = TextOverflowModes.Overflow;
-        troopNumber.enableAutoSizing = false;
+        troopNumber.overflowMode = TextOverflowModes.Truncate;
+        troopNumber.enableAutoSizing = true;
+        troopNumber.fontSizeMin = 1.1f;
+        troopNumber.fontSizeMax = 4.2f;
         troopNumber.raycastTarget = false;
         troopNumber.sortingLayerID = body.sortingLayerID;
         troopNumber.sortingOrder = body.sortingOrder + 1;

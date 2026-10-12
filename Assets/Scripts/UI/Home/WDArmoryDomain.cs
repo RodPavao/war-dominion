@@ -250,7 +250,7 @@ public sealed class WDSavedWeaponDeck
     public void Rename(string newName)
     {
         string normalized = newName?.Trim();
-        if (!string.IsNullOrEmpty(normalized))
+        if (WDUIContentContracts.IsValidDeckName(newName))
             name = normalized;
     }
 
@@ -400,6 +400,7 @@ public sealed class WDArmoryProfile
 public enum WDArmoryEditResult
 {
     Success,
+    InvalidName,
     InvalidDeck,
     LockedDeck,
     InvalidSlot,
@@ -460,6 +461,7 @@ public sealed class WDArmoryService
 
     public WDArmoryProfile Profile => profile;
     public WDArmoryCatalogConfig Catalog => catalog;
+    public string RestorationNotice { get; private set; } = string.Empty;
 
     public WDArmoryService(WDArmoryCatalogConfig catalog, WDArmoryProfile profile)
     {
@@ -471,7 +473,7 @@ public sealed class WDArmoryService
 
     private void ValidateRestoredDecks()
     {
-        // 04. A restauração nunca pode contornar ownership, unicidade ou Apoio.
+        // 04. Principais aceitam todas as categorias; Apoio aceita somente Apoio.
         foreach (WDSavedWeaponDeck deck in profile.Decks)
         {
             var seen = new HashSet<string>(StringComparer.Ordinal);
@@ -479,7 +481,8 @@ public sealed class WDArmoryService
             {
                 string id = deck.GetMain(slot);
                 if (string.IsNullOrEmpty(id)) continue;
-                if (catalog.FindWeapon(id) == null || profile.GetProgress(id)?.Obtained != true || !seen.Add(id))
+                WDWeaponDefinition weapon = catalog.FindWeapon(id);
+                if (weapon == null || profile.GetProgress(id)?.Obtained != true || !seen.Add(id))
                     deck.SetMain(slot, string.Empty);
             }
             for (int slot = 0; slot < WDSavedWeaponDeck.SupportSlotCount; slot++)
@@ -492,6 +495,7 @@ public sealed class WDArmoryService
                     deck.SetSupport(slot, string.Empty);
             }
         }
+        RestorationNotice = string.Empty;
     }
 
     public void SetVipForDevelopment(bool enabled) => profile.SetVip(enabled);
@@ -501,6 +505,8 @@ public sealed class WDArmoryService
         WDArmoryEditResult access = ValidateDeckAccess(deckIndex);
         if (access != WDArmoryEditResult.Success)
             return access;
+        if (!WDUIContentContracts.IsValidDeckName(newName))
+            return WDArmoryEditResult.InvalidName;
         profile.GetDeck(deckIndex).Rename(newName);
         return WDArmoryEditResult.Success;
     }

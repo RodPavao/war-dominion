@@ -33,9 +33,43 @@ public static class MapOverlayProjection
         if (overlay == null || worldCamera == null)
             return false;
 
-        Vector2 screenPosition = worldCamera.WorldToScreenPoint(worldPosition);
+        Vector3 projected = worldCamera.WorldToScreenPoint(worldPosition);
+        if (projected.z < 0f)
+            return false;
+        Vector2 screenPosition = projected;
+        Canvas canvas = overlay.GetComponentInParent<Canvas>();
+        Camera canvasCamera = canvas != null &&
+            canvas.renderMode != RenderMode.ScreenSpaceOverlay
+                ? canvas.worldCamera
+                : null;
         return RectTransformUtility.ScreenPointToLocalPointInRectangle(
-            overlay, screenPosition, null, out overlayPosition);
+            overlay, screenPosition, canvasCamera, out overlayPosition);
+    }
+
+    // ============================================================
+    // 01.1. AUTORIDADE ÚNICA TERRITORY ID → POSIÇÃO LOCAL DE UI
+    // ============================================================
+
+    public static bool TryTerritoryToOverlay(string territoryId,
+        RectTransform overlay, out Vector2 overlayPosition,
+        out TerritorioClique territory)
+    {
+        overlayPosition = default;
+        territory = null;
+        Camera mapCamera = LayoutPartida.CameraRuntime;
+        return !string.IsNullOrWhiteSpace(territoryId) && overlay != null &&
+            mapCamera != null && MapaAtivo.Instance != null &&
+            MapaAtivo.Instance.TentarObterTerritorio(territoryId, out territory) &&
+            TryWorldToOverlay(overlay, GetTerritoryPresentationWorldAnchor(territory),
+                mapCamera, out overlayPosition);
+    }
+
+    public static Vector3 GetTerritoryPresentationWorldAnchor(TerritorioClique territory)
+    {
+        if (territory == null)
+            return Vector3.zero;
+        Transform counter = territory.transform.Find("ContadorModerno");
+        return counter != null ? counter.position : GetTerritoryWorldAnchor(territory);
     }
 
     public static Vector3 GetTerritoryWorldAnchor(TerritorioClique territory)

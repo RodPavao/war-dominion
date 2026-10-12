@@ -17,14 +17,16 @@ public sealed class WDChatEmojiPicker : MonoBehaviour
     private static readonly List<string> sessionRecents = new();
     private static readonly Color Gold = new Color32(197, 155, 99, 255);
     private static readonly Color Cyan = new Color32(32, 199, 232, 255);
-    private TMP_InputField target;
-    private RectTransform layer, popup, grid;
-    private Button toggle;
-    private ScrollRect scroll;
+    [SerializeField] private TMP_InputField target;
+    [SerializeField] private RectTransform layer, popup, grid;
+    [SerializeField] private Button toggle, layerCloseButton;
+    [SerializeField] private ScrollRect scroll;
     private List<string> recents;
-    private readonly List<Image> categories = new();
+    [SerializeField] private List<Image> categories = new();
+    [SerializeField] private List<Button> categoryButtons = new();
     private int anchor, focus;
     private Sprite smileSprite;
+    private bool ownsSmileSprite;
     private Coroutine pendingFocus;
     private bool savedSelectAll;
     public bool IsOpen => layer != null && layer.gameObject.activeSelf;
@@ -38,20 +40,26 @@ public sealed class WDChatEmojiPicker : MonoBehaviour
         toggle = button;
         recents = recentStore ?? sessionRecents;
         WDChatEmojiText.Apply(input.textComponent);
-        toggle.onClick.AddListener(Toggle);
+        BindToggle();
         var icon = Box("Smiley", button.transform, 10, 10, 24, 24, Color.white);
-        var texture = Resources.Load<Texture2D>("UI/ChatEmoji/Smiley");
-        if (texture != null)
+        smileSprite = Resources.Load<Sprite>("UI/ChatEmoji/Smiley");
+        if (smileSprite == null)
         {
-            smileSprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), Vector2.one * .5f);
-            icon.GetComponent<Image>().sprite = smileSprite;
+            var texture = Resources.Load<Texture2D>("UI/ChatEmoji/Smiley");
+            if (texture != null)
+            {
+                smileSprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), Vector2.one * .5f);
+                ownsSmileSprite = true;
+            }
         }
+        icon.GetComponent<Image>().sprite = smileSprite;
         icon.GetComponent<Image>().raycastTarget = false;
         layer = WDUIFactory.Rect("EmojiPickerLayer", host);
         WDHomeUIFactory.Stretch(layer);
         var outside = layer.gameObject.AddComponent<Image>(); outside.color = Color.clear;
-        var close = layer.gameObject.AddComponent<Button>(); close.transition = Selectable.Transition.None;
-        close.onClick.AddListener(Close);
+        layerCloseButton = layer.gameObject.AddComponent<Button>();
+        layerCloseButton.transition = Selectable.Transition.None;
+        layerCloseButton.onClick.AddListener(Close);
         // O botão original continua sendo toggle, mesmo quando a camada cobre o Chat.
         var filter = layer.gameObject.AddComponent<WDChatEmojiToggleFilter>(); filter.Target = (RectTransform)button.transform;
         popup = Box("Popup", layer, 0, 0, 336, 260, WDMatchVisualStyle.SurfaceMatchReadable, 12);
@@ -62,6 +70,7 @@ public sealed class WDChatEmojiPicker : MonoBehaviour
         {
             int index = i;
             var tab = MakeButton("Category" + i, popup, 8 + 80 * i, 8, 80, 44, () => SelectCategory(index));
+            categoryButtons.Add(tab);
             categories.Add(tab.GetComponent<Image>());
             Label(tab.transform, names[i], 10);
         }
@@ -75,6 +84,39 @@ public sealed class WDChatEmojiPicker : MonoBehaviour
         grid.sizeDelta = new Vector2(320, 192);
         scroll.content = grid;
         layer.gameObject.SetActive(false);
+    }
+
+    // ============================================================
+    // 02.1. REBIND DA HIERARQUIA SERIALIZADA; SEM RECONSTRUÇÃO
+    // ============================================================
+    public void BindSerialized(TMP_InputField input, Button button, List<string> recentStore = null)
+    {
+        target = input;
+        toggle = button;
+        recents = recentStore ?? sessionRecents;
+        WDChatEmojiText.Apply(target.textComponent);
+        BindToggle();
+        if (layerCloseButton != null)
+        {
+            layerCloseButton.onClick.RemoveAllListeners();
+            layerCloseButton.onClick.AddListener(Close);
+        }
+        for (int i = 0; i < categoryButtons.Count; i++)
+        {
+            int index = i;
+            Button category = categoryButtons[i];
+            if (category == null) continue;
+            category.onClick.RemoveAllListeners();
+            category.onClick.AddListener(() => SelectCategory(index));
+        }
+        layer?.gameObject.SetActive(false);
+    }
+
+    private void BindToggle()
+    {
+        if (toggle == null) return;
+        toggle.onClick.RemoveAllListeners();
+        toggle.onClick.AddListener(Toggle);
     }
 
     // 03. Cursor é capturado antes de perder foco para botões/categorias.
@@ -186,11 +228,12 @@ public sealed class WDChatEmojiPicker : MonoBehaviour
         var rect = WDUIFactory.Rect("Label", parent); WDHomeUIFactory.Stretch(rect);
         var text = rect.gameObject.AddComponent<TextMeshProUGUI>(); text.font = WDHomeTypography.Load("Inter-Regular");
         text.fontSize = size; text.text = value; text.alignment = TextAlignmentOptions.Center;
-        text.raycastTarget = false; WDChatEmojiText.Apply(text);
+        text.raycastTarget = false; WDChatEmojiText.Apply(text, picker: true);
     }
     private void OnDestroy()
     {
         if (toggle != null) toggle.onClick.RemoveListener(Toggle);
-        if (smileSprite != null) { if (Application.isPlaying) Destroy(smileSprite); else DestroyImmediate(smileSprite); }
+        if (ownsSmileSprite && smileSprite != null)
+        { if (Application.isPlaying) Destroy(smileSprite); else DestroyImmediate(smileSprite); }
     }
 }

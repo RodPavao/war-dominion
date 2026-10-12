@@ -77,10 +77,12 @@ public sealed class WDMissionPresentation
     public bool IsRepeatable { get; }
     public bool IsHidden { get; }
     public WDMissionStatus Status { get; }
+    public string ArtKey { get; }
 
     internal WDMissionPresentation(WDMissionDefinition definition, WDMissionProgress progress)
     {
         MissionId = definition.MissionId;
+        ArtKey = definition.FutureArtKey;
         IsHidden = definition.IsSecret && !progress.IsDiscovered;
         CompletionCount = progress.CompletionCount;
         IsRepeatable = definition.IsRepeatable;
@@ -192,36 +194,69 @@ public sealed class WDMissionRepository
     }
 
     // ============================================================
-    // 03. MOCK REPRESENTATIVO; TEXTOS E BALANCEAMENTO NÃO DEFINITIVOS
+    // 03. CATÁLOGO VISUAL CANÔNICO; REGRAS INDIVIDUAIS SERÃO DEFINIDAS DEPOIS
     // ============================================================
 
     public static IReadOnlyList<WDMissionDefinition> CreatePrototypeCatalog()
     {
-        var items = new List<WDMissionDefinition>
+        string[] ids =
         {
-            Mission("first-win", "PRIMEIRO TRIUNFO", "Mock de vitória.", "Vença uma partida válida.", WDMissionCategory.Match, false, false, 1, WDMissionRewardType.Coins),
-            Mission("mode-wins", "DOMÍNIO DE MODO", "Mock repetível de modo.", "Complete o objetivo do modo configurado.", WDMissionCategory.Mode, false, true, 2, WDMissionRewardType.WeaponTokens),
-            Mission("territory-control", "CONTROLE TERRITORIAL", "Mock de progresso territorial.", "Registre territórios pelo resultado consolidado.", WDMissionCategory.Territory, false, false, 10),
-            Mission("valid-action", "AÇÃO CONFIRMADA", "Mock de ação válida.", "Registre uma ação consolidada.", WDMissionCategory.Action, false, false, 3, WDMissionRewardType.Emeralds),
-            Mission("secret-complete", "PROTOCOLO REVELADO", "Mock secreto já revelado.", "Condição mock revelada após conclusão.", WDMissionCategory.Prototype, true, false, 1, WDMissionRewardType.Other),
-            Mission("catalog-sample-a", "AMOSTRA DE CATÁLOGO A", "Placeholder conhecido.", "Condição a definir.", WDMissionCategory.Prototype, false, false, 1),
-            Mission("catalog-sample-b", "AMOSTRA DE CATÁLOGO B", "Placeholder conhecido.", "Condição a definir.", WDMissionCategory.Prototype, false, false, 1)
+            "first-win", "mode-wins", "territory-control", "valid-action",
+            "secret-complete", "catalog-sample-a", "catalog-sample-b",
+            "secret-placeholder-08", "secret-placeholder-09", "secret-placeholder-10",
+            "secret-placeholder-11", "secret-placeholder-12", "secret-placeholder-13",
+            "secret-placeholder-14", "secret-placeholder-15", "secret-placeholder-16",
+            "secret-placeholder-17", "secret-placeholder-18", "secret-placeholder-19",
+            "secret-placeholder-20", "secret-placeholder-21", "secret-placeholder-22",
+            "secret-placeholder-23", "secret-placeholder-24", "secret-placeholder-25",
+            "secret-placeholder-26", "secret-placeholder-27", "secret-placeholder-28",
+            "secret-placeholder-29", "secret-placeholder-30", "secret-placeholder-31",
+            "secret-placeholder-32", "secret-placeholder-33", "secret-placeholder-34",
+            "secret-placeholder-35", "secret-placeholder-36", "secret-placeholder-37",
+            "secret-placeholder-38", "secret-placeholder-39"
         };
-        for (int i = 8; i <= 39; i++)
-            items.Add(Mission($"secret-placeholder-{i:00}", $"SEGREDO MOCK {i:00}",
-                "Placeholder secreto interno.", "Condição interna a definir.",
-                WDMissionCategory.Prototype, true, false, 1));
-        return items;
+        string[] titles =
+        {
+            "HEARTLAND", "RIMLAND", "MÃE RÚSSIA", "AMÉRICAS", "CORTINA DE FERRO",
+            "EURÁSIA", "PAN-AMERICANA", "MEDITERRÂNEO", "CERCO CONTINENTAL",
+            "POTÊNCIA INSULAR", "DOMÍNIO DO PACÍFICO", "ROTA DO ATLÂNTICO",
+            "CABEÇA DE PONTE", "PEARL HARBOR ATTACK", "CERCO NAVAL",
+            "TRÍPLICE FRONTEIRA", "BLOQUEIO DO PARANÁ", "TRÍPLICE ALIANÇA",
+            "IMPÉRIO ATENIENSE", "LIGA DO PELOPONESO", "HEGEMONIA GREGA",
+            "SENHOR DAS TREVAS", "ALÉM DAS FRONTEIRAS", "DOMÍNIO DO DARK WORLD",
+            "FORTALEZA", "ÚLTIMO BASTIÃO", "EFEITO DOMINÓ", "LINHA DE SUPRIMENTO",
+            "TENAZA", "CONTRA-ATAQUE", "TERRA ARRASADA", "FRONTEIRA IMPENETRÁVEL",
+            "DAVI VS GOLIAS", "SEM RECUAR", "GUERRA EM DUAS FRENTES",
+            "PONTE ENTRE MUNDOS", "VIRA-VIRA", "GENERAL INVICTO", "CHECKMATE"
+        };
+        string[] artKeys =
+        {
+            "01-mission-heartland", "02-mission-rimland", "03-mission-mae-russia",
+            "04-mission-americas", "05-mission-cortina-de-ferro", "06-mission-eurasia",
+            "07-mission-pan-americana", "08-mission-mediterraneo",
+            "09-mission-cerco-continental", "10-mission-potencia-insular",
+            "11-mission-dominio-do-pacifico", "12-mission-rota-do-atlantico",
+            "13-mission-cabeca-de-ponte", "14-mission-pearl-harbor-attack",
+            "15-mission-cerco-naval", "16-mission-triplice-fronteira",
+            "17-mission-bloqueio-do-parana", "18-mission-triplice-alianca",
+            "19-mission-imperio-ateniense", "20-mission-liga-do-peloponeso",
+            "21-mission-hegemonia-grega", "22-mission-senhor-das-trevas",
+            "23-mission-alem-das-fronteiras", "24-mission-dominio-do-dark-world",
+            "25-mission-fortaleza", "26-mission-ultimo-bastao", "27-mission-efeito-domino",
+            "28-mission-linha-de-suprimento", "29-mission-tenaza",
+            "30-mission-contra-ataque", "31-mission-terra-arrasada",
+            "32-mission-fronteira-impenetravel", "33-mission-davi-vs-golias",
+            "34-mission-sem-recuar", "35-mission-guerra-em-duas-frentes",
+            "36-mission-ponte-entre-mundos", "37-mission-vira-vira",
+            "38-mission-general-invicto", "39-mission-checkmate"
+        };
+        return ids.Select((id, index) => new WDMissionDefinition(id, titles[index],
+            string.Empty, string.Empty, WDMissionCategory.Prototype,
+            true, true, 1, futureArtKey: artKeys[index])).ToArray();
     }
 
-    public static IReadOnlyList<WDMissionProgress> CreatePrototypeProgress() => new[]
-    {
-        new WDMissionProgress("first-win", 1, true, 1, 1),
-        new WDMissionProgress("mode-wins", 1, true, 7, 7),
-        new WDMissionProgress("territory-control", 4, true),
-        new WDMissionProgress("valid-action", 1, true),
-        new WDMissionProgress("secret-complete", 1, true, 1, 1)
-    };
+    public static IReadOnlyList<WDMissionProgress> CreatePrototypeProgress() =>
+        Array.Empty<WDMissionProgress>();
 
     private static WDMissionDefinition Mission(string id, string title, string description,
         string condition, WDMissionCategory category, bool secret, bool repeatable, int target,

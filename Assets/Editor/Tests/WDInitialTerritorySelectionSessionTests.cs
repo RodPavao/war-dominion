@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using UnityEngine;
@@ -397,4 +397,103 @@ public sealed class WDInitialTerritorySelectionSessionTests
     private static WDMatchParticipant Participant(string id, int team, int slot) =>
         new(id, id, team, slot, Color.white, string.Empty, string.Empty,
             WDMatchParticipantKind.Remote);
+}
+
+// 04. Mesmo planejador chamado pelo distribuidor, sem cenas/UI nem alteração de domínio.
+public sealed class WDInitialAutomaticRegionalDistributionTests
+{
+    [TestCase(2)] [TestCase(3)] [TestCase(4)] [TestCase(6)]
+    public void CanonicalMapsPreserveQuotasAndPreventIndividualRegionalMonopoly(int players)
+    {
+        var state = Random.state;
+        try
+        {
+            var maps = Resources.LoadAll<DefinicaoMapa>("Mapas");
+            Assert.That(maps.Length, Is.GreaterThan(0));
+            var owners = Enumerable.Range(1, players).Select(i => (TerritorioClique.Dono)i).ToArray();
+            foreach (var map in maps)
+            for (int seed = 0; seed < 32; seed++)
+            {
+                var shuffle = new System.Random(seed);
+                var ids = map.Territorios.Select(t => t.id).OrderBy(_ => shuffle.Next()).ToArray();
+                Random.InitState(seed);
+                Assert.That(DistribuidorTerritorios.TentarPlanejar(ids, map.Regioes, owners, out var plan, out var error), Is.True,
+                    map.MapaId + ": " + error);
+                Random.InitState(seed);
+                Assert.That(DistribuidorTerritorios.TentarPlanejar(ids, map.Regioes, owners, out var again, out _), Is.True);
+                Assert.That(again, Is.EqualTo(plan), "Seed fixa mantém o resultado.");
+                Assert.That(plan.Length, Is.EqualTo(ids.Length));
+                var assignments = ids.Select((id, i) => new { id, owner = plan[i] }).ToDictionary(x => x.id, x => x.owner);
+                Assert.That(assignments.Count, Is.EqualTo(ids.Length), "Sem duplicação/perda.");
+                foreach (var owner in owners)
+                    Assert.That(plan.Count(p => p == owner), Is.EqualTo(ids.Length / players +
+                        ((int)owner - 1 < ids.Length % players ? 1 : 0)));
+                Assert.That(plan.All(owners.Contains), Is.True);
+                foreach (var region in map.Regioes)
+                    Assert.That(region.territorioIds.Select(id => assignments[id]).Distinct().Count(), Is.GreaterThan(1), region.id);
+            }
+        }
+        finally { Random.state = state; }
+    }
+
+    [Test]
+    public void SmallRegionsAreConstrainedPerPlayerNotPerTeam()
+    {
+        var state = Random.state;
+        try
+        {
+            var owners = new[] { TerritorioClique.Dono.Jogador1, TerritorioClique.Dono.Jogador3 }; // Mesmo time possível.
+            var ids = new[] { "a", "b", "c", "d", "e", "f", "g" };
+            var regions = new[] {
+                new DefinicaoRegiaoMapa { id = "pair", territorioIds = new List<string> { "a", "b" } },
+                new DefinicaoRegiaoMapa { id = "five", territorioIds = new List<string> { "c", "d", "e", "f", "g" } } };
+            for (int seed = 0; seed < 32; seed++)
+            {
+                Random.InitState(seed);
+                Assert.That(DistribuidorTerritorios.TentarPlanejar(ids, regions, owners, out var plan, out _), Is.True);
+                Assert.That(plan[0], Is.Not.EqualTo(plan[1]));
+                Assert.That(plan.Skip(2).Distinct().Count(), Is.EqualTo(2));
+                Assert.That(plan.Count(p => p == owners[0]), Is.EqualTo(4));
+                Assert.That(plan.Count(p => p == owners[1]), Is.EqualTo(3));
+            }
+        }
+        finally { Random.state = state; }
+    }
+
+    [TestCase(1, 2)] [TestCase(2, 1)]
+    public void ImpossibleRegionReturnsNoPartialPlan(int territories, int players)
+    {
+        var ids = Enumerable.Range(0, territories).Select(i => "t" + i).ToArray();
+        var region = new DefinicaoRegiaoMapa { id = "impossible", territorioIds = ids.ToList() };
+        var owners = Enumerable.Range(1, players).Select(i => (TerritorioClique.Dono)i).ToArray();
+        Assert.That(DistribuidorTerritorios.TentarPlanejar(ids, new[] { region }, owners, out var plan, out var error), Is.False);
+        Assert.That(plan, Is.Null); Assert.That(error, Does.Contain("impossible"));
+    }
+
+    [Test]
+    public void RegionalCapacityPreventsForbiddenRoundRobinWithoutChangingValidPreferences()
+    {
+        var state = Random.state;
+        try
+        {
+            var ids = new[] { "a", "b", "c", "d" };
+            var owners = new[] { TerritorioClique.Dono.Jogador1, TerritorioClique.Dono.Jogador2 };
+            var region = new DefinicaoRegiaoMapa { id = "pair", territorioIds = new List<string> { "a", "c" } };
+            Assert.That(DistribuidorTerritorios.TentarPlanejar(ids, new[] { region }, owners, out var plan, out _), Is.True);
+            Assert.That(plan[0], Is.Not.EqualTo(plan[2]));
+            Assert.That(plan.Count(p => p == owners[0]), Is.EqualTo(2));
+            region.territorioIds = new List<string> { "a", "b" };
+            Assert.That(DistribuidorTerritorios.TentarPlanejar(ids, new[] { region }, owners, out plan, out _), Is.True);
+            Assert.That(plan, Is.EqualTo(new[] { owners[0], owners[1], owners[0], owners[1] }));
+        }
+        finally { Random.state = state; }
+    }
+
+    [Test]
+    public void WithoutRegionsOriginalRoundRobinIsPreserved()
+    {
+        var owners = new[] { TerritorioClique.Dono.Jogador1, TerritorioClique.Dono.Jogador2 };
+        Assert.That(DistribuidorTerritorios.TentarPlanejar(new[] { "a", "b", "c" }, null, owners, out var plan, out _), Is.True);
+        Assert.That(plan, Is.EqualTo(new[] { owners[0], owners[1], owners[0] }));
+    }
 }

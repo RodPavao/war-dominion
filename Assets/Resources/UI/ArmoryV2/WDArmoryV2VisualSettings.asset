@@ -1,0 +1,118 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6743049cc0a98854facf411a71b8d68f, type: 3}
+  m_Name: WDArmoryV2VisualSettings
+  m_EditorClassIdentifier: Assembly-CSharp::WDArmoryV2VisualSettings
+  panelColor: {r: 0.03529412, g: 0.05490196, b: 0.07450981, a: 0.91}
+  buttonColor: {r: 0.07058824, g: 0.101960786, b: 0.14117648, a: 0.85}
+  buttonPrimaryColor: {r: 0.77254903, g: 0.60784316, b: 0.3882353, a: 1}
+  mainSlotColor: {r: 0.07058824, g: 0.101960786, b: 0.14117648, a: 0.85}
+  supportSlotColor: {r: 0.07058824, g: 0.101960786, b: 0.14117648, a: 0.85}
+  slotBorderColor: {r: 0, g: 0, b: 0, a: 0.5}
+  selectedColor: {r: 0.050980393, g: 0.7607843, b: 0.85882354, a: 1}
+  catalogCardColor: {r: 0.07058824, g: 0.101960786, b: 0.14117648, a: 0.96}
+  catalogBorderColor: {r: 0.26666668, g: 0.3254902, b: 0.36862746, a: 0.7}
+  equippedBorderColor: {r: 0.77254903, g: 0.60784316, b: 0.3882353, a: 0.72}
+  disabledColor: {r: 0.39215687, g: 0.42352942, b: 0.44705883, a: 0.7}
+  titleFont: {fileID: 11400000, guid: 72c6a932eee12884cb79de2a886a55f4, type: 2}
+  functionalFont: {fileID: 11400000, guid: 14226202e0236034495eb461aaf51d1f, type: 2}
+  screenTitleSize: 34
+  detailTitleSize: 30
+  slotNameSize: 13
+  detailTitleWordWrap: 1
+  detailTitleOverflow: 1
+  detailTitleAutoSizing: 1
+  mainSlotSize: {x: 124, y: 184}
+  mainSlotSpacing: {x: 7.33, y: 8}
+  supportSlotSize: {x: 124, y: 184}
+  supportSlotSpacing: {x: 7.33, y: 0}
+  catalogCardSize: {x: 161, y: 184}
+  catalogSpacing: {x: 10, y: 12}
+  artworkOverrides:
+  - weaponId: drone
+    displayName: Drone
+    sprite: {fileID: 0}
+  - weaponId: atomic_bomb
+    displayName: Ataque Nuclear
+    sprite: {fileID: 0}
+  - weaponId: war_propaganda
+    displayName: Propaganda
+    sprite: {fileID: 0}
+  - weaponId: chemical_bomb
+    displayName: "Bomba Qu\xEDmica"
+    sprite: {fileID: 0}
+  - weaponId: infiltrator
+    displayName: Infiltrado
+    sprite: {fileID: 0}
+  - weaponId: sabotage
+    displayName: Sabotagem
+    sprite: {fileID: 0}
+  - weaponId: energy_plant
+    displayName: Central de Energia
+    sprite: {fileID: 0}
+  - weaponId: long_range_bomb
+    displayName: "Ataque de Precis\xE3o"
+    sprite: {fileID: 0}
+  - weaponId: peace
+    displayName: Paz
+    sprite: {fileID: 0}
+  - weaponId: artillery
+    displayName: Artilharia
+    sprite: {fileID: 0}
+  - weaponId: rockets
+    displayName: Foguetes
+    sprite: {fileID: 0}
+  - weaponId: minefield
+    displayName: Campo Minado
+    sprite: {fileID: 0}
+  - weaponId: blitzkrieg
+    displayName: Blitzkrieg
+    sprite: {fileID: 0}
+  - weaponId: transfer_nullifier
+    displayName: "Bloqueio de Transfer\xEAncia"
+    sprite: {fileID: 0}
+  - weaponId: sniper
+    displayName: Sniper
+    sprite: {fileID: 0}
+  - weaponId: kamikaze
+    displayName: Kamikaze
+    sprite: {fileID: 0}
+  - weaponId: paratroopers
+    displayName: Paraquedistas
+    sprite: {fileID: 0}
+  - weaponId: radar
+    displayName: Radar
+    sprite: {fileID: 0}
+  - weaponId: air_strike
+    displayName: "Ataque A\xE9reo"
+    sprite: {fileID: 0}
+  - weaponId: reinforcements
+    displayName: "Refor\xE7os"
+    sprite: {fileID: 0}
+  - weaponId: air_transport
+    displayName: "Transporte A\xE9reo"
+    sprite: {fileID: 0}
+  - weaponId: flak_tower
+    displayName: "Defesa Antia\xE9rea"
+    sprite: {fileID: 0}
+  - weaponId: bunker
+    displayName: Bunker
+    sprite: {fileID: 0}
+  - weaponId: reserve_troops
+    displayName: Tropas Reservas
+    sprite: {fileID: 0}
+  - weaponId: troop_recovery
+    displayName: "Recupera\xE7\xE3o de Tropas"
+    sprite: {fileID: 0}
+  - weaponId: mercenaries
+    displayName: "Mercen\xE1rios"
+    sprite: {fileID: 0}

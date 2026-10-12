@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using TMPro;
 using UnityEngine;
@@ -8,179 +9,174 @@ using UnityEngine.UI;
 [DisallowMultipleComponent]
 public sealed class WDHomeStorePanel : MonoBehaviour
 {
-    private WarDominionUITheme theme;
-    private WDStoreService service;
-    private WDNavigationStack navigation;
-    private RectTransform content;
-    private int tab;
-    private int returnTab;
-    private string collectionId;
-    private string feedback;
-    public bool IsOpen => gameObject.activeSelf;
-    public bool CatalogReady => service != null;
-    public int ActiveTab => tab;
-    public string OpenCollectionId => collectionId;
-
-    // 01. Uma entrada global: tabs e detalhe são estado local.
-    public void Build(WarDominionUITheme newTheme, WDStoreService newService, WDNavigationStack newNavigation)
+    private sealed class FactionVisual
     {
-        theme = newTheme ?? throw new ArgumentNullException(nameof(newTheme));
-        service = newService ?? throw new ArgumentNullException(nameof(newService));
-        navigation = newNavigation ?? throw new ArgumentNullException(nameof(newNavigation));
-        Image blocker = gameObject.AddComponent<Image>();
-        blocker.color = new Color(0.005f, 0.015f, 0.025f, 0.96f); blocker.raycastTarget = true;
-        content = WDHomeUIFactory.Rect("StoreContent", transform);
-        WDHomeUIFactory.Stretch(content, 54f, 40f, 54f, 40f);
+        public string Id, Name, Folder;
+        public FactionVisual(string id, string name, string folder) { Id=id; Name=name; Folder=folder; }
+        public string Root => "UI/Factions/Canonical/"+Folder+"/";
+    }
+
+    private static readonly FactionVisual[] Factions =
+    {
+        new("iron_legion","IRON LEGION","01-iron-legion"), new("spartan_dominion","SPARTAN DOMINION","02-spartan-dominion"),
+        new("ghost_battalion","GHOST BATTALION","03-ghost-battalion"), new("black_ops","BLACK OPS","04-black-ops"),
+        new("sons_of_odin","SONS OF ODIN","05-sons-of-odin"), new("vulcan_legion","VULCAN LEGION","06-vulcan-legion"),
+        new("neon_vanguard","NEON VANGUARD","07-neon-vanguard"), new("chrome_rebellion","CHROME REBELLION","08-chrome-rebellion"),
+        new("obsidian_guard","OBSIDIAN GUARD","09-obsidian-guard"), new("veteran_corps","VETERAN CORPS","10-veteran-corps"),
+        new("imperial_guard","IMPERIAL GUARD","11-imperial-guard"), new("legio_invicta","LEGIO INVICTA","12-legio-invicta"),
+        new("command_1944","1944 COMMAND","13-1944-command"), new("seasonal_forces","SEASONAL FORCES","14-seasonal-forces")
+    };
+
+    private static readonly Color Navy=Hex("08111D"),NavyCard=Hex("0A1727"),NavyDeep=Hex("050B13"),Gold=Hex("D4A95F"),
+        White=Hex("F7F8FA"),Muted=Hex("93A0B2"),Cyan=Hex("00D9F5"),Green=Hex("25D695");
+    private WarDominionUITheme theme; private WDStoreService service; private WDNavigationStack navigation;
+    private Action<bool> homeVisibility; private Action notifications; private Texture2D background;
+    private RectTransform frame,body; private int tab,page,detailReturnTab=1; private string detailFactionId,feedback;
+    public bool IsOpen=>gameObject.activeSelf; public bool CatalogReady=>service!=null; public int ActiveTab=>tab; public string OpenCollectionId=>detailFactionId;
+
+    // 01. AUTORIDADES, FUNDO FULLSCREEN E FRAME 1920x1080
+    public void Build(WarDominionUITheme newTheme,WDStoreService newService,WDNavigationStack newNavigation,
+        Texture2D backgroundTexture=null,Action<bool> setHomeVisibility=null,Action openNotifications=null)
+    {
+        theme=newTheme??throw new ArgumentNullException(nameof(newTheme)); service=newService??throw new ArgumentNullException(nameof(newService));
+        navigation=newNavigation??throw new ArgumentNullException(nameof(newNavigation)); background=backgroundTexture;
+        homeVisibility=setHomeVisibility; notifications=openNotifications;
+        Image blocker=gameObject.AddComponent<Image>();blocker.color=Color.clear;blocker.raycastTarget=true;
+        RectTransform scenery=R("StoreFullscreenBackground",transform);Stretch(scenery);RawImage art=scenery.gameObject.AddComponent<RawImage>();art.texture=background;art.raycastTarget=false;
+        AspectRatioFitter crop=scenery.gameObject.AddComponent<AspectRatioFitter>();crop.aspectMode=AspectRatioFitter.AspectMode.EnvelopeParent;crop.aspectRatio=background!=null?(float)background.width/background.height:16f/9f;
+        RectTransform dim=R("ReadabilityScrim",transform);Stretch(dim);Image scrim=dim.gameObject.AddComponent<Image>();scrim.color=new Color(.016f,.035f,.059f,.80f);scrim.raycastTarget=false;
+        RectTransform contentSurface=R("StoreFullscreenContentSurface",transform);Stretch(contentSurface);contentSurface.offsetMax=new Vector2(0f,-136f);
+        Image contentSurfaceImage=contentSurface.gameObject.AddComponent<Image>();contentSurfaceImage.color=Color.clear;contentSurfaceImage.raycastTarget=false;
+        WDHomeUIFactory.AddThinRoundedBorder(contentSurface,Hex("1E3048"),1);
+        frame=R("StoreResponsiveShell",transform);Stretch(frame);
         gameObject.SetActive(false);
     }
-    public void Open(int selectedTab = 0)
-    {
-        tab = Mathf.Clamp(selectedTab, 0, 3); returnTab = tab; collectionId = null; feedback = null;
-        navigation.Push(new WDNavigationContext("store", _ => { transform.SetAsLastSibling(); Render(); }));
-    }
-    public void HideFromNavigation() => gameObject.SetActive(false);
-    public bool TryHandleLocalBack()
-    {
-        if (collectionId == null) return false;
-        collectionId = null; tab = returnTab; Render(); return true;
-    }
-    public void SelectTab(int value) { tab = Mathf.Clamp(value, 0, 3); collectionId = null; feedback = null; Render(); }
-    public void ShowCollection(string id)
-    {
-        if (service.Catalog.FindCollection(id) == null) return;
-        returnTab = tab; tab = 1; collectionId = id; feedback = null; Render();
-    }
+    public void Open(int selectedTab=0){tab=Mathf.Clamp(selectedTab,0,3);page=0;detailFactionId=null;feedback=null;navigation.Push(new WDNavigationContext("store",_=>Restore(),exit:HideFromNavigation));}
+    private void Restore(){homeVisibility?.Invoke(false);transform.SetAsLastSibling();gameObject.SetActive(true);Render();}
+    public void HideFromNavigation(){gameObject.SetActive(false);homeVisibility?.Invoke(true);}
+    public bool TryHandleLocalBack(){if(detailFactionId==null)return false;detailFactionId=null;tab=detailReturnTab;Render();return true;}
+    public void SelectTab(int value){tab=Mathf.Clamp(value,0,3);page=0;detailFactionId=null;feedback=null;Render();}
+    public void ShowCollection(string id){if(Factions.All(f=>f.Id!=id))return;detailReturnTab=1;detailFactionId=id;tab=1;feedback=null;Render();}
+    private void ShowFeaturedCollection(string id){if(Factions.All(f=>f.Id!=id))return;detailReturnTab=0;detailFactionId=id;tab=0;feedback=null;Render();}
 
-    // 02. UI provisória: cards derivam exclusivamente do catálogo.
+    // 02. SHELL COMPARTILHADO — HEADER EM DUAS LINHAS E ABAS
     private void Render()
     {
-        gameObject.SetActive(true);
-        Clear(content);
-        AddButton(content, "Back", "< VOLTAR", () => { if (!TryHandleLocalBack()) navigation.TryBack(); },
-            new Vector2(.01f, .92f), new Vector2(.14f, .99f));
-        AddText(content, "Title", "LOJA", 29, theme.TextoPrincipal, new Vector2(.38f,.92f), new Vector2(.62f,.99f), TextAlignmentOptions.Center);
-        WDArmoryProfile wallet = service.Wallet;
-        AddText(content, "Wallet", $"COINS {wallet.Coins:N0}    ESMERALDAS {wallet.Emeralds:N0}", 15,
-            theme.Acento, new Vector2(.68f,.92f), new Vector2(.99f,.99f), TextAlignmentOptions.Right);
-        string[] tabs = { "DESTAQUES", "COLEÇÕES", "AVATARES", "VIP" };
-        for (int i=0; i<tabs.Length; i++)
-        {
-            int selected = i;
-            AddButton(content, "Tab_" + tabs[i], tabs[i], () => SelectTab(selected),
-                new Vector2(.16f + i*.17f,.83f), new Vector2(.32f+i*.17f,.90f));
-        }
-        if (!service.Catalog.IsValid(GetProfiles()))
-        {
-            AddText(content,"Invalid","CATÁLOGO INDISPONÍVEL · TENTAR NOVAMENTE",18,theme.TextoSecundario,
-                new Vector2(.15f,.4f),new Vector2(.85f,.6f),TextAlignmentOptions.Center);
-            return;
-        }
-        if (collectionId != null) RenderCollectionDetail();
-        else if (tab == 0) RenderFeatured();
-        else if (tab == 1) RenderCollections();
-        else if (tab == 2) RenderProducts(service.Catalog.Products.Where(p => p.kind == WDStoreKind.Avatar).OrderBy(p => p.order).ToArray(), .74f);
-        else RenderVip();
-        if (!string.IsNullOrWhiteSpace(feedback))
-            AddText(content,"Feedback",feedback,15,theme.Acento,new Vector2(.04f,.03f),new Vector2(.96f,.09f),TextAlignmentOptions.Center);
+        Clear(frame); Header(); Tabs();RectTransform bodyShell=R("StoreBody",frame);StretchBody(bodyShell,0,0,136,0);body=R("StoreCanonicalContent",bodyShell);CenterTop(body,0,0,1920,944);
+        if(detailFactionId!=null)RenderDetail(Factions.First(f=>f.Id==detailFactionId));
+        else if(tab==0)RenderFeatured();else if(tab==1)RenderCollections();else if(tab==2)RenderAvatars();else RenderVip();
+        if(!string.IsNullOrWhiteSpace(feedback))Text("Feedback",frame,feedback,15,Gold,520,1024,880,32,TextAlignmentOptions.Center,"Inter-Bold");
     }
-    private WDProfileRepository GetProfiles() => service.Profiles;
+    private void Header()
+    {
+        RectTransform header=Box("Header",frame,0,0,1920,80,new Color(Navy.r,Navy.g,Navy.b,.88f),0,Color.clear);
+        StretchHorizontal(header,0,0);
+        WDHomeBackButtonFactory.BuildCanonical(header,()=>{if(!TryHandleLocalBack())navigation.TryBack();});
+        RectTransform titleGroup=R("TitleCenter",header);CenterTop(titleGroup,0,22,144,34);Icon("StoreIcon",titleGroup,"UI/Store/Canonical/icon_store",0,6,24,24,Gold);Text("Title",titleGroup,"LOJA",22,White,36,0,108,34,TextAlignmentOptions.Left,"Inter-Bold",2.64f);
+        WDArmoryProfile wallet=service.Wallet;RectTransform resources=R("Resources",header);P(resources,1588,16,270,48);TextMeshProUGUI coins=HeaderResource(resources,"Coins","Coin",wallet.Coins,0,110);TextMeshProUGUI gems=HeaderResource(resources,"Emeralds","Gem",wallet.Emeralds,126,80);
+        RightTop(resources,62,16,270,48);RectTransform bell=WDHomeUIFactory.BuildCanonicalNotification(resources,()=>notifications?.Invoke());P(bell,222,0,48,48);WDHomeUIFactory.LayoutResourceGroup(coins,gems,bell,110,80);
+    }
+    private TextMeshProUGUI HeaderResource(Transform parent,string name,string icon,int amount,float x,float width){TextMeshProUGUI value=WDHomeUIFactory.BuildCanonicalResourcePill(name,parent,icon,width,out RectTransform root);P(root,x,4,width,40);WDHomeUIFactory.SetResourcePillValue(value,amount,width,icon=="Coin"?180:150);return value;}
+    private void Tabs(){RectTransform row=Box("Tabs",frame,0,80,1920,56,new Color(Navy.r,Navy.g,Navy.b,.82f),0,new Color(Gold.r,Gold.g,Gold.b,.12f));StretchHorizontal(row,0,0);string[] labels={"DESTAQUES","COLEÇÕES","AVATARES","VIP"};float[] widths={120,116,112,78};float x=32;for(int i=0;i<4;i++){int selected=i;RectTransform root=R("Tab_"+labels[i],row);P(root,x,8,widths[i],40);if(i==tab){Image active=root.gameObject.AddComponent<Image>();active.color=new Color(Gold.r,Gold.g,Gold.b,.18f);WDHomeUIFactory.ApplyRounded(active,8);WDHomeUIFactory.AddThinRoundedBorder(root,Gold,8);}Text("Label",root,labels[i],13,i==tab?Gold:Muted,0,2,widths[i],34,TextAlignmentOptions.Center,"Inter-Bold",1.04f);Image hit=root.GetComponent<Image>()??root.gameObject.AddComponent<Image>();if(i!=tab)hit.color=Color.clear;Button(root,()=>SelectTab(selected));x+=widths[i]+4;}}
+
+    // 03. DESTAQUES — NODE 285:2
     private void RenderFeatured()
     {
-        WDStoreCollection featured = service.Catalog.Collections.Where(c => c.featured).OrderBy(c => c.order).FirstOrDefault();
-        if (featured != null)
-            AddButton(content,"FeaturedCollection",$"COLEÇÃO EM DESTAQUE: {featured.title}  >",() => ShowCollection(featured.id),
-                new Vector2(.03f,.68f),new Vector2(.60f,.78f));
-        AddButton(content,"FeaturedVip","WAR VIP  ·  VER BENEFÍCIOS",() => SelectTab(3),
-            new Vector2(.62f,.68f),new Vector2(.97f,.78f));
-        RenderProducts(service.Catalog.Products.Where(p => p.featured).OrderBy(p => p.order).ToArray(),.63f);
+        FactionVisual faction=Factions[4];RectTransform hero=Box("FeaturedCollection",body,32,20,880,546,new Color(Navy.r,Navy.g,Navy.b,.90f),20,new Color(Gold.r,Gold.g,Gold.b,.38f));
+        RectTransform heroHeader=Box("CollectionHeader",hero,0,0,880,56,new Color(Gold.r,Gold.g,Gold.b,.12f),0,new Color(Gold.r,Gold.g,Gold.b,.25f));Text("Label",heroHeader,"★  COLEÇÃO DO MÊS",11,Gold,28,12,320,30,TextAlignmentOptions.Left,"Inter-Bold",1.54f);
+        Art("HeroSkin",hero,faction.Root+"skin-territory-profile_1024x1024",0,56,440,466,true);Art("HeroAvatar",hero,faction.Root+faction.Folder,440,56,440,286,false);
+        RectTransform identity=Box("CollectionIdentity",hero,440,342,440,204,new Color(.043f,.071f,.125f,.95f),0,Color.clear);
+        Text("Kicker",identity,"SONS OF ODIN",11,Gold,24,12,380,20,TextAlignmentOptions.Left,"Inter-SemiBold",1.54f);Text("Name",identity,"COLEÇÃO DO MÊS",22,White,24,36,380,34,TextAlignmentOptions.Left,"Inter-Bold");
+        Chip(identity,"SkinChip","SKIN TERRITORIAL",24,80,112,26,Gold);Chip(identity,"AvatarChip","AVATAR",142,80,74,26,Cyan);Chip(identity,"MoreChip","+4 ITENS",222,80,78,26,Muted);
+        Action("Explore",identity,"VER COLEÇÃO",24,132,392,48,Gold,Gold,()=>ShowFeaturedCollection(faction.Id));
+        RectTransform vip=Box("VipFeature",body,932,20,356,546,new Color(Navy.r,Navy.g,Navy.b,.92f),20,new Color(Gold.r,Gold.g,Gold.b,.31f));
+        Icon("Crown",vip,"UI/Store/Canonical/icon_crown",20,17,18,18,Gold);Text("Title",vip,"WAR VIP",16,Gold,46,10,160,34,TextAlignmentOptions.Left,"Inter-Bold",1.28f);
+        Art("VipSkin",vip,faction.Root+"skin-territory-profile_1024x1024",0,52,178,160,true);Art("VipAvatar",vip,faction.Root+faction.Folder,178,52,178,160,false);
+        Text("Benefits",vip,"BENEFÍCIOS MENSAIS\n✓ Cosméticos exclusivos\n✓ Avatares exclusivos\n✓ Molduras de perfil\n✓ Emblema permanente",13,White,20,230,316,166,TextAlignmentOptions.Left,"Inter-Regular");
+        Action("VipCta",vip,"CONHECER O VIP",20,466,316,44,Gold,new Color(Gold.r,Gold.g,Gold.b,.10f),()=>SelectTab(3));
+        Text("Highlights",body,"DESTAQUES",16,White,32,604,300,28,TextAlignmentOptions.Left,"Inter-Bold",1.6f);
+        ProductPreview(body,"Avatar",faction,"AVATAR",32,646,448,291,faction.Root+faction.Folder);ProductPreview(body,"Frame",faction,"MOLDURA",496,646,448,291,faction.Root+"profile-frame_1024x1024");
+        ProductPreview(body,"Territory",faction,"SKIN TERRITORIAL",960,646,448,291,faction.Root+"skin-territory-profile_1024x1024");ProductPreview(body,"Counter",faction,"CONTADOR",1424,646,448,291,faction.Root+"territory-counter_512x512");
     }
+    private void ProductPreview(Transform parent,string name,FactionVisual faction,string label,float x,float y,float w,float h,string path)
+    {RectTransform card=Box(name,parent,x,y,w,h,new Color(Navy.r,Navy.g,Navy.b,.94f),16,new Color(Gold.r,Gold.g,Gold.b,.28f));ProductArtwork(card,label,path,w,180);RectTransform info=Box("Info",card,0,180,w,111,new Color(.043f,.071f,.125f,.97f),0,Color.clear);Text("Name",info,label+" "+faction.Name,14,White,16,12,w-32,22,TextAlignmentOptions.Left,"Inter-Bold");Text("Category",info,label,11,Muted,16,36,w-32,18,TextAlignmentOptions.Left,"Inter-Regular");Action("View",info,"VER NA COLEÇÃO",16,61,w-32,40,Cyan,new Color(Cyan.r,Cyan.g,Cyan.b,.14f),()=>ShowCollection(faction.Id));}
+
+    // 04. COLEÇÕES E PAGINAÇÃO — NODE 285:4
     private void RenderCollections()
     {
-        WDStoreCollection[] items = service.Catalog.Collections.OrderBy(c => c.order).ToArray();
-        for (int i=0; i<items.Length && i<9; i++)
-        {
-            int column=i%3, row=i/3; WDStoreCollection item=items[i];
-            float x=.03f+column*.32f, y=.74f-row*.22f;
-            AddButton(content,"Collection_"+item.id,$"{item.title}\n{item.productIds.Count} ITENS\nVER COLEÇÃO >",
-                () => ShowCollection(item.id),new Vector2(x,y-.19f),new Vector2(x+.30f,y));
-        }
-        if (items.Length==0) AddText(content,"Empty","NENHUMA COLEÇÃO DISPONÍVEL",18,theme.TextoSecundario,
-            new Vector2(.2f,.35f),new Vector2(.8f,.6f),TextAlignmentOptions.Center);
+        SectionHeading("COLEÇÕES","");int pages=Mathf.CeilToInt(Factions.Length/6f);Pager(pages,18);int start=page*6;for(int i=0;i<6&&start+i<Factions.Length;i++){FactionVisual f=Factions[start+i];int col=i%3,row=i/3;CollectionCard(f,32+col*608,76+row*426);}
     }
-    private void RenderCollectionDetail()
+    private void CollectionCard(FactionVisual faction,float x,float y)
+    {RectTransform card=Box("Collection_"+faction.Id,body,x,y,592,410,new Color(Navy.r,Navy.g,Navy.b,.94f),18,new Color(Gold.r,Gold.g,Gold.b,.28f));RectTransform art=Box("ArtArea",card,0,0,592,300,new Color(.024f,.055f,.09f,.97f),0,Color.clear);Art("SkinPreview",art,faction.Root+"skin-territory-profile_1024x1024",8,12,380,196,true);Art("AvatarPreview",art,faction.Root+faction.Folder,396,12,188,196,false);RectTransform info=Box("Info",card,0,300,592,110,new Color(.043f,.071f,.125f,.97f),0,Color.clear);Text("Name",info,faction.Name,16,White,16,10,320,24,TextAlignmentOptions.Left,"Inter-Bold");Chip(info,"SkinChip","SKIN TERRITORIAL",16,40,116,24,Gold);Chip(info,"AvatarChip","AVATAR",138,40,70,24,Cyan);Action("View",info,"VER COLEÇÃO",424,55,152,40,Gold,Gold,()=>ShowCollection(faction.Id));}
+
+    // 05. DETALHE — NODE 285:6, CARDS 296x243
+    private void RenderDetail(FactionVisual faction)
     {
-        WDStoreCollection collection=service.Catalog.FindCollection(collectionId);
-        if (collection==null) { collectionId=null; RenderCollections(); return; }
-        AddText(content,"CollectionTitle",collection.title+"\n"+collection.description,20,theme.TextoPrincipal,
-            new Vector2(.04f,.68f),new Vector2(.95f,.79f));
-        RenderProducts(collection.productIds.Select(service.Catalog.FindProduct).ToArray(),.64f);
-        AddButton(content,"BuyCollection",$"OBTER CONJUNTO COMPLETO · {collection.price} {collection.currency}",
-            () => { feedback=Message(service.BuyCollection(collection.id)); Render(); },
-            new Vector2(.28f,.10f),new Vector2(.72f,.17f));
+        RectTransform skin=Box("CollectionHero",body,0,0,780,620,new Color(Navy.r,Navy.g,Navy.b,.92f),0,Color.clear);Art("Art",skin,faction.Root+"skin-territory-profile_1024x1024",0,0,780,620,true);
+        RectTransform portrait=Box("AvatarPreview",skin,560,400,200,200,NavyDeep,14,Cyan);Art("Art",portrait,faction.Root+faction.Folder,0,0,200,200,false);
+        RectTransform avatar=Box("CollectionInfo",body,780,0,1140,620,new Color(Navy.r,Navy.g,Navy.b,.94f),0,new Color(Gold.r,Gold.g,Gold.b,.19f));
+        Text("BackToCollections",avatar,"DESTAQUES  ›  COLEÇÕES",11,Muted,28,24,360,22,TextAlignmentOptions.Left,"Inter-Regular");Text("Name",avatar,faction.Name,34,White,28,76,720,48,TextAlignmentOptions.Left,"Inter-Bold",1.2f);
+        Text("Description",avatar,"IDENTIDADE COMPLETA DA FACÇÃO\nSKIN TERRITORIAL · AVATAR · MOLDURA · CONTADOR · EMBLEMA · EFEITO",14,Muted,28,138,940,64,TextAlignmentOptions.Left,"Inter-Regular");
+        string[] summary={"SKIN TERRITORIAL","AVATAR","MOLDURA","CONTADOR","EMBLEMA","EFEITO"};for(int i=0;i<summary.Length;i++){int col=i%3,row=i/3;Chip(avatar,"Summary_"+i,summary[i],28+col*248,230+row*58,240,48,i==0?Gold:i==1?Cyan:Muted);}
+        WDStoreCollection collection=service.Catalog.FindCollection(faction.Id);string bundleLabel=collection==null?"COLEÇÃO · EM BREVE":$"OBTER COLEÇÃO · {collection.price} {Currency(collection.currency,collection.price)}";
+        Action("CollectionAcquire",avatar,bundleLabel,28,526,1084,56,Gold,Gold,()=>AcquireCollection(faction,collection));
+        string[] labels={"AVATAR","MOLDURA","SKIN TERRITORIAL","CONTADOR","EMBLEMA","EFEITO"};string[] paths={faction.Folder,"profile-frame_1024x1024","skin-territory-profile_1024x1024","territory-counter_512x512","epic-emblem_512x512","cosmetic-effect-core_1024x1024"};
+        Text("ItemsTitle",body,"ITENS DA COLEÇÃO",13,White,32,632,400,22,TextAlignmentOptions.Left,"Inter-Bold",1.56f);for(int i=0;i<6;i++)DetailProduct(faction,labels[i],faction.Root+paths[i],32+i*312,665,i);
     }
-    private void RenderProducts(WDStoreProduct[] products,float top)
+    private void DetailProduct(FactionVisual faction,string label,string path,float x,float y,int index)
+    {RectTransform card=Box("Detail_"+label,body,x,y,296,243,new Color(Navy.r,Navy.g,Navy.b,.95f),14,new Color(Gold.r,Gold.g,Gold.b,.28f));ProductArtwork(card,label,path,296,150);RectTransform info=Box("Info",card,0,150,296,93,new Color(.043f,.071f,.125f,.98f),0,Color.clear);Text("Label",info,label,12,White,12,7,272,22,TextAlignmentOptions.Center,"Inter-Bold",.6f);Action("Acquire",info,AcquisitionLabel(faction,index),12,49,272,34,Gold,new Color(NavyDeep.r,NavyDeep.g,NavyDeep.b,.96f),()=>Acquire(faction,index));}
+    private string AcquisitionLabel(FactionVisual f,int index){WDStoreProduct p=MappedProduct(f,index);if(p==null)return "EM BREVE";if(service.Owns(p))return "POSSUÍDO";return service.EffectivePrice(p)+" "+Currency(p.currency,service.EffectivePrice(p));}
+    private WDStoreProduct MappedProduct(FactionVisual f,int index){if(f.Id!="sons_of_odin")return null;string id=index switch{0=>"avatar_viking",1=>"odin_frame",2=>"odin_skin",5=>"odin_effect",_=>null};return id==null?null:service.Catalog.FindProduct(id);}
+    private void Acquire(FactionVisual f,int index){WDStoreProduct p=MappedProduct(f,index);feedback=p==null?"INTEGRAÇÃO COMERCIAL FUTURA":Message(service.BuyProduct(p.id));Render();}
+    private void AcquireCollection(FactionVisual faction,WDStoreCollection collection){feedback=collection==null?"INTEGRAÇÃO COMERCIAL FUTURA":Message(service.BuyCollection(collection.id));Render();}
+
+    // 06. AVATARES — NODE 311:2; ARTE SEM DEFORMAÇÃO
+    private void RenderAvatars()
     {
-        for (int i=0; i<products.Length && i<9; i++)
-        {
-            WDStoreProduct p=products[i]; int column=i%3,row=i/3;
-            float x=.03f+column*.32f,y=top-row*.19f;
-            string state=service.Owns(p) ? "POSSUÍDO" : !p.available ? "INDISPONÍVEL" :
-                p.vipPolicy==WDStoreVipPolicy.RequiredToAcquire && !service.Vip.IsVipActive ? "VIP NECESSÁRIO" :
-                $"{service.EffectivePrice(p)} {p.currency}";
-            AddButton(content,"Product_"+p.id,$"{p.title}\n{p.description}\n{state}",
-                () => { feedback=Message(service.BuyProduct(p.id)); Render(); },
-                new Vector2(x,y-.17f),new Vector2(x+.30f,y));
-        }
-        if (products.Length==0) AddText(content,"Empty","NENHUM ITEM DISPONÍVEL",18,theme.TextoSecundario,
-            new Vector2(.2f,.35f),new Vector2(.8f,.6f),TextAlignmentOptions.Center);
+        SectionHeading("AVATARES","");int pages=Mathf.CeilToInt(Factions.Length/6f);Pager(pages,18);int start=page*6;for(int i=0;i<6&&start+i<Factions.Length;i++){FactionVisual f=Factions[start+i];int col=i%3,row=i/3;AvatarCard(f,32+col*608,76+row*426);}
     }
+    private void AvatarCard(FactionVisual faction,float x,float y)
+    {RectTransform card=Box("Avatar_"+faction.Id,body,x,y,592,410,new Color(Navy.r,Navy.g,Navy.b,.94f),18,new Color(Gold.r,Gold.g,Gold.b,.28f));RectTransform art=Box("ArtArea",card,0,0,592,300,new Color(.024f,.055f,.09f,.97f),0,Color.clear);RectTransform portraitFrame=Box("PortraitFrame",art,166,20,260,260,NavyDeep,18,new Color(Cyan.r,Cyan.g,Cyan.b,.55f));Art("Portrait",portraitFrame,faction.Root+faction.Folder,12,12,236,236,false);RectTransform info=Box("Info",card,0,300,592,110,new Color(.043f,.071f,.125f,.97f),0,Color.clear);Text("Name",info,"AVATAR "+faction.Name,16,White,16,10,390,24,TextAlignmentOptions.Left,"Inter-Bold");Chip(info,"Kind","AVATAR",16,40,70,24,Cyan);Action("View",info,"VER AVATAR",424,55,152,40,Gold,Gold,()=>ShowCollection(faction.Id));}
+
+    // 07. VIP — NODE 285:8; CTA VISUAL SEM ASSINATURA/PAGAMENTO FICTÍCIO
     private void RenderVip()
     {
-        string state=service.Vip.IsVipActive ? $"ATIVO · {service.Vip.Remaining.Days} DIAS RESTANTES" : "INATIVO";
-        AddText(content,"VipState","WAR VIP · "+state,23,theme.Acento,new Vector2(.05f,.69f),new Vector2(.95f,.78f),TextAlignmentOptions.Center);
-        string[] benefits={"DECKS 3, 4 E 5","VOTO DE COMANDANTE 2×","RECOMPENSA DIÁRIA 2×","+1 ESMERALDA POR DIA",
-            "DESCONTO EM COSMÉTICOS","AVATARES VIP EXCLUSIVOS","MOLDURAS DE PERFIL VIP","BADGE VIP NO PERFIL",
-            "PERSONALIZAÇÕES DE PERFIL","EMOJIS VIP EXCLUSIVOS","COSMÉTICO MENSAL SELECIONADO"};
-        for(int i=0;i<benefits.Length;i++)
-        {
-            int col=i%3,row=i/3; float x=.04f+col*.32f,y=.65f-row*.105f;
-            AddText(content,"Benefit_"+i,benefits[i],14,theme.TextoPrincipal,
-                new Vector2(x,y-.09f),new Vector2(x+.30f,y),TextAlignmentOptions.Center);
-        }
-        AddButton(content,"SubscribeMock",$"ATIVAR VIP MOCK · {service.Catalog.MockVipDays} DIAS (SEM PAGAMENTO)",
-            () => { service.Vip.ActivateMock(TimeSpan.FromDays(service.Catalog.MockVipDays));
-                service.RefreshVipProjection(); feedback="VIP MOCK ATIVADO"; Render(); },
-            new Vector2(.29f,.10f),new Vector2(.71f,.17f));
+        FactionVisual monthly=Factions[1];Text("Kicker",body,"WAR VIP",16,Cyan,32,24,360,24,TextAlignmentOptions.Left,"Inter-Bold",1.8f);Text("Title",body,"DOMINE COM BENEFÍCIOS EXCLUSIVOS",28,White,32,54,850,42,TextAlignmentOptions.Left,"Gabarito-ExtraBold",1f);
+        RectTransform cosmetic=Box("MonthlyCosmetic",body,32,112,520,600,new Color(Navy.r,Navy.g,Navy.b,.93f),18,new Color(Gold.r,Gold.g,Gold.b,.38f));Art("Art",cosmetic,monthly.Root+monthly.Folder,0,0,520,474,false);Text("Label",cosmetic,"COSMÉTICO MENSAL",12,Gold,24,492,300,22,TextAlignmentOptions.Left,"Inter-Bold",1.2f);Text("Name",cosmetic,monthly.Name,22,White,24,522,470,38,TextAlignmentOptions.Left,"Gabarito-Bold");
+        RectTransform offer=Box("VipOffer",body,564,112,628,600,new Color(Navy.r,Navy.g,Navy.b,.94f),20,new Color(Gold.r,Gold.g,Gold.b,.54f));Icon("Crown",offer,"UI/Store/Canonical/icon_crown",48,72,104,104,Gold);Text("Name",offer,"WAR VIP",38,White,184,66,380,54,TextAlignmentOptions.Left,"Gabarito-ExtraBold",1.5f);Text("State",offer,service.Vip.IsVipActive?"ATIVO · "+service.Vip.Remaining.Days+" DIAS RESTANTES":"ASSINATURA NÃO ATIVA",15,service.Vip.IsVipActive?Green:Muted,184,126,380,28,TextAlignmentOptions.Left,"Inter-Bold");Text("Copy",offer,"Mais liberdade para personalizar, progredir e comandar.",16,Muted,48,210,532,50,TextAlignmentOptions.Left,"Inter-Regular");Action("Subscribe",offer,"ASSINAR WAR VIP",48,510,532,56,Gold,Gold,()=>{feedback="ASSINATURA DEPENDE DA INTEGRAÇÃO COMERCIAL";Render();});
+        string[] benefits={"3 DECKS ADICIONAIS","VOTO DE COMANDANTE 2×","RECOMPENSA DIÁRIA 2×","+1 ESMERALDA POR DIA","DESCONTO EM COSMÉTICOS","AVATARES VIP","MOLDURAS VIP","BADGE VIP","PERSONALIZAÇÕES","EMOJIS EXCLUSIVOS","COSMÉTICO MENSAL"};
+        for(int i=0;i<benefits.Length;i++){int col=i%2,row=i/2;float x=1212+col*338,y=112+row*96;RectTransform item=Box("Benefit_"+i,body,x,y,324,82,new Color(Navy.r,Navy.g,Navy.b,.91f),8,new Color(Gold.r,Gold.g,Gold.b,.25f));Icon("Check",item,"UI/Store/Canonical/icon_check",18,25,30,30,Cyan);Text("Label",item,benefits[i],13,White,62,17,244,46,TextAlignmentOptions.Left,"Inter-Bold");}
     }
-    private static string Message(WDStorePurchaseStatus status) => status switch
+
+    // 08. PRIMITIVAS COMPARTILHADAS
+    private void SectionHeading(string title,string subtitle){Text("Heading",body,title,30,White,32,24,620,44,TextAlignmentOptions.Left,"Gabarito-ExtraBold",1f);Text("Subtitle",body,subtitle,13,Muted,32,64,900,22,TextAlignmentOptions.Left,"Inter-Bold",1.2f);}
+    private void Pager(int pages,float y){if(pages<=1)return;Action("Prev",body,"‹",810,y,54,42,Gold,new Color(Navy.r,Navy.g,Navy.b,.94f),()=>{page=(page-1+pages)%pages;Render();});Text("Page",body,$"{page+1} / {pages}",14,White,872,y,176,42,TextAlignmentOptions.Center,"Inter-Bold");Action("Next",body,"›",1056,y,54,42,Gold,new Color(Navy.r,Navy.g,Navy.b,.94f),()=>{page=(page+1)%pages;Render();});}
+    private void ProductArtwork(Transform parent,string category,string path,float width,float height)
     {
-        WDStorePurchaseStatus.Success=>"AQUISIÇÃO CONCLUÍDA · ITEM NÃO EQUIPADO",
-        WDStorePurchaseStatus.AlreadyOwned=>"ITEM JÁ POSSUÍDO · NENHUMA COBRANÇA",
-        WDStorePurchaseStatus.InsufficientFunds=>"SALDO INSUFICIENTE",
-        WDStorePurchaseStatus.VipRequired=>"VIP ATIVO NECESSÁRIO",
-        WDStorePurchaseStatus.Unavailable=>"ITEM INDISPONÍVEL",
-        WDStorePurchaseStatus.Unknown=>"ITEM NÃO ENCONTRADO",
-        _=>"FALHA NA TRANSAÇÃO · VERIFIQUE O CATÁLOGO"
-    };
-    private TextMeshProUGUI AddText(Transform parent,string name,string value,float size,Color color,Vector2 min,Vector2 max,
-        TextAlignmentOptions alignment=TextAlignmentOptions.Left)
-    {
-        TextMeshProUGUI text=WDHomeUIFactory.Text(name,parent,theme,value,size,color,alignment);
-        text.rectTransform.anchorMin=min;text.rectTransform.anchorMax=max;
-        text.rectTransform.offsetMin=text.rectTransform.offsetMax=Vector2.zero; return text;
+        RectTransform area=Box("ArtworkArea",parent,0,0,width,height,new Color(.024f,.055f,.09f,.98f),0,Color.clear);
+        bool skin=category.Contains("SKIN");float size=category.Contains("AVATAR")?Mathf.Min(height-16,160):category.Contains("MOLDURA")?Mathf.Min(height-8,172):category.Contains("CONTADOR")?Mathf.Min(height-20,160):category.Contains("EMBLEMA")?Mathf.Min(height-22,154):category.Contains("EFEITO")?Mathf.Min(height-16,160):Mathf.Min(height-16,160);
+        if(skin)Art("Artwork",area,path,8,8,width-16,height-16,true);else Art("Artwork",area,path,(width-size)*.5f,(height-size)*.5f,size,size,false);
     }
-    private WDUIPremiumButton AddButton(Transform parent,string name,string label,UnityAction action,Vector2 min,Vector2 max)
+    private void Chip(Transform parent,string name,string label,float x,float y,float w,float h,Color accent){RectTransform chip=Box(name,parent,x,y,w,h,new Color(accent.r,accent.g,accent.b,.08f),5,new Color(accent.r,accent.g,accent.b,.28f));Text("Label",chip,label,10,accent,5,1,w-10,h-2,TextAlignmentOptions.Center,"Inter-SemiBold",.35f);}
+    private void Art(string name,Transform parent,string path,float x,float y,float w,float h,bool cover)
     {
-        RectTransform rect=WDHomeUIFactory.Rect(name,parent);rect.anchorMin=min;rect.anchorMax=max;
-        rect.offsetMin=rect.offsetMax=Vector2.zero;
-        WDUIPremiumButton button=rect.gameObject.AddComponent<WDUIPremiumButton>();button.Build(theme,label,action);return button;
+        RectTransform viewport=R(name,parent);P(viewport,x,y,w,h);viewport.gameObject.AddComponent<RectMask2D>();
+        RectTransform visual=R("Visual",viewport);visual.anchorMin=visual.anchorMax=visual.pivot=new Vector2(.5f,.5f);visual.anchoredPosition=Vector2.zero;visual.sizeDelta=new Vector2(w,h);
+        RawImage image=visual.gameObject.AddComponent<RawImage>();Texture2D texture=Resources.Load<Texture2D>(path);image.texture=texture;image.color=texture==null?new Color(.08f,.11f,.15f,1):Color.white;image.raycastTarget=false;
+        AspectRatioFitter fit=visual.gameObject.AddComponent<AspectRatioFitter>();fit.aspectMode=cover?AspectRatioFitter.AspectMode.EnvelopeParent:AspectRatioFitter.AspectMode.FitInParent;fit.aspectRatio=texture!=null?(float)texture.width/texture.height:1f;
     }
-    private static void Clear(Transform parent)
-    {
-        for(int i=parent.childCount-1;i>=0;i--)
-        {
-            GameObject child=parent.GetChild(i).gameObject;
-            if(Application.isPlaying) Destroy(child); else DestroyImmediate(child);
-        }
-    }
+    private Image Icon(string name,Transform parent,string path,float x,float y,float w,float h,Color tint){RectTransform root=R(name,parent);P(root,x,y,w,h);Image image=root.gameObject.AddComponent<Image>();image.sprite=Resources.Load<Sprite>(path);image.color=tint;image.preserveAspect=true;image.raycastTarget=false;return image;}
+    private RawImage TextureIcon(string name,Transform parent,string path,float x,float y,float w,float h,Color tint){RectTransform root=R(name,parent);P(root,x,y,w,h);RawImage image=root.gameObject.AddComponent<RawImage>();image.texture=Resources.Load<Texture2D>(path);image.color=tint;image.raycastTarget=false;return image;}
+    private void Action(string name,Transform parent,string label,float x,float y,float w,float h,Color accent,Color fill,UnityAction action){RectTransform root=Box(name,parent,x,y,w,h,fill,5,accent);Color labelColor=fill==Gold?Navy:White;Text("Label",root,label,13,labelColor,8,4,w-16,h-8,TextAlignmentOptions.Center,"Gabarito-Bold",.5f);Button(root,action);}
+    private TextMeshProUGUI Text(string name,Transform parent,string value,float size,Color color,float x,float y,float w,float h,TextAlignmentOptions alignment,string font,float spacing=0){RectTransform root=R(name,parent);P(root,x,y,w,h);TextMeshProUGUI label=root.gameObject.AddComponent<TextMeshProUGUI>();label.text=value;label.fontSize=size;label.color=color;label.alignment=alignment;label.font=WDHomeTypography.Load(font);label.characterSpacing=spacing;label.raycastTarget=false;label.textWrappingMode=value.Contains("\n")?TextWrappingModes.Normal:TextWrappingModes.NoWrap;label.overflowMode=TextOverflowModes.Ellipsis;return label;}
+    private static RectTransform Box(string name,Transform parent,float x,float y,float w,float h,Color color,int radius,Color border){RectTransform root=R(name,parent);P(root,x,y,w,h);Image image=root.gameObject.AddComponent<Image>();image.color=color;image.raycastTarget=true;if(radius>0)WDHomeUIFactory.ApplyRounded(image,radius);if(border.a>0)WDHomeUIFactory.AddThinRoundedBorder(root,border,Mathf.Max(4,radius));return root;}
+    private static Image Surface(string name,Transform parent,float x,float y,float w,float h,Color color){RectTransform root=R(name,parent);P(root,x,y,w,h);Image image=root.gameObject.AddComponent<Image>();image.color=color;image.raycastTarget=false;return image;}
+    private static void Button(RectTransform root,UnityAction action){Button button=root.gameObject.GetComponent<Button>()??root.gameObject.AddComponent<Button>();button.targetGraphic=root.GetComponent<Image>();button.onClick.AddListener(action);}
+    private static string Currency(WDStoreCurrency currency,int amount)=>currency==WDStoreCurrency.Emeralds?(amount==1?"ESMERALDA":"ESMERALDAS"):"COINS";
+    private static string Message(WDStorePurchaseStatus status)=>status switch{WDStorePurchaseStatus.Success=>"AQUISIÇÃO CONCLUÍDA",WDStorePurchaseStatus.AlreadyOwned=>"ITEM JÁ POSSUÍDO",WDStorePurchaseStatus.InsufficientFunds=>"SALDO INSUFICIENTE",WDStorePurchaseStatus.VipRequired=>"VIP ATIVO NECESSÁRIO",WDStorePurchaseStatus.Unavailable=>"ITEM INDISPONÍVEL",_=>"AQUISIÇÃO INDISPONÍVEL"};
+    private static RectTransform R(string name,Transform parent){GameObject go=new(name,typeof(RectTransform));RectTransform root=(RectTransform)go.transform;root.SetParent(parent,false);return root;}
+    private static void StretchHorizontal(RectTransform r,float left,float right){r.anchorMin=new Vector2(0,1);r.anchorMax=Vector2.one;r.pivot=new Vector2(.5f,1);r.offsetMin=new Vector2(left,r.offsetMin.y);r.offsetMax=new Vector2(-right,r.offsetMax.y);}private static void StretchBody(RectTransform r,float left,float right,float top,float bottom){r.anchorMin=Vector2.zero;r.anchorMax=Vector2.one;r.pivot=new Vector2(.5f,.5f);r.offsetMin=new Vector2(left,bottom);r.offsetMax=new Vector2(-right,-top);}private static void CenterTop(RectTransform r,float x,float y,float w,float h){r.anchorMin=r.anchorMax=new Vector2(.5f,1);r.pivot=new Vector2(.5f,1);r.anchoredPosition=new Vector2(x,-y);r.sizeDelta=new Vector2(w,h);}private static void RightTop(RectTransform r,float right,float y,float w,float h){r.anchorMin=r.anchorMax=new Vector2(1,1);r.pivot=new Vector2(1,1);r.anchoredPosition=new Vector2(-right,-y);r.sizeDelta=new Vector2(w,h);}private static void P(RectTransform root,float x,float y,float w,float h){root.anchorMin=root.anchorMax=root.pivot=new Vector2(0,1);root.anchoredPosition=new Vector2(x,-y);root.sizeDelta=new Vector2(w,h);}private static void Stretch(RectTransform root){root.anchorMin=Vector2.zero;root.anchorMax=Vector2.one;root.offsetMin=root.offsetMax=Vector2.zero;}
+    private static void Clear(Transform parent){for(int i=parent.childCount-1;i>=0;i--){GameObject child=parent.GetChild(i).gameObject;if(Application.isPlaying)Destroy(child);else DestroyImmediate(child);}}
+    private static Color Hex(string value){ColorUtility.TryParseHtmlString("#"+value,out Color color);return color;}
+
 }

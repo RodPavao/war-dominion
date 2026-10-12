@@ -30,9 +30,11 @@ public sealed class WDMatchResultView : MonoBehaviour
         title = WDUIFactory.Text("Title", resultPanel, theme, theme.TypeTitle,
             theme.TextoPrincipal, TextAlignmentOptions.Center);
         SetBounds(title.rectTransform, 0.08f, 0.70f, 0.92f, 0.90f);
+        WDUITextPolicies.Apply(title, WDUITextPolicy.BoundedWrap, 2);
         details = WDUIFactory.Text("Details", resultPanel, theme, theme.TypeBody,
             theme.TextoSecundario, TextAlignmentOptions.Center);
         SetBounds(details.rectTransform, 0.08f, 0.28f, 0.92f, 0.70f);
+        WDUITextPolicies.Apply(details, WDUITextPolicy.BoundedWrap, 6);
 
         RectTransform action = WDUIFactory.Rect("Continue", resultPanel);
         action.anchorMin = new Vector2(0.20f, 0.08f);

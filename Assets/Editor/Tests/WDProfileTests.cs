@@ -151,20 +151,41 @@ public sealed class WDProfileTests
     }
 
     [Test]
-    public void EmptyNicknameIsRejectedWithoutMutation()
+    public void NicknameUsesExactThreeToTwentyCharacterContractIncludingWhitespace()
     {
         WDProfileData profile = Repository().LocalProfile;
         string before = profile.Nickname;
-        Assert.That(profile.TryRename("   "), Is.False);
+        Assert.That(profile.TryRename("  "), Is.False);
+        Assert.That(profile.TryRename(new string(' ', 21)), Is.False);
         Assert.That(profile.Nickname, Is.EqualTo(before));
+        Assert.That(profile.TryRename("   "), Is.True);
+        Assert.That(profile.Nickname, Is.EqualTo("   "));
+        Assert.That(profile.TryRename(new string(' ', 20)), Is.True);
+        Assert.That(profile.Nickname, Is.EqualTo(new string(' ', 20)));
+        Assert.That(profile.TryRename(new string('A', 20)), Is.True);
+        Assert.That(profile.TryRename(new string('A', 21)), Is.False);
     }
 
     [Test]
-    public void ValidNicknameIsTrimmedAndAppliedLocally()
+    public void ValidNicknamePreservesEveryCharacterWithoutNormalization()
     {
         WDProfileData profile = Repository().LocalProfile;
         Assert.That(profile.TryRename("  Commander77  "), Is.True);
-        Assert.That(profile.Nickname, Is.EqualTo("Commander77"));
+        Assert.That(profile.Nickname, Is.EqualTo("  Commander77  "));
+    }
+
+    [Test]
+    public void SharedSearchAndNumberPresentationContractsRemainBounded()
+    {
+        Assert.That(WDUIContentContracts.NormalizeSearch(new string('S', 40)).Length,
+            Is.EqualTo(40));
+        Assert.That(WDUIContentContracts.NormalizeSearch(new string('S', 41)).Length,
+            Is.EqualTo(40));
+        Assert.That(WDNumberFormatter.CompactEconomy(0), Is.EqualTo(WDNumberFormatter.Full(0)));
+        Assert.That(WDNumberFormatter.CompactEconomy(1200), Does.EndWith(" mil"));
+        Assert.That(WDNumberFormatter.CompactEconomy(1250000), Does.EndWith(" mi"));
+        Assert.DoesNotThrow(() => WDNumberFormatter.CompactEconomy(int.MaxValue));
+        Assert.DoesNotThrow(() => WDNumberFormatter.CompactEconomy(int.MinValue));
     }
 
     // ============================================================
@@ -601,7 +622,8 @@ public sealed class WDProfileTests
         Resources.Load<WarDominionHomeData>("UI/Home/WarDominionHomeMockData");
 
     private static WDProfileRepository Repository(WDProfilePrivacy privacy = null) => new(
-        HomeData(), new WDMemoryProfilePrivacyStore(privacy));
+        HomeData(), new WDMemoryProfilePrivacyStore(privacy),
+        new WDMemoryProfileIdentityStore());
 
     private static GameObject BuildPanel(out WDHomeProfilePanel panel, out WDNavigationStack navigation,
         WDProfileRepository profileRepository = null)

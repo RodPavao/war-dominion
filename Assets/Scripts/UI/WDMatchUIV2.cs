@@ -6,7 +6,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 [DisallowMultipleComponent]
-public sealed class WDMatchUIV2 : MonoBehaviour, IWDMatchUIPresentation, IWDMatchChatPresentation
+public sealed class WDMatchUIV2 : MonoBehaviour, IWDMatchUIPresentation, IWDMatchChatPresentation, IWDMatchWeaponPresentation, IWDMatchInteractionPresentation
 {
     // ============================================================
     // 01. REFERÊNCIAS E CONSTANTES VISUAIS
@@ -54,6 +54,12 @@ public sealed class WDMatchUIV2 : MonoBehaviour, IWDMatchUIPresentation, IWDMatc
     private WDWeaponMatchUIController weaponUI;
     private ResolutionSequenceController resolutionSequence;
     private MatchUIState state;
+    private WDMatchActionsView actionsView;
+    private WDMatchSupportView supportView;
+    private WDMatchInteractionView interactionView;
+    private WDMatchInstallationHubView installationHubView;
+    private WDMatchInformationalOverlayController informational;
+    private bool switchingInteractions;
 
     private TextMeshProUGUI energyText;
     private TextMeshProUGUI contextualResourceText;
@@ -67,12 +73,19 @@ public sealed class WDMatchUIV2 : MonoBehaviour, IWDMatchUIPresentation, IWDMatc
     private RectTransform playersContent;
     private RectTransform movementContext;
     private RectTransform menuModalLayer;
+    private RectTransform radarModalLayer;
+    private TextMeshProUGUI radarModalTitle;
+    private TextMeshProUGUI radarModalBody;
+    private WDUIPremiumButton radarModalPrimary;
+    private WDUIPremiumButton radarModalCancel;
+    private bool radarResultVisible;
     private WDMatchChatView chatView;
     private WDMatchSettingsView settingsView;
     private RectTransform menuPlayersContent;
     private TextMeshProUGUI menuTitle;
     private WDUIPremiumButton sendMovesButton;
     private WDUIPremiumButton transferButton;
+    private WDUIPremiumButton supportButton;
     private WDUIPremiumButton speedButton;
     private WDUIPremiumButton menuButton;
     private WDUIPremiumButton regionsButton;
@@ -82,6 +95,7 @@ public sealed class WDMatchUIV2 : MonoBehaviour, IWDMatchUIPresentation, IWDMatc
     private Sprite speedOffSprite;
     private Sprite speedOnSprite;
     private readonly List<WDUIPremiumButton> weaponCards = new();
+    private readonly List<GameObject> weaponPreparationOverlays = new();
     private string playersKey = string.Empty;
     private string menuPlayersKey = string.Empty;
 
@@ -108,7 +122,39 @@ public sealed class WDMatchUIV2 : MonoBehaviour, IWDMatchUIPresentation, IWDMatc
         BuildPlayers();
         BuildSendMoves();
         BuildMovementContext();
+        RectTransform supportRect = WDUIFactory.Rect("MatchSupport", transform);
+        Stretch(supportRect);
+        supportView = supportRect.gameObject.AddComponent<WDMatchSupportView>();
+        supportView.Build(theme);
+        supportView.Bind(weaponUI);
+        supportView.BindEntry(supportButton.transform);
+        supportView.IntentChanged += () => { PresentWeapons(); actionsView?.Refresh(); };
+        RectTransform actionsRect = WDUIFactory.Rect("MatchActions", transform);
+        Stretch(actionsRect);
+        actionsView = actionsRect.gameObject.AddComponent<WDMatchActionsView>();
+        actionsView.Build(theme);
+        actionsView.Bind(commands, weaponUI);
+        actionsView.IntentChanged += PresentWeapons;
+        RectTransform interactionRect = WDUIFactory.Rect("MatchInteractions", transform);
+        Stretch(interactionRect);
+        interactionView = interactionRect.gameObject.AddComponent<WDMatchInteractionView>();
+        interactionView.Build(theme);
+        interactionView.Bind(commands, informational);
+        interactionView.RegisterEntry(transferButton.transform);
+        interactionView.Opening += CloseTransientInteractions;
+        interactionView.TacticalOpening += () => CloseTransientInteractions(true);
+        RectTransform installationHubRect = WDUIFactory.Rect("MatchInstallationHub", transform);
+        Stretch(installationHubRect);
+        installationHubView = installationHubRect.gameObject.AddComponent<WDMatchInstallationHubView>();
+        installationHubView.Build(theme);
+        installationHubView.Bind(weaponUI);
+        installationHubView.IntentChanged += () =>
+        {
+            PresentWeapons();
+            actionsView?.Refresh();
+        };
         BuildMenuModal();
+        BuildRadarModal();
         // 02.1. O Chat usa o mesmo Canvas/Safe Area e a autoridade de utilidades.
         RectTransform chatRect = WDUIFactory.Rect("MatchChat", transform);
         Stretch(chatRect);
@@ -131,7 +177,23 @@ public sealed class WDMatchUIV2 : MonoBehaviour, IWDMatchUIPresentation, IWDMatc
     public void BindChat(WDChatRepository repository, WDChatChannel matchChannel) =>
         chatView?.BindRepository(repository, matchChannel);
 
-    public void BindCommands(IMatchUICommands newCommands) => commands = newCommands;
+    public void BindCommands(IMatchUICommands newCommands)
+    {
+        commands = newCommands;
+        actionsView?.Bind(commands, weaponUI);
+        interactionView?.Bind(commands, informational);
+    }
+
+    public void BindInformational(WDMatchInformationalOverlayController controller)
+    { informational = controller; interactionView?.Bind(commands, controller); }
+
+    public void BindWeapons(WDWeaponMatchUIController controller)
+    {
+        weaponUI = controller;
+        supportView?.Bind(controller);
+        installationHubView?.Bind(controller);
+        actionsView?.Bind(commands, weaponUI);
+    }
 
     public void BindUtilities(IWDMatchUtilityCommands newUtilities)
     {
@@ -251,13 +313,28 @@ public sealed class WDMatchUIV2 : MonoBehaviour, IWDMatchUIPresentation, IWDMatc
             label.fontSize = 15f;
             label.textWrappingMode = TextWrappingModes.Normal;
             weaponCards.Add(card);
+
+            RectTransform preparing = WDUIFactory.Rect("PreparationState", card.transform);
+            Stretch(preparing);
+            Image preparationTint = preparing.gameObject.AddComponent<Image>();
+            preparationTint.color = new Color32(176, 28, 35, 205);
+            preparationTint.raycastTarget = false;
+            WDHomeUIFactory.ApplyRounded(preparationTint, 6);
+            TextMeshProUGUI preparationCross = WDUIFactory.Text("CancelMark", preparing,
+                theme, 44f, Color.white, TextAlignmentOptions.Center);
+            Stretch(preparationCross.rectTransform);
+            preparationCross.text = "×";
+            preparationCross.raycastTarget = false;
+            preparing.gameObject.SetActive(false);
+            weaponPreparationOverlays.Add(preparing.gameObject);
         }
 
-        CompactButton(rail, "Support", "APOIO", new Vector2(RailContentX, -689f), null);
+        supportButton = CompactButton(rail, "Support", "APOIO", new Vector2(RailContentX, -689f),
+            ToggleSupport);
         transferButton = CompactButton(rail, "Transfer", "TRANSFERÊNCIA",
             new Vector2(RailContentX, -746f), ToggleTransfer);
         CompactButton(rail, "Actions", "AÇÕES", new Vector2(RailContentX, -803f),
-            () => commands?.SelecionarModoAcao());
+            ToggleActions);
     }
 
     private void BuildPlayers()
@@ -274,9 +351,10 @@ public sealed class WDMatchUIV2 : MonoBehaviour, IWDMatchUIPresentation, IWDMatc
         playersContent.pivot = Vector2.one;
         // Margem de 20 px para o painel + seus 8 px de padding, relativos à Safe Area.
         playersContent.anchoredPosition = new Vector2(-28f, -334f);
-        playersContent.sizeDelta = new Vector2(154f, 282f);
+        playersContent.sizeDelta = new Vector2(218f, 282f);
         VerticalLayoutGroup list = playersContent.gameObject.AddComponent<VerticalLayoutGroup>();
         list.spacing = 22f;
+        list.childControlWidth = true;
         list.childControlHeight = true;
         list.childForceExpandHeight = false;
         contrast.gameObject.AddComponent<WDMatchPlayersContrast>().Bind(playersContent);
@@ -360,6 +438,47 @@ public sealed class WDMatchUIV2 : MonoBehaviour, IWDMatchUIPresentation, IWDMatc
     }
 
     // ============================================================
+    // 02.3. RADAR DIRETO — CONFIRMAÇÃO E RESULTADO PRIVADO
+    // ============================================================
+
+    private void BuildRadarModal()
+    {
+        radarModalLayer = WDUIFactory.Rect("RadarModal", transform);
+        Stretch(radarModalLayer);
+        Image backdrop = radarModalLayer.gameObject.AddComponent<Image>();
+        backdrop.color = WDMatchVisualStyle.BackdropMatch;
+        backdrop.raycastTarget = true;
+        Button backdropButton = radarModalLayer.gameObject.AddComponent<Button>();
+        backdropButton.transition = Selectable.Transition.None;
+        backdropButton.onClick.AddListener(() => CloseRadarModal(!radarResultVisible));
+
+        RectTransform panel = WDUIFactory.Rect("Panel", radarModalLayer);
+        panel.anchorMin = panel.anchorMax = panel.pivot = new Vector2(.5f, .5f);
+        panel.sizeDelta = new Vector2(500f, 320f);
+        Image surface = panel.gameObject.AddComponent<Image>();
+        surface.color = WDMatchVisualStyle.SurfaceMatchReadable;
+        surface.raycastTarget = true;
+        WDHomeUIFactory.ApplyRounded(surface, 20);
+        WDHomeUIFactory.AddRoundedBorder(panel, Gold, 20);
+        panel.gameObject.AddComponent<EventTrigger>();
+
+        radarModalTitle = Text(panel, "Title", 30f, Gold,
+            new Vector2(40f, -34f), new Vector2(420f, 44f),
+            TextAlignmentOptions.Center);
+        radarModalBody = Text(panel, "Body", 18f, theme.TextoPrincipal,
+            new Vector2(40f, -98f), new Vector2(420f, 100f),
+            TextAlignmentOptions.Center);
+        radarModalBody.textWrappingMode = TextWrappingModes.Normal;
+        radarModalCancel = CompactButton(panel, "Cancel", "CANCELAR",
+            new Vector2(66f, -238f), () => CloseRadarModal(true));
+        radarModalCancel.GetComponent<RectTransform>().sizeDelta = new Vector2(170f, 48f);
+        radarModalPrimary = CompactButton(panel, "Confirm", "CONFIRMAR",
+            new Vector2(264f, -238f), HandleRadarPrimary);
+        radarModalPrimary.GetComponent<RectTransform>().sizeDelta = new Vector2(170f, 48f);
+        radarModalLayer.gameObject.SetActive(false);
+    }
+
+    // ============================================================
     // 03. RENDERIZAÇÃO DIRIGIDA PELO SNAPSHOT AUTORITATIVO
     // ============================================================
 
@@ -367,6 +486,11 @@ public sealed class WDMatchUIV2 : MonoBehaviour, IWDMatchUIPresentation, IWDMatc
     {
         if (newState == null || theme == null)
             return;
+        bool interactionBoundary = state != null &&
+            (state.Round != newState.Round || state.Fase != newState.Fase ||
+             state.JogadorLocal != newState.JogadorLocal);
+        if (interactionBoundary)
+            CloseTransientPresentationAtStateBoundary();
         state = newState;
         energyText.text = $"{weaponUI?.CurrentEnergy ?? 0}";
         bool showTroops = ShouldShowTroopsResource(state.ReforcosDisponiveis);
@@ -382,6 +506,11 @@ public sealed class WDMatchUIV2 : MonoBehaviour, IWDMatchUIPresentation, IWDMatc
         transferButton.gameObject.SetActive(state.UsaEquipes);
         transferButton.SetInteractable(state.PodeEditarPreparacao &&
             state.TransferenciaDisponivel && !state.TransferenciaUsada);
+        bool transferActive = state.PodeEditarPreparacao && state.EmModoTransferencia;
+        transferButton.SetLabel(transferActive ? "TRANSFERÊNCIA ×" : "TRANSFERÊNCIA");
+        transferButton.SetPersistentColors(transferActive ? new Color(.65f, .12f, .12f) : Color.clear,
+            transferActive ? new Color(.75f, .16f, .16f) : new Color(Gold.r, Gold.g, Gold.b, .18f));
+        transferButton.SetLabelColor(transferActive ? Color.white : Gold);
         speedButton.gameObject.SetActive(ShouldShowResolutionSpeed(state.Fase));
         PresentSpeedSelection(resolutionSequence?.IsAccelerated == true);
         sendMovesButton.gameObject.SetActive(ShouldShowSendMoves(state.Fase));
@@ -403,6 +532,10 @@ public sealed class WDMatchUIV2 : MonoBehaviour, IWDMatchUIPresentation, IWDMatc
         }
 
         PresentWeapons();
+        PresentRadarModal();
+        actionsView?.Present(state);
+        supportView?.Refresh();
+        interactionView?.Present(state);
         string nextPlayersKey = PlayerContentKey(state.Jogadores);
         if (nextPlayersKey != playersKey)
             RebuildPlayers(nextPlayersKey);
@@ -412,8 +545,28 @@ public sealed class WDMatchUIV2 : MonoBehaviour, IWDMatchUIPresentation, IWDMatc
             RebuildMenuPlayers();
     }
 
+    // ============================================================
+    // 03.1. LIMITE DE CICLO: NENHUM BACKDROP SOBREVIVE À FASE/ROUND
+    // ============================================================
+
+    private void CloseTransientPresentationAtStateBoundary()
+    {
+        interactionView?.Close();
+        informational?.CancelTacticalSelection();
+        supportView?.Close();
+        installationHubView?.Close();
+        CloseRadarModal(false);
+        actionsView?.SetSuppressed(true);
+        actionsView?.SetSuppressed(false);
+        utilities?.CloseActive();
+        if (menuModalLayer != null) menuModalLayer.gameObject.SetActive(false);
+        EventSystem.current?.SetSelectedGameObject(null);
+    }
+
     private void PresentWeapons()
     {
+        if (state == null)
+            return;
         IReadOnlyList<WDWeaponHudCardState> cards = weaponUI?.GetCards() ??
             Array.Empty<WDWeaponHudCardState>();
         for (int i = 0; i < weaponCards.Count; i++)
@@ -422,15 +575,19 @@ public sealed class WDMatchUIV2 : MonoBehaviour, IWDMatchUIPresentation, IWDMatc
             weaponCards[i].SetLabel(card == null ? "VAZIO" :
                 FormatWeaponCardLabel(card.DisplayName, card.Level, card.EnergyCost));
             weaponCards[i].SetInteractable(state.PodeEditarPreparacao && card != null &&
-                (card.AvailabilityReason == WDWeaponAvailabilityReason.Available ||
-                 card.AvailabilityReason == WDWeaponAvailabilityReason.InsufficientEnergy));
+                card.AvailabilityReason == WDWeaponAvailabilityReason.Available);
             weaponCards[i].SetSelected(card?.Selected == true);
+            bool preparing = card?.Selected == true;
+            if (i < weaponPreparationOverlays.Count)
+                weaponPreparationOverlays[i].SetActive(preparing);
         }
     }
 
     private void RebuildPlayers(string nextKey)
     {
         ClearChildren(playersContent);
+        interactionView?.ClearEntries();
+        interactionView?.RegisterEntry(transferButton.transform);
         foreach (MatchUIPlayerState player in state.Jogadores)
         {
             RectTransform row = WDUIFactory.Rect($"Player-{player.Jogador}", playersContent);
@@ -446,7 +603,12 @@ public sealed class WDMatchUIV2 : MonoBehaviour, IWDMatchUIPresentation, IWDMatc
             marker.sizeDelta = new Vector2(54f, 54f);
             Image markerImage = marker.gameObject.AddComponent<Image>();
             markerImage.color = new Color(6f / 255f, 9f / 255f, 14f / 255f, .90f);
-            markerImage.raycastTarget = false;
+            markerImage.raycastTarget = true;
+            Button playerEntry = marker.gameObject.AddComponent<Button>();
+            playerEntry.transition = Selectable.Transition.None;
+            TerritorioClique.Dono owner = player.Jogador;
+            playerEntry.onClick.AddListener(() => interactionView?.OpenPlayer(owner, marker));
+            interactionView?.RegisterPlayerEntry(owner, marker);
             WDHomeUIFactory.ApplyRounded(markerImage, 8);
             WDHomeUIFactory.AddRoundedBorder(marker, player.Cor, 8);
             BuildAvatarFallback(marker);
@@ -454,15 +616,25 @@ public sealed class WDMatchUIV2 : MonoBehaviour, IWDMatchUIPresentation, IWDMatc
             string team = player.Equipe == EquipesJogadores.Equipe.Nenhuma
                 ? "FFA"
                 : player.Equipe.ToString().ToUpperInvariant();
-            TextMeshProUGUI label = WDUIFactory.Text("Identity", row, theme, 17f,
+            TextMeshProUGUI roleLabel = WDUIFactory.Text("Role", row, theme, 10f,
                 Gold, TextAlignmentOptions.Left);
-            label.rectTransform.anchorMin = new Vector2(0f, 0f);
-            label.rectTransform.anchorMax = new Vector2(1f, 1f);
-            label.rectTransform.offsetMin = new Vector2(68f, 0f);
-            label.rectTransform.offsetMax = Vector2.zero;
-            label.text = $"<size=10>{team}</size>\n{player.Nome.ToUpperInvariant()}";
-            label.raycastTarget = false;
-            Shadow shadow = label.gameObject.AddComponent<Shadow>();
+            roleLabel.rectTransform.anchorMin = new Vector2(0f, 1f);
+            roleLabel.rectTransform.anchorMax = new Vector2(1f, 1f);
+            roleLabel.rectTransform.pivot = new Vector2(0f, 1f);
+            roleLabel.rectTransform.offsetMin = new Vector2(68f, -19f);
+            roleLabel.rectTransform.offsetMax = new Vector2(0f, 0f);
+            roleLabel.text = team;
+            WDUITextPolicies.Apply(roleLabel, WDUITextPolicy.FixedLabel);
+            TextMeshProUGUI nicknameLabel = WDUIFactory.Text("Identity", row, theme, 17f,
+                Gold, TextAlignmentOptions.Left);
+            nicknameLabel.rectTransform.anchorMin = new Vector2(0f, 0f);
+            nicknameLabel.rectTransform.anchorMax = new Vector2(1f, 1f);
+            nicknameLabel.rectTransform.offsetMin = new Vector2(68f, 0f);
+            nicknameLabel.rectTransform.offsetMax = new Vector2(0f, -17f);
+            nicknameLabel.text = (player.Nome ?? string.Empty).ToUpperInvariant();
+            WDUITextPolicies.Apply(nicknameLabel, WDUITextPolicy.SingleLineEllipsis);
+            nicknameLabel.raycastTarget = false;
+            Shadow shadow = nicknameLabel.gameObject.AddComponent<Shadow>();
             shadow.effectColor = new Color(0f, 0f, 0f, .85f);
             shadow.effectDistance = new Vector2(1.5f, -1.5f);
         }
@@ -605,7 +777,8 @@ public sealed class WDMatchUIV2 : MonoBehaviour, IWDMatchUIPresentation, IWDMatc
 
     public void ShowInstallationHub(WDWeaponHudInstallationState installation)
     {
-        // O hub completo pertence ao próximo módulo; o binding permanece compatível.
+        CloseTransientInteractions();
+        installationHubView?.Show(installation);
     }
 
     // ============================================================
@@ -687,7 +860,20 @@ public sealed class WDMatchUIV2 : MonoBehaviour, IWDMatchUIPresentation, IWDMatc
         IReadOnlyList<WDWeaponHudCardState> cards = weaponUI?.GetCards() ??
             Array.Empty<WDWeaponHudCardState>();
         if (slot >= 0 && slot < cards.Count)
-            weaponUI.SelectWeapon(cards[slot].WeaponId);
+        {
+            WDWeaponHudCardState card = cards[slot];
+            if (card.Selected)
+            {
+                weaponUI.CancelSelection();
+                PresentWeapons();
+                actionsView?.Refresh();
+                return;
+            }
+            CloseTransientInteractions();
+            weaponUI.SelectWeapon(card.WeaponId);
+            PresentWeapons();
+            actionsView?.Refresh();
+        }
     }
 
     private void ToggleTransfer()
@@ -695,9 +881,110 @@ public sealed class WDMatchUIV2 : MonoBehaviour, IWDMatchUIPresentation, IWDMatc
         if (state == null)
             return;
         if (state.EmModoTransferencia)
+        {
+            interactionView?.Close();
+            installationHubView?.Close();
             commands?.SelecionarModoAcao();
+        }
         else
+        {
+            CloseTransientInteractions();
             commands?.SelecionarModoTransferencia();
+        }
+    }
+
+        // ============================================================
+    // 04.1. RADAR — ATUALIZAÇÃO IMEDIATA APÓS CLIQUE NO TERRITÓRIO
+    // ============================================================
+
+    public void RefreshRadarPresentation()
+    {
+        PresentWeapons();
+        PresentRadarModal();
+        actionsView?.Refresh();
+    }
+
+    private void PresentRadarModal()
+    {
+        if (weaponUI?.Stage != WDWeaponHudSelectionStage.RadarConfirmation ||
+            radarModalLayer == null || radarModalLayer.gameObject.activeSelf)
+            return;
+        radarResultVisible = false;
+        radarModalTitle.text = "RADAR — USO IRREVERSÍVEL";
+        radarModalBody.text =
+            "A varredura revela somente se o território está sob cobertura de Flak.";
+        radarModalCancel.gameObject.SetActive(true);
+        radarModalPrimary.SetLabel("CONFIRMAR");
+        radarModalLayer.gameObject.SetActive(true);
+    }
+
+    private void HandleRadarPrimary()
+    {
+        if (radarResultVisible)
+        {
+            CloseRadarModal(false);
+            return;
+        }
+        WDRadarUseResult result = weaponUI?.ConfirmRadarScan() ??
+            new WDRadarUseResult(WDRadarUseStatus.Invalid);
+        radarResultVisible = result.Status == WDRadarUseStatus.Used;
+        radarModalTitle.text = radarResultVisible ? "RESULTADO DO RADAR" : "VARREDURA INVÁLIDA";
+        radarModalBody.text = radarResultVisible
+            ? result.Reveal.HasFlakCoverage
+                ? "COBERTURA ANTIAÉREA DETECTADA"
+                : "NENHUMA COBERTURA ANTIAÉREA DETECTADA"
+            : "Não foi possível confirmar a varredura.";
+        radarModalCancel.gameObject.SetActive(false);
+        radarModalPrimary.SetLabel("FECHAR");
+        PresentWeapons();
+        actionsView?.Refresh();
+    }
+
+    private void CloseRadarModal(bool cancelSelection)
+    {
+        if (cancelSelection)
+            weaponUI?.CancelSelection();
+        radarResultVisible = false;
+        radarModalLayer?.gameObject.SetActive(false);
+    }
+
+    // Fecha somente intenções transitórias; filas de ações/programações não são tocadas.
+    private void CloseTransientInteractions() => CloseTransientInteractions(false);
+
+    // 04.1. Abrir comunicação tática não cancela a seleção terrestre canônica.
+    // Demais entradas mantêm seu contrato; não há cópia/restauração de highlights.
+    private void CloseTransientInteractions(bool preserveTerritorialSelection)
+    {
+        if (switchingInteractions) return;
+        switchingInteractions = true;
+        try
+        {
+            interactionView?.Close();
+            informational?.CancelTacticalSelection();
+            supportView?.Close();
+            installationHubView?.Close();
+            CloseRadarModal(true);
+            actionsView?.SetSuppressed(true);
+            actionsView?.SetSuppressed(false);
+            utilities?.CloseActive();
+            weaponUI?.CancelSelection();
+            PresentWeapons();
+            if (state?.EmModoTransferencia == true) commands?.SelecionarModoAcao();
+            if (!preserveTerritorialSelection) commands?.CancelarSelecao();
+        }
+        finally { switchingInteractions = false; }
+    }
+
+    private void ToggleSupport()
+    {
+        if (supportView?.IsOpen == true) { supportView.Close(); return; }
+        CloseTransientInteractions(); supportView?.Toggle();
+    }
+
+    private void ToggleActions()
+    {
+        if (actionsView?.IsOpen == true) { actionsView.Toggle(); return; }
+        CloseTransientInteractions(); actionsView?.Toggle();
     }
 
     private void SendMoves()
@@ -736,6 +1023,19 @@ public sealed class WDMatchUIV2 : MonoBehaviour, IWDMatchUIPresentation, IWDMatc
     {
         WDMatchUtilityModule active = utilities?.ActiveModule ??
             WDMatchUtilityModule.None;
+        actionsView?.SetSuppressed(active != WDMatchUtilityModule.None);
+        supportView?.SetSuppressed(active != WDMatchUtilityModule.None);
+        interactionView?.SetSuppressed(active != WDMatchUtilityModule.None);
+        if (active != WDMatchUtilityModule.None && !switchingInteractions)
+        {
+            switchingInteractions = true;
+            try
+            {
+                informational?.CancelTacticalSelection();
+                if (state?.EmModoTransferencia == true) commands?.SelecionarModoAcao();
+            }
+            finally { switchingInteractions = false; }
+        }
         menuButton?.SetSelected(active == WDMatchUtilityModule.Menu);
         regionsButton?.SetSelected(active == WDMatchUtilityModule.Regions);
         chatButton?.SetSelected(active == WDMatchUtilityModule.Chat);
@@ -796,6 +1096,11 @@ public sealed class WDMatchUIV2 : MonoBehaviour, IWDMatchUIPresentation, IWDMatc
         value.rectTransform.anchoredPosition = valuePosition;
         value.rectTransform.sizeDelta = new Vector2(valueWidth, 35f);
         value.alignment = TextAlignmentOptions.MidlineLeft;
+        value.enableAutoSizing = true;
+        value.fontSizeMin = 14f;
+        value.fontSizeMax = 19f;
+        value.textWrappingMode = TextWrappingModes.NoWrap;
+        value.overflowMode = TextOverflowModes.Truncate;
         value.raycastTarget = false;
         return value;
     }

@@ -1,0 +1,37 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="18.5" height="18.5" viewBox="0 0 18.5 18.5" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="WD Tactical / ATEN&#195;&#135;&#195;&#131;O / Dot" filter="url(#filter0_dddd_0_26)">
+<path d="M9.6875 9.25H9.25M10.125 9.25C10.125 9.48206 10.0328 9.70462 9.86872 9.86872C9.70462 10.0328 9.48206 10.125 9.25 10.125C9.01794 10.125 8.79538 10.0328 8.63128 9.86872C8.46719 9.70462 8.375 9.48206 8.375 9.25C8.375 9.01794 8.46719 8.79538 8.63128 8.63128C8.79538 8.46719 9.01794 8.375 9.25 8.375C9.48206 8.375 9.70462 8.46719 9.86872 8.63128C10.0328 8.79538 10.125 9.01794 10.125 9.25Z" stroke="#A855F7" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" shape-rendering="crispEdges"/>
+</g>
+<defs>
+<filter id="filter0_dddd_0_26" x="0" y="0" width="18.5" height="18.5" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feOffset/>
+<feGaussianBlur stdDeviation="1"/>
+<feComposite in2="hardAlpha" operator="out"/>
+<feColorMatrix type="matrix" values="0 0 0 0 0.658824 0 0 0 0 0.333333 0 0 0 0 0.968627 0 0 0 0.8 0"/>
+<feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_0_26"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feOffset/>
+<feGaussianBlur stdDeviation="3.5"/>
+<feComposite in2="hardAlpha" operator="out"/>
+<feColorMatrix type="matrix" values="0 0 0 0 0.658824 0 0 0 0 0.333333 0 0 0 0 0.968627 0 0 0 0.48 0"/>
+<feBlend mode="normal" in2="effect1_dropShadow_0_26" result="effect2_dropShadow_0_26"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feMorphology radius="1" operator="dilate" in="SourceAlpha" result="effect3_dropShadow_0_26"/>
+<feOffset/>
+<feGaussianBlur stdDeviation="1"/>
+<feComposite in2="hardAlpha" operator="out"/>
+<feColorMatrix type="matrix" values="0 0 0 0 0.012 0 0 0 0 0.02 0 0 0 0 0.035 0 0 0 0.95 0"/>
+<feBlend mode="normal" in2="effect2_dropShadow_0_26" result="effect3_dropShadow_0_26"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feMorphology radius="1.5" operator="dilate" in="SourceAlpha" result="effect4_dropShadow_0_26"/>
+<feOffset/>
+<feGaussianBlur stdDeviation="3"/>
+<feComposite in2="hardAlpha" operator="out"/>
+<feColorMatrix type="matrix" values="0 0 0 0 0.012 0 0 0 0 0.02 0 0 0 0 0.035 0 0 0 0.7 0"/>
+<feBlend mode="normal" in2="effect3_dropShadow_0_26" result="effect4_dropShadow_0_26"/>
+<feBlend mode="normal" in="SourceGraphic" in2="effect4_dropShadow_0_26" result="shape"/>
+</filter>
+</defs>
+</svg>

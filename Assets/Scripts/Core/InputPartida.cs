@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
@@ -11,6 +12,7 @@ public class InputPartida : MonoBehaviour
     // =====================================================
 
     private Camera cameraPrincipal;
+    private readonly List<RaycastResult> raycastsUiAtuais = new();
 
     // Contador que está sendo pressionado neste momento.
     private ContadorTropas contadorPressionado;
@@ -61,28 +63,33 @@ public class InputPartida : MonoBehaviour
         if (!Pointer.current.press.wasPressedThisFrame)
             return;
 
+        Vector2 posicaoPointer = Pointer.current.position.ReadValue();
+
         // O input persiste entre cenas; durante reloads o GameManager da cena
         // pode ficar temporariamente indisponível por um frame.
         if (GameManager.instance == null)
             return;
 
+        // O drawer captura o primeiro toque externo mesmo antes do InputModule
+        // atualizar seu cache; no frame de fechamento nenhum alvo subjacente é acionado.
+        if (WDMatchActionsView.ConsumesMapPointer(posicaoPointer) ||
+            WDMatchSupportView.ConsumesMapPointer(posicaoPointer) ||
+            WDMatchInstallationHubView.ConsumesMapPointer(posicaoPointer) ||
+            WDWeaponInstallationMapPresenter.ConsumesMapPointer(posicaoPointer) ||
+            WDMatchInteractionView.ConsumesMapPointer(posicaoPointer))
+            return;
+
         // A UI tem prioridade sobre o mapa. Isso impede que um clique em
         // controles sobre o viewport também alcance território/collider atrás.
-        if (EventSystem.current != null &&
-            EventSystem.current.IsPointerOverGameObject())
-        {
+        if (ExisteUiSobPonteiro(posicaoPointer))
             return;
-        }
 
-        Vector2 posicaoTela =
-            Pointer.current.position.ReadValue();
+        Vector2 posicaoTela = posicaoPointer;
 
         // Não processa clique fora do viewport do mapa.
         if (!cameraPrincipal.pixelRect.Contains(
                 posicaoTela))
-        {
             return;
-        }
 
         Vector2 posicaoMundo =
             cameraPrincipal.ScreenToWorldPoint(
@@ -94,6 +101,27 @@ public class InputPartida : MonoBehaviour
                 posicaoMundo
             );
 
+        ProcessarCliqueTerritorial(atingidos, posicaoMundo);
+    }
+
+    // 04.1. Consulta o raycast do gesto atual. IsPointerOverGameObject usa o cache
+    // do InputModule e, na primeira entrada após Resolution, ainda pode descrever
+    // a UI do round anterior até que esse primeiro PointerDown seja processado.
+    private bool ExisteUiSobPonteiro(Vector2 posicaoTela)
+    {
+        EventSystem sistema = EventSystem.current;
+        if (sistema == null)
+            return false;
+        raycastsUiAtuais.Clear();
+        sistema.RaycastAll(new PointerEventData(sistema) { position = posicaoTela },
+            raycastsUiAtuais);
+        return raycastsUiAtuais.Count > 0;
+    }
+
+    // 4.2. Mesmo encaminhamento para mouse/touch, após UI e viewport.
+    // Intenção tática só intercepta alvo válido; inválido continua neste gesto.
+    private void ProcessarCliqueTerritorial(Collider2D[] atingidos, Vector2? gestureWorldPoint = null)
+    {
         // =================================================
         // 5. ABERTURA 1x1: CONTADOR E MÁSCARA ESCOLHEM TERRITÓRIO
         // =================================================
@@ -142,6 +170,11 @@ public class InputPartida : MonoBehaviour
 
             if (contador != null)
             {
+                var informational = GameManager.instance.GetComponentInChildren<WDMatchInformationalOverlayController>();
+                if (contador.Territorio != null &&
+                    informational?.TryConsumeTacticalIntent(contador.Territorio.idTerritorio, gestureWorldPoint) == true)
+                    return;
+                // Inclui reforço/hold: a intenção inválida não desvia para ClicarTerritorio.
                 contadorPressionado =
                     contador;
 
@@ -173,6 +206,11 @@ public class InputPartida : MonoBehaviour
 
             if (territorio != null)
             {
+                // 9.1. Mesma posição já resolvida no Update para Pointer (mouse/touch).
+                // Inválido retorna false e continua o clique normal, sem replay.
+                var informational = GameManager.instance.GetComponentInChildren<WDMatchInformationalOverlayController>();
+                if (informational?.TryConsumeTacticalIntent(territorio.idTerritorio, gestureWorldPoint) == true)
+                    return;
                 territorio.Clicar();
 
                 return;

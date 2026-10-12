@@ -93,6 +93,7 @@ public sealed class WDWeaponAction
     public int ProgramOrder { get; }
     public WDWeaponResolutionPhase Phase { get; }
     public WDWeaponActionState State { get; private set; }
+    public bool EnergyCommitted { get; private set; }
     public bool CostCommitted { get; private set; }
     public IReadOnlyList<WDWeaponActionParameter> Parameters => parameters;
 
@@ -123,6 +124,8 @@ public sealed class WDWeaponAction
     internal void MarkExecuted() => State = WDWeaponActionState.Executed;
     internal void MarkAnnulled() => State = WDWeaponActionState.Annulled;
     internal void MarkFailed() => State = WDWeaponActionState.Failed;
+    internal void MarkEnergyCommitted() => EnergyCommitted = true;
+    internal void MarkEnergyRefunded() => EnergyCommitted = false;
     internal void MarkCostCommitted() => CostCommitted = true;
 }
 

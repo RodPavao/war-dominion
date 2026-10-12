@@ -16,7 +16,7 @@ public sealed class WDChatMessage
         WDChatMessageKind kind = WDChatMessageKind.Player)
     {
         SenderId = senderId ?? string.Empty;
-        Text = text?.Trim() ?? string.Empty;
+        Text = text ?? string.Empty;
         Timestamp = timestamp;
         Kind = kind;
     }
@@ -129,7 +129,7 @@ public sealed class WDChatRepository
     public bool Send(string channelId, string senderId, string text)
     {
         if (!channels.TryGetValue(channelId ?? string.Empty, out WDChatChannel channel) ||
-            !channel.CanAccess(senderId) || string.IsNullOrWhiteSpace(text))
+            !channel.CanAccess(senderId) || !WDUIContentContracts.IsValidChatMessage(text))
             return false;
         if (channel.Type == WDChatChannelType.Private)
         {

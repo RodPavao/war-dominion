@@ -42,7 +42,7 @@ MonoBehaviour:
     iconKey: drone
     levels: []
   - id: atomic_bomb
-    displayName: Bomba Atômica
+    displayName: Ataque Nuclear
     categoryId: special
     maximumLevel: 6
     energyCost: 40
@@ -55,7 +55,7 @@ MonoBehaviour:
     iconKey: atomic_bomb
     levels: []
   - id: war_propaganda
-    displayName: Propaganda de Guerra
+    displayName: Propaganda
     categoryId: special
     maximumLevel: 6
     energyCost: 25
@@ -121,7 +121,7 @@ MonoBehaviour:
     iconKey: energy_plant
     levels: []
   - id: long_range_bomb
-    displayName: Bomba de Longo Alcance
+    displayName: Ataque de Precisão
     categoryId: strategic
     maximumLevel: 6
     energyCost: 25
@@ -200,7 +200,7 @@ MonoBehaviour:
     iconKey: blitzkrieg
     levels: []
   - id: transfer_nullifier
-    displayName: Anulador de Transferência
+    displayName: Bloqueio de Transferência
     categoryId: tactical
     maximumLevel: 1
     energyCost: 5
@@ -256,12 +256,12 @@ MonoBehaviour:
     maximumLevel: 1
     energyCost: 25
     cooldownRounds: 3
-    behaviorType: 1
+    behaviorType: 0
     resolutionPhase: 60
     costTiming: 0
     requiresTargetTerritory: 1
-    installation: 1
-    charges: 1
+    installation: 0
+    charges: 0
     iconKey: radar
     levels: []
   - id: air_strike
@@ -311,7 +311,7 @@ MonoBehaviour:
     iconKey: air_transport
     levels: []
   - id: flak_tower
-    displayName: Flak Tower
+    displayName: Defesa Antiaérea
     categoryId: support
     maximumLevel: 4
     energyCost: 5

@@ -9,495 +9,177 @@ public enum WDClanTab { Discover, Overview, Members, Trades, Log }
 [DisallowMultipleComponent]
 public sealed class WDHomeClanPanel : MonoBehaviour
 {
-    // ============================================================
-    // 01. AUTORIDADES COMPARTILHADAS E ESTADO DE NAVEGAÇÃO
-    // ============================================================
-    private sealed class ViewState
-    {
-        public WDClanTab Tab;
-        public string Query;
-        public string SelectedClanId;
-    }
-
-    private WarDominionUITheme theme;
-    private WDClanRepository clans;
-    private WDProfileRepository profiles;
-    private WDSocialRepository social;
-    private WDNavigationStack navigation;
-    private Action<string> openProfile;
-    private Action<string> openChat;
-    private Action<string, string, Action> confirm;
-    private RectTransform content;
-    private TMP_InputField searchInput;
-    private TMP_InputField nameInput;
-    private TMP_InputField tagInput;
-    private TMP_InputField descriptionInput;
-    private TMP_InputField quantityInput;
-    private string selectedWeaponId;
-    private string feedback;
-    private WDClanAdmission createAdmission = WDClanAdmission.Open;
-    private string createName = string.Empty;
-    private string createTag = string.Empty;
-    private string createDescription = string.Empty;
-
-    public bool IsOpen => gameObject.activeSelf;
-    public WDClanTab CurrentTab { get; private set; }
-    public string SearchQuery { get; private set; } = string.Empty;
-    public string SelectedClanId { get; private set; }
+    private enum OverlayKind { None, ClanInfo, Create, Edit, Admission, WeaponSelect, Donate, MemberMenu, MemberStats, Confirm, Leadership, Reviews }
+    private sealed class State { public WDClanTab Tab; public string Query; }
+    private static readonly Color Gold = C("C59B63"), White = C("F8FAFC"), Muted = C("94A3B8");
+    private WarDominionUITheme theme; private WDClanRepository clans; private WDProfileRepository profiles;
+    private WDNavigationStack navigation; private Action<bool> homeVisibility; private Action notifications;
+    private Action<string> openProfile; private Action<string,string,Action> confirm;
+    private WDArmoryProfile wallet; private RectTransform shell, sidebar, content, overlay;
+    private TMP_InputField search; private OverlayKind overlayKind; private string overlayClanId, overlayPlayerId, overlayRequestId, selectedWeaponId;
+    private Action overlayAction; private string overlayTitle, overlayBody;
+    public bool IsOpen => gameObject.activeSelf; public WDClanTab CurrentTab { get; private set; }
+    public string SearchQuery { get; private set; } = ""; public string SelectedClanId { get; private set; }
     public WDClanRepository Repository => clans;
 
-    public void Build(WarDominionUITheme newTheme, WDClanRepository clanRepository,
-        WDProfileRepository profileRepository, WDSocialRepository socialRepository,
-        WDNavigationStack navigationStack, Action<string> profileAction,
-        Action<string> chatAction, Action<string, string, Action> confirmAction)
-    {
-        theme = newTheme ?? throw new ArgumentNullException(nameof(newTheme));
-        clans = clanRepository ?? throw new ArgumentNullException(nameof(clanRepository));
-        selectedWeaponId = clans.Weapons.FirstOrDefault()?.Id;
-        profiles = profileRepository ?? throw new ArgumentNullException(nameof(profileRepository));
-        social = socialRepository ?? throw new ArgumentNullException(nameof(socialRepository));
-        navigation = navigationStack ?? throw new ArgumentNullException(nameof(navigationStack));
-        openProfile = profileAction;
-        openChat = chatAction;
-        confirm = confirmAction;
-        Image backdrop = gameObject.AddComponent<Image>();
-        backdrop.color = new Color(0.005f, 0.015f, 0.025f, 0.96f);
-        backdrop.raycastTarget = true;
-        content = WDHomeUIFactory.Rect("ClanContent", transform);
-        WDHomeUIFactory.Stretch(content, 48f, 38f, 48f, 38f);
-        clans.Changed += RefreshIfOpen;
-        gameObject.SetActive(false);
-    }
+    public void Build(WarDominionUITheme t, WDClanRepository c, WDProfileRepository p,
+        WDSocialRepository social, WDNavigationStack nav, Action<string> profile,
+        Action<string> chat, Action<string,string,Action> confirm, WDArmoryProfile armory = null,
+        Action<bool> home = null, Action notification = null)
+    { theme=t; clans=c; profiles=p; navigation=nav; wallet=armory; homeVisibility=home; notifications=notification;openProfile=profile;this.confirm=confirm;
+      gameObject.AddComponent<Image>().color=Color.black; BuildShell(); clans.Changed+=Refresh; gameObject.SetActive(false); }
 
-    public void Open()
-    {
-        CurrentTab = clans.LocalClan == null ? WDClanTab.Discover : WDClanTab.Overview;
-        SearchQuery = string.Empty;
-        SelectedClanId = null;
-        navigation.Push(new WDNavigationContext("clan", Restore,
-            () => new ViewState { Tab = CurrentTab, Query = SearchQuery,
-                SelectedClanId = SelectedClanId }));
-    }
-
-    public void HideFromNavigation() => gameObject.SetActive(false);
-
-    private void OnDestroy()
-    {
-        if (clans != null)
-            clans.Changed -= RefreshIfOpen;
-    }
-
-    public bool TryHandleLocalBack()
-    {
-        if (!string.IsNullOrEmpty(SelectedClanId))
-        { SelectedClanId = null; Render(); return true; }
-        return false;
-    }
-
-    private void Restore(object state)
-    {
-        if (state is ViewState saved)
-        { CurrentTab = saved.Tab; SearchQuery = saved.Query;
-          SelectedClanId = saved.SelectedClanId; }
-        transform.SetAsLastSibling();
-        Render();
-    }
+    public void Open(){ CurrentTab=clans.LocalClan==null?WDClanTab.Discover:WDClanTab.Overview;
+      navigation.Push(new WDNavigationContext("clan",Restore,()=>new State{Tab=CurrentTab,Query=SearchQuery})); }
+    public void HideFromNavigation(){CloseOverlay();gameObject.SetActive(false);homeVisibility?.Invoke(true);} public bool TryHandleLocalBack(){if(overlayKind==OverlayKind.None)return false;CloseOverlay();return true;}
+    private void OnDestroy(){if(clans!=null)clans.Changed-=Refresh;}
+    private void Restore(object value){if(value is State s){CurrentTab=s.Tab;SearchQuery=s.Query;}homeVisibility?.Invoke(false);transform.SetAsLastSibling();gameObject.SetActive(true);Render();}
 
     // ============================================================
-    // 02. DESCOBERTA, BUSCA, INFORMAÇÕES E CRIAÇÃO
+    // 02. SHELL CANÔNICO 1920x1080 E COMPOSIÇÃO DO BACKGROUND
     // ============================================================
+    private void BuildShell()
+    { Image inputBlocker=gameObject.GetComponent<Image>();inputBlocker.color=Color.clear;inputBlocker.raycastTarget=true;
+      // A apresentação ocupa o viewport real. O frame 1920x1080 limita somente a UI.
+      RectTransform bg=R("FullscreenBackground",transform);WDHomeUIFactory.Stretch(bg);RawImage image=bg.gameObject.AddComponent<RawImage>();image.texture=Resources.Load<Texture2D>("UI/Clan/Canonical/ClanBackground");image.raycastTarget=false;
+      AspectRatioFitter crop=bg.gameObject.AddComponent<AspectRatioFitter>();crop.aspectMode=AspectRatioFitter.AspectMode.EnvelopeParent;crop.aspectRatio=image.texture!=null?(float)image.texture.width/image.texture.height:16f/9f;
+        Image fullscreenFilm=WDHomeUIFactory.Image("FullscreenFilm",transform,new Color(.024f,.051f,.09f,.58f));WDHomeUIFactory.Stretch(fullscreenFilm.rectTransform);fullscreenFilm.raycastTarget=false;
+      shell=R("ClanResponsiveShell",transform);WDHomeUIFactory.Stretch(shell);
+      RectTransform header=S("Header",shell,0,0,1920,120,new Color(.024f,.055f,.102f,.90f));WDHomeUIFactory.AddThinRoundedBorder(header,new Color(Gold.r,Gold.g,Gold.b,.13f),4);
+      StretchHorizontal(header,0,0);BuildBack(header);RectTransform titleGroup=R("TitleCenter",header);CenterTop(titleGroup,0,70,124,32);Image hi=Icon("ClanIcon",titleGroup,"UI/Clan/Canonical/icon_clan_header");P(hi.rectTransform,0,4,22,22);T("Title",titleGroup,"CLÃ",22,White,34,0,90,32,TextAlignmentOptions.Left,"Inter-ExtraBold");
+      RectTransform resources=R("Resources",header);P(resources,1588,40,270,48);TextMeshProUGUI coins=Resource(resources,"Coins","Coin",0,wallet?.Coins??0,110);TextMeshProUGUI gems=Resource(resources,"Emeralds","Gem",126,wallet?.Emeralds??0,80);
+      RightTop(resources,62,40,270,48);RectTransform bell=WDHomeUIFactory.BuildCanonicalNotification(resources,()=>notifications?.Invoke());P(bell,222,0,48,48);WDHomeUIFactory.LayoutResourceGroup(coins,gems,bell,110,80);
+      sidebar=S("Sidebar",shell,0,120,220,960,new Color(.024f,.051f,.09f,.92f));StretchVertical(sidebar,120,0);content=S("Content",shell,220,120,1700,960,new Color(.024f,.051f,.09f,.78f));StretchBody(content,220,0,120,0);
+      overlay=R("ClanOverlay",shell);WDHomeUIFactory.Stretch(overlay);overlay.gameObject.SetActive(false); }
+
+    private static void StretchHorizontal(RectTransform r,float left,float right){r.anchorMin=new Vector2(0,1);r.anchorMax=Vector2.one;r.pivot=new Vector2(.5f,1);r.offsetMin=new Vector2(left,r.offsetMin.y);r.offsetMax=new Vector2(-right,r.offsetMax.y);}
+    private static void StretchVertical(RectTransform r,float top,float bottom){r.anchorMin=Vector2.zero;r.anchorMax=new Vector2(0,1);r.pivot=new Vector2(0,.5f);r.offsetMin=new Vector2(0,bottom);r.offsetMax=new Vector2(220,-top);}
+    private static void StretchBody(RectTransform r,float left,float right,float top,float bottom){r.anchorMin=Vector2.zero;r.anchorMax=Vector2.one;r.pivot=new Vector2(.5f,.5f);r.offsetMin=new Vector2(left,bottom);r.offsetMax=new Vector2(-right,-top);}
+    private static void CenterTop(RectTransform r,float x,float y,float w,float h){r.anchorMin=r.anchorMax=new Vector2(.5f,1);r.pivot=new Vector2(.5f,1);r.anchoredPosition=new Vector2(x,-y);r.sizeDelta=new Vector2(w,h);}
+    private static void RightTop(RectTransform r,float right,float y,float w,float h){r.anchorMin=r.anchorMax=new Vector2(1,1);r.pivot=new Vector2(1,1);r.anchoredPosition=new Vector2(-right,-y);r.sizeDelta=new Vector2(w,h);}
+
     private void Render()
-    {
-        gameObject.SetActive(true);
-        Clear(content);
-        AddButton(content, "Back", "< VOLTAR", () => navigation.TryBack(),
-            new Vector2(0.01f, 0.91f), new Vector2(0.14f, 0.99f));
-        AddText(content, "Title", "CLÃ", 30f, theme.TextoPrincipal,
-            new Vector2(0.40f, 0.91f), new Vector2(0.60f, 0.99f), TextAlignmentOptions.Center);
-        RectTransform surface = AddSurface(content, "Surface",
-            new Vector2(0.02f, 0.03f), new Vector2(0.98f, 0.89f));
-        if (clans.Availability != WDClanAvailability.Available)
-        {
-            AddText(surface, "Availability", AvailabilityText(), 22f, theme.TextoSecundario,
-                new Vector2(0.15f, 0.38f), new Vector2(0.85f, 0.63f), TextAlignmentOptions.Center);
-            if (clans.Availability == WDClanAvailability.Error)
-                AddButton(surface, "Retry", "TENTAR NOVAMENTE", () => clans.SetAvailability(WDClanAvailability.Available),
-                    new Vector2(0.4f, 0.24f), new Vector2(0.6f, 0.33f));
-            return;
-        }
-        WDClanData myClan = clans.LocalClan;
-        if (myClan == null)
-        {
-            CurrentTab = WDClanTab.Discover;
-            RenderDiscover(surface);
-        }
-        else
-        {
-            if (CurrentTab == WDClanTab.Discover) CurrentTab = WDClanTab.Overview;
-            RenderMine(surface, myClan);
-        }
-        if (!string.IsNullOrEmpty(feedback))
-            AddText(surface, "Feedback", feedback, 15f, theme.Acento,
-                new Vector2(0.03f, 0.01f), new Vector2(0.97f, 0.06f));
-    }
-
-    private void RenderDiscover(RectTransform surface)
-    {
-        AddText(surface, "DiscoverTitle", "SEM CLÃ · PROCURE OU CRIE UM CLÃ", 22f,
-            theme.TextoPrincipal, new Vector2(0.03f, 0.90f), new Vector2(0.85f, 0.98f));
-        searchInput = AddInput(surface, "Search", "Nome ou sigla", SearchQuery,
-            new Vector2(0.03f, 0.82f), new Vector2(0.65f, 0.89f));
-        AddButton(surface, "SearchButton", "BUSCAR", () =>
-        { SearchQuery = searchInput.text.Trim(); Render(); },
-            new Vector2(0.67f, 0.82f), new Vector2(0.81f, 0.89f));
-        AddButton(surface, "ClearSearch", "LIMPAR", () =>
-        { SearchQuery = string.Empty; Render(); },
-            new Vector2(0.83f, 0.82f), new Vector2(0.97f, 0.89f));
-
-        if (!string.IsNullOrEmpty(SelectedClanId))
-        {
-            RenderClanInfo(surface, clans.Find(SelectedClanId));
-            return;
-        }
-        var results = clans.Search(SearchQuery);
-        if (results.Count == 0)
-            AddText(surface, "Empty", "NENHUM CLÃ ENCONTRADO", 20f, theme.TextoSecundario,
-                new Vector2(0.08f, 0.56f), new Vector2(0.92f, 0.74f), TextAlignmentOptions.Center);
-        for (int i = 0; i < results.Count && i < 7; i++)
-        {
-            WDClanData clan = results[i];
-            float top = 0.77f - i * 0.085f;
-            AddText(surface, $"Clan_{clan.Id}",
-                $"[{clan.Tag}] {clan.Name} · {clan.Members.Count} MEMBROS · " +
-                (clan.Admission == WDClanAdmission.Open ? "ABERTO" : "POR APROVAÇÃO"),
-                17f, theme.TextoPrincipal, new Vector2(0.04f, top - 0.07f),
-                new Vector2(0.78f, top));
-            AddButton(surface, $"Info_{clan.Id}", "INFORMAÇÕES", () =>
-            { SelectedClanId = clan.Id; Render(); },
-                new Vector2(0.80f, top - 0.07f), new Vector2(0.96f, top));
-        }
-        AddText(surface, "CreateTitle", $"CRIAR CLÃ · {clans.CreationPolicy.CoinCost} MOEDAS",
-            18f, theme.Acento, new Vector2(0.04f, 0.12f), new Vector2(0.37f, 0.19f));
-        descriptionInput = AddInput(surface, "CreateDescription", "Descrição", createDescription,
-            new Vector2(0.39f, 0.20f), new Vector2(0.77f, 0.27f));
-        descriptionInput.onValueChanged.AddListener(value => createDescription = value);
-        AddButton(surface, "CreateAdmission", createAdmission == WDClanAdmission.Open
-            ? "ABERTO" : "POR APROVAÇÃO", () =>
-            { createAdmission = createAdmission == WDClanAdmission.Open
-                ? WDClanAdmission.Approval : WDClanAdmission.Open; Render(); },
-            new Vector2(0.79f, 0.20f), new Vector2(0.97f, 0.27f));
-        nameInput = AddInput(surface, "CreateName", "Nome", createName,
-            new Vector2(0.39f, 0.10f), new Vector2(0.61f, 0.18f));
-        nameInput.onValueChanged.AddListener(value => createName = value);
-        tagInput = AddInput(surface, "CreateTag", "Sigla", createTag,
-            new Vector2(0.63f, 0.10f), new Vector2(0.77f, 0.18f));
-        tagInput.onValueChanged.AddListener(value => createTag = value);
-        AddButton(surface, "CreateClan", "CRIAR GRATUITAMENTE", () =>
-            Apply(clans.Create(clans.LocalPlayerId, nameInput.text, tagInput.text,
-                descriptionInput.text, createAdmission, out _)),
-            new Vector2(0.79f, 0.10f), new Vector2(0.97f, 0.18f));
-    }
-
-    private void RenderClanInfo(RectTransform surface, WDClanData clan)
-    {
-        if (clan == null) { SelectedClanId = null; Render(); return; }
-        AddText(surface, "ClanInfo", $"[{clan.Tag}] {clan.Name}\n{clan.Description}\n" +
-            $"MEMBROS {clan.Members.Count} · " +
-            (clan.Admission == WDClanAdmission.Open ? "ABERTO" : "POR APROVAÇÃO"),
-            20f, theme.TextoPrincipal, new Vector2(0.08f, 0.38f), new Vector2(0.92f, 0.73f));
-        AddButton(surface, "CloseInfo", "VOLTAR À LISTA", () =>
-        { SelectedClanId = null; Render(); },
-            new Vector2(0.10f, 0.23f), new Vector2(0.38f, 0.32f));
-        bool pending = clan.JoinRequests.Any(item => item.PlayerId == clans.LocalPlayerId);
-        WDUIPremiumButton join = AddButton(surface, "JoinClan",
-            pending ? "SOLICITAÇÃO ENVIADA" : clan.Admission == WDClanAdmission.Open
-                ? "ENTRAR" : "SOLICITAR ENTRADA",
-            () => Apply(clans.Join(clan.Id, clans.LocalPlayerId)),
-            new Vector2(0.60f, 0.23f), new Vector2(0.90f, 0.32f));
-        join.SetInteractable(!pending);
-    }
+    { Clear(sidebar);Clear(content);T("Section",sidebar,"NAVEGAÇÃO",9,C("475569"),24,28,170,11,TextAlignmentOptions.Left,"Inter-Bold");
+      Nav(WDClanTab.Discover,"LISTA DE CLÃS","icon_clan_general",51);Nav(WDClanTab.Overview,"MEU CLÃ","icon_clan_shield",103);Nav(WDClanTab.Trades,"TROCAS","icon_clan_trades",155);Nav(WDClanTab.Members,"MEMBROS","icon_clan_members",207);Nav(WDClanTab.Log,"REGISTRO","icon_clan_log",259);
+      if(CurrentTab==WDClanTab.Discover)List();else if(clans.LocalClan==null)NoClan();else if(CurrentTab==WDClanTab.Overview)Overview(clans.LocalClan);else if(CurrentTab==WDClanTab.Members)Members(clans.LocalClan);else if(CurrentTab==WDClanTab.Trades)Trades(clans.LocalClan);else Log(clans.LocalClan);if(overlayKind!=OverlayKind.None)RenderOverlay(); }
+    private void Nav(WDClanTab tab,string label,string icon,float y)
+    {bool on=tab==CurrentTab;RectTransform r=S("Nav_"+tab,sidebar,0,y,220,52,on?new Color(Gold.r,Gold.g,Gold.b,.09f):Color.clear);if(on)S("Active",r,0,0,3,52,Gold);string asset=on&&tab!=WDClanTab.Discover?"icon_clan_active_"+tab.ToString().ToLowerInvariant():icon;Image i=Icon("Icon",r,"UI/Clan/Canonical/"+asset);P(i.rectTransform,24,17,18,18);T("Label",r,label,13,on?Gold:C("475569"),54,8,150,36,TextAlignmentOptions.Left,on?"Inter-Bold":"Inter-SemiBold");Button b=r.gameObject.AddComponent<Button>();b.targetGraphic=r.GetComponent<Image>();b.onClick.AddListener(()=>{CurrentTab=tab;Render();});}
+    private void Head(string a,string b){T("Heading",content,a,28,White,36,32,1000,34,TextAlignmentOptions.Left,"Inter-ExtraBold");T("Subtitle",content,b.ToUpperInvariant(),13,C("64748B"),36,72,1100,20,TextAlignmentOptions.Left,"Inter-Regular");}
 
     // ============================================================
-    // 03. MEU CLÃ, MEMBROS E ADMINISTRAÇÃO CONTEXTUAL
+    // 03. LISTA DE CLÃS — NODE 235:2
     // ============================================================
-    private void RenderMine(RectTransform surface, WDClanData clan)
-    {
-        WDClanRole role = clan.Member(clans.LocalPlayerId).Role;
-        string[] labels = { "MEU CLÃ", "MEMBROS", "TROCAS", "REGISTRO" };
-        WDClanTab[] tabs = { WDClanTab.Overview, WDClanTab.Members, WDClanTab.Trades, WDClanTab.Log };
-        for (int i = 0; i < tabs.Length; i++)
-        {
-            WDClanTab tab = tabs[i];
-            AddButton(surface, $"Tab_{tab}", labels[i], () =>
-            { CurrentTab = tab; Render(); },
-                new Vector2(0.03f + i * 0.245f, 0.88f),
-                new Vector2(0.26f + i * 0.245f, 0.97f), CurrentTab == tab);
-        }
-        switch (CurrentTab)
-        {
-            case WDClanTab.Overview: RenderOverview(surface, clan, role); break;
-            case WDClanTab.Members: RenderMembers(surface, clan, role); break;
-            case WDClanTab.Trades: RenderTrades(surface, clan); break;
-            case WDClanTab.Log: RenderLog(surface, clan); break;
-        }
-    }
+    private void List()
+    {Head("LISTA DE CLÃS","Encontre um clã para lutar ao seu lado");RectTransform count=S("ClanCount",content,1484,32,180,32,new Color(Gold.r,Gold.g,Gold.b,.08f),8);T("Count",count,$"{clans.Search("").Count:N0} CLÃS",12,Gold,16,4,148,24,TextAlignmentOptions.Center,"Inter-Bold");
+      RectTransform filters=S("FilterBar",content,36,102,1628,68,new Color(.031f,.067f,.114f,.90f),12);WDHomeUIFactory.AddThinRoundedBorder(filters,new Color(Gold.r,Gold.g,Gold.b,.16f),12);
+      search=Input("BUSCAR CLÃ...",SearchQuery,56,116,260,40);Image searchIcon=Icon("SearchIcon",content,"UI/Clan/Canonical/icon_search");P(searchIcon.rectTransform,70,129,15,15);MiniField(filters,"QUALQUER IDIOMA","icon_globe",276,180,false,true);T("Hide",filters,"OCULTAR CHEIOS",11,C("64748B"),488,17,120,28,TextAlignmentOptions.Left,"Inter-SemiBold");RectTransform toggle=S("Toggle",filters,606,22,44,24,C("1E293B"),12);S("Knob",toggle,3,3,18,18,C("475569"),9);MiniField(filters,"QUALQUER TIPO","icon_filter",686,190,false,true);T("Order",filters,"ORDENAR:",10,C("475569"),898,20,70,24,TextAlignmentOptions.Left,"Inter-Bold");MiniField(filters,"TROFÉUS","icon_trophy",974,120,true);MiniField(filters,"ATIVIDADE","icon_activity",1106,120);
+      RectTransform table=S("ClanTable",content,36,190,1628,512,new Color(.031f,.067f,.114f,.88f),14);WDHomeUIFactory.AddThinRoundedBorder(table,new Color(Gold.r,Gold.g,Gold.b,.19f),14);
+      RectTransform header=S("TableHeader",table,0,0,1628,44,new Color(.024f,.051f,.09f,.95f));string[] heads={"CLÃ","TROFÉUS","REQUISITO","MEMBROS","IDIOMA","AÇÃO","INFO"};float[] hx={20,520,700,880,1040,1220,1440};for(int i=0;i<heads.Length;i++)T("H"+i,header,heads[i],10,Gold,hx[i],8,i==0?480:160,28,TextAlignmentOptions.Left,"Inter-ExtraBold");
+      var found=clans.Search(SearchQuery).Take(6).ToArray();float y=44;for(int i=0;i<6;i++){ClanRow(table,i<found.Length?found[i]:null,y,i);y+=78;}
+      T("Footer",content,$"Exibindo 1-6 de {Mathf.Max(6,clans.Search(SearchQuery).Count):N0} clãs",11,C("334155"),40,718,500,24,TextAlignmentOptions.Left,"Inter-Medium");search.onValueChanged.AddListener(v=>SearchQuery=v);search.onSubmit.AddListener(v=>{SearchQuery=v;Render();});}
 
-    private void RenderOverview(RectTransform surface, WDClanData clan, WDClanRole role)
-    {
-        AddText(surface, "ClanSummary", $"[{clan.Tag}] {clan.Name}\n{clan.Description}\n" +
-            $"{clan.Members.Count} MEMBROS · COMANDANTE {NameOf(clan.CommanderId)}\n" +
-            $"ADMISSÃO: {(clan.Admission == WDClanAdmission.Open ? "ABERTO" : "POR APROVAÇÃO")}",
-            20f, theme.TextoPrincipal, new Vector2(0.04f, 0.58f), new Vector2(0.78f, 0.84f));
-        if (role == WDClanRole.Commander)
-        {
-            AddButton(surface, "Admission", "ALTERAR ADMISSÃO", () => Apply(clans.SetAdmission(
-                clan.Id, clans.LocalPlayerId, clan.Admission == WDClanAdmission.Open
-                    ? WDClanAdmission.Approval : WDClanAdmission.Open)),
-                new Vector2(0.72f, 0.73f), new Vector2(0.96f, 0.82f));
-            nameInput = AddInput(surface, "EditName", "Nome", clan.Name,
-                new Vector2(0.04f, 0.47f), new Vector2(0.30f, 0.54f));
-            tagInput = AddInput(surface, "EditTag", "Sigla", clan.Tag,
-                new Vector2(0.32f, 0.47f), new Vector2(0.49f, 0.54f));
-            descriptionInput = AddInput(surface, "EditDescription", "Descrição", clan.Description,
-                new Vector2(0.51f, 0.47f), new Vector2(0.77f, 0.54f));
-            AddButton(surface, "SaveInfo", "SALVAR DADOS", () => Apply(clans.Edit(clan.Id,
-                clans.LocalPlayerId, nameInput.text, tagInput.text,
-                descriptionInput.text, clan.EmblemId)),
-                new Vector2(0.79f, 0.47f), new Vector2(0.96f, 0.54f));
-            RenderAdministrativeRequests(surface, clan);
-            AddButton(surface, "DeleteClan", "EXCLUIR CLÃ", () => ConfirmDelete(clan),
-                new Vector2(0.78f, 0.06f), new Vector2(0.96f, 0.14f));
-        }
-        else AddButton(surface, "LeaveClan", "SAIR DO CLÃ", () => ConfirmAction(
-            "SAIR DO CLÃ", "Você deixará de ser membro e perderá acesso ao Chat do Clã.",
-            () => Apply(clans.Leave(clans.LocalPlayerId))),
-            new Vector2(0.75f, 0.07f), new Vector2(0.96f, 0.15f));
-    }
-
-    private void RenderAdministrativeRequests(RectTransform surface, WDClanData clan)
-    {
-        int i = 0;
-        foreach (WDClanJoinRequest request in clan.JoinRequests.Take(2))
-        {
-            float y = 0.36f - i * 0.09f;
-            AddText(surface, $"Join_{request.Id}", $"ENTRADA: {NameOf(request.PlayerId)}",
-                15f, theme.TextoPrincipal, new Vector2(0.04f, y), new Vector2(0.58f, y + 0.07f));
-            AddButton(surface, $"Accept_{request.Id}", "ACEITAR", () =>
-                Apply(clans.DecideJoin(clan.Id, clans.LocalPlayerId, request.Id, true)),
-                new Vector2(0.60f, y), new Vector2(0.76f, y + 0.07f));
-            AddButton(surface, $"Reject_{request.Id}", "REJEITAR", () =>
-                Apply(clans.DecideJoin(clan.Id, clans.LocalPlayerId, request.Id, false)),
-                new Vector2(0.78f, y), new Vector2(0.95f, y + 0.07f));
-            i++;
-        }
-        foreach (WDClanKickRequest request in clan.KickRequests.Take(2))
-        {
-            float y = 0.18f - i * 0.07f;
-            AddText(surface, $"Kick_{request.Id}", $"EXPULSÃO: {NameOf(request.TargetPlayerId)}",
-                15f, theme.TextoPrincipal, new Vector2(0.04f, y), new Vector2(0.58f, y + 0.07f));
-            AddButton(surface, $"ApproveKick_{request.Id}", "APROVAR", () =>
-                Apply(clans.DecideKick(clan.Id, clans.LocalPlayerId, request.Id, true)),
-                new Vector2(0.60f, y), new Vector2(0.76f, y + 0.07f));
-            AddButton(surface, $"RejectKick_{request.Id}", "REJEITAR", () =>
-                Apply(clans.DecideKick(clan.Id, clans.LocalPlayerId, request.Id, false)),
-                new Vector2(0.78f, y), new Vector2(0.95f, y + 0.07f));
-            i++;
-        }
-    }
-
-    private void RenderMembers(RectTransform surface, WDClanData clan, WDClanRole role)
-    {
-        AddText(surface, "MembersTitle", "MEMBROS DO CLÃ", 20f, theme.Acento,
-            new Vector2(0.04f, 0.78f), new Vector2(0.95f, 0.86f));
-        int i = 0;
-        foreach (WDClanMember member in clan.Members.Take(8))
-        {
-            float top = 0.76f - i * 0.085f;
-            AddText(surface, $"Member_{member.PlayerId}",
-                $"{NameOf(member.PlayerId)} · {member.Role} · {social.PresenceOf(member.PlayerId)}",
-                15f, theme.TextoPrincipal, new Vector2(0.04f, top - 0.07f),
-                new Vector2(0.40f, top));
-            AddButton(surface, $"Profile_{member.PlayerId}", "PERFIL", () =>
-                openProfile?.Invoke(member.PlayerId), new Vector2(0.42f, top - 0.07f),
-                new Vector2(0.52f, top));
-            if (member.PlayerId != clans.LocalPlayerId)
-            {
-                AddButton(surface, $"Chat_{member.PlayerId}", "CHAT", () =>
-                    openChat?.Invoke(member.PlayerId), new Vector2(0.53f, top - 0.07f),
-                    new Vector2(0.62f, top));
-                RenderMemberActions(surface, clan, role, member, top);
-            }
-            i++;
-        }
-    }
-
-    private void RenderMemberActions(RectTransform surface, WDClanData clan,
-        WDClanRole localRole, WDClanMember member, float top)
-    {
-        if (localRole == WDClanRole.Commander)
-        {
-            if (member.Role == WDClanRole.Member)
-                AddButton(surface, $"Promote_{member.PlayerId}", "PROMOVER", () => ConfirmAction(
-                    "PROMOVER", $"Promover {NameOf(member.PlayerId)} a Oficial?",
-                    () => Apply(clans.Promote(clan.Id, clans.LocalPlayerId, member.PlayerId))),
-                    new Vector2(0.63f, top - 0.07f), new Vector2(0.74f, top));
-            if (member.Role == WDClanRole.Officer)
-                AddButton(surface, $"Demote_{member.PlayerId}", "REBAIXAR", () => ConfirmAction(
-                    "REBAIXAR", $"Rebaixar {NameOf(member.PlayerId)} a Membro?",
-                    () => Apply(clans.Demote(clan.Id, clans.LocalPlayerId, member.PlayerId))),
-                    new Vector2(0.63f, top - 0.07f), new Vector2(0.74f, top));
-            AddButton(surface, $"Transfer_{member.PlayerId}", "COMANDO", () => ConfirmAction(
-                "TRANSFERIR COMANDO", $"Transferir o comando para {NameOf(member.PlayerId)}?",
-                () => Apply(clans.TransferCommand(clan.Id, clans.LocalPlayerId, member.PlayerId))),
-                new Vector2(0.75f, top - 0.07f), new Vector2(0.85f, top));
-            AddButton(surface, $"Kick_{member.PlayerId}", "EXPULSAR", () => ConfirmAction(
-                "EXPULSAR", $"Expulsar {NameOf(member.PlayerId)} do Clã?",
-                () => Apply(clans.Kick(clan.Id, clans.LocalPlayerId, member.PlayerId))),
-                new Vector2(0.86f, top - 0.07f), new Vector2(0.98f, top));
-        }
-        else if (localRole == WDClanRole.Officer && member.Role == WDClanRole.Member)
-            AddButton(surface, $"RequestKick_{member.PlayerId}", "SOLICITAR EXPULSÃO", () =>
-                ConfirmAction("SOLICITAR EXPULSÃO", "O Comandante decidirá a solicitação.",
-                    () => Apply(clans.RequestKick(clan.Id, clans.LocalPlayerId, member.PlayerId))),
-                new Vector2(0.65f, top - 0.07f), new Vector2(0.97f, top));
-    }
+    private void ClanRow(RectTransform table,WDClanData clan,float y,int index)
+    {string[] names={"IRON LEGION","VANGUARD BR","SENTINELS","NOVA ORDEM","TITANS","GUARDIÕES"};string name=clan?.Name.ToUpperInvariant()??names[index];bool open=clan?.Admission==WDClanAdmission.Open||index==2||index==4;int members=clan?.Members.Count??new[]{27,30,18,24,22,15}[index];RectTransform row=S("Clan_"+index,table,0,y,1628,78,index%2==1?new Color(Gold.r,Gold.g,Gold.b,.03f):Color.clear);RectTransform slot=S("EmblemSlot",row,12,17,44,44,SlotColor(index),10);WDHomeUIFactory.AddThinRoundedBorder(slot,SlotBorder(index),10);Image emblem=Icon("Emblem",slot,"UI/Clan/Canonical/"+RowIcon(index));P(emblem.rectTransform,10,10,24,24);T("Name",row,name,15,White,68,12,420,24,TextAlignmentOptions.Left,"Inter-Bold");T("Admission",row,members>=30?"CHEIO":open?"Entrada livre":"Aberto para solicitar",11,members>=30?C("EF4444"):C("475569"),68,38,420,20,TextAlignmentOptions.Left,"Inter-Regular");Image trophy=Icon("Trophy",row,"UI/Clan/Canonical/icon_trophy");P(trophy.rectTransform,520,32,14,14);T("Trophies",row,(31550+index*6730).ToString("N0"),14,White,542,21,138,24,TextAlignmentOptions.Left,"Inter-Bold");if(index%3!=2){Image l=Icon("Lock",row,"UI/Clan/Canonical/icon_lock");P(l.rectTransform,700,32,13,13);}T("Requirement",row,index%3==2?"-":(1800+index*350).ToString("N0"),13,Muted,720,21,140,24,TextAlignmentOptions.Left,"Inter-SemiBold");Image users=Icon("Users",row,"UI/Clan/Canonical/icon_users_small");P(users.rectTransform,880,32,14,14);T("Members",row,$"{members}/30",13,C("E2E8F0"),902,21,118,24,TextAlignmentOptions.Left,"Inter-SemiBold");string language=index%3==2?"🇪🇸 Español":index%3==1?"🇺🇸 English":"🇧🇷 Português";T("Language",row,language,13,Muted,1040,21,160,24,TextAlignmentOptions.Left,"Inter-Medium");Btn("Action",row,members>=30?"INDISPONÍVEL":open?"ENTRAR":"SOLICITAR",1220,20,members>=30?150:128,38,()=>{});Image info=Icon("Info",row,"UI/Clan/Canonical/icon_info");P(info.rectTransform,1500,31,16,16);Button ib=row.gameObject.AddComponent<Button>();ib.targetGraphic=row.GetComponent<Image>();ib.onClick.AddListener(()=>OpenClanInfo(clan));}
+    private void MiniField(Transform parent,string value,string icon,float x,float width=180,bool selected=false,bool dropdown=false){RectTransform r=S(value,parent,x,14,width,40,selected?new Color(Gold.r,Gold.g,Gold.b,.13f):C("0B1525"),8);Image i=Icon("Icon",r,"UI/Clan/Canonical/"+icon);P(i.rectTransform,14,13,14,14);T("Label",r,value,11,selected?Gold:Muted,36,7,width-(dropdown?64:46),26,TextAlignmentOptions.Left,"Inter-Bold");if(dropdown){Image arrow=Icon("Chevron",r,"UI/Clan/Canonical/icon_chevron_down");P(arrow.rectTransform,width-24,13,14,14);}}
+    private static string RowIcon(int index)=>new[]{"clan_iron","clan_vanguard","clan_sentinels","clan_nova","clan_titans","clan_guardioes"}[Mathf.Clamp(index,0,5)];
+    private static Color SlotColor(int i)=>new[]{C("111A20"),C("101C2E"),C("0D2118"),C("1E1A10"),C("1C1020"),C("111A20")}[i];
+    private static Color SlotBorder(int i)=>new[]{C("3A5268"),C("1E4A70"),C("1A5A38"),C("5C4A10"),C("4A1E60"),C("1A3A4A")}[i];
+    private void NoClan(){Head("MEU CLÃ","Sua base estratégica e comunidade.");RectTransform box=S("NoClan",content,530,210,640,430,new Color(.031f,.067f,.114f,.97f),20);WDHomeUIFactory.AddThinRoundedBorder(box,new Color(Gold.r,Gold.g,Gold.b,.35f),20);Image s=Icon("Shield",box,"UI/Clan/Canonical/icon_clan_shield");P(s.rectTransform,270,54,100,100);s.color=Gold;T("Title",box,"VOCÊ AINDA NÃO POSSUI UM CLÃ",22,White,70,174,500,34,TextAlignmentOptions.Center,"Gabarito-ExtraBold");T("Body",box,"Encontre aliados, compartilhe estratégias e evolua junto.",14,Muted,82,220,476,54,TextAlignmentOptions.Center,"Inter-Regular");Btn("Find",box,"ENCONTRAR CLÃ",70,308,238,48,()=>{CurrentTab=WDClanTab.Discover;Render();});Btn("Create",box,"CRIAR CLÃ",332,308,238,48,()=>OpenOverlay(OverlayKind.Create));}
+    // ============================================================
+    // 04. MEU CLÃ — NODE 247:9
+    // ============================================================
+    private void Overview(WDClanData clan)
+    {Head("MEU CLÃ","Gerencie sua aliança e veja as informações de sua legião");RectTransform left=Panel("ClanIdentity",36,116,760,820,14,.19f);RectTransform emblem=S("EmblemSlot",left,28,28,80,80,C("1E293B"),16);WDHomeUIFactory.AddThinRoundedBorder(emblem,new Color(Gold.r,Gold.g,Gold.b,.38f),16);Image shield=Icon("Emblem",emblem,"UI/Clan/Canonical/clan_iron");P(shield.rectTransform,16,16,48,48);
+      T("Name",left,clan.Name.ToUpperInvariant(),24,White,128,32,560,34,TextAlignmentOptions.Left,"Inter-ExtraBold");T("Meta",left,$"General: {Name(clan.GeneralId)}  •  Tipo: {(clan.Admission==WDClanAdmission.Open?"Aberto":"Sob Solicitação")}",13,Gold,128,72,580,24,TextAlignmentOptions.Left,"Inter-Regular");Rule(left,28,128,704);
+      T("Description",left,clan.Description,14,Muted,28,150,704,72,TextAlignmentOptions.TopLeft,"Inter-Regular");T("RequirementsTitle",left,"REQUISITOS E IDIOMA",11,Gold,28,244,300,22,TextAlignmentOptions.Left,"Inter-ExtraBold");RectTransform req=S("Requirements",left,28,278,704,92,C("0B1220"),8);T("MinLabel",req,"Troféus Mínimos",13,Muted,16,12,300,24,TextAlignmentOptions.Left,"Inter-Regular");T("MinValue",req,"2.500",13,White,520,12,152,24,TextAlignmentOptions.Right,"Inter-Bold");T("LangLabel",req,"Idioma Principal",13,Muted,16,48,300,24,TextAlignmentOptions.Left,"Inter-Regular");T("LangValue",req,"Português",13,White,520,48,152,24,TextAlignmentOptions.Right,"Inter-Bold");WDClanMember local=clan.Member(clans.LocalPlayerId);if(local!=null&&WDClanPermissions.Can(local.Role,WDClanPermission.ReviewJoinRequests))Btn("Reviews",left,$"SOLICITAÇÕES ({clan.JoinRequests.Count+clan.KickRequests.Count})",28,632,704,48,()=>OpenOverlay(OverlayKind.Reviews));Btn("ClanOptions",left,"OPÇÕES DO CLÃ",28,688,704,48,()=>{overlayPlayerId=clans.LocalPlayerId;OpenOverlay(OverlayKind.MemberMenu);});Btn("EditClan",left,"EDITAR CLÃ",28,744,704,48,()=>OpenOverlay(OverlayKind.Edit));
+      RectTransform active=Panel("ActiveMembers",820,116,410,108,12,.13f);T("Label",active,"MEMBROS ATIVOS",11,Muted,20,16,300,22,TextAlignmentOptions.Left,"Inter-Bold");T("Value",active,$"{clan.Members.Count} / 30",28,White,20,48,330,36,TextAlignmentOptions.Left,"Inter-ExtraBold");RectTransform trophies=Panel("TotalTrophies",1254,116,410,108,12,.13f);T("Label",trophies,"TROFÉUS TOTAIS",11,Muted,20,16,300,22,TextAlignmentOptions.Left,"Inter-Bold");Image trophy=Icon("Trophy",trophies,"UI/Clan/Canonical/icon_trophy");P(trophy.rectTransform,20,54,20,20);T("Value",trophies,"52.480",28,White,52,44,300,38,TextAlignmentOptions.Left,"Inter-ExtraBold");
+      RectTransform message=Panel("MessageOfDay",820,244,844,692,12,.08f);T("Title",message,"MENSAGEM DO DIA",14,White,24,20,400,24,TextAlignmentOptions.Left,"Inter-ExtraBold");RectTransform quote=S("Quote",message,24,62,796,180,C("09101C"),8);WDHomeUIFactory.AddThinRoundedBorder(quote,new Color(Gold.r,Gold.g,Gold.b,.13f),8);T("Text",quote,"\"Fiquem atentos para solicitar e doar tokens de arma diariamente no canal de Trocas. Nossa próxima guerra começa hoje à noite, preparem seus melhores Decks!\"",13,White,16,14,764,92,TextAlignmentOptions.TopLeft,"Inter-Regular");T("Author",quote,$"Escrito por {Name(clan.GeneralId)} — Há 2 horas",11,Gold,16,120,600,24,TextAlignmentOptions.Left,"Inter-SemiBold");}
 
     // ============================================================
-    // 04. TROCAS DE TOKENS E REGISTRO
+    // 05. TROCAS — NODE 247:122
     // ============================================================
-    private void RenderTrades(RectTransform surface, WDClanData clan)
-    {
-        AddText(surface, "TradesTitle", "TROCAS · PEDIDO E DOAÇÃO DE TOKENS DE ARMA",
-            20f, theme.Acento, new Vector2(0.04f, 0.78f), new Vector2(0.95f, 0.86f));
-        WDWeaponDefinition[] weapons = clans.Weapons.Take(6).ToArray();
-        for (int i = 0; i < weapons.Length; i++)
-        {
-            WDWeaponDefinition weapon = weapons[i];
-            AddButton(surface, $"Weapon_{weapon.Id}", weapon.DisplayName,
-                () => { selectedWeaponId = weapon.Id; Render(); },
-                new Vector2(0.04f + i * 0.15f, 0.67f),
-                new Vector2(0.18f + i * 0.15f, 0.76f), selectedWeaponId == weapon.Id);
-        }
-        quantityInput = AddInput(surface, "Quantity", "Quantidade", "1",
-            new Vector2(0.04f, 0.57f), new Vector2(0.25f, 0.65f));
-        AddButton(surface, "RequestTokens", "PEDIR TOKENS", () =>
-        {
-            if (!int.TryParse(quantityInput.text, out int quantity))
-            { Apply(WDClanResult.Invalid); return; }
-            Apply(clans.RequestTokens(clans.LocalPlayerId, selectedWeaponId, quantity, out _));
-        }, new Vector2(0.27f, 0.57f), new Vector2(0.48f, 0.65f));
-        int row = 0;
-        foreach (WDClanTokenRequest request in clan.TokenRequests.Where(item => !item.Fulfilled).Take(5))
-        {
-            float top = 0.54f - row * 0.09f;
-            AddText(surface, $"TokenRequest_{request.Id}",
-                $"{NameOf(request.PlayerId)} · {request.Quantity} TOKENS · " +
-                (clans.Weapons.FirstOrDefault(item => item.Id == request.WeaponId)?.DisplayName ?? request.WeaponId),
-                16f, theme.TextoPrincipal, new Vector2(0.04f, top - 0.08f),
-                new Vector2(0.73f, top));
-            if (request.PlayerId != clans.LocalPlayerId)
-                AddButton(surface, $"Donate_{request.Id}", "DOAR", () => ConfirmAction(
-                    "DOAR TOKENS", $"Doar {request.Quantity} tokens de {request.WeaponId}?",
-                    () => Apply(clans.Donate(clans.LocalPlayerId, request.Id))),
-                    new Vector2(0.76f, top - 0.08f), new Vector2(0.96f, top));
-            row++;
-        }
-        if (row == 0)
-            AddText(surface, "NoRequests", "NENHUM PEDIDO ATIVO", 18f,
-                theme.TextoSecundario, new Vector2(0.3f, 0.28f), new Vector2(0.7f, 0.42f),
-                TextAlignmentOptions.Center);
-    }
+    private void Trades(WDClanData clan)
+    {Head("TROCAS","Solicite e doe tokens de arma");RectTransform mine=Panel("MyRequest",36,104,1628,176,12,.13f);T("Title",mine,"SUA SOLICITAÇÃO",12,White,20,16,300,24,TextAlignmentOptions.Left,"Inter-ExtraBold");Btn("Request",mine,"SOLICITAR TOKENS",1450,14,158,34,()=>OpenOverlay(OverlayKind.WeaponSelect));var requests=clan.TokenRequests.Where(x=>!x.Fulfilled).ToArray();var own=requests.FirstOrDefault(x=>x.PlayerId==clans.LocalPlayerId)??requests.FirstOrDefault();var ownWeapon=own==null?clans.Weapons.FirstOrDefault():clans.Weapons.FirstOrDefault(x=>x.Id==own.WeaponId);TradeSummary(mine,ownWeapon,20,62,own?.Quantity??12);
+      T("ClanRequestsTitle",content,"SOLICITAÇÕES DO CLÃ",12,White,36,306,400,24,TextAlignmentOptions.Left,"Inter-ExtraBold");float y=342;foreach(var q in requests.Where(x=>x!=own).Take(6)){TradeRequest(clan,q,y);y+=88;}if(y==342){foreach(var q in requests.Take(2)){TradeRequest(clan,q,y);y+=88;}}}
 
-    private void RenderLog(RectTransform surface, WDClanData clan)
-    {
-        AddText(surface, "LogTitle", "REGISTRO DO CLÃ", 20f, theme.Acento,
-            new Vector2(0.04f, 0.78f), new Vector2(0.95f, 0.86f));
-        int i = 0;
-        foreach (WDClanLogEntry entry in clan.Log.Reverse().Take(8))
-        {
-            float top = 0.75f - i * 0.08f;
-            AddText(surface, $"Log_{i}", $"{entry.At:dd/MM HH:mm} · {entry.Text}",
-                16f, theme.TextoPrincipal, new Vector2(0.05f, top - 0.07f),
-                new Vector2(0.94f, top));
-            i++;
-        }
-    }
-
-    private void ConfirmDelete(WDClanData clan) => ConfirmAction(
-        "EXCLUIR CLÃ", $"Excluir definitivamente {clan.Name}? Todos perderão o acesso.",
-        () => ConfirmAction("CONFIRMAÇÃO FINAL", $"Excluir {clan.Name} sem possibilidade de desfazer?",
-            () => Apply(clans.Delete(clan.Id, clans.LocalPlayerId))));
-
-    private void ConfirmAction(string title, string body, Action action) =>
-        confirm?.Invoke(title, body, action);
-    private void Apply(WDClanResult result)
-    { feedback = result == WDClanResult.Success ? "AÇÃO CONCLUÍDA" : $"AÇÃO NÃO REALIZADA: {result}";
-      Render(); }
-    private void RefreshIfOpen() { if (IsOpen) Render(); }
-    private string NameOf(string playerId) => profiles.Find(playerId)?.Nickname ?? playerId;
-    private string AvailabilityText() => clans.Availability switch
-    { WDClanAvailability.Loading => "CARREGANDO CLÃS...", WDClanAvailability.Error =>
-      "ERRO AO CARREGAR CLÃS", WDClanAvailability.Offline => "CLÃS INDISPONÍVEIS OFFLINE",
-      WDClanAvailability.Empty => "NENHUM CLÃ DISPONÍVEL", _ => string.Empty };
+    private void TradeSummary(RectTransform parent,WDWeaponDefinition weapon,float x,float y,int amount){RawImage art=Tex("Artwork",parent,weapon==null?null:WDWeaponArtworkResolver.Resolve(weapon.Id));P(art.rectTransform,x,y,56,58);T("Weapon",parent,weapon?.DisplayName??"ARMA",13,White,x+68,y,300,24,TextAlignmentOptions.Left,"Inter-Bold");T("Tokens",parent,"TOKENS DE ARMA",10,Muted,x+68,y+25,300,18,TextAlignmentOptions.Left,"Inter-Regular");T("Progress",parent,$"{amount} / 20 TOKENS",11,White,1120,y+8,240,20,TextAlignmentOptions.Right,"Inter-SemiBold");Progress(parent,x+370,y+38,1120,Mathf.Clamp01(amount/20f));T("Time",parent,"14h 22m",12,Gold,1420,y+14,170,22,TextAlignmentOptions.Right,"Inter-Bold");}
+    private void TradeRequest(WDClanData clan,WDClanTokenRequest q,float y){var weapon=clans.Weapons.FirstOrDefault(x=>x.Id==q.WeaponId);RectTransform row=Panel("Trade_"+q.Id,36,y,1628,78,10,.08f);RawImage avatar=Tex("Avatar",row,WDProfileIdentityVisuals.ResolveAvatar(profiles.Find(q.PlayerId)));P(avatar.rectTransform,14,21,36,36);T("Player",row,Name(q.PlayerId),13,White,64,14,260,22,TextAlignmentOptions.Left,"Inter-Bold");T("Role",row,"MEMBRO",11,Muted,64,40,260,18,TextAlignmentOptions.Left,"Inter-Regular");RawImage art=Tex("Artwork",row,WDWeaponArtworkResolver.Resolve(weapon?.Id));P(art.rectTransform,334,14,48,50);T("Weapon",row,weapon?.DisplayName??q.WeaponId,13,White,394,15,190,22,TextAlignmentOptions.Left,"Inter-SemiBold");T("Level",row,"NÍVEL 1",11,Muted,394,40,190,18,TextAlignmentOptions.Left,"Inter-Regular");T("ProgressLabel",row,"PROGRESSO DE TOKENS",10,Muted,614,13,260,18,TextAlignmentOptions.Left,"Inter-Regular");Progress(row,614,42,610,.5f);T("Amount",row,$"{q.Quantity} / 20 TOKENS",11,White,1030,12,190,20,TextAlignmentOptions.Right,"Inter-SemiBold");T("Time",row,"08h 15m",12,Muted,1250,27,110,20,TextAlignmentOptions.Center,"Inter-Regular");Btn("Donate",row,"DOAR",1450,20,130,38,()=>{overlayRequestId=q.Id;OpenOverlay(OverlayKind.Donate);});}
 
     // ============================================================
-    // 05. ELEMENTOS REUTILIZÁVEIS DA APRESENTAÇÃO
+    // 06. MEMBROS — NODE 247:248
     // ============================================================
-    private RectTransform AddSurface(Transform parent, string name, Vector2 min, Vector2 max)
-    {
-        RectTransform rect = WDHomeUIFactory.Rect(name, parent);
-        SetBounds(rect, min, max);
-        Image image = rect.gameObject.AddComponent<Image>();
-        image.color = theme.BackgroundElevated; image.raycastTarget = true;
-        return rect;
-    }
+    private void Members(WDClanData clan)
+    {Head("MEMBROS DO CLÃ","Lista ativa de membros e suas principais doações e troféus");T("Total",content,$"TOTAL: {clan.Members.Count} / 30",13,Gold,1400,38,264,26,TextAlignmentOptions.Right,"Inter-Bold");RectTransform table=Panel("MembersTable",36,104,1628,832,12,.13f);string[] hs={"JOGADOR","CARGO","DOAÇÕES","TROFÉUS","ESTATÍSTICAS","AÇÕES"};float[] xs={20,420,660,860,1080,1280};for(int i=0;i<hs.Length;i++)T("H"+i,table,hs[i],10,Gold,xs[i],8,190,28,TextAlignmentOptions.Left,"Inter-ExtraBold");float y=44;int index=0;foreach(var m in clan.Members.Take(10)){MemberRow(table,m,y,index++);y+=78;}}
+    private void MemberRow(RectTransform table,WDClanMember m,float y,int index){RectTransform row=S("Member_"+m.PlayerId,table,0,y,1628,78,index%2==0?new Color(1,1,1,.035f):Color.clear);RawImage avatar=Tex("Avatar",row,WDProfileIdentityVisuals.ResolveAvatar(profiles.Find(m.PlayerId)));P(avatar.rectTransform,20,19,40,40);T("Name",row,Name(m.PlayerId),13,White,74,12,320,22,TextAlignmentOptions.Left,"Inter-Bold");T("Level",row,"Nível 50",10,Muted,74,38,200,18,TextAlignmentOptions.Left,"Inter-Regular");T("Role",row,RoleLabel(m.Role),12,RoleColor(m.Role),420,25,200,22,TextAlignmentOptions.Left,"Inter-Bold");T("Donations",row,(542-index*116)+" Doações",12,White,660,25,170,22,TextAlignmentOptions.Left,"Inter-Regular");T("Trophies",row,(5280-index*430).ToString("N0"),12,White,860,25,170,22,TextAlignmentOptions.Left,"Inter-Bold");Btn("Profile",row,"VER PERFIL",1080,22,118,34,()=>openProfile?.Invoke(m.PlayerId));Btn("Actions",row,"OPÇÕES",1280,22,118,34,()=>{overlayPlayerId=m.PlayerId;OpenOverlay(OverlayKind.MemberMenu);});}
 
-    private TextMeshProUGUI AddText(Transform parent, string name, string text, float size,
-        Color color, Vector2 min, Vector2 max,
-        TextAlignmentOptions alignment = TextAlignmentOptions.Left)
-    {
-        TextMeshProUGUI label = WDHomeUIFactory.Text(name, parent, theme, text, size, color, alignment);
-        SetBounds(label.rectTransform, min, max);
-        return label;
-    }
+    // ============================================================
+    // 07. REGISTRO — NODE 247:380
+    // ============================================================
+    private void Log(WDClanData clan)
+    {Head("REGISTRO DO CLÃ","Histórico de atividades do Clã");RectTransform panel=Panel("ClanLog",36,104,1628,832,12,.13f);float y=10;int index=0;foreach(var e in clan.Log.Reverse().Take(14)){RectTransform row=S("Entry_"+index,panel,0,y,1628,54,index%2==0?new Color(1,1,1,.018f):Color.clear);RectTransform icon=S("IconSlot",row,18,11,32,32,index%3==0?new Color(Gold.r,Gold.g,Gold.b,.12f):new Color(.05f,.25f,.38f,.25f),6);Image glyph=Icon("Glyph",icon,"UI/Clan/Canonical/"+(index%3==0?"icon_clan_shield":"icon_clan_members"));P(glyph.rectTransform,8,8,16,16);T("Text",row,e.Text,12,White,64,7,1480,22,TextAlignmentOptions.Left,"Inter-Regular");T("Date",row,e.At.ToString("dd MMM yyyy, HH:mm"),10,Muted,64,29,400,18,TextAlignmentOptions.Left,"Inter-Regular");y+=54;index++;}}
 
-    private WDUIPremiumButton AddButton(Transform parent, string name, string text,
-        UnityEngine.Events.UnityAction action, Vector2 min, Vector2 max, bool selected = false)
+    // ============================================================
+    // 08. ECOSSISTEMA DE MODAIS E MENUS — NODES 247 / 2870 / 2888 / 2896
+    // ============================================================
+    private void OpenClanInfo(WDClanData clan){if(clan==null)return;overlayClanId=clan.Id;OpenOverlay(OverlayKind.ClanInfo);}
+    private void OpenOverlay(OverlayKind kind){overlayKind=kind;if(overlay!=null)overlay.gameObject.SetActive(true);RenderOverlay();}
+    private void CloseOverlay(){overlayKind=OverlayKind.None;overlayClanId=overlayPlayerId=overlayRequestId=selectedWeaponId=null;overlayAction=null;if(overlay!=null){Clear(overlay);overlay.gameObject.SetActive(false);}}
+    private void RenderOverlay()
     {
-        RectTransform rect = WDHomeUIFactory.Rect(name, parent); SetBounds(rect, min, max);
-        WDUIPremiumButton button = rect.gameObject.AddComponent<WDUIPremiumButton>();
-        button.Build(theme, text, action); button.SetSelected(selected); return button;
+        if(overlay==null)return;Clear(overlay);overlay.gameObject.SetActive(true);overlay.SetAsLastSibling();
+        RectTransform blocker=S("InputBlocker",overlay,0,0,1920,1080,new Color(0,0,0,.72f));Button close=blocker.gameObject.AddComponent<Button>();close.targetGraphic=blocker.GetComponent<Image>();close.onClick.AddListener(CloseOverlay);
+        switch(overlayKind){case OverlayKind.ClanInfo:RenderClanInfo();break;case OverlayKind.Create:RenderCreate();break;case OverlayKind.Edit:RenderEdit();break;case OverlayKind.Admission:RenderAdmission();break;case OverlayKind.WeaponSelect:RenderWeaponSelect();break;case OverlayKind.Donate:RenderDonate();break;case OverlayKind.MemberMenu:RenderMemberMenu();break;case OverlayKind.MemberStats:RenderMemberStats();break;case OverlayKind.Confirm:RenderConfirm();break;case OverlayKind.Leadership:RenderLeadership();break;case OverlayKind.Reviews:RenderReviews();break;}
     }
+    private RectTransform Modal(string name,string title,string subtitle,float width,float height,bool danger=false)
+    {RectTransform box=S(name,overlay,(1920-width)/2,(1080-height)/2,width,height,C("08111D"),16);box.SetAsLastSibling();WDHomeUIFactory.AddThinRoundedBorder(box,danger?C("EF4444"):Gold,16);T("Title",box,title,22,White,24,22,width-72,32,TextAlignmentOptions.Left,"Inter-ExtraBold");T("Subtitle",box,subtitle,12,Muted,24,56,width-48,34,TextAlignmentOptions.Left,"Inter-Regular");Btn("Close",box,"×",width-52,18,32,32,CloseOverlay);Rule(box,24,94,width-48);return box;}
+    private TMP_InputField ModalInput(Transform parent,string name,string value,float x,float y,float w,float h)
+    {RectTransform r=S(name,parent,x,y,w,h,C("0B1525"),8);WDHomeUIFactory.AddThinRoundedBorder(r,C("1E3A5F"),8);TMP_InputField field=r.gameObject.AddComponent<TMP_InputField>();RectTransform viewport=R("Viewport",r);WDHomeUIFactory.Stretch(viewport,12,5,12,5);TextMeshProUGUI text=T("Text",viewport,value,13,White,0,0,w-24,h-10,TextAlignmentOptions.Left,"Inter-Regular");field.textViewport=viewport;field.textComponent=text;field.text=value;return field;}
+    private void ResultAndClose(WDClanResult result){CloseOverlay();if(result!=WDClanResult.Success)Debug.LogWarning($"[WD-CLAN] Operação não concluída: {result}");else Render();}
 
-    private TMP_InputField AddInput(Transform parent, string name, string placeholder,
-        string value, Vector2 min, Vector2 max)
-    {
-        RectTransform rect = WDHomeUIFactory.Rect(name, parent); SetBounds(rect, min, max);
-        Image image = rect.gameObject.AddComponent<Image>();
-        image.color = theme.BackgroundPrimary; image.raycastTarget = true;
-        TMP_InputField input = rect.gameObject.AddComponent<TMP_InputField>();
-        RectTransform viewport = WDHomeUIFactory.Rect("TextViewport", rect);
-        WDHomeUIFactory.Stretch(viewport, 12f, 4f, 12f, 4f);
-        TextMeshProUGUI text = AddText(viewport, "Text", value, 16f, theme.TextoPrincipal,
-            Vector2.zero, Vector2.one);
-        TextMeshProUGUI hint = AddText(viewport, "Placeholder", placeholder, 16f,
-            theme.TextoSecundario, Vector2.zero, Vector2.one);
-        input.textViewport = viewport; input.textComponent = text; input.placeholder = hint;
-        input.lineType = TMP_InputField.LineType.SingleLine;
-        input.text = value ?? string.Empty;
-        return input;
-    }
+    private void RenderClanInfo()
+    {WDClanData clan=clans.Find(overlayClanId);if(clan==null){CloseOverlay();return;}RectTransform box=Modal("ClanInfo",clan.Name.ToUpperInvariant(),$"{clan.Tag} • GENERAL: {Name(clan.GeneralId)} • {clan.Members.Count}/30 MEMBROS",820,640);Image emblem=Icon("Emblem",box,"UI/Clan/Canonical/clan_iron");P(emblem.rectTransform,28,118,64,64);T("Description",box,clan.Description,13,Muted,112,116,660,60,TextAlignmentOptions.TopLeft,"Inter-Regular");string[] labels={"TOTAL TROFÉUS","IDIOMA","ENTRADA"};string[] values={"—","Português",clan.Admission==WDClanAdmission.Open?"ABERTO":"SOB SOLICITAÇÃO"};for(int i=0;i<3;i++){T("L"+i,box,labels[i],9,C("64748B"),28+i*250,210,220,18,TextAlignmentOptions.Left,"Inter-Bold");T("V"+i,box,values[i],14,White,28+i*250,232,220,22,TextAlignmentOptions.Left,"Inter-Bold");}T("MembersTitle",box,"MEMBROS",10,Gold,28,286,300,20,TextAlignmentOptions.Left,"Inter-ExtraBold");float y=316;foreach(WDClanMember m in clan.Members.Take(5)){T("Member",box,Name(m.PlayerId),12,White,40,y,360,22,TextAlignmentOptions.Left,"Inter-SemiBold");T("Role",box,RoleLabel(m.Role),10,RoleColor(m.Role),420,y,180,22,TextAlignmentOptions.Left,"Inter-Bold");y+=40;}string action=clan.Members.Count>=30?"CLÃ CHEIO":clan.Admission==WDClanAdmission.Open?"ENTRAR":"SOLICITAR ENTRADA";Btn("Join",box,action,24,568,772,48,()=>{if(clan.Members.Count<30)ResultAndClose(clans.Join(clan.Id,clans.LocalPlayerId));});}
 
-    private static void SetBounds(RectTransform rect, Vector2 min, Vector2 max)
-    { rect.anchorMin = min; rect.anchorMax = max; rect.offsetMin = rect.offsetMax = Vector2.zero; }
+    private void RenderCreate()
+    {RectTransform box=Modal("CreateClan","CRIAR CLÃ","FUNDE UMA ALIANÇA POR 10 ESMERALDAS",660,650);T("NameLabel",box,"NOME DO CLÃ",10,Gold,24,112,300,18,TextAlignmentOptions.Left,"Inter-Bold");TMP_InputField name=ModalInput(box,"Name","",24,136,612,44);T("TagLabel",box,"TAG",10,Gold,24,194,160,18,TextAlignmentOptions.Left,"Inter-Bold");TMP_InputField tag=ModalInput(box,"Tag","",24,218,190,44);T("DescLabel",box,"DESCRIÇÃO",10,Gold,24,278,240,18,TextAlignmentOptions.Left,"Inter-Bold");TMP_InputField desc=ModalInput(box,"Description","",24,302,612,96);T("Admission",box,"TIPO DE ENTRADA",10,Gold,24,420,250,18,TextAlignmentOptions.Left,"Inter-Bold");bool approval=true;Btn("Admission",box,"SOB SOLICITAÇÃO",24,444,280,42,()=>{approval=!approval;});T("Cost",box,$"CUSTO: {clans.CreationPolicy.EmeraldCost} ESMERALDAS",12,Gold,24,514,320,24,TextAlignmentOptions.Left,"Inter-Bold");Btn("Cancel",box,"CANCELAR",24,574,286,48,CloseOverlay);Btn("Create",box,"CRIAR CLÃ",326,574,310,48,()=>{WDClanData created;ResultAndClose(clans.Create(clans.LocalPlayerId,name.text,tag.text,desc.text,approval?WDClanAdmission.Approval:WDClanAdmission.Open,out created));});}
 
-    private static void Clear(Transform parent)
-    {
-        for (int i = parent.childCount - 1; i >= 0; i--)
-        {
-            GameObject child = parent.GetChild(i).gameObject;
-            child.transform.SetParent(null, false);
-            if (Application.isPlaying) Destroy(child); else DestroyImmediate(child);
-        }
-    }
+    private void RenderEdit()
+    {WDClanData clan=clans.LocalClan;if(clan==null){CloseOverlay();return;}RectTransform box=Modal("EditClan","EDITAR CONFIGURAÇÕES DO CLÃ","ATUALIZE A IDENTIDADE E OS METADADOS DA SUA ALIANÇA",660,600);T("NameLabel",box,"NOME DO CLÃ",10,Gold,24,112,300,18,TextAlignmentOptions.Left,"Inter-Bold");TMP_InputField name=ModalInput(box,"Name",clan.Name,24,136,612,44);T("TagLabel",box,"TAG",10,Gold,24,194,160,18,TextAlignmentOptions.Left,"Inter-Bold");TMP_InputField tag=ModalInput(box,"Tag",clan.Tag,24,218,190,44);T("DescLabel",box,"DESCRIÇÃO DO CLÃ",10,Gold,24,278,280,18,TextAlignmentOptions.Left,"Inter-Bold");TMP_InputField desc=ModalInput(box,"Description",clan.Description,24,302,612,100);Btn("Entry",box,"CONFIGURAÇÕES DE ENTRADA",24,424,612,42,()=>OpenOverlay(OverlayKind.Admission));Btn("Cancel",box,"CANCELAR",24,524,286,48,CloseOverlay);Btn("Save",box,"SALVAR ALTERAÇÕES",326,524,310,48,()=>ResultAndClose(clans.Edit(clan.Id,clans.LocalPlayerId,name.text,tag.text,desc.text,clan.EmblemId)));}
+
+    private void RenderAdmission()
+    {WDClanData clan=clans.LocalClan;if(clan==null){CloseOverlay();return;}RectTransform box=Modal("Admission","CONFIGURAÇÕES DE ENTRADA","DEFINA COMO NOVOS MEMBROS ENTRAM NO CLÃ",560,380);T("Current",box,$"ATUAL: {(clan.Admission==WDClanAdmission.Open?"ENTRADA LIVRE":"SOB SOLICITAÇÃO")}",13,White,24,120,512,30,TextAlignmentOptions.Left,"Inter-Bold");Btn("Open",box,"ENTRADA LIVRE",24,174,512,48,()=>ResultAndClose(clans.SetAdmission(clan.Id,clans.LocalPlayerId,WDClanAdmission.Open)));Btn("Approval",box,"SOB SOLICITAÇÃO",24,236,512,48,()=>ResultAndClose(clans.SetAdmission(clan.Id,clans.LocalPlayerId,WDClanAdmission.Approval)));Btn("Cancel",box,"CANCELAR",24,306,512,44,CloseOverlay);}
+
+    private void RenderWeaponSelect()
+    {RectTransform box=Modal("WeaponSelect","SOLICITAR TOKENS","ESCOLHA UMA ARMA PARA SOLICITAR TOKENS",880,650);var weapons=clans.Weapons.Take(6).ToArray();for(int i=0;i<weapons.Length;i++){WDWeaponDefinition w=weapons[i];float x=24+(i%3)*278,y=112+(i/3)*202;RectTransform card=S("Weapon_"+w.Id,box,x,y,258,184,selectedWeaponId==w.Id?new Color(Gold.r,Gold.g,Gold.b,.13f):C("0B1525"),10);RawImage art=Tex("Art",card,WDWeaponArtworkResolver.Resolve(w.Id));P(art.rectTransform,8,8,242,112);T("Name",card,w.DisplayName.ToUpperInvariant(),12,White,10,124,238,22,TextAlignmentOptions.Left,"Inter-Bold");Btn("Select",card,selectedWeaponId==w.Id?"SELECIONADO":"SELECIONAR",10,150,238,28,()=>{selectedWeaponId=w.Id;RenderOverlay();});}Btn("Cancel",box,"CANCELAR",24,584,400,42,CloseOverlay);Btn("Request",box,"SOLICITAR",440,584,416,42,()=>{if(!string.IsNullOrEmpty(selectedWeaponId)){WDClanTokenRequest request;ResultAndClose(clans.RequestTokens(clans.LocalPlayerId,selectedWeaponId,1,out request));}});}
+
+    private void RenderDonate()
+    {WDClanData clan=clans.LocalClan;WDClanTokenRequest request=clan?.TokenRequests.FirstOrDefault(x=>x.Id==overlayRequestId);if(request==null){CloseOverlay();return;}WDWeaponDefinition weapon=clans.Weapons.FirstOrDefault(x=>x.Id==request.WeaponId);RectTransform box=Modal("Donate","DOAR TOKENS",$"CONFIRME A DOAÇÃO PARA {Name(request.PlayerId)}",560,380);RawImage art=Tex("Artwork",box,WDWeaponArtworkResolver.Resolve(weapon?.Id));P(art.rectTransform,24,124,88,92);T("Weapon",box,weapon?.DisplayName??request.WeaponId,16,White,132,128,380,28,TextAlignmentOptions.Left,"Inter-Bold");T("Amount",box,$"{request.Quantity} TOKEN(S) DE ARMA",12,Gold,132,166,380,22,TextAlignmentOptions.Left,"Inter-Bold");Btn("Cancel",box,"CANCELAR",24,306,244,44,CloseOverlay);Btn("Donate",box,"DOAR",284,306,252,44,()=>ResultAndClose(clans.Donate(clans.LocalPlayerId,request.Id)));}
+
+    private void RenderMemberMenu()
+    {WDClanData clan=clans.LocalClan;WDClanMember actor=clan?.Member(clans.LocalPlayerId),target=clan?.Member(overlayPlayerId);if(actor==null||target==null){CloseOverlay();return;}RectTransform box=Modal("MemberMenu",Name(target.PlayerId).ToUpperInvariant(),RoleLabel(target.Role),500,560);float y=112;Btn("Profile",box,"VER PERFIL",24,y,452,42,()=>{CloseOverlay();openProfile?.Invoke(target.PlayerId);});y+=52;Btn("Stats",box,"ESTATÍSTICAS",24,y,452,42,()=>OpenOverlay(OverlayKind.MemberStats));y+=52;if(target.PlayerId==actor.PlayerId){if(actor.Role==WDClanRole.General){Btn("Leadership",box,"TRANSFERIR LIDERANÇA",24,y,452,42,()=>OpenOverlay(OverlayKind.Leadership));y+=52;Btn("Delete",box,"EXCLUIR CLÃ",24,y,452,42,()=>Ask("EXCLUIR CLÃ","Esta ação é permanente.",()=>ResultAndClose(clans.Delete(clan.Id,actor.PlayerId))));y+=52;Btn("Leave",box,"SAIR DO CLÃ",24,y,452,42,()=>LeaveClan(clan,actor));}else Btn("Leave",box,"SAIR DO CLÃ",24,y,452,42,()=>Ask("SAIR DO CLÃ","Você deixará de fazer parte desta aliança.",()=>ResultAndClose(clans.Leave(actor.PlayerId))));return;}
+      if(target.Role==WDClanRole.Member&&WDClanPermissions.Can(actor.Role,WDClanPermission.PromoteMember)){Btn("Promote",box,"PROMOVER A OFICIAL",24,y,452,42,()=>Ask("PROMOVER MEMBRO",$"Promover {Name(target.PlayerId)} para Oficial?",()=>ResultAndClose(clans.Promote(clan.Id,actor.PlayerId,target.PlayerId))));y+=52;}if(target.Role==WDClanRole.Officer&&actor.Role==WDClanRole.General){Btn("Commander",box,"PROMOVER A COMANDANTE",24,y,452,42,()=>{if(clan.Commanders.Count>=WDClanRepository.MaxCommanders)Ask("LIMITE DE COMANDANTES","O clã já possui 2 Comandantes.",CloseOverlay);else Ask("PROMOVER A COMANDANTE",$"Conceder a patente de Comandante a {Name(target.PlayerId)}?",()=>ResultAndClose(clans.PromoteToCommander(clan.Id,actor.PlayerId,target.PlayerId)));});y+=52;}if(target.Role==WDClanRole.Officer&&WDClanPermissions.Can(actor.Role,WDClanPermission.DemoteOfficer)){Btn("Demote",box,"REBAIXAR A MEMBRO",24,y,452,42,()=>Ask("REBAIXAR OFICIAL",$"Rebaixar {Name(target.PlayerId)} para Membro?",()=>ResultAndClose(clans.Demote(clan.Id,actor.PlayerId,target.PlayerId))));y+=52;}if(target.Role==WDClanRole.Commander&&actor.Role==WDClanRole.General){Btn("DemoteCommander",box,"REBAIXAR COMANDANTE",24,y,452,42,()=>Ask("REBAIXAR COMANDANTE",$"Rebaixar {Name(target.PlayerId)} para Oficial?",()=>ResultAndClose(clans.DemoteCommander(clan.Id,actor.PlayerId,target.PlayerId))));y+=52;}if(WDClanPermissions.CanManageRole(actor.Role,target.Role)){Btn("Kick",box,"REMOVER DO CLÃ",24,y,452,42,()=>Ask("REMOVER MEMBRO",$"Remover {Name(target.PlayerId)} do Clã?",()=>ResultAndClose(clans.Kick(clan.Id,actor.PlayerId,target.PlayerId))));}else if(WDClanPermissions.CanRequestRemovalOf(actor.Role,target.Role)){Btn("RequestKick",box,"SOLICITAR EXPULSÃO",24,y,452,42,()=>Ask("SOLICITAR EXPULSÃO",$"Enviar a solicitação de expulsão de {Name(target.PlayerId)}?",()=>ResultAndClose(clans.RequestKick(clan.Id,actor.PlayerId,target.PlayerId))));}}
+
+    private void RenderMemberStats(){WDClanData clan=clans.LocalClan;WDClanMember member=clan?.Member(overlayPlayerId);if(member==null){CloseOverlay();return;}RectTransform box=Modal("MemberStats","ESTATÍSTICAS DO MEMBRO",Name(member.PlayerId).ToUpperInvariant(),620,500);string[] l={"CARGO","DOAÇÕES","TROFÉUS","ENTROU NO CLÃ"};string[] v={RoleLabel(member.Role),"—","—","—"};for(int i=0;i<4;i++){T("L"+i,box,l[i],10,Muted,32,128+i*66,220,20,TextAlignmentOptions.Left,"Inter-Bold");T("V"+i,box,v[i],15,White,300,122+i*66,280,28,TextAlignmentOptions.Right,"Inter-Bold");}Btn("Close",box,"VOLTAR",24,430,572,44,()=>OpenOverlay(OverlayKind.MemberMenu));}
+
+    private void Ask(string title,string body,Action action){overlayTitle=title;overlayBody=body;overlayAction=action;OpenOverlay(OverlayKind.Confirm);}
+    private void RenderConfirm(){RectTransform box=Modal("Confirmation",overlayTitle,overlayBody,560,340,overlayTitle.Contains("EXCLUIR")||overlayTitle.Contains("REMOVER")||overlayTitle.Contains("SAIR")||overlayTitle.Contains("EXPULSÃO"));Btn("Cancel",box,"CANCELAR",24,268,244,44,CloseOverlay);Btn("Confirm",box,"CONFIRMAR",284,268,252,44,()=>{Action action=overlayAction;overlayAction=null;action?.Invoke();});}
+    private void RenderLeadership(){WDClanData clan=clans.LocalClan;if(clan==null){CloseOverlay();return;}RectTransform box=Modal("Leadership","TRANSFERIR LIDERANÇA","ESCOLHA UM COMANDANTE PARA ASSUMIR A LIDERANÇA DO CLÃ",560,420);float y=122;foreach(WDClanMember commander in clan.Commanders){WDClanMember choice=commander;Btn("Commander_"+choice.PlayerId,box,Name(choice.PlayerId).ToUpperInvariant(),24,y,512,44,()=>Ask("TRANSFERIR LIDERANÇA",$"Transferir a liderança para {Name(choice.PlayerId)}? Você deixará o clã.",()=>ResultAndClose(clans.TransferLeadership(clan.Id,clans.LocalPlayerId,choice.PlayerId))));y+=58;}if(clan.Commanders.Count==0)T("Empty",box,"NÃO HÁ COMANDANTES ELEGÍVEIS.",13,C("EF4444"),24,150,512,28,TextAlignmentOptions.Center,"Inter-Bold");Btn("Cancel",box,"CANCELAR",24,350,512,44,CloseOverlay);}
+    private void RenderReviews(){WDClanData clan=clans.LocalClan;WDClanMember actor=clan?.Member(clans.LocalPlayerId);if(actor==null||!WDClanPermissions.Can(actor.Role,WDClanPermission.ReviewJoinRequests)){CloseOverlay();return;}RectTransform box=Modal("Reviews","SOLICITAÇÕES DO CLÃ","ANALISE ENTRADAS E EXPULSÕES PENDENTES",760,650);float y=116;foreach(WDClanJoinRequest request in clan.JoinRequests.Take(4)){WDClanJoinRequest item=request;T("JoinName",box,Name(item.PlayerId),13,White,28,y,310,24,TextAlignmentOptions.Left,"Inter-Bold");Btn("Reject",box,"RECUSAR",396,y-6,146,36,()=>ResultAndClose(clans.DecideJoin(clan.Id,actor.PlayerId,item.Id,false)));Btn("Accept",box,"ACEITAR",558,y-6,174,36,()=>ResultAndClose(clans.DecideJoin(clan.Id,actor.PlayerId,item.Id,true)));y+=54;}foreach(WDClanKickRequest request in clan.KickRequests.Take(4)){WDClanKickRequest item=request;T("KickName",box,$"EXPULSÃO: {Name(item.TargetPlayerId)}",13,White,28,y,350,24,TextAlignmentOptions.Left,"Inter-Bold");Btn("RejectKick",box,"RECUSAR",396,y-6,146,36,()=>ResultAndClose(clans.DecideKick(clan.Id,actor.PlayerId,item.Id,false)));Btn("ApproveKick",box,"APROVAR",558,y-6,174,36,()=>ResultAndClose(clans.DecideKick(clan.Id,actor.PlayerId,item.Id,true)));y+=54;}if(clan.JoinRequests.Count+clan.KickRequests.Count==0)T("Empty",box,"NENHUMA SOLICITAÇÃO PENDENTE.",13,Muted,28,160,704,28,TextAlignmentOptions.Center,"Inter-Bold");Btn("Close",box,"VOLTAR",24,580,712,44,CloseOverlay);}
+    private void LeaveClan(WDClanData clan,WDClanMember actor){if(actor.Role!=WDClanRole.General){Ask("SAIR DO CLÃ","Você deixará de fazer parte desta aliança.",()=>ResultAndClose(clans.Leave(actor.PlayerId)));return;}WDClanMember successor=clans.OldestCommander(clan);if(successor==null){Ask("SAÍDA INDISPONÍVEL","Promova um Oficial a Comandante antes de sair.",CloseOverlay);return;}Ask("SAIR DO CLÃ",$"{Name(successor.PlayerId)} assumirá automaticamente como General por ser o Comandante mais antigo.",()=>{string id;ResultAndClose(clans.LeaveAsGeneral(clan.Id,actor.PlayerId,out id));});}
+    private void Card(string n,float x,float y,float w,float h,string text){RectTransform r=S(n,content,x,y,w,h,new Color(.031f,.067f,.114f,.94f),14);WDHomeUIFactory.AddThinRoundedBorder(r,new Color(Gold.r,Gold.g,Gold.b,.22f),14);T("Text",r,text,16,White,24,22,w-48,h-44,TextAlignmentOptions.TopLeft,"Inter-Regular");}
+    private RectTransform Panel(string n,float x,float y,float w,float h,int radius,float alpha){RectTransform r=S(n,content,x,y,w,h,C("08111D"),radius);WDHomeUIFactory.AddThinRoundedBorder(r,new Color(Gold.r,Gold.g,Gold.b,alpha),radius);return r;}
+    private static void Rule(Transform parent,float x,float y,float width){RectTransform r=R("Rule",parent);P(r,x,y,width,1);Image i=r.gameObject.AddComponent<Image>();i.color=new Color(Gold.r,Gold.g,Gold.b,.08f);i.raycastTarget=false;}
+    private static void Progress(Transform parent,float x,float y,float width,float normalized){RectTransform track=R("ProgressTrack",parent);P(track,x,y,width,4);Image ti=track.gameObject.AddComponent<Image>();ti.color=C("1E293B");WDHomeUIFactory.ApplyRounded(ti,2);RectTransform fill=R("ProgressFill",track);P(fill,0,0,width*Mathf.Clamp01(normalized),4);Image fi=fill.gameObject.AddComponent<Image>();fi.color=Gold;WDHomeUIFactory.ApplyRounded(fi,2);}
+    private void Confirm(string title,string body,Action action){if(confirm!=null)confirm(title,body,action);else action?.Invoke();}
+    private static string RoleLabel(WDClanRole role)=>role switch{WDClanRole.General=>"GENERAL",WDClanRole.Commander=>"COMANDANTE",WDClanRole.Officer=>"OFICIAL",_=>"MEMBRO"};
+    private static Color RoleColor(WDClanRole role)=>role switch{WDClanRole.General=>C("EF4444"),WDClanRole.Commander=>Gold,WDClanRole.Officer=>C("A78BFA"),_=>Muted};
+
+    private TextMeshProUGUI Resource(Transform p,string n,string icon,float x,int amount,float width){TextMeshProUGUI value=WDHomeUIFactory.BuildCanonicalResourcePill(n,p,icon,width,out RectTransform r);P(r,x,4,width,40);WDHomeUIFactory.SetResourcePillValue(value,amount,width,icon=="Coin"?180:150);return value;}
+    private void BuildBack(Transform parent){WDHomeBackButtonFactory.BuildCanonical(parent,()=>navigation.TryBack());}
+    private TMP_InputField Input(string hint,string value,float x,float y,float w,float h){RectTransform r=S("Search",content,x,y,w,h,C("0B1525"),8);WDHomeUIFactory.AddThinRoundedBorder(r,C("1E3A5F"),8);var i=r.gameObject.AddComponent<TMP_InputField>();RectTransform v=R("Viewport",r);WDHomeUIFactory.Stretch(v,38,6,14,6);var t=T("Text",v,value,13,White,0,0,w-52,h-12,TextAlignmentOptions.Left,"Inter-Regular");var ph=T("Placeholder",v,hint,13,C("475569"),0,0,w-52,h-12,TextAlignmentOptions.Left,"Inter-Regular");i.textViewport=v;i.textComponent=t;i.placeholder=ph;i.text=value;return i;}
+    private RectTransform S(string n,Transform p,float x,float y,float w,float h,Color c,int radius=0){RectTransform r=R(n,p);P(r,x,y,w,h);Image i=r.gameObject.AddComponent<Image>();i.color=c;i.raycastTarget=true;if(radius>0)WDHomeUIFactory.ApplyRounded(i,radius);return r;}
+    private void Btn(string n,Transform p,string text,float x,float y,float w,float h,UnityEngine.Events.UnityAction a){RectTransform r=R(n,p);P(r,x,y,w,h);r.gameObject.AddComponent<WDUIPremiumButton>().Build(theme,text,a);}
+    private TextMeshProUGUI T(string n,Transform p,string text,float size,Color color,float x,float y,float w,float h,TextAlignmentOptions align,string font){RectTransform r=R(n,p);P(r,x,y,w,h);var t=r.gameObject.AddComponent<TextMeshProUGUI>();t.text=text;t.fontSize=size;t.color=color;t.alignment=align;t.font=WDHomeTypography.Load(font);t.raycastTarget=false;t.textWrappingMode=TextWrappingModes.Normal;t.overflowMode=TextOverflowModes.Ellipsis;return t;}
+    private static RawImage Tex(string n,Transform p,Texture2D texture){RectTransform r=R(n,p);var i=r.gameObject.AddComponent<RawImage>();i.texture=texture;i.raycastTarget=false;return i;} private static Image Icon(string n,Transform p,string path){RectTransform r=R(n,p);var i=r.gameObject.AddComponent<Image>();i.sprite=Resources.Load<Sprite>(path);i.preserveAspect=true;i.raycastTarget=false;return i;}
+    private static RectTransform R(string n,Transform p){var g=new GameObject(n,typeof(RectTransform));var r=(RectTransform)g.transform;r.SetParent(p,false);return r;}private static void P(RectTransform r,float x,float y,float w,float h){r.anchorMin=r.anchorMax=r.pivot=new Vector2(0,1);r.anchoredPosition=new Vector2(x,-y);r.sizeDelta=new Vector2(w,h);}private static void Clear(Transform p){for(int i=p.childCount-1;i>=0;i--){var g=p.GetChild(i).gameObject;g.transform.SetParent(null,false);if(Application.isPlaying)Destroy(g);else DestroyImmediate(g);}}
+    private void Refresh(){if(IsOpen)Render();}private string Name(string id)=>profiles.Find(id)?.Nickname??id;private static Color C(string h){ColorUtility.TryParseHtmlString("#"+h,out Color c);return c;}
 }

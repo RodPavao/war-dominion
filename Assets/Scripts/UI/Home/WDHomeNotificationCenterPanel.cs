@@ -50,7 +50,7 @@ public sealed class WDHomeNotificationCenterPanel : MonoBehaviour
     // 02. CAMADA SOBRE A HOME EXISTENTE E SAFE AREA
     // ============================================================
 
-    private static readonly Color PanelColor = new Color(0.067f, 0.075f, 0.09f, 0.9f);
+    private static readonly Color PanelColor = new Color32(8, 17, 29, 255);
     private static readonly Color ItemColor = new Color(0.086f, 0.094f, 0.114f, 0.96f);
     private static readonly Color MainText = new Color(0.961f, 0.965f, 0.973f, 1f);
     private static readonly Color MutedText = new Color(0.557f, 0.573f, 0.604f, 1f);
