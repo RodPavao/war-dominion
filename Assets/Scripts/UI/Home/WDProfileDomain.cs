@@ -189,6 +189,8 @@ public sealed class WDProfileIdentityState
     public string nickname;
     public string avatarId = "avatar_01";
     public string skinId = "skin_02";
+    public string frameId = "frame_01";
+    public string effectId = "effect_01";
 }
 
 public sealed class WDMemoryProfileIdentityStore : IWDProfileIdentityStore
@@ -205,7 +207,9 @@ public sealed class WDMemoryProfileIdentityStore : IWDProfileIdentityStore
     {
         nickname = value?.nickname,
         avatarId = value?.avatarId ?? "avatar_01",
-        skinId = value?.skinId ?? "skin_02"
+        skinId = value?.skinId ?? "skin_02",
+        frameId = value?.frameId ?? "frame_01",
+        effectId = value?.effectId ?? "effect_01"
     };
 }
 
@@ -507,6 +511,10 @@ public sealed class WDProfileRepository
             NormalizeAvatarId(persistedIdentity.avatarId));
         LocalProfile.Equip(WDProfileCosmeticCategory.TerritorySkin,
             WDProfileSkinCatalog.Find(persistedIdentity.skinId)?.Id ?? WDProfileSkinCatalog.Default.Id);
+        LocalProfile.Equip(WDProfileCosmeticCategory.Frame,
+            NormalizeCosmeticId(persistedIdentity.frameId, "frame", "frame_01"));
+        LocalProfile.Equip(WDProfileCosmeticCategory.Effect,
+            NormalizeCosmeticId(persistedIdentity.effectId, "effect", "effect_01"));
         profiles[LocalProfile.PlayerId] = LocalProfile;
         profiles["WD-2847"] = CreateProfile("WD-2847", "Guest2847", "legionnaire", false,
             new WDProfilePrivacy(), WDProfileSocialState.Stranger);
@@ -548,8 +556,20 @@ public sealed class WDProfileRepository
             avatarId = WDProfileIdentityVisuals.EquippedCosmeticId(
                 LocalProfile, WDProfileCosmeticCategory.Avatar),
             skinId = WDProfileIdentityVisuals.EquippedCosmeticId(
-                LocalProfile, WDProfileCosmeticCategory.TerritorySkin)
+                LocalProfile, WDProfileCosmeticCategory.TerritorySkin),
+            frameId = WDProfileIdentityVisuals.EquippedCosmeticId(
+                LocalProfile, WDProfileCosmeticCategory.Frame),
+            effectId = WDProfileIdentityVisuals.EquippedCosmeticId(
+                LocalProfile, WDProfileCosmeticCategory.Effect)
         });
+    }
+
+    private static string NormalizeCosmeticId(string value, string prefix, string fallback)
+    {
+        if (!string.IsNullOrWhiteSpace(value) &&
+            value.StartsWith(prefix + "_", StringComparison.Ordinal))
+            return value;
+        return fallback;
     }
 
     private static string NormalizeAvatarId(string value)
@@ -672,7 +692,7 @@ public sealed class WDProfileRepository
       WDProfileCosmeticCategory.TerritorySkin => "skin", _ => "effect" };
     public static string CategoryLabel(WDProfileCosmeticCategory value) => value switch
     { WDProfileCosmeticCategory.Avatar => "AVATAR", WDProfileCosmeticCategory.Frame => "MOLDURA",
-      WDProfileCosmeticCategory.TerritorySkin => "SKIN", _ => "EFEITOS" };
+      WDProfileCosmeticCategory.TerritorySkin => "SKIN DE TERRITÓRIO", _ => "EFEITOS" };
 }
 
 public sealed class WDProfileSkinDefinition
@@ -860,6 +880,14 @@ public static class WDProfileIdentityVisuals
     {
         if (string.IsNullOrWhiteSpace(cosmeticId))
             return null;
+        // 04.1. Apenas a coleção com vínculo comercial já declarado na Loja
+        // recebe resolução de facção; as outras 13 permanecem indisponíveis.
+        if (cosmeticId == "frame_05")
+            return Resources.Load<Texture2D>(
+                "UI/Factions/Canonical/05-sons-of-odin/profile-frame_1024x1024");
+        if (cosmeticId == "effect_05")
+            return Resources.Load<Texture2D>(
+                "UI/Factions/Canonical/05-sons-of-odin/cosmetic-effect-core_1024x1024");
         string folder = category switch
         {
             WDProfileCosmeticCategory.Avatar => "Avatars/",

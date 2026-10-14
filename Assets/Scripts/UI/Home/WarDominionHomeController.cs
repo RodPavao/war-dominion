@@ -25,6 +25,8 @@ public sealed class WarDominionHomeController : MonoBehaviour
     [SerializeField] private Texture2D settingsBackgroundTexture;
     [SerializeField] private Texture2D rankingBackgroundTexture;
     [SerializeField] private Texture2D storeBackgroundTexture;
+    // 01.1. O Perfil recebe a arte oficial pela mesma autoridade serializada da Home.
+    [SerializeField] private Texture2D profileBackgroundTexture;
     [SerializeField] private Texture2D warDominionOpening16x9Texture;
     [SerializeField] private Texture2D warDominionOpeningUltrawideTexture;
     [SerializeField] private TMP_FontAsset gabaritoBlack;
@@ -378,7 +380,9 @@ public sealed class WarDominionHomeController : MonoBehaviour
             OpenModal, RefreshHomeIdentity, OpenDirectChat, OpenSocialConfirmation,
             item => { if (storePanel != null && storePanel.CatalogReady)
                 storePanel.Open(item.Category == WDProfileCosmeticCategory.Avatar ? 2 : 0);
-                else OpenModal("LOJA INDISPONÍVEL", "Catálogo local não encontrado."); });
+                else OpenModal("LOJA INDISPONÍVEL", "Catálogo local não encontrado."); },
+            () => economyRepository.Load(economyCatalog), OpenNotificationCenter,
+            profileBackgroundTexture);
 
         RectTransform friendsLayer = WDHomeUIFactory.Rect("FriendsLayer", root.transform);
         WDHomeUIFactory.Stretch(friendsLayer);

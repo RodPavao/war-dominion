@@ -33,17 +33,32 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
     private WDProfileMode? historyFilter;
     private WDProfileData currentProfile;
     private Action<WDProfileCosmetic> openStoreForCosmetic;
+    private Func<WDArmoryProfile> economyProvider;
+    private Action openNotifications;
     private WDStoreCatalogConfig storeCatalog;
     private WDProfilePresentation currentPresentation;
     private WDProfileMode selectedMode = WDProfileMode.Battle;
+    private RectTransform responsiveShell;
+    private RectTransform chrome;
+    private Vector2 lastRootSize;
+    private Rect lastSafeArea;
 
-    private static readonly Color FigmaGold = new(0.773f, 0.608f, 0.388f, 1f);
-    private static readonly Color FigmaCyan = new(0f, 0.941f, 1f, 1f);
-    private static readonly Color FigmaText = new(0.973f, 0.98f, 0.988f, 1f);
-    private static readonly Color FigmaMuted = new(0.58f, 0.64f, 0.72f, 1f);
-    private static readonly Color FigmaPanel = new(0.031f, 0.067f, 0.114f, 0.95f);
-    private static readonly Color FigmaInset = new(0.020f, 0.047f, 0.086f, 0.94f);
-    private const string ProfileAssetRoot = "UI/Profile/FigmaPhase6/";
+    // 01.1. Os tokens do Figma são sRGB. A conversão explícita evita que o
+    // Color Space Linear clareie os navies e intensifique o dourado no Canvas.
+    private static readonly Color FigmaGold = Srgb(197, 155, 99);
+    private static readonly Color FigmaCyan = Srgb(0, 240, 255);
+    private static readonly Color FigmaText = Srgb(248, 250, 252);
+    private static readonly Color FigmaMuted = Srgb(148, 163, 184);
+    private static readonly Color FigmaInk = Srgb(8, 17, 29);
+    private static readonly Color FigmaBackdrop = Srgb(6, 10, 18, .65f);
+    private static readonly Color FigmaPanel = Srgb(8, 17, 29, .95f);
+    private static readonly Color FigmaInset = Srgb(5, 12, 22);
+    private static readonly Color FigmaInsetSoft = Srgb(5, 12, 22, .902f);
+    private static readonly Color FigmaSelectedSurface = Srgb(5, 12, 22, .50f);
+    private static readonly Color FigmaElevated = Srgb(10, 22, 36);
+    private static readonly Color FigmaHeader = Srgb(7, 10, 15, .84f);
+    private static readonly Color FigmaButton = Srgb(17, 24, 32, .90f);
+    private static readonly Color FigmaModalBackdrop = new(0f, 0f, 0f, 0.70f);
     private const string HomeCanonicalRoot = "UI/Home/FigmaPhase1A/Canonical/";
 
     public bool IsOpen => gameObject.activeSelf;
@@ -59,7 +74,10 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
         WDSocialRepository socialRepository, WDNavigationStack navigationStack, Action<string, string> endpoint,
         Action onIdentityChanged, Action<string> directChatAction = null,
         Action<string, string, Action> socialConfirmation = null,
-        Action<WDProfileCosmetic> storeAction = null)
+        Action<WDProfileCosmetic> storeAction = null,
+        Func<WDArmoryProfile> economyStateProvider = null,
+        Action notificationAction = null,
+        Texture2D profileBackgroundTexture = null)
     {
         UnsubscribeFromSocial();
         theme = newTheme;
@@ -71,26 +89,45 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
         confirmSocial = socialConfirmation;
         identityChanged = onIdentityChanged;
         openStoreForCosmetic = storeAction;
+        economyProvider = economyStateProvider;
+        openNotifications = notificationAction;
         storeCatalog = Resources.Load<WDStoreCatalogConfig>("UI/Home/WDStoreCatalogConfig");
         Image blocker = gameObject.AddComponent<Image>();
         blocker.color = Color.black;
         blocker.raycastTarget = true;
-        RawImage background = Texture("ProfileBackground", transform,
-            Resources.Load<Texture2D>(ProfileAssetRoot + "ProfileBackground"));
-        WDHomeUIFactory.Stretch(background.rectTransform);
+        // 01.2. A textura serializada pela Home é a única autoridade do background.
+        RawImage background = Texture("ProfileBackground", transform, profileBackgroundTexture);
+        background.rectTransform.anchorMin = background.rectTransform.anchorMax = new Vector2(.5f, .5f);
+        background.rectTransform.pivot = new Vector2(.5f, .5f);
+        background.rectTransform.anchoredPosition = Vector2.zero;
         background.uvRect = new Rect(0f, 0f, 1f, 1f);
+        // 01.3. A arte 16:9 usa cover no Edge e no ultrawide; isso preserva a proporção
+        // original e recorta somente o excedente, como o background full bleed do Figma.
+        AspectRatioFitter backgroundCover = background.gameObject.AddComponent<AspectRatioFitter>();
+        backgroundCover.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;
+        backgroundCover.aspectRatio = profileBackgroundTexture != null
+            ? (float)profileBackgroundTexture.width / profileBackgroundTexture.height
+            : 16f / 9f;
         background.transform.SetAsFirstSibling();
-        Image veil = WDHomeUIFactory.Image("ProfileBackgroundVeil", transform,
-            new Color(0.024f, 0.039f, 0.071f, 0.65f));
+        Image veil = WDHomeUIFactory.Image("ProfileBackgroundVeil", transform, FigmaBackdrop);
         WDHomeUIFactory.Stretch(veil.rectTransform);
         veil.raycastTarget = false;
-        content = WDHomeUIFactory.Rect("ProfileContent", transform);
+        // 01.1. Header e conteúdo usam a mesma referência lógica responsiva.
+        responsiveShell = WDHomeUIFactory.Rect("ProfileResponsiveShell", transform);
+        responsiveShell.anchorMin = responsiveShell.anchorMax = new Vector2(.5f, .5f);
+        responsiveShell.pivot = new Vector2(.5f, .5f);
+        responsiveShell.sizeDelta = new Vector2(1920f, 1080f);
+        chrome = WDHomeUIFactory.Rect("ProfileChrome", responsiveShell);
+        WDHomeUIFactory.Stretch(chrome);
+        content = WDHomeUIFactory.Rect("ProfileContent", responsiveShell);
         WDHomeUIFactory.Stretch(content);
+        FitSafeArea();
         gameObject.SetActive(false);
     }
 
     private void OnEnable()
     {
+        FitSafeArea();
         if (social == null || subscribedSocial == social)
             return;
         UnsubscribeFromSocial();
@@ -99,6 +136,13 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
     }
 
     private void OnDisable() => UnsubscribeFromSocial();
+
+    private void LateUpdate()
+    {
+        RectTransform root = transform as RectTransform;
+        if (root != null && (root.rect.size != lastRootSize || Screen.safeArea != lastSafeArea))
+            FitSafeArea();
+    }
 
     public void Build(WarDominionUITheme newTheme, WDProfileRepository newRepository,
         WDNavigationStack navigationStack, Action<string, string> endpoint,
@@ -192,14 +236,15 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
         BuildHeader(own ? "MEU PERFIL" : "PERFIL");
 
         RectTransform left = Panel("IdentityPanel", content,
-            new Vector2(0.0333f, 0.0343f), new Vector2(0.2833f, 0.9213f), FigmaGold);
+            new Vector2(0.033333f, 0.059259f), new Vector2(0.283333f, 0.896296f),
+            WithAlpha(FigmaGold, .24f), WithAlpha(FigmaInk, .949f), 16);
         RectTransform avatarFrame = WDHomeUIFactory.Rect("AvatarFrame", left);
         avatarFrame.anchorMin = avatarFrame.anchorMax = new Vector2(0.5f, 1f);
         avatarFrame.pivot = new Vector2(0.5f, 1f);
         avatarFrame.anchoredPosition = new Vector2(0f, -32f);
         avatarFrame.sizeDelta = new Vector2(240f, 240f);
         Image avatarSurface = avatarFrame.gameObject.AddComponent<Image>();
-        avatarSurface.color = new Color(0.02f, 0.047f, 0.086f, 1f);
+        avatarSurface.color = FigmaInset;
         WDHomeUIFactory.ApplyRounded(avatarSurface, 12);
         RawImage avatar = Texture("Avatar", avatarFrame,
             WDProfileIdentityVisuals.ResolveAvatar(profile));
@@ -208,28 +253,34 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
         avatarAspect.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
         avatarAspect.aspectRatio = avatar.texture != null
             ? (float)avatar.texture.width / avatar.texture.height : 1f;
-        AddBorder(avatarFrame, FigmaCyan, 12);
+        // 03.1. O avatar é a exceção documentada de 2 px; demais traços do
+        // Perfil permanecem no componente fino de 1 px.
+        WDHomeUIFactory.AddRoundedBorder(avatarFrame, FigmaCyan, 12);
         AddText(left, "Nickname", profile.Nickname, 28f, FigmaText,
             new Vector2(0.08f, 0.625f), new Vector2(0.92f, 0.68f), TextAlignmentOptions.Center).fontStyle = FontStyles.Bold;
         AddText(left, "PlayerId", $"ID: {profile.PlayerId}", 14f, FigmaMuted,
             new Vector2(0.18f, 0.575f), new Vector2(0.66f, 0.62f), TextAlignmentOptions.Center);
-        AddButton(left, "CopyPlayerId", "COPIAR", () => Copy(profile.PlayerId),
-            new Vector2(0.66f, 0.577f), new Vector2(0.85f, 0.617f), false, true);
+        WDUIPremiumButton copyPlayerId = AddButton(left, "CopyPlayerId", "COPIAR",
+            () => Copy(profile.PlayerId), new Vector2(0.66f, 0.577f),
+            new Vector2(0.85f, 0.617f), false, true);
+        StyleCyanSecondaryButton(copyPlayerId);
         AddRule(left, 0.557f, FigmaGold, 0.20f);
+        // 02.1. Faixas verticais independentes preservam a sequência Identidade > Divisão > Clã > Personalização.
         AddIdentityFact(left, "Division", ResolveDivisionEmblemTexture(presentation.Division),
             "DIVISÃO", presentation.Division?.DisplayName ?? profile.Division,
-            FigmaGold, 0.514f, Color.white, presentation.Division);
+            FigmaGold, 0.525f, Color.white, presentation.Division);
         AddIdentityFact(left, "Clan", WDProfileIdentityVisuals.ResolveIcon("icon_clan"),
-            "CLÃ", profile.Clan, FigmaCyan, 0.442f, Color.white);
+            "CLÃ", profile.Clan, FigmaCyan, 0.475f, Color.white);
 
         if (own)
         {
             AddText(left, "PersonalizationTitle", "PERSONALIZAÇÃO", 11f, FigmaGold,
-                new Vector2(0.06f, 0.335f), new Vector2(0.94f, 0.365f)).fontStyle = FontStyles.Bold;
-            AddRule(left, 0.33f, FigmaGold, 0.18f);
+                new Vector2(0.06f, 0.405f), new Vector2(0.94f, 0.425f)).fontStyle = FontStyles.Bold;
+            AddRule(left, 0.397f, FigmaGold, 0.18f);
             RectTransform equipped = Panel("Equipped", left,
-                new Vector2(0.06f, 0.14f), new Vector2(0.94f, 0.32f), new Color(0f, 0.94f, 1f, 0.20f), FigmaInset);
-            AddEmptyFrameSummary(equipped, 0.52f, 0.96f);
+                new Vector2(0.06f, 0.21f), new Vector2(0.94f, 0.385f),
+                WithAlpha(FigmaCyan, .20f), FigmaElevated, 10);
+            AddFrameSummary(equipped, profile, 0.52f, 0.96f);
             AddRule(equipped, 0.50f, FigmaGold, 0.12f);
             AddSkinSummary(equipped, profile, 0.04f, 0.48f);
             AddButton(left, "Customize", "PERSONALIZAR PERFIL", OpenCustomization,
@@ -239,17 +290,17 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
             BuildSocialActions(left, profile);
 
         RectTransform stats = Panel("Statistics", content,
-            new Vector2(0.30f, 0.763f), new Vector2(0.967f, 0.946f), new Color(0.773f, 0.608f, 0.388f, 0.20f));
+            new Vector2(0.30f, 0.725926f), new Vector2(0.966667f, 0.896296f), WithAlpha(FigmaGold, .20f));
         AddSectionTitle(stats, "ESTATÍSTICAS", FigmaGold);
         AddButton(stats, "History", "HISTÓRICO DE PARTIDAS >", OpenHistory,
-            new Vector2(0.72f, 0.73f), new Vector2(0.98f, 0.94f), false, true);
+            new Vector2(0.13f, 0.73f), new Vector2(0.31f, 0.94f), false, true);
         if (presentation.CanShowStatistics)
             BuildMetricRow(stats, presentation.Statistics, new Vector2(0.02f, 0.08f), new Vector2(0.98f, 0.63f), true);
         else
             AddPrivateState(stats, "ESTATÍSTICAS PRIVADAS", "Este jogador optou por não exibir suas estatísticas.");
 
         RectTransform performance = Panel("Performance", content,
-            new Vector2(0.30f, 0.532f), new Vector2(0.758f, 0.741f), new Color(0f, 0.94f, 1f, 0.20f));
+            new Vector2(0.30f, 0.512963f), new Vector2(0.758333f, 0.701852f), WithAlpha(FigmaCyan, .20f));
         AddSectionTitle(performance, "DESEMPENHO POR MODO", FigmaCyan);
         if (presentation.CanShowModePerformance)
             BuildModeStats(performance, presentation.ModeStats);
@@ -257,12 +308,12 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
             AddPrivateState(performance, "DESEMPENHO PRIVADO", "Este jogador optou por não exibir seu desempenho por modo.");
 
         RectTransform division = Panel("CurrentDivision", content,
-            new Vector2(0.77f, 0.532f), new Vector2(0.967f, 0.741f), new Color(0.773f, 0.608f, 0.388f, 0.20f));
+            new Vector2(0.770833f, 0.512963f), new Vector2(0.966667f, 0.701852f), WithAlpha(FigmaGold, .20f));
         AddSectionTitle(division, "DIVISÃO ATUAL", FigmaGold);
         BuildDivisionDisplay(division, presentation.Division, profile.DivisionPoints);
 
         RectTransform achievements = Panel("Achievements", content,
-            new Vector2(0.30f, 0.348f), new Vector2(0.967f, 0.51f), new Color(0.773f, 0.608f, 0.388f, 0.20f));
+            new Vector2(0.30f, 0.338889f), new Vector2(0.966667f, 0.490741f), WithAlpha(FigmaGold, .20f));
         AddSectionTitle(achievements, "CONQUISTAS", FigmaGold);
         if (presentation.CanShowMissionsAchievements)
         {
@@ -342,12 +393,14 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
         if (customizationModal != null)
             DestroyNow(customizationModal);
         customizationModal = ModalBlocker("ProfileCustomization", CloseCustomization);
+        // 04.1. O modal ocupa a área 1320 x 912 do master 1920 x 1080.
         RectTransform panel = Panel("Panel", customizationModal.transform,
-            new Vector2(0.16f, 0.115f), new Vector2(0.84f, 0.89f), FigmaGold);
-        AddText(panel, "Title", "PERSONALIZAR PERFIL", 27f, FigmaText,
-            new Vector2(0.03f, 0.90f), new Vector2(0.97f, 0.97f), TextAlignmentOptions.Center).fontStyle = FontStyles.Bold;
-        AddText(panel, "Subtitle", "ESCOLHA SUA APARÊNCIA · PRÉ-VISUALIZE ANTES DE SALVAR", 12f, FigmaMuted,
-            new Vector2(0.03f, 0.855f), new Vector2(0.97f, 0.90f), TextAlignmentOptions.Center);
+            new Vector2(0.15625f, 0.07778f), new Vector2(0.84375f, 0.92222f),
+            FigmaGold, null, 16);
+        AddText(panel, "Title", "PERSONALIZAR PERFIL", 28f, FigmaText,
+            new Vector2(0.021f, 0.91f), new Vector2(0.979f, 0.97f)).fontStyle = FontStyles.Bold;
+        AddText(panel, "Subtitle", "Gerencie seus itens visuais do perfil com uma pré-visualização clara e uma grade organizada de itens disponíveis.", 14f, FigmaMuted,
+            new Vector2(0.021f, 0.865f), new Vector2(0.979f, 0.91f));
         WDProfileCosmeticCategory[] categories = (WDProfileCosmeticCategory[])Enum.GetValues(typeof(WDProfileCosmeticCategory));
         for (int i = 0; i < categories.Length; i++)
         {
@@ -355,14 +408,14 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
             WDUIPremiumButton tab = AddButton(panel, $"Tab_{captured}",
                 WDProfileRepository.CategoryLabel(captured),
                 () => { category = captured; RenderCustomization(); },
-                new Vector2(0.03f + i * 0.235f, 0.785f),
-                new Vector2(0.255f + i * 0.235f, 0.845f),
+                new Vector2(0.021f + i * 0.241f, 0.812f),
+                new Vector2(0.253f + i * 0.241f, 0.873f),
                 captured == category, true);
             StyleModeButton(tab, captured == category);
         }
         RectTransform preview = Panel("Preview", panel,
-            new Vector2(0.03f, 0.17f), new Vector2(0.30f, 0.765f),
-            new Color(FigmaCyan.r, FigmaCyan.g, FigmaCyan.b, 0.20f));
+            new Vector2(0.021f, 0.118f), new Vector2(0.294f, 0.785f),
+            WithAlpha(FigmaCyan, .20f));
         AddText(preview, "PreviewTitle", "PRÉ-VISUALIZAÇÃO", 14f, FigmaGold,
             new Vector2(0.06f, 0.91f), new Vector2(0.94f, 0.97f), TextAlignmentOptions.Center).fontStyle = FontStyles.Bold;
         BuildCustomizationPreview(preview);
@@ -373,8 +426,8 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
         AddButton(preview, "EditName", "EDITAR NOME", OpenNicknameEditor,
             new Vector2(0.15f, 0.06f), new Vector2(0.85f, 0.16f), false, true);
         RectTransform grid = Panel("Items", panel,
-            new Vector2(0.32f, 0.17f), new Vector2(0.97f, 0.765f),
-            new Color(FigmaGold.r, FigmaGold.g, FigmaGold.b, 0.20f));
+            new Vector2(0.312f, 0.118f), new Vector2(0.979f, 0.785f),
+            WithAlpha(FigmaGold, .20f));
         if (category == WDProfileCosmeticCategory.Avatar)
         {
             RectTransform itemContent = CreateCustomizationScroll(grid);
@@ -386,11 +439,14 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
             BuildSkinCustomization(itemContent);
         }
         else
-            BuildComingSoon(grid, WDProfileRepository.CategoryLabel(category));
+        {
+            RectTransform itemContent = CreateCustomizationScroll(grid);
+            BuildCosmeticCustomization(itemContent, category);
+        }
         AddButton(panel, "Cancel", "CANCELAR", CloseCustomization,
-            new Vector2(0.03f, 0.045f), new Vector2(0.30f, 0.13f));
+            new Vector2(0.021f, 0.03f), new Vector2(0.263f, 0.091f));
         AddButton(panel, "Save", "SALVAR ALTERAÇÕES", SaveCustomization,
-            new Vector2(0.32f, 0.045f), new Vector2(0.97f, 0.13f), true);
+            new Vector2(0.275f, 0.03f), new Vector2(0.979f, 0.091f), true);
     }
 
     private void BuildCustomizationPreview(RectTransform preview)
@@ -425,11 +481,29 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
             AddBorder(slot, FigmaCyan, 18);
             return;
         }
+        string itemId = customization.Preview.GetValueOrDefault(category, string.Empty);
+        Texture2D thumbnail = WDProfileIdentityVisuals.ResolveCosmeticThumbnail(category, itemId);
         Image empty = slot.gameObject.AddComponent<Image>();
         empty.color = FigmaInset;
         WDHomeUIFactory.ApplyRounded(empty, 18);
-        AddBorder(slot, new Color(FigmaGold.r, FigmaGold.g, FigmaGold.b, 0.35f), 18);
-        AddLockIcon(slot, "Lock", new Vector2(0.5f, 0.5f), 32f);
+        if (thumbnail != null)
+        {
+            RawImage artwork = Texture("Artwork", slot, thumbnail);
+            Anchor(artwork.rectTransform, new Vector2(.06f, .06f), new Vector2(.94f, .94f));
+            AspectRatioFitter aspect = artwork.gameObject.AddComponent<AspectRatioFitter>();
+            aspect.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+            aspect.aspectRatio = (float)thumbnail.width / thumbnail.height;
+        }
+        else if (category == WDProfileCosmeticCategory.Frame)
+            AddBorder(slot, WithAlpha(FigmaGold, .75f), 18);
+        else
+        {
+            Image effect = WDHomeUIFactory.Image("Effect", slot,
+                WithAlpha(FigmaCyan, .18f));
+            Anchor(effect.rectTransform, new Vector2(.18f, .18f), new Vector2(.82f, .82f));
+            WDHomeUIFactory.ApplyRounded(effect, 56);
+        }
+        AddBorder(slot, FigmaCyan, 18);
     }
 
     private static RectTransform CreateCustomizationScroll(RectTransform panel)
@@ -459,7 +533,7 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
         scrollbarRect.offsetMin = new Vector2(-15f, 12f);
         scrollbarRect.offsetMax = new Vector2(-7f, -12f);
         Image track = scrollbarRect.gameObject.AddComponent<Image>();
-        track.color = new Color(0.012f, 0.031f, 0.055f, 0.88f);
+        track.color = Srgb(3, 8, 14, .88f);
         WDHomeUIFactory.ApplyRounded(track, 4);
         Scrollbar scrollbar = scrollbarRect.gameObject.AddComponent<Scrollbar>();
         scrollbar.direction = Scrollbar.Direction.BottomToTop;
@@ -470,7 +544,7 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
         RectTransform handle = WDHomeUIFactory.Rect("Handle", slidingArea);
         WDHomeUIFactory.Stretch(handle);
         Image handleImage = handle.gameObject.AddComponent<Image>();
-        handleImage.color = new Color(FigmaGold.r, FigmaGold.g, FigmaGold.b, 0.82f);
+        handleImage.color = WithAlpha(FigmaGold, .82f);
         WDHomeUIFactory.ApplyRounded(handleImage, 3);
         scrollbar.handleRect = handle;
         scrollbar.targetGraphic = handleImage;
@@ -490,7 +564,10 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
                 ?? WDProfileSkinCatalog.Default;
             return "SKIN\n" + TitleCase(skin.DisplayName);
         }
-        return WDProfileRepository.CategoryLabel(category) + "\nEM BREVE";
+        string selectedId = customization.Preview.GetValueOrDefault(category, string.Empty);
+        WDProfileCosmetic selected = repository.Cosmetics.FirstOrDefault(item => item.Id == selectedId);
+        return WDProfileRepository.CategoryLabel(category) + "\n" +
+            (selected?.Name ?? "NENHUM ITEM");
     }
 
     private void BuildAvatarCustomization(RectTransform grid)
@@ -553,9 +630,9 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
             button.SetPersistentColors(skin.Color,
                 Color.Lerp(skin.Color, Color.white, 0.12f));
             button.SetLabelColor(Color.white);
-            Image border = button.transform.Find("Border")?.GetComponent<Image>();
+            Image border = button.transform.Find("ThinBorder")?.GetComponent<Image>();
             if (border != null)
-                border.color = isSelected ? FigmaCyan : new Color(0.02f, 0.04f, 0.07f, 0.9f);
+                border.color = isSelected ? FigmaCyan : Srgb(5, 10, 18, .90f);
             TextMeshProUGUI label = button.GetComponentInChildren<TextMeshProUGUI>();
             if (label != null)
             {
@@ -566,6 +643,60 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
             }
         }
         BuildComingSoonStrip(grid, "SKINS ADQUIRIDAS", 0.015f, 0.22f);
+    }
+
+    private void BuildCosmeticCustomization(RectTransform grid,
+        WDProfileCosmeticCategory targetCategory)
+    {
+        // 04.1. Molduras e efeitos consomem o catálogo/propriedade existente.
+        // Itens bloqueados encaminham à Loja sem conceder propriedade.
+        string section = targetCategory == WDProfileCosmeticCategory.Frame
+            ? "MOLDURAS DISPONÍVEIS" : "EFEITOS DISPONÍVEIS";
+        AddText(grid, "BasicTitle", section, 14f, FigmaCyan,
+            new Vector2(.03f, .91f), new Vector2(.97f, .98f)).fontStyle = FontStyles.Bold;
+        string equipped = WDProfileIdentityVisuals.EquippedCosmeticId(
+            repository.LocalProfile, targetCategory);
+        string selected = customization.Preview.GetValueOrDefault(targetCategory, equipped);
+        WDProfileCosmetic[] items = repository.Cosmetics
+            .Where(item => item.Category == targetCategory).ToArray();
+        for (int i = 0; i < items.Length; i++)
+        {
+            WDProfileCosmetic item = items[i];
+            int column = i % 4;
+            int row = i / 4;
+            float x = .03f + column * .2425f;
+            float top = .89f - row * .40f;
+            bool isSelected = selected == item.Id;
+            string state = !item.Owned ? "BLOQUEADO" :
+                isSelected && equipped == item.Id ? "EQUIPADO" :
+                isSelected ? "SELECIONADO" : "DISPONÍVEL";
+            WDUIPremiumButton button = AddButton(grid, item.Id,
+                item.Name + "\n" + state, () =>
+                {
+                    if (!item.Owned)
+                    {
+                        openStoreForCosmetic?.Invoke(item);
+                        return;
+                    }
+                    customization.PreviewItem(item.Id);
+                    RenderCustomization();
+                }, new Vector2(x, top - .34f), new Vector2(x + .225f, top),
+                isSelected, true);
+            StyleModeButton(button, isSelected);
+            Texture2D thumbnail = WDProfileIdentityVisuals.ResolveCosmeticThumbnail(
+                targetCategory, item.Id);
+            if (thumbnail != null)
+            {
+                RawImage artwork = Texture("Artwork", button.transform, thumbnail);
+                Anchor(artwork.rectTransform, new Vector2(.08f, .25f), new Vector2(.92f, .93f));
+                artwork.transform.SetAsFirstSibling();
+            }
+            if (!item.Owned)
+                AddLockIcon(button.transform, "Lock", new Vector2(.5f, .62f), 28f);
+            TextMeshProUGUI label = button.GetComponentInChildren<TextMeshProUGUI>();
+            if (label != null)
+                Anchor(label.rectTransform, new Vector2(.04f, .02f), new Vector2(.96f, .24f));
+        }
     }
 
     private void BuildComingSoon(RectTransform parent, string section)
@@ -583,7 +714,7 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
     {
         RectTransform strip = Panel("ComingSoon_" + title, parent,
             new Vector2(0.03f, minY), new Vector2(0.97f, maxY),
-            new Color(FigmaGold.r, FigmaGold.g, FigmaGold.b, 0.20f), FigmaInset);
+            WithAlpha(FigmaGold, .20f), FigmaInset);
         AddLockIcon(strip, "Lock", new Vector2(0.065f, 0.5f), 22f);
         AddText(strip, "Title", title + "  ·  EM BREVE", 12f, FigmaGold,
             new Vector2(0.11f, 0.52f), new Vector2(0.96f, 0.88f)).fontStyle = FontStyles.Bold;
@@ -632,10 +763,10 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
         nicknameInput.characterLimit = WDUIContentContracts.NicknameMaxLength;
         WDUITextPolicies.Apply(text, WDUITextPolicy.SingleLineEllipsis);
         nicknameInput.text = repository.LocalProfile.Nickname;
-        Image focusBorder = field.Find("Border")?.GetComponent<Image>();
+        Image focusBorder = field.Find("ThinBorder")?.GetComponent<Image>();
         WDHomeUIFactory.ConfigureEditableInputVisuals(
             nicknameInput, field.GetComponent<Image>(), focusBorder,
-            new Color(FigmaGold.r, FigmaGold.g, FigmaGold.b, 0.20f), FigmaCyan);
+            WithAlpha(FigmaGold, .20f), FigmaCyan);
         AddButton(panel, "Cancel", "CANCELAR", CloseNicknameEditor, new Vector2(0.08f, 0.12f), new Vector2(0.45f, 0.32f));
         AddButton(panel, "Confirm", "SALVAR", ConfirmNickname, new Vector2(0.55f, 0.12f), new Vector2(0.92f, 0.32f), true);
     }
@@ -674,46 +805,89 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
         Clear(content);
         BuildHeader("HISTÓRICO DE PARTIDAS");
         RectTransform body = Panel("History", content,
-            new Vector2(0.033f, 0.059f), new Vector2(0.967f, 0.935f), new Color(FigmaGold.r, FigmaGold.g, FigmaGold.b, 0.20f));
+            new Vector2(0.033333f, 0.059259f), new Vector2(0.966667f, 0.896296f),
+            WithAlpha(FigmaGold, .20f), null, 16);
         if (!presentation.CanShowMatchHistory)
         {
             VisibleHistoryCount = 0;
             AddPrivateState(body, "HISTÓRICO DE PARTIDAS PRIVADO", "Este jogador optou por não exibir seu histórico de partidas.");
             return;
         }
+        // 05.1. O cabeçalho e os filtros permanecem fora da viewport rolável.
+        AddText(body, "HistoryTitle", "HISTÓRICO", 18f, FigmaGold,
+            new Vector2(.013f, .91f), new Vector2(.40f, .975f)).fontStyle = FontStyles.Bold;
         (string, WDProfileMode?)[] filters = { ("TODAS", null), ("BATALHA", WDProfileMode.Battle),
             ("1V1", WDProfileMode.OneVsOne), ("2V2", WDProfileMode.TwoVsTwo), ("3V3", WDProfileMode.ThreeVsThree) };
         for (int i = 0; i < filters.Length; i++)
         {
             var filter = filters[i];
-            AddButton(body, $"Filter_{filter.Item1}", filter.Item1, () => { historyFilter = filter.Item2; RenderHistory(presentation); },
-                new Vector2(0.02f + i * 0.105f, 0.91f), new Vector2(0.115f + i * 0.105f, 0.975f), historyFilter == filter.Item2, true);
+            WDUIPremiumButton filterButton = AddButton(body, $"Filter_{filter.Item1}", filter.Item1, () => { historyFilter = filter.Item2; RenderHistory(presentation); },
+                new Vector2(0.013f + i * 0.052f, 0.855f), new Vector2(0.058f + i * 0.052f, 0.895f), historyFilter == filter.Item2, true);
+            StyleModeButton(filterButton, historyFilter == filter.Item2);
         }
         AddText(body, "Recent", "ÚLTIMAS 10 PARTIDAS", 12f, FigmaMuted,
             new Vector2(0.76f, 0.91f), new Vector2(0.98f, 0.975f), TextAlignmentOptions.Right).fontStyle = FontStyles.Bold;
         IReadOnlyList<WDProfileMatchRecord> rows = WDProfileRepository.FilterHistory(presentation, historyFilter);
         VisibleHistoryCount = rows.Count;
+        if (rows.Count == 0)
+        {
+            AddText(body, "EmptyHistory", "NENHUMA PARTIDA REGISTRADA", 16f,
+                FigmaMuted, new Vector2(.12f, .32f), new Vector2(.88f, .68f),
+                TextAlignmentOptions.Center).fontStyle = FontStyles.Bold;
+            return;
+        }
+        // 05.2. As partidas compartilham uma única superfície; linhas internas
+        // são separadas por regras discretas e rolam dentro da área útil.
+        RectTransform list = Panel("HistoryList", body,
+            new Vector2(.013f, .03f), new Vector2(.987f, .835f),
+            WithAlpha(FigmaCyan, .20f), FigmaSelectedSurface);
+        list.gameObject.AddComponent<RectMask2D>();
+        ScrollRect historyScroll = list.gameObject.AddComponent<ScrollRect>();
+        historyScroll.horizontal = false;
+        historyScroll.vertical = true;
+        historyScroll.movementType = ScrollRect.MovementType.Clamped;
+        RectTransform rowContent = WDHomeUIFactory.Rect("Rows", list);
+        rowContent.anchorMin = new Vector2(0f, 1f);
+        rowContent.anchorMax = new Vector2(1f, 1f);
+        rowContent.pivot = new Vector2(.5f, 1f);
+        rowContent.anchoredPosition = Vector2.zero;
+        rowContent.sizeDelta = new Vector2(0f, Mathf.Max(696f, rows.Count * 155f));
+        historyScroll.viewport = list;
+        historyScroll.content = rowContent;
         for (int i = 0; i < rows.Count; i++)
         {
             WDProfileMatchRecord row = rows[i];
-            float top = 0.885f - i * 0.081f;
-            RectTransform match = Panel($"Match_{i}", body,
-                new Vector2(0.02f, top - 0.071f), new Vector2(0.98f, top),
-                new Color(FigmaGold.r, FigmaGold.g, FigmaGold.b, 0.15f), FigmaInset);
+            RectTransform match = WDHomeUIFactory.Rect($"Match_{i}", rowContent);
+            match.anchorMin = new Vector2(0f, 1f);
+            match.anchorMax = new Vector2(1f, 1f);
+            match.pivot = new Vector2(.5f, 1f);
+            match.anchoredPosition = new Vector2(0f, -i * 155f);
+            match.sizeDelta = new Vector2(0f, 155f);
             Color resultColor = row.Result.Contains("VITÓRIA") ? FigmaCyan :
-                row.Result.Contains("DERROTA") ? new Color(1f, 0.20f, 0.30f, 1f) : FigmaGold;
-            AddText(match, "Result", row.Result, 12f, resultColor,
-                new Vector2(0.015f, 0.18f), new Vector2(0.14f, 0.82f), TextAlignmentOptions.Center).fontStyle = FontStyles.Bold;
+                row.Result.Contains("DERROTA") ? Srgb(255, 51, 77) : FigmaGold;
+            // 05.3. Resultado usa chip sem transformar a linha inteira em cartão.
+            RectTransform resultChip = Panel("ResultChip", match,
+                new Vector2(0.012f, 0.58f), new Vector2(0.09f, 0.82f),
+                resultColor, row.Result.Contains("DERROTA")
+                    ? Srgb(18, 13, 11) : FigmaElevated);
+            TextMeshProUGUI result = AddText(resultChip, "Result", row.Result, 12f, resultColor,
+                Vector2.zero, Vector2.one, TextAlignmentOptions.Center);
+            result.font = theme.MasterGabaritoExtraBold ?? result.font;
+            result.fontStyle = FontStyles.Normal;
             AddText(match, "Summary", $"{row.MapName} · {ModeLabel(row.Mode)}" +
                 (string.IsNullOrEmpty(row.SubmodeId) ? string.Empty : $" · {row.SubmodeId}") +
-                $"\n{row.Participants}   {row.PlayedAt}   PARTIDA: {row.MatchId}",
-                12f, FigmaText, new Vector2(0.15f, 0.12f), new Vector2(0.68f, 0.88f));
-            AddText(match, "Trophies", $"{(row.TrophiesEarned >= 0 ? "+" : string.Empty)}{row.TrophiesEarned} PONTOS", 12f,
-                resultColor, new Vector2(0.67f, 0.18f), new Vector2(0.80f, 0.82f), TextAlignmentOptions.Center).fontStyle = FontStyles.Bold;
-            AddButton(match, $"Copy_{i}", "COPIAR ID", () => Copy(row.MatchId),
-                new Vector2(0.805f, 0.16f), new Vector2(0.885f, 0.84f), false, true);
+                $"\n{row.Participants}\n{row.PlayedAt}",
+                13f, FigmaText, new Vector2(0.14f, 0.16f), new Vector2(0.67f, 0.86f));
+            AddText(match, "MatchId", $"PARTIDA: {row.MatchId}", 13f, FigmaText,
+                new Vector2(0.70f, 0.62f), new Vector2(0.985f, 0.86f), TextAlignmentOptions.Right).fontStyle = FontStyles.Bold;
+            WDUIPremiumButton copyMatchId = AddButton(match, $"Copy_{i}", "COPIAR ID",
+                () => Copy(row.MatchId), new Vector2(0.82f, 0.42f),
+                new Vector2(0.90f, 0.64f), false, true);
+            StyleCyanSecondaryButton(copyMatchId);
             AddButton(match, $"Replay_{i}", "VER DETALHES", () => RequestReplay(row.MatchId),
-                new Vector2(0.89f, 0.16f), new Vector2(0.985f, 0.84f), true, true);
+                new Vector2(0.905f, 0.40f), new Vector2(0.985f, 0.66f), true, true);
+            if (i < rows.Count - 1)
+                AddRule(match, 0f, FigmaGold, .12f);
         }
     }
 
@@ -729,30 +903,78 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
 
     private void BuildHeader(string title)
     {
-        WDHomeBackButtonFactory.BuildCanonical(content, () => navigation.TryBack());
-        RectTransform titleGroup = WDHomeUIFactory.Rect("TitleCenter", content);
-        titleGroup.anchorMin = titleGroup.anchorMax = new Vector2(0.5f, 0.972f);
-        titleGroup.sizeDelta = new Vector2(300f, 52f);
-        titleGroup.anchoredPosition = Vector2.zero;
-        Image leftLine = WDHomeUIFactory.Image("TitleLeftAccent", titleGroup, FigmaCyan);
-        Place(leftLine.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(-118f, 0f), new Vector2(32f, 2f));
-        AddText(titleGroup, "ScreenTitle", title, 24f, FigmaText,
-            new Vector2(0.17f, 0f), new Vector2(0.83f, 1f), TextAlignmentOptions.Center).fontStyle = FontStyles.Bold;
-        Image rightLine = WDHomeUIFactory.Image("TitleRightAccent", titleGroup, FigmaCyan);
-        Place(rightLine.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(118f, 0f), new Vector2(32f, 2f));
+        Clear(chrome);
+        WDUniversalHeaderContent header = WDUniversalHeaderFactory.BuildInset(
+            chrome, theme, title, () => navigation.TryBack(),
+            openNotifications == null ? null : () => openNotifications.Invoke());
+
+        // 06.1. Perfil usa a margem oficial de 64 px dos frames 355/435/448.
+        header.Root.anchorMin = new Vector2(0f, 1f);
+        header.Root.anchorMax = new Vector2(1f, 1f);
+        header.Root.pivot = new Vector2(.5f, 1f);
+        header.Root.offsetMin = new Vector2(64f, -96f);
+        header.Root.offsetMax = new Vector2(-64f, -24f);
+
+        // 06.2. O Header do Perfil aplica localmente os valores oficiais do
+        // frame 355:9 sem alterar a fábrica universal nem seus consumidores.
+        ApplyProfileSurface(header.Root, FigmaHeader, WithAlpha(FigmaGold, .62f), 8);
+        RectTransform backRoot = header.BackButton != null
+            ? header.BackButton.transform as RectTransform : null;
+        ApplyProfileSurface(backRoot, FigmaButton, WithAlpha(FigmaGold, .24f), 10);
+
+        WDArmoryProfile economy = economyProvider?.Invoke();
+        header.CoinValue.text = (economy?.Coins ?? 0).ToString("N0");
+        header.GemValue.text = (economy?.Emeralds ?? 0).ToString("N0");
+    }
+
+    // ============================================================
+    // 06.2. SHELL RESPONSIVO COMPARTILHADO PELO HEADER E PELO CONTEÚDO
+    // ============================================================
+    private void FitSafeArea()
+    {
+        if (responsiveShell == null) return;
+        RectTransform root = transform as RectTransform;
+        if (root == null) return;
+        Rect available = root.rect;
+        Canvas canvas = GetComponentInParent<Canvas>();
+        if (canvas != null && canvas.renderMode != RenderMode.WorldSpace &&
+            Screen.width > 0 && Screen.height > 0)
+        {
+            Camera camera = canvas.renderMode == RenderMode.ScreenSpaceOverlay
+                ? null : canvas.worldCamera;
+            Rect safe = Screen.safeArea;
+            if (RectTransformUtility.ScreenPointToLocalPointInRectangle(root, safe.min, camera, out Vector2 min) &&
+                RectTransformUtility.ScreenPointToLocalPointInRectangle(root, safe.max, camera, out Vector2 max))
+            {
+                min = Vector2.Max(min, root.rect.min);
+                max = Vector2.Min(max, root.rect.max);
+                if (max.x > min.x && max.y > min.y)
+                    available = Rect.MinMaxRect(min.x, min.y, max.x, max.y);
+            }
+        }
+        responsiveShell.anchorMin = responsiveShell.anchorMax = new Vector2(.5f, .5f);
+        responsiveShell.pivot = new Vector2(.5f, .5f);
+        responsiveShell.sizeDelta = new Vector2(
+            Mathf.Min(available.width, 1920f), Mathf.Min(available.height, 1080f));
+        responsiveShell.localPosition = new Vector3(available.center.x, available.center.y, 0f);
+        responsiveShell.localScale = Vector3.one;
+        lastRootSize = root.rect.size;
+        lastSafeArea = Screen.safeArea;
     }
 
     private RectTransform Panel(string name, Transform parent, Vector2 min, Vector2 max) =>
-        Panel(name, parent, min, max, new Color(0.773f, 0.608f, 0.388f, 0.20f));
+        Panel(name, parent, min, max, WithAlpha(FigmaGold, .20f));
 
     private RectTransform Panel(string name, Transform parent, Vector2 min, Vector2 max,
-        Color border, Color? fill = null)
+        Color border, Color? fill = null, int radius = 12)
     {
         RectTransform rect = WDHomeUIFactory.Rect(name, parent); rect.anchorMin = min; rect.anchorMax = max;
         rect.offsetMin = rect.offsetMax = Vector2.zero;
         Image image = rect.gameObject.AddComponent<Image>(); image.color = fill ?? FigmaPanel; image.raycastTarget = true;
-        WDHomeUIFactory.ApplyRounded(image, 12);
-        AddBorder(rect, border, 12);
+        WDHomeUIFactory.ApplyRounded(image, radius);
+        // 07.1. Cada família mantém seu raio oficial; o Graphic fino produz
+        // traço interno de 1 px independente do fill e da opacidade do painel.
+        WDHomeUIFactory.AddThinRoundedBorder(rect, border, radius);
         return rect;
     }
 
@@ -760,6 +982,11 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
         Vector2 min, Vector2 max, TextAlignmentOptions alignment = TextAlignmentOptions.Left)
     {
         TextMeshProUGUI label = WDHomeUIFactory.Text(name, parent, theme, value, size, color, alignment);
+        bool displayFace = name.Contains("Title", StringComparison.Ordinal) ||
+            name is "Nickname" or "Value" or "DivisionName" or "Result" or "Trophies";
+        label.font = displayFace
+            ? theme.MasterGabaritoBold ?? label.font
+            : theme.MasterInterRegular ?? label.font;
         label.rectTransform.anchorMin = min; label.rectTransform.anchorMax = max;
         label.rectTransform.offsetMin = label.rectTransform.offsetMax = Vector2.zero;
         if (name == "Nickname" || name == "PlayerId")
@@ -769,44 +996,71 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
         return label;
     }
 
-    private void AddSectionTitle(Transform parent, string value, Color color) =>
-        AddText(parent, "SectionTitle", value, 18f, color,
-            new Vector2(0.02f, 0.73f), new Vector2(0.72f, 0.96f)).fontStyle = FontStyles.Bold;
+    private void AddSectionTitle(Transform parent, string value, Color color)
+    {
+        TextMeshProUGUI title = AddText(parent, "SectionTitle", value, 18f, color,
+            new Vector2(0.02f, 0.73f), new Vector2(0.72f, 0.96f));
+        title.font = theme.MasterGabaritoExtraBold ?? title.font;
+        title.fontStyle = FontStyles.Normal;
+    }
 
     private WDUIPremiumButton AddButton(Transform parent, string name, string label, UnityAction action,
         Vector2 min, Vector2 max, bool primary = false, bool compact = false)
     {
         RectTransform rect = WDHomeUIFactory.Rect(name, parent); rect.anchorMin = min; rect.anchorMax = max;
         rect.offsetMin = rect.offsetMax = Vector2.zero;
-        WDUIPremiumButton button = rect.gameObject.AddComponent<WDUIPremiumButton>(); button.Build(theme, label, action);
+        // 07.3. O botão cria uma única borda fina; o Perfil não sobrepõe uma segunda imagem decorativa.
+        WDUIPremiumButton button = rect.gameObject.AddComponent<WDUIPremiumButton>();
+        button.Build(theme, label, action, true);
         Image image = rect.GetComponent<Image>();
         if (image != null)
         {
-            image.color = primary ? FigmaGold : FigmaInset;
+            image.color = primary ? FigmaGold : FigmaElevated;
             WDHomeUIFactory.ApplyRounded(image, compact ? 7 : 9);
         }
         TextMeshProUGUI text = rect.GetComponentInChildren<TextMeshProUGUI>();
         if (text != null)
         {
-            text.color = primary ? new Color(0.031f, 0.067f, 0.114f, 1f) : FigmaGold;
+            text.font = theme.MasterGabaritoBold ?? text.font;
+            text.color = primary ? FigmaInk : FigmaGold;
             text.fontSize = compact ? 11f : 14f;
-            text.fontStyle = FontStyles.Bold;
+            text.fontStyle = FontStyles.Normal;
         }
         if (primary)
         {
             button.SetPersistentColors(FigmaGold,
                 Color.Lerp(FigmaGold, Color.white, 0.12f));
-            button.SetLabelColor(new Color(0.031f, 0.067f, 0.114f, 1f));
+            button.SetLabelColor(FigmaInk);
         }
-        AddBorder(rect, primary ? FigmaGold : new Color(FigmaGold.r, FigmaGold.g, FigmaGold.b, 0.55f), compact ? 7 : 9);
+        Image border = rect.Find("ThinBorder")?.GetComponent<Image>();
+        if (border != null)
+            border.color = primary ? FigmaGold :
+                WithAlpha(FigmaGold, .20f);
         return button;
+    }
+
+    // 07.3.1. Ações de cópia usam a variante ciano documentada no Perfil e
+    // não herdam o contorno dourado dos demais botões secundários.
+    private static void StyleCyanSecondaryButton(WDUIPremiumButton button)
+    {
+        if (button == null) return;
+        Image border = button.transform.Find("ThinBorder")?.GetComponent<Image>();
+        if (border != null) border.color = WithAlpha(FigmaCyan, .20f);
+        TextMeshProUGUI label = button.GetComponentInChildren<TextMeshProUGUI>();
+        if (label != null) label.color = FigmaCyan;
     }
 
     private void AddPrivateState(Transform parent, string title, string body)
     {
-        AddLockIcon(parent, "PrivateLock", new Vector2(0.5f, 0.68f), 24f);
-        AddText(parent, "PrivateState", $"{title}\n{body}", 17f, FigmaMuted,
-            new Vector2(0.08f, 0.08f), new Vector2(0.92f, 0.60f), TextAlignmentOptions.Center);
+        bool cyan = parent.name == "Performance";
+        AddLockIcon(parent, "PrivateLock", new Vector2(0.5f, 0.66f), 24f,
+            cyan ? FigmaCyan : FigmaGold);
+        TextMeshProUGUI heading = AddText(parent, "PrivateTitle", title, 18f, FigmaText,
+            new Vector2(0.08f, 0.34f), new Vector2(0.92f, 0.53f), TextAlignmentOptions.Center);
+        heading.font = theme.MasterGabaritoExtraBold ?? heading.font;
+        heading.fontStyle = FontStyles.Normal;
+        AddText(parent, "PrivateBody", body, 14f, FigmaMuted,
+            new Vector2(0.08f, 0.16f), new Vector2(0.92f, 0.35f), TextAlignmentOptions.Center);
     }
 
     // ============================================================
@@ -818,11 +1072,20 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
         WDDivisionDefinition division = null)
     {
         RectTransform iconHolder = WDHomeUIFactory.Rect(name + "IconHolder", parent);
-        iconHolder.anchorMin = iconHolder.anchorMax = new Vector2(0.11f, centerY);
+        // 07.4. Identidade usa os ícones compactos de 20 px do frame 355:9.
+        iconHolder.anchorMin = iconHolder.anchorMax = new Vector2(0.09f, centerY);
         iconHolder.pivot = new Vector2(0.5f, 0.5f);
         iconHolder.anchoredPosition = new Vector2(0f, -3f);
-        float iconSide = name == "Division" ? 56f : 34f;
+        const float iconSide = 20f;
         iconHolder.sizeDelta = new Vector2(iconSide, iconSide);
+        // 07.4. O item de divisão usa o mesmo medalhão-base reaproveitado pelas
+        // onze divisões; o emblema específico permanece como camada interna.
+        if (division != null)
+        {
+            RawImage medallion = Texture(name + "Medallion", iconHolder,
+                WDDivisionVisuals.ResolveMedallion());
+            WDHomeUIFactory.Stretch(medallion.rectTransform);
+        }
         RawImage icon = Texture(name + "Icon", iconHolder, iconTexture);
         icon.color = iconColor;
         WDHomeUIFactory.Stretch(icon.rectTransform);
@@ -837,23 +1100,36 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
             aspect.aspectRatio = icon.texture != null
                 ? (float)icon.texture.width / icon.texture.height : 1f;
         }
-        const float textLeft = 0.19f;
-        AddText(parent, name + "Eyebrow", eyebrow, 10f, FigmaMuted,
+        const float textLeft = 0.15f;
+        TextMeshProUGUI eyebrowLabel = AddText(parent, name + "Eyebrow", eyebrow, 11f, FigmaMuted,
             new Vector2(textLeft, centerY), new Vector2(0.92f, centerY + 0.028f));
+        eyebrowLabel.font = theme.MasterInterSemiBold ?? eyebrowLabel.font;
         TextMeshProUGUI label = AddText(parent, name, value, 15f, accent,
             new Vector2(textLeft, centerY - 0.028f), new Vector2(0.92f, centerY));
-        label.fontStyle = FontStyles.Bold;
+        label.font = theme.MasterGabaritoBold ?? label.font;
+        label.fontStyle = FontStyles.Normal;
     }
 
-    private void AddEmptyFrameSummary(Transform parent, float minY, float maxY)
+    private void AddFrameSummary(Transform parent, WDProfileData profile, float minY, float maxY)
     {
-        RectTransform lockTile = Panel("FrameEmpty", parent,
+        string frameId = WDProfileIdentityVisuals.EquippedCosmeticId(
+            profile, WDProfileCosmeticCategory.Frame);
+        WDProfileCosmetic frame = repository.Cosmetics.FirstOrDefault(item =>
+            item.Category == WDProfileCosmeticCategory.Frame && item.Id == frameId);
+        RectTransform frameTile = Panel("FramePreview", parent,
             new Vector2(0.02f, minY + 0.05f), new Vector2(0.24f, maxY - 0.05f),
-            new Color(FigmaGold.r, FigmaGold.g, FigmaGold.b, 0.20f), FigmaInset);
-        AddLockIcon(lockTile, "Lock", new Vector2(0.5f, 0.5f), 22f);
+            WithAlpha(FigmaGold, .20f), FigmaInset, 6);
+        Texture2D thumbnail = WDProfileIdentityVisuals.ResolveCosmeticThumbnail(
+            WDProfileCosmeticCategory.Frame, frameId);
+        if (thumbnail != null)
+        {
+            RawImage artwork = Texture("Artwork", frameTile, thumbnail);
+            WDHomeUIFactory.Stretch(artwork.rectTransform, 4f, 4f, 4f, 4f);
+        }
+        // 07.2. O tile já recebe sua borda pelo Panel; não sobrepor uma segunda moldura quando não há thumbnail.
         AddText(parent, "FrameTitle", "MOLDURA", 13f, FigmaText,
             new Vector2(0.28f, minY + 0.19f), new Vector2(0.96f, maxY - 0.06f)).fontStyle = FontStyles.Bold;
-        AddText(parent, "FrameState", "Nenhuma moldura", 11f, FigmaMuted,
+        AddText(parent, "FrameState", frame?.Name ?? "Nenhuma moldura", 11f, FigmaMuted,
             new Vector2(0.28f, minY + 0.02f), new Vector2(0.96f, minY + 0.20f));
     }
 
@@ -862,11 +1138,21 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
         string skinId = WDProfileIdentityVisuals.EquippedCosmeticId(
             profile, WDProfileCosmeticCategory.TerritorySkin);
         WDProfileSkinDefinition skin = WDProfileSkinCatalog.Find(skinId) ?? WDProfileSkinCatalog.Default;
-        Image swatch = WDHomeUIFactory.Image("SkinSwatch", parent, skin.Color);
-        Anchor(swatch.rectTransform, new Vector2(0.02f, minY + 0.05f), new Vector2(0.24f, maxY - 0.05f));
+        // 07.5. A miniatura canônica tem prioridade; a cor permanece fallback de dados.
+        Texture2D thumbnail = WDProfileIdentityVisuals.ResolveCosmeticThumbnail(
+            WDProfileCosmeticCategory.TerritorySkin, skinId);
+        RectTransform skinTile = WDHomeUIFactory.Rect("SkinPreview", parent);
+        Anchor(skinTile, new Vector2(0.02f, minY + 0.05f), new Vector2(0.24f, maxY - 0.05f));
+        Image swatch = skinTile.gameObject.AddComponent<Image>();
+        swatch.color = thumbnail == null ? skin.Color : Color.white;
         WDHomeUIFactory.ApplyRounded(swatch, 6);
-        AddBorder(swatch.rectTransform, new Color(FigmaGold.r, FigmaGold.g, FigmaGold.b, 0.35f), 6);
-        AddText(parent, "SkinTitle", "SKIN", 13f, FigmaText,
+        if (thumbnail != null)
+        {
+            RawImage artwork = Texture("Artwork", skinTile, thumbnail);
+            WDHomeUIFactory.Stretch(artwork.rectTransform, 2f, 2f, 2f, 2f);
+        }
+        AddBorder(skinTile, WithAlpha(FigmaGold, .20f), 6);
+        AddText(parent, "SkinTitle", "SKIN DE TERRITÓRIO", 13f, FigmaText,
             new Vector2(0.28f, minY + 0.19f), new Vector2(0.96f, maxY - 0.06f)).fontStyle = FontStyles.Bold;
         AddText(parent, "SkinState", TitleCase(skin.DisplayName), 11f, FigmaMuted,
             new Vector2(0.28f, minY + 0.02f), new Vector2(0.96f, minY + 0.20f));
@@ -888,37 +1174,49 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
             RectTransform box = Panel("Metric_" + i, parent,
                 new Vector2(x, min.y), new Vector2(x + width, max.y),
                 cyanBorders
-                    ? new Color(FigmaCyan.r, FigmaCyan.g, FigmaCyan.b, 0.20f)
-                    : new Color(FigmaGold.r, FigmaGold.g, FigmaGold.b, 0.20f),
-                FigmaInset);
-            AddText(box, "Label", metrics[i].label, large ? 11f : 9f, FigmaMuted,
-                new Vector2(0.06f, 0.55f), new Vector2(0.94f, 0.90f)).fontStyle = FontStyles.Bold;
-            AddText(box, "Value", metrics[i].value, large ? 26f : 17f, metrics[i].color,
-                new Vector2(0.06f, 0.08f), new Vector2(0.94f, 0.58f)).fontStyle = FontStyles.Bold;
+                    ? WithAlpha(FigmaCyan, .20f)
+                    : WithAlpha(FigmaGold, .20f),
+                cyanBorders ? FigmaSelectedSurface : FigmaInset, 8);
+            TextMeshProUGUI metricLabel = AddText(box, "Label", metrics[i].label, large ? 12f : 10f, FigmaMuted,
+                new Vector2(0.06f, 0.55f), new Vector2(0.94f, 0.90f));
+            metricLabel.font = theme.MasterInterSemiBold ?? metricLabel.font;
+            metricLabel.fontStyle = FontStyles.Normal;
+            TextMeshProUGUI metricValue = AddText(box, "Value", metrics[i].value, large ? 28f : 18f, metrics[i].color,
+                new Vector2(0.06f, 0.08f), new Vector2(0.94f, 0.58f));
+            metricValue.font = theme.MasterGabaritoExtraBold ?? metricValue.font;
+            metricValue.fontStyle = FontStyles.Normal;
         }
     }
 
     private void BuildDivisionDisplay(RectTransform parent, WDDivisionDefinition division, int points)
     {
         RectTransform medal = WDHomeUIFactory.Rect("DivisionMedallion", parent);
-        medal.anchorMin = medal.anchorMax = new Vector2(0.22f, 0.40f);
+        // 07.6. O widget aprovado utiliza o medalhão canônico em 64 px.
+        medal.anchorMin = medal.anchorMax = new Vector2(0.15f, 0.40f);
         medal.pivot = new Vector2(0.5f, 0.5f);
         medal.anchoredPosition = Vector2.zero;
-        medal.sizeDelta = new Vector2(96f, 96f);
+        medal.sizeDelta = new Vector2(64f, 64f);
         RawImage gold = Texture("Gold", medal, WDDivisionVisuals.ResolveMedallion());
         WDHomeUIFactory.Stretch(gold.rectTransform);
         Texture2D emblemTexture = ResolveDivisionEmblemTexture(division);
         RawImage emblem = Texture("Emblem", medal, emblemTexture);
         Anchor(emblem.rectTransform, new Vector2(0.07f, 0.07f), new Vector2(0.93f, 0.93f));
-        WDDivisionVisuals.ApplyCalibration(emblem.rectTransform, division, 96f);
-        AddText(parent, "DivisionName", division?.DisplayName ?? string.Empty, 18f, FigmaGold,
-            new Vector2(0.39f, 0.35f), new Vector2(0.96f, 0.59f)).fontStyle = FontStyles.Bold;
-        AddText(parent, "DivisionPoints", $"{points:N0} PONTOS", 12f, FigmaText,
-            new Vector2(0.39f, 0.19f), new Vector2(0.96f, 0.36f));
+        WDDivisionVisuals.ApplyCalibration(emblem.rectTransform, division, 64f);
+        AddText(parent, "DivisionName", division?.DisplayName ?? string.Empty, 20f, FigmaGold,
+            new Vector2(0.27f, 0.39f), new Vector2(0.96f, 0.60f)).fontStyle = FontStyles.Bold;
+        AddText(parent, "DivisionPoints", $"{points:N0} PONTOS", 14f, FigmaText,
+            new Vector2(0.27f, 0.21f), new Vector2(0.96f, 0.40f));
     }
 
     private void BuildAchievements(RectTransform parent, IReadOnlyList<WDProfileAchievement> achievements)
     {
+        if (achievements == null || achievements.Count == 0)
+        {
+            AddText(parent, "EmptyAchievements", "NENHUMA CONQUISTA REGISTRADA", 13f,
+                FigmaMuted, new Vector2(.08f, .12f), new Vector2(.92f, .66f),
+                TextAlignmentOptions.Center).fontStyle = FontStyles.Bold;
+            return;
+        }
         int count = Mathf.Min(4, achievements.Count);
         for (int i = 0; i < count; i++)
         {
@@ -926,11 +1224,20 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
             float minX = 0.02f + i * 0.245f;
             RectTransform card = Panel("Achievement_" + i, parent,
                 new Vector2(minX, 0.08f), new Vector2(minX + 0.23f, 0.67f),
-                new Color(FigmaCyan.r, FigmaCyan.g, FigmaCyan.b, 0.20f), FigmaInset);
-            RawImage icon = Texture("Icon", card,
+                WithAlpha(FigmaCyan, .20f), FigmaInsetSoft, 8);
+            // 07.7. O selo circular de 48 px separa o ícone do fundo do cartão.
+            RectTransform badge = WDHomeUIFactory.Rect("Badge", card);
+            badge.anchorMin = badge.anchorMax = new Vector2(.12f, .5f);
+            badge.pivot = new Vector2(.5f, .5f);
+            badge.sizeDelta = new Vector2(48f, 48f);
+            Image badgeSurface = badge.gameObject.AddComponent<Image>();
+            badgeSurface.color = FigmaElevated;
+            WDHomeUIFactory.ApplyRounded(badgeSurface, 24);
+            AddBorder(badge, FigmaCyan, 24);
+            RawImage icon = Texture("Icon", badge,
                 WDProfileIdentityVisuals.ResolveAchievement(item.Id));
             icon.color = FigmaCyan;
-            Anchor(icon.rectTransform, new Vector2(0.07f, 0.23f), new Vector2(0.24f, 0.77f));
+            Anchor(icon.rectTransform, new Vector2(.25f, .25f), new Vector2(.75f, .75f));
             AddText(card, "Title", item.Title, 12f, FigmaText,
                 new Vector2(0.29f, 0.47f), new Vector2(0.97f, 0.79f)).fontStyle = FontStyles.Bold;
             AddText(card, "Progress", item.Progress, 10f, FigmaCyan,
@@ -965,10 +1272,46 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
         rect.offsetMin = rect.offsetMax = Vector2.zero;
     }
 
-    private static void AddBorder(RectTransform target, Color color, int radius) =>
-        WDHomeUIFactory.AddRoundedBorder(target, color, radius);
+    // 07.8. Conversão centralizada dos tokens sRGB da especificação para o
+    // espaço linear usado pelo projeto; alpha permanece uma cobertura linear.
+    private static Color Srgb(byte red, byte green, byte blue, float alpha = 1f)
+    {
+        Color color = new(red / 255f, green / 255f, blue / 255f, alpha);
+        Color linear = color.linear;
+        linear.a = alpha;
+        return linear;
+    }
 
-    private static void AddLockIcon(Transform parent, string name, Vector2 anchor, float side)
+    private static Color WithAlpha(Color color, float alpha)
+    {
+        color.a = alpha;
+        return color;
+    }
+
+    private static void ApplyProfileSurface(RectTransform root, Color fill,
+        Color borderColor, int radius)
+    {
+        if (root == null) return;
+        Image surface = root.GetComponent<Image>();
+        if (surface != null)
+        {
+            surface.color = fill;
+            WDHomeUIFactory.ApplyRounded(surface, radius);
+        }
+        // 07.9. Substitui a moldura herdada na própria instância para manter
+        // exatamente um traço e impedir sobreposição de Border/ThinBorder.
+        Transform inheritedBorder = root.Find("Border");
+        if (inheritedBorder != null) DestroyNow(inheritedBorder.gameObject);
+        Transform inheritedThinBorder = root.Find("ThinBorder");
+        if (inheritedThinBorder != null) DestroyNow(inheritedThinBorder.gameObject);
+        WDHomeUIFactory.AddThinRoundedBorder(root, borderColor, radius);
+    }
+
+    private static void AddBorder(RectTransform target, Color color, int radius) =>
+        WDHomeUIFactory.AddThinRoundedBorder(target, color, radius);
+
+    private static void AddLockIcon(Transform parent, string name, Vector2 anchor, float side,
+        Color? tint = null)
     {
         RectTransform holder = WDHomeUIFactory.Rect(name, parent);
         holder.anchorMin = holder.anchorMax = anchor;
@@ -977,7 +1320,7 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
         holder.sizeDelta = new Vector2(side, side);
         RawImage icon = holder.gameObject.AddComponent<RawImage>();
         icon.texture = WDProfileIdentityVisuals.ResolveLockIcon();
-        icon.color = FigmaMuted;
+        icon.color = tint ?? FigmaMuted;
         icon.raycastTarget = false;
         icon.uvRect = new Rect(0f, 0f, 1f, 1f);
     }
@@ -1008,14 +1351,44 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
             WDProfileMode captured = tabs[i].mode;
             WDUIPremiumButton tab = AddButton(parent, "Mode_" + tabs[i].label, tabs[i].label,
                 () => { selectedMode = captured; RenderProfile(currentPresentation); },
-                new Vector2(0.02f + i * 0.09f, 0.48f), new Vector2(0.10f + i * 0.09f, 0.67f),
+                new Vector2(0.025f + i * 0.105f, 0.51f), new Vector2(0.12f + i * 0.105f, 0.69f),
                 selectedMode == captured, true);
             StyleModeButton(tab, selectedMode == captured);
         }
         WDProfileStats selected = modeStats.TryGetValue(selectedMode, out WDProfileStats value)
             ? value : new WDProfileStats(0, 0);
-        BuildMetricRow(parent, selected, new Vector2(0.02f, 0.08f),
-            new Vector2(0.98f, 0.42f), false, true);
+        BuildModeMetricStrip(parent, selected);
+    }
+
+    private void BuildModeMetricStrip(Transform parent, WDProfileStats stats)
+    {
+        // 08.1. Uma única superfície agrupa as quatro métricas; regras internas
+        // substituem os quatro cartões concorrentes da implementação anterior.
+        RectTransform strip = Panel("SelectedModeMetrics", parent,
+            new Vector2(.025f, .08f), new Vector2(.975f, .43f),
+            WithAlpha(FigmaCyan, .20f),
+            FigmaSelectedSurface, 8);
+        (string label, string value, Color color)[] metrics = {
+            ("PARTIDAS", stats.Matches.ToString("N0"), FigmaText),
+            ("VITÓRIAS", stats.Wins.ToString("N0"), FigmaCyan),
+            ("DERROTAS", stats.Losses.ToString("N0"), FigmaText),
+            ("TAXA DE VITÓRIA", stats.WinRate.ToString("0.0") + "%", FigmaGold) };
+        for (int i = 0; i < metrics.Length; i++)
+        {
+            float minX = i * .25f + .018f;
+            float maxX = (i + 1) * .25f - .018f;
+            AddText(strip, "ModeLabel_" + i, metrics[i].label, 10f, FigmaMuted,
+                new Vector2(minX, .54f), new Vector2(maxX, .86f)).fontStyle = FontStyles.Bold;
+            AddText(strip, "ModeValue_" + i, metrics[i].value, 18f, metrics[i].color,
+                new Vector2(minX, .12f), new Vector2(maxX, .55f)).fontStyle = FontStyles.Bold;
+            if (i < metrics.Length - 1)
+            {
+                Image divider = WDHomeUIFactory.Image("Divider_" + i, strip,
+                    WithAlpha(FigmaGold, .12f));
+                Anchor(divider.rectTransform, new Vector2((i + 1) * .25f, .18f),
+                    new Vector2((i + 1) * .25f + .001f, .82f));
+            }
+        }
     }
 
     private static void StyleModeButton(WDUIPremiumButton button, bool selected)
@@ -1024,13 +1397,13 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
         Image surface = button.GetComponent<Image>();
         if (surface != null)
             surface.color = selected
-                ? new Color(FigmaCyan.r, FigmaCyan.g, FigmaCyan.b, 0.08f)
+                ? WithAlpha(FigmaCyan, .0824f)
                 : FigmaInset;
-        Image border = button.transform.Find("Border")?.GetComponent<Image>();
+        Image border = button.transform.Find("ThinBorder")?.GetComponent<Image>();
         if (border != null)
             border.color = selected
                 ? FigmaCyan
-                : new Color(FigmaGold.r, FigmaGold.g, FigmaGold.b, 0.20f);
+                : WithAlpha(FigmaGold, .20f);
         TextMeshProUGUI label = button.GetComponentInChildren<TextMeshProUGUI>();
         if (label != null)
             label.color = selected ? FigmaCyan : FigmaMuted;
@@ -1043,7 +1416,7 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
         RectTransform outside = WDHomeUIFactory.Rect("OutsideDismiss", root);
         WDHomeUIFactory.Stretch(outside);
         Image image = outside.gameObject.AddComponent<Image>();
-        image.color = new Color(0f, 0f, 0f, 0.82f);
+        image.color = FigmaModalBackdrop;
         image.raycastTarget = true;
         Button button = outside.gameObject.AddComponent<Button>();
         button.transition = Selectable.Transition.None;

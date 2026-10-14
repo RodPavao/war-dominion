@@ -240,6 +240,22 @@ public sealed class WDProfileTests
                 WDProfileCosmeticCategory.TerritorySkin, WDProfileCosmeticCategory.Effect }));
     }
 
+    [Test]
+    public void FrameAndEffectPersistThroughTheExistingIdentityAuthority()
+    {
+        var store = new WDMemoryProfileIdentityStore();
+        var first = new WDProfileRepository(HomeData(), new WDMemoryProfilePrivacyStore(), store);
+        var session = new WDProfileCustomizationSession(first.LocalProfile, first.Cosmetics);
+        Assert.That(session.PreviewItem("frame_03"), Is.True);
+        Assert.That(session.PreviewItem("effect_04"), Is.True);
+        Assert.That(session.Save(), Is.True);
+        first.SaveLocalIdentity();
+
+        var reopened = new WDProfileRepository(HomeData(), new WDMemoryProfilePrivacyStore(), store);
+        Assert.That(reopened.LocalProfile.Equipped[WDProfileCosmeticCategory.Frame], Is.EqualTo("frame_03"));
+        Assert.That(reopened.LocalProfile.Equipped[WDProfileCosmeticCategory.Effect], Is.EqualTo("effect_04"));
+    }
+
     // ============================================================
     // 03. SOCIAL E HISTÓRICO
     // ============================================================

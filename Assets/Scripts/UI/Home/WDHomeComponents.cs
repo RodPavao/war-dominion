@@ -229,20 +229,36 @@ public static class WDUniversalHeaderFactory
         LayoutElement element = root.gameObject.AddComponent<LayoutElement>();
         element.preferredWidth = 96f;
         element.preferredHeight = 32f;
+
+        // 00.2. O conjunto ícone + valor é medido pelo próprio layout e
+        // centralizado como uma unidade dentro da cápsula de 96 x 32.
+        HorizontalLayoutGroup contentLayout = root.gameObject.AddComponent<HorizontalLayoutGroup>();
+        contentLayout.padding = new RectOffset(12, 12, 6, 6);
+        contentLayout.spacing = 8f;
+        contentLayout.childAlignment = TextAnchor.MiddleCenter;
+        contentLayout.childControlWidth = true;
+        contentLayout.childControlHeight = true;
+        contentLayout.childForceExpandWidth = false;
+        contentLayout.childForceExpandHeight = false;
+
         RectTransform iconRoot = WDHomeUIFactory.Rect("Icon", root);
-        iconRoot.anchorMin = iconRoot.anchorMax = iconRoot.pivot = new Vector2(0f, .5f);
-        iconRoot.anchoredPosition = new Vector2(12f, 0f);
-        iconRoot.sizeDelta = new Vector2(16f, 16f);
+        iconRoot.sizeDelta = new Vector2(14f, 14f);
+        LayoutElement iconElement = iconRoot.gameObject.AddComponent<LayoutElement>();
+        iconElement.minWidth = iconElement.preferredWidth = 14f;
+        iconElement.minHeight = iconElement.preferredHeight = 14f;
         Image icon = iconRoot.gameObject.AddComponent<Image>();
         icon.sprite = iconSprite;
         icon.color = Color.white;
         icon.preserveAspect = true;
         icon.raycastTarget = false;
         TextMeshProUGUI value = WDHomeUIFactory.Text("Value", root,
-            theme, "0", 15f, theme.MasterTextPrimary,
-            TextAlignmentOptions.Right);
-        value.font = theme.MasterGabaritoBold ?? value.font;
-        WDHomeUIFactory.Stretch(value.rectTransform, 32f, 4f, 8f, 4f);
+            theme, "0", 13f, theme.MasterTextPrimary,
+            TextAlignmentOptions.MidlineLeft);
+        value.font = theme.MasterInterSemiBold ?? value.font;
+        value.fontStyle = FontStyles.Normal;
+        value.textWrappingMode = TextWrappingModes.NoWrap;
+        value.overflowMode = TextOverflowModes.Overflow;
+        value.rectTransform.sizeDelta = new Vector2(0f, 20f);
         value.raycastTarget = false;
         WDUniversalControlFactory.AddGoldOutline(root, theme);
         return value;
@@ -363,6 +379,9 @@ public static class WDUniversalControlFactory
         border.color = new Color(theme.MasterGold.r, theme.MasterGold.g,
             theme.MasterGold.b, .24f);
         border.raycastTarget = false;
+        LayoutElement borderLayout = border.GetComponent<LayoutElement>() ??
+            border.gameObject.AddComponent<LayoutElement>();
+        borderLayout.ignoreLayout = true;
         border.transform.SetAsLastSibling();
         return border;
     }

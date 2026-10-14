@@ -149,12 +149,17 @@ public sealed class WDUIPremiumButton : MonoBehaviour,
     private Color customDisabledColor;
     private Coroutine deniedFeedback;
 
-    public void Build(WarDominionUITheme newTheme, string text, UnityAction action)
+    public void Build(WarDominionUITheme newTheme, string text, UnityAction action,
+        bool useThinBorder = false)
     {
         theme = newTheme;
         background = gameObject.GetComponent<Image>() ?? gameObject.AddComponent<Image>();
         WDHomeUIFactory.ApplyRounded(background, 6);
-        WDHomeUIFactory.AddRoundedBorder((RectTransform)transform, WDMatchVisualStyle.Gold, 6);
+        // 03.1. Consumidores podem solicitar o traço lógico de 1 px sem alterar o padrão das demais telas.
+        if (useThinBorder)
+            WDHomeUIFactory.AddThinRoundedBorder((RectTransform)transform, WDMatchVisualStyle.Gold, 6);
+        else
+            WDHomeUIFactory.AddRoundedBorder((RectTransform)transform, WDMatchVisualStyle.Gold, 6);
         button = gameObject.GetComponent<Button>() ?? gameObject.AddComponent<Button>();
         button.transition = Selectable.Transition.None;
         button.onClick.RemoveAllListeners();

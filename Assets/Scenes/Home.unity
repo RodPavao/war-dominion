@@ -173,6 +173,7 @@ MonoBehaviour:
   settingsBackgroundTexture: {fileID: 2800000, guid: 5dee04cfd76efbc42ba612a4675d80b5, type: 3}
   rankingBackgroundTexture: {fileID: 2800000, guid: f5d1708a2bc20ab49b46c62d7df8a153, type: 3}
   storeBackgroundTexture: {fileID: 2800000, guid: 44b996e743dbc2141a6dd1a0ec1becfe, type: 3}
+  profileBackgroundTexture: {fileID: 2800000, guid: a55d6f6f02697154599f9fa7d086db3e, type: 3}
   warDominionOpening16x9Texture: {fileID: 2800000, guid: 10893875d7c28a0428c4c81337ac38c1, type: 3}
   warDominionOpeningUltrawideTexture: {fileID: 2800000, guid: 4f6d381c2b7a4b248c069d21f63eb8aa, type: 3}
   gabaritoBlack: {fileID: 0}
