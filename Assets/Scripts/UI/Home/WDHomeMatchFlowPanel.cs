@@ -76,14 +76,10 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
     private RectTransform playMainPanel;
     private RectTransform playCardsRoot;
     private RectTransform playBackRect;
-    private TextMeshProUGUI playBackLabel;
     private readonly List<TextMeshProUGUI> playCardDescriptions = new();
     private TextMeshProUGUI playTitleLabel;
-    private TextMeshProUGUI playNicknameLabel;
     private TextMeshProUGUI playCoinsLabel;
     private TextMeshProUGUI playEmeraldsLabel;
-    private RectTransform playResourceGroup;
-    private RectTransform playNotificationRect;
     private TextMeshProUGUI playFeedbackLabel;
     private Texture2D playBackgroundTexture;
     private Texture2D matchmakingBackgroundTexture;
@@ -618,7 +614,7 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
         veil.raycastTarget = false;
 
         playSafeArea = WDHomeUIFactory.Rect("PlaySafeArea", playVisualRoot);
-        WDHomeUIFactory.Stretch(playSafeArea);
+        WDHomeSecondaryScreenFrame.Configure(playSafeArea);
         BuildPlayHeader();
 
         playMainPanel = WDHomeUIFactory.Rect("PlayModePanel", playSafeArea);
@@ -650,55 +646,15 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
 
     private void BuildPlayHeader()
     {
-        RectTransform account = PlayRect("PlayerAccount", playSafeArea,
-            new Vector2(0f, 1f), new Vector2(64f, -40f), new Vector2(300f, 64f),
-            new Vector2(0f, 1f));
-        PlaySurface(account, new Color(0.067f, 0.075f, 0.09f, 0.8f), 16, PlayGold);
-        account.gameObject.SetActive(false);
-        RectTransform avatar = PlayRect("Avatar", account,
-            new Vector2(0f, 0.5f), new Vector2(32f, 0f), new Vector2(48f, 48f));
-        PlaySurface(avatar, new Color(0.12f, 0.14f, 0.17f, 1f), 24, PlayGold);
-        PlayIcon(avatar, WDProfileIdentityVisuals.ResolveAvatar(profileRepository.LocalProfile),
-            "ProfileAvatar", 42f);
-        playNicknameLabel = PlayText("Nickname", account, string.Empty, 18f,
-            PlayWhite, new Vector2(0f, 0.5f), new Vector2(164f, 11f),
-            new Vector2(198f, 26f));
-        PlayText("AccountCaption", account, "CONTA PRINCIPAL", 12f,
-            PlayMuted, new Vector2(0f, 0.5f), new Vector2(164f, -14f),
-            new Vector2(198f, 18f));
-
-        RectTransform resources = PlayRect("Resources", playSafeArea,
-            new Vector2(1f, 1f), new Vector2(-64f, -40f), new Vector2(270f, 52f),
-            new Vector2(1f, 1f));
-        playResourceGroup = resources;
-        playCoinsLabel = BuildPlayResource(resources, "Coins", "Coin", 110f);
-        playEmeraldsLabel = BuildPlayResource(resources, "Emeralds", "Gem", 80f);
-        RectTransform bell = WDHomeUIFactory.BuildCanonicalNotification(resources,
+        // 08.2. PLAY, Partidas, Amistosos e Torneios compartilham o mesmo
+        // Header do Arsenal; cada fluxo altera somente título, ação e dados.
+        WDUniversalHeaderContent header = WDUniversalHeaderFactory.BuildInset(
+            playSafeArea, theme, string.Empty, Back,
             openNotifications == null ? null : () => openNotifications.Invoke());
-        bell.anchorMin = bell.anchorMax = bell.pivot = Vector2.one;
-        bell.anchoredPosition = Vector2.zero;
-        playNotificationRect = bell;
-
-        playTitleLabel = PlayText("ScreenTitle", playSafeArea, string.Empty, 48f,
-            PlayWhite, new Vector2(0f, 1f), new Vector2(64f, -170f),
-            new Vector2(1000f, 65f), TextAlignmentOptions.MidlineLeft,
-            new Vector2(0f, 1f));
-        playTitleLabel.gameObject.SetActive(false);
-        WDHomeBackButtonContent backContent =
-            WDHomeBackButtonFactory.BuildCanonical(playSafeArea, Back);
-        playBackRect = (RectTransform)backContent.Button.transform;
-        playBackLabel = backContent.Label;
-    }
-
-    private TextMeshProUGUI BuildPlayResource(
-        Transform parent, string name, string iconName, float width)
-    {
-        TextMeshProUGUI value = WDHomeUIFactory.BuildCanonicalResourcePill(
-            name, parent, iconName, width, out RectTransform pill);
-        pill.anchorMin = pill.anchorMax = new Vector2(1f, 1f);
-        pill.pivot = new Vector2(1f, .5f);
-        pill.anchoredPosition = Vector2.zero;
-        return value;
+        playTitleLabel = header.Title;
+        playBackRect = header.BackButton.transform as RectTransform;
+        playCoinsLabel = header.CoinValue;
+        playEmeraldsLabel = header.GemValue;
     }
 
     private void RenderPlayVisual(string title, string subtitle, IReadOnlyList<Option> options)
@@ -735,13 +691,13 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
         cardLayout.spacing = (friendlyHub ? 34f : hub ? 48f : matches ? 28f : 94f) * playCardScale;
         cardLayout.childForceExpandWidth = hub || matches;
         playTitleLabel.text = team ? "SELEÇÃO DE EQUIPE" : title;
+        playTitleLabel.gameObject.SetActive(true);
         playFeedbackLabel.text = string.Empty;
-        playNicknameLabel.text = profileRepository.LocalProfile.Nickname;
         WDArmoryProfile wallet = armoryRepository?.Load(armoryCatalog);
-        WDHomeUIFactory.SetResourcePillValue(playCoinsLabel, wallet?.Coins ?? 0, 110f, 180f);
-        WDHomeUIFactory.SetResourcePillValue(playEmeraldsLabel, wallet?.Emeralds ?? 0, 80f, 150f);
-        WDHomeUIFactory.LayoutResourceGroup(playCoinsLabel, playEmeraldsLabel,
-            playNotificationRect, 110f, 80f);
+        // 08.3. Atualiza somente os dados das cápsulas universais. A geometria
+        // permanece sob autoridade do header canônico (96 x 32 e gaps de 10 px).
+        playCoinsLabel.text = WDNumberFormatter.Full(wallet?.Coins ?? 0);
+        playEmeraldsLabel.text = WDNumberFormatter.Full(wallet?.Emeralds ?? 0);
 
         for (int i = playCardsRoot.childCount - 1; i >= 0; i--)
         {
@@ -901,22 +857,13 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
     {
         if (playSafeArea == null || Screen.width <= 0 || Screen.height <= 0)
             return;
-        Rect area = Screen.safeArea;
-        playSafeArea.anchorMin =
-            new Vector2(area.xMin / Screen.width, area.yMin / Screen.height);
-        playSafeArea.anchorMax =
-            new Vector2(area.xMax / Screen.width, area.yMax / Screen.height);
-        playSafeArea.offsetMin = playSafeArea.offsetMax = Vector2.zero;
-        WDHomeMobileLayout.ApplyHeaderResourceScale(playResourceGroup);
+        // 09.1. PLAY e Torneios usam o mesmo frame externo das telas secundárias.
+        // O conteúdo e o domínio permanecem independentes deste enquadramento.
+        playSafeArea.GetComponent<WDHomeSecondaryScreenFrame>()?.RefreshNow();
         playMainPanel.sizeDelta = new Vector2(
             Mathf.Min(playPanelSize.x, Mathf.Max(0f, playSafeArea.rect.width - 128f)),
             Mathf.Min(playPanelSize.y, Mathf.Max(0f, playSafeArea.rect.height - 180f)));
         playMainPanel.anchoredPosition = playPanelOffset;
-        if (playBackRect != null)
-        {
-            playBackRect.anchoredPosition = new Vector2(64f, -40f);
-        }
-
         // 09.2. O texto acompanha a largura real de cada card depois do layout.
         // A escala dos demais elementos e a composição 16:9 permanecem canônicas.
         bool hub = currentScreen == WDHomeMatchFlowScreen.PlayHub ||

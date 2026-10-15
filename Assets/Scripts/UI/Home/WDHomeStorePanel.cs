@@ -48,7 +48,7 @@ public sealed class WDHomeStorePanel : MonoBehaviour
         RectTransform contentSurface=R("StoreFullscreenContentSurface",transform);Stretch(contentSurface);contentSurface.offsetMax=new Vector2(0f,-136f);
         Image contentSurfaceImage=contentSurface.gameObject.AddComponent<Image>();contentSurfaceImage.color=Color.clear;contentSurfaceImage.raycastTarget=false;
         WDHomeUIFactory.AddThinRoundedBorder(contentSurface,Hex("1E3048"),1);
-        frame=R("StoreResponsiveShell",transform);Stretch(frame);
+        frame=R("StoreResponsiveShell",transform);WDHomeSecondaryScreenFrame.Configure(frame);
         gameObject.SetActive(false);
     }
     public void Open(int selectedTab=0){tab=Mathf.Clamp(selectedTab,0,3);page=0;detailFactionId=null;feedback=null;navigation.Push(new WDNavigationContext("store",_=>Restore(),exit:HideFromNavigation));}
@@ -62,22 +62,18 @@ public sealed class WDHomeStorePanel : MonoBehaviour
     // 02. SHELL COMPARTILHADO — HEADER EM DUAS LINHAS E ABAS
     private void Render()
     {
-        Clear(frame); Header(); Tabs();RectTransform bodyShell=R("StoreBody",frame);StretchBody(bodyShell,0,0,136,0);body=R("StoreCanonicalContent",bodyShell);CenterTop(body,0,0,1920,944);
+        Clear(frame); Header(); Tabs();RectTransform bodyShell=R("StoreBody",frame);StretchBody(bodyShell,0,0,168,0);body=R("StoreCanonicalContent",bodyShell);CenterTop(body,0,0,1920,912);
         if(detailFactionId!=null)RenderDetail(Factions.First(f=>f.Id==detailFactionId));
         else if(tab==0)RenderFeatured();else if(tab==1)RenderCollections();else if(tab==2)RenderAvatars();else RenderVip();
         if(!string.IsNullOrWhiteSpace(feedback))Text("Feedback",frame,feedback,15,Gold,520,1024,880,32,TextAlignmentOptions.Center,"Inter-Bold");
     }
     private void Header()
     {
-        RectTransform header=Box("Header",frame,0,0,1920,80,new Color(Navy.r,Navy.g,Navy.b,.88f),0,Color.clear);
-        StretchHorizontal(header,0,0);
-        WDHomeBackButtonFactory.BuildCanonical(header,()=>{if(!TryHandleLocalBack())navigation.TryBack();});
-        RectTransform titleGroup=R("TitleCenter",header);CenterTop(titleGroup,0,22,144,34);Icon("StoreIcon",titleGroup,"UI/Store/Canonical/icon_store",0,6,24,24,Gold);Text("Title",titleGroup,"LOJA",22,White,36,0,108,34,TextAlignmentOptions.Left,"Inter-Bold",2.64f);
-        WDArmoryProfile wallet=service.Wallet;RectTransform resources=R("Resources",header);P(resources,1588,16,270,48);TextMeshProUGUI coins=HeaderResource(resources,"Coins","Coin",wallet.Coins,0,110);TextMeshProUGUI gems=HeaderResource(resources,"Emeralds","Gem",wallet.Emeralds,126,80);
-        RightTop(resources,62,16,270,48);RectTransform bell=WDHomeUIFactory.BuildCanonicalNotification(resources,()=>notifications?.Invoke());P(bell,222,0,48,48);WDHomeUIFactory.LayoutResourceGroup(coins,gems,bell,110,80);
+        // 02.1. A Loja usa o mesmo Header completo do Arsenal.
+        WDUniversalHeaderContent header=WDUniversalHeaderFactory.BuildInset(frame,theme,"LOJA",()=>{if(!TryHandleLocalBack())navigation.TryBack();},notifications==null?null:()=>notifications.Invoke());
+        WDUniversalHeaderFactory.SetEconomy(header,service.Wallet);
     }
-    private TextMeshProUGUI HeaderResource(Transform parent,string name,string icon,int amount,float x,float width){TextMeshProUGUI value=WDHomeUIFactory.BuildCanonicalResourcePill(name,parent,icon,width,out RectTransform root);P(root,x,4,width,40);WDHomeUIFactory.SetResourcePillValue(value,amount,width,icon=="Coin"?180:150);return value;}
-    private void Tabs(){RectTransform row=Box("Tabs",frame,0,80,1920,56,new Color(Navy.r,Navy.g,Navy.b,.82f),0,new Color(Gold.r,Gold.g,Gold.b,.12f));StretchHorizontal(row,0,0);string[] labels={"DESTAQUES","COLEÇÕES","AVATARES","VIP"};float[] widths={120,116,112,78};float x=32;for(int i=0;i<4;i++){int selected=i;RectTransform root=R("Tab_"+labels[i],row);P(root,x,8,widths[i],40);if(i==tab){Image active=root.gameObject.AddComponent<Image>();active.color=new Color(Gold.r,Gold.g,Gold.b,.18f);WDHomeUIFactory.ApplyRounded(active,8);WDHomeUIFactory.AddThinRoundedBorder(root,Gold,8);}Text("Label",root,labels[i],13,i==tab?Gold:Muted,0,2,widths[i],34,TextAlignmentOptions.Center,"Inter-Bold",1.04f);Image hit=root.GetComponent<Image>()??root.gameObject.AddComponent<Image>();if(i!=tab)hit.color=Color.clear;Button(root,()=>SelectTab(selected));x+=widths[i]+4;}}
+    private void Tabs(){RectTransform row=Box("Tabs",frame,32,112,1856,40,new Color(Navy.r,Navy.g,Navy.b,.82f),0,new Color(Gold.r,Gold.g,Gold.b,.12f));string[] labels={"DESTAQUES","COLEÇÕES","AVATARES","VIP"};float[] widths={120,116,112,78};float x=0;for(int i=0;i<4;i++){int selected=i;RectTransform root=R("Tab_"+labels[i],row);P(root,x,0,widths[i],40);if(i==tab){Image active=root.gameObject.AddComponent<Image>();active.color=new Color(Gold.r,Gold.g,Gold.b,.18f);WDHomeUIFactory.ApplyRounded(active,8);WDHomeUIFactory.AddThinRoundedBorder(root,Gold,8);}Text("Label",root,labels[i],13,i==tab?Gold:Muted,0,2,widths[i],34,TextAlignmentOptions.Center,"Inter-Bold",1.04f);Image hit=root.GetComponent<Image>()??root.gameObject.AddComponent<Image>();if(i!=tab)hit.color=Color.clear;Button(root,()=>SelectTab(selected));x+=widths[i]+4;}}
 
     // 03. DESTAQUES — NODE 285:2
     private void RenderFeatured()

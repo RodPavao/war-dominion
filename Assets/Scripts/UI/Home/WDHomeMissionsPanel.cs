@@ -24,6 +24,8 @@ public sealed class WDHomeMissionsPanel : MonoBehaviour
     private WDMissionRepository repository;
     private WDNavigationStack navigation;
     private Action<bool> setHomeCompositionVisible;
+    private Func<WDArmoryProfile> walletProvider;
+    private Action openNotifications;
     private RectTransform content;
     private GameObject detail;
 
@@ -42,11 +44,19 @@ public sealed class WDHomeMissionsPanel : MonoBehaviour
 
     public void Build(WarDominionUITheme newTheme, WDMissionRepository missionRepository,
         WDNavigationStack navigationStack, Action<bool> homeCompositionVisibility)
+        => Build(newTheme, missionRepository, navigationStack,
+            homeCompositionVisibility, null, null);
+
+    public void Build(WarDominionUITheme newTheme, WDMissionRepository missionRepository,
+        WDNavigationStack navigationStack, Action<bool> homeCompositionVisibility,
+        Func<WDArmoryProfile> economyProvider, Action notificationAction)
     {
         theme = newTheme ?? throw new ArgumentNullException(nameof(newTheme));
         repository = missionRepository ?? throw new ArgumentNullException(nameof(missionRepository));
         navigation = navigationStack ?? throw new ArgumentNullException(nameof(navigationStack));
         setHomeCompositionVisible = homeCompositionVisibility;
+        walletProvider = economyProvider;
+        openNotifications = notificationAction;
         Image blocker = gameObject.AddComponent<Image>();
         blocker.color = Color.clear;
         blocker.raycastTarget = true;
@@ -106,23 +116,17 @@ public sealed class WDHomeMissionsPanel : MonoBehaviour
         Clear(content);
 
         RectTransform frame = Rect("MissionsResponsiveShell", content, 0f, 0f, 0f, 0f);
-        WDHomeUIFactory.Stretch(frame);
+        WDHomeSecondaryScreenFrame.Configure(frame);
 
-        RectTransform header = Surface("Header", frame, 0f, 0f, 1920f, 110f,
-            new Color(Navy.r, Navy.g, Navy.b, .88f));
-        StretchHorizontal(header, 0f, 0f);
-        Rule(header, 0f, 109f, 1920f, Gold, .72f);
-        WDHomeBackButtonFactory.BuildCanonical(header, () => navigation.TryBack());
-        Rule(header, 828f, 54f, 36f, Gold, .60f, 2f);
-        TextMeshProUGUI title = Label(header, "Title", "MISSÕES", 34f, Text, 0f, 32f, 168f, 48f,
-            TextAlignmentOptions.Center, "Inter-ExtraBold", 2f);
-        CenterTop(title.rectTransform, 0f, 32f, 168f, 48f);
-        Rule(header, 1056f, 54f, 36f, Gold, .60f, 2f);
+        // 02.1. Missões compartilha o chrome completo e a economia do Arsenal.
+        WDUniversalHeaderContent header = WDUniversalHeaderFactory.BuildInset(frame,
+            theme, "MISSÕES", () => navigation.TryBack(),
+            openNotifications == null ? null : () => openNotifications.Invoke());
+        WDUniversalHeaderFactory.SetEconomy(header, walletProvider?.Invoke());
 
-        RectTransform summary = Surface("SummaryBar", frame, 0f, 110f, 1920f, 72f,
+        RectTransform summary = Surface("SummaryBar", frame, 32f, 112f, 1856f, 72f,
             new Color(Navy.r, Navy.g, Navy.b, .94f));
-        StretchHorizontal(summary, 0f, 0f);
-        Rule(summary, 0f, 71f, 1920f, Gold, .62f);
+        Rule(summary, 0f, 71f, 1856f, Gold, .24f);
 
         if (repository.State != WDMissionCollectionState.Ready || repository.TotalCount == 0)
         {
@@ -160,8 +164,7 @@ public sealed class WDHomeMissionsPanel : MonoBehaviour
     private void BuildCollection(RectTransform frame, int discovered)
     {
         const float viewportHeight = 898f;
-        RectTransform viewport = Rect("CollectionViewport", frame, 0f, 182f, 1852f, viewportHeight);
-        StretchHorizontal(viewport, 0f, 68f);
+        RectTransform viewport = Rect("CollectionViewport", frame, 32f, 200f, 1856f, viewportHeight - 18f);
         Image viewportHit = viewport.gameObject.AddComponent<Image>();
         viewportHit.color = Color.clear;
         viewportHit.raycastTarget = true;
@@ -177,7 +180,7 @@ public sealed class WDHomeMissionsPanel : MonoBehaviour
         gridHost.anchorMin = gridHost.anchorMax = new Vector2(.5f, 1f);
         gridHost.pivot = new Vector2(.5f, 1f);
         gridHost.anchoredPosition = Vector2.zero;
-        gridHost.sizeDelta = new Vector2(1852f, 0f);
+        gridHost.sizeDelta = new Vector2(1856f, 0f);
         RectTransform grid = WDHomeUIFactory.Rect("CollectionGrid", gridHost);
         grid.anchorMin = new Vector2(0f, 1f);
         grid.anchorMax = new Vector2(1f, 1f);
@@ -190,8 +193,8 @@ public sealed class WDHomeMissionsPanel : MonoBehaviour
         for (int i = 0; i < missions.Length; i++) MissionCard(grid, missions[i], i);
         if (discovered < repository.TotalCount) SecretCard(grid, missions.Length);
 
-        Scrollbar scrollbar = CreateScrollbar(frame, 1852f, 182f, 8f, viewportHeight);
-        RightTop(scrollbar.transform as RectTransform, 60f, 182f, 8f, viewportHeight);
+        Scrollbar scrollbar = CreateScrollbar(frame, 1852f, 200f, 8f, viewportHeight - 18f);
+        RightTop(scrollbar.transform as RectTransform, 60f, 200f, 8f, viewportHeight - 18f);
         ScrollRect scroll = viewport.gameObject.AddComponent<ScrollRect>();
         scroll.viewport = viewport;
         scroll.content = grid;
@@ -205,9 +208,9 @@ public sealed class WDHomeMissionsPanel : MonoBehaviour
         scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.Permanent;
         scroll.verticalNormalizedPosition = 1f;
 
-        Surface("RightBorder", frame, 1860f, 182f, 60f, viewportHeight,
+        Surface("RightBorder", frame, 1860f, 200f, 60f, viewportHeight - 18f,
             new Color(Navy.r, Navy.g, Navy.b, .60f));
-        RightTop(frame.Find("RightBorder") as RectTransform, 0f, 182f, 60f, viewportHeight);
+        RightTop(frame.Find("RightBorder") as RectTransform, 0f, 200f, 60f, viewportHeight - 18f);
     }
 
     private static void StretchHorizontal(RectTransform rect, float left, float right)

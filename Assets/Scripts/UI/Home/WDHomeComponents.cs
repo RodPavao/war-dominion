@@ -143,15 +143,18 @@ public readonly struct WDUniversalHeaderContent
 {
     public readonly RectTransform Root;
     public readonly Button BackButton;
+    public readonly TextMeshProUGUI Title;
     public readonly TextMeshProUGUI CoinValue;
     public readonly TextMeshProUGUI GemValue;
     public readonly Button NotificationButton;
 
     public WDUniversalHeaderContent(RectTransform root, Button backButton,
+        TextMeshProUGUI title,
         TextMeshProUGUI coinValue, TextMeshProUGUI gemValue, Button notificationButton)
     {
         Root = root;
         BackButton = backButton;
+        Title = title;
         CoinValue = coinValue;
         GemValue = gemValue;
         NotificationButton = notificationButton;
@@ -213,7 +216,17 @@ public static class WDUniversalHeaderFactory
         TextMeshProUGUI gems = BuildEconomyPill("Gems", economy, theme,
             theme.MasterGemIcon);
         Button bell = BuildBell(economy, theme, notificationAction);
-        return new WDUniversalHeaderContent(root, back.Button, coins, gems, bell);
+        return new WDUniversalHeaderContent(root, back.Button, heading, coins, gems, bell);
+    }
+
+    // 00.3. Todos os consumidores atualizam economia pela mesma API, sem
+    // procurar filhos ou recriar a geometria das cápsulas do Arsenal.
+    public static void SetEconomy(WDUniversalHeaderContent header, WDArmoryProfile wallet)
+    {
+        if (header.CoinValue != null)
+            header.CoinValue.text = (wallet?.Coins ?? 0).ToString("N0");
+        if (header.GemValue != null)
+            header.GemValue.text = (wallet?.Emeralds ?? 0).ToString("N0");
     }
 
     private static TextMeshProUGUI BuildEconomyPill(string name, Transform parent,
@@ -324,6 +337,9 @@ public static class WDUniversalHeaderFactory
 // ============================================================
 public static class WDUniversalPanelFactory
 {
+    public static readonly Color CanonicalSurface =
+        new(9f / 255f, 14f / 255f, 19f / 255f, .91f);
+
     public static RectTransform Build(Transform parent, WarDominionUITheme theme,
         string name, float x, float y, float width, float height,
         float surfaceAlpha = .91f)
@@ -332,24 +348,36 @@ public static class WDUniversalPanelFactory
         root.anchorMin = root.anchorMax = root.pivot = new Vector2(0f, 1f);
         root.anchoredPosition = new Vector2(x, -y);
         root.sizeDelta = new Vector2(width, height);
-        Image surface = root.gameObject.AddComponent<Image>();
+        Apply(root, theme, surfaceAlpha);
+        return root;
+    }
+
+    // 00.3. Telas procedurais mantêm sua geometria e adotam somente a
+    // superfície externa canônica, sem reconstruir hierarquia ou callbacks.
+    public static void Apply(RectTransform root, WarDominionUITheme theme,
+        float surfaceAlpha = .91f)
+    {
+        if (root == null || theme == null) return;
+        Image surface = root.GetComponent<Image>() ?? root.gameObject.AddComponent<Image>();
         surface.sprite = theme.MasterRoundedFill;
         surface.type = Image.Type.Sliced;
-        surface.color = new Color(9f / 255f, 14f / 255f, 19f / 255f,
+        surface.color = new Color(CanonicalSurface.r, CanonicalSurface.g, CanonicalSurface.b,
             Mathf.Clamp01(surfaceAlpha));
         surface.raycastTarget = true;
-        RectTransform borderRoot = WDHomeUIFactory.Rect("Border", root);
+        Transform existing = root.Find("Border");
+        RectTransform borderRoot = existing as RectTransform ??
+            WDHomeUIFactory.Rect("Border", root);
         WDHomeUIFactory.Stretch(borderRoot);
-        Image border = borderRoot.gameObject.AddComponent<Image>();
+        Image border = borderRoot.GetComponent<Image>() ?? borderRoot.gameObject.AddComponent<Image>();
         border.sprite = theme.MasterRoundedOutline;
         border.type = Image.Type.Sliced;
         border.color = new Color(theme.MasterGold.r, theme.MasterGold.g,
             theme.MasterGold.b, .24f);
         border.raycastTarget = false;
-        return root;
+        border.transform.SetAsLastSibling();
     }
 
-    // 00.3. A moldura deve ser o último Graphic do painel. Conteúdo interno
+    // 00.4. A moldura deve ser o último Graphic do painel. Conteúdo interno
     // encostado nas bordas não pode ocultar o traço externo de 1 px.
     public static void BringOutlineToFront(RectTransform panel)
     {
@@ -590,6 +618,100 @@ public static class WDHomeMobileLayout
 
     public static float DescriptionWidth(bool hub, bool centerHubCard) =>
         IsMobileLandscape ? hub ? centerHubCard ? 430f : 340f : 345f : 290f;
+}
+
+// ============================================================
+// 03. CONTRATO EXTERNO DAS TELAS SECUNDÁRIAS
+// ============================================================
+// 03.1. O frame do Arsenal é a referência geométrica: conteúdo canônico
+// 1920x1080, centralizado dentro da Safe Area e sem expansão em ultrawide.
+// A redução uniforme só ocorre quando a área segura não comporta o frame,
+// preservando proporções e evitando cortes nos layouts de coordenadas fixas.
+[DisallowMultipleComponent]
+public sealed class WDHomeSecondaryScreenFrame : MonoBehaviour
+{
+    public static readonly Vector2 CanonicalSize = new(1920f, 1080f);
+
+    private RectTransform frame;
+    private Vector2 lastParentSize;
+    private Rect lastSafeArea;
+
+    public static WDHomeSecondaryScreenFrame Configure(RectTransform target)
+    {
+        if (target == null) return null;
+        WDHomeSecondaryScreenFrame contract =
+            target.GetComponent<WDHomeSecondaryScreenFrame>() ??
+            target.gameObject.AddComponent<WDHomeSecondaryScreenFrame>();
+        contract.frame = target;
+        contract.RefreshNow();
+        return contract;
+    }
+
+    private void Awake()
+    {
+        frame = transform as RectTransform;
+        RefreshNow();
+    }
+
+    private void OnEnable() => RefreshNow();
+
+    private void LateUpdate()
+    {
+        RectTransform parent = frame != null ? frame.parent as RectTransform : null;
+        if (parent != null &&
+            (parent.rect.size != lastParentSize || Screen.safeArea != lastSafeArea))
+            RefreshNow();
+    }
+
+    // 03.2. A conversão da Safe Area para o espaço local permite que o mesmo
+    // contrato funcione em Overlay, Camera, Edge Landscape e ultrawide.
+    public void RefreshNow()
+    {
+        if (frame == null) frame = transform as RectTransform;
+        RectTransform parent = frame != null ? frame.parent as RectTransform : null;
+        if (frame == null || parent == null) return;
+
+        Rect available = parent.rect;
+        Canvas canvas = GetComponentInParent<Canvas>();
+        if (canvas != null && canvas.renderMode != RenderMode.WorldSpace &&
+            Screen.width > 0 && Screen.height > 0)
+        {
+            Camera camera = canvas.renderMode == RenderMode.ScreenSpaceOverlay
+                ? null : canvas.worldCamera;
+            Rect safe = Screen.safeArea;
+            if (RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                    parent, safe.min, camera, out Vector2 safeMin) &&
+                RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                    parent, safe.max, camera, out Vector2 safeMax))
+            {
+                safeMin = Vector2.Max(safeMin, parent.rect.min);
+                safeMax = Vector2.Min(safeMax, parent.rect.max);
+                if (safeMax.x > safeMin.x && safeMax.y > safeMin.y)
+                    available = Rect.MinMaxRect(safeMin.x, safeMin.y, safeMax.x, safeMax.y);
+            }
+        }
+
+        ApplyAvailableRect(available);
+        lastParentSize = parent.rect.size;
+        lastSafeArea = Screen.safeArea;
+    }
+
+    // 03.3. Testes e apresentações serializadas podem fornecer diretamente
+    // a área útil; a regra geométrica permanece única e determinística.
+    public void ApplyAvailableRect(Rect available)
+    {
+        if (frame == null) frame = transform as RectTransform;
+        if (frame == null) return;
+        float scale = Mathf.Min(1f,
+            available.width / CanonicalSize.x,
+            available.height / CanonicalSize.y);
+        scale = Mathf.Max(.001f, scale);
+        frame.anchorMin = frame.anchorMax = new Vector2(.5f, .5f);
+        frame.pivot = new Vector2(.5f, .5f);
+        frame.sizeDelta = CanonicalSize;
+        frame.localPosition = new Vector3(available.center.x, available.center.y, 0f);
+        frame.localScale = Vector3.one * scale;
+    }
 }
 
 public static class WDHomeUIFactory

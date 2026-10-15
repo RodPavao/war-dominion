@@ -44,11 +44,10 @@ public sealed class WDHomeClanPanel : MonoBehaviour
       RectTransform bg=R("FullscreenBackground",transform);WDHomeUIFactory.Stretch(bg);RawImage image=bg.gameObject.AddComponent<RawImage>();image.texture=Resources.Load<Texture2D>("UI/Clan/Canonical/ClanBackground");image.raycastTarget=false;
       AspectRatioFitter crop=bg.gameObject.AddComponent<AspectRatioFitter>();crop.aspectMode=AspectRatioFitter.AspectMode.EnvelopeParent;crop.aspectRatio=image.texture!=null?(float)image.texture.width/image.texture.height:16f/9f;
         Image fullscreenFilm=WDHomeUIFactory.Image("FullscreenFilm",transform,new Color(.024f,.051f,.09f,.58f));WDHomeUIFactory.Stretch(fullscreenFilm.rectTransform);fullscreenFilm.raycastTarget=false;
-      shell=R("ClanResponsiveShell",transform);WDHomeUIFactory.Stretch(shell);
-      RectTransform header=S("Header",shell,0,0,1920,120,new Color(.024f,.055f,.102f,.90f));WDHomeUIFactory.AddThinRoundedBorder(header,new Color(Gold.r,Gold.g,Gold.b,.13f),4);
-      StretchHorizontal(header,0,0);BuildBack(header);RectTransform titleGroup=R("TitleCenter",header);CenterTop(titleGroup,0,70,124,32);Image hi=Icon("ClanIcon",titleGroup,"UI/Clan/Canonical/icon_clan_header");P(hi.rectTransform,0,4,22,22);T("Title",titleGroup,"CLÃ",22,White,34,0,90,32,TextAlignmentOptions.Left,"Inter-ExtraBold");
-      RectTransform resources=R("Resources",header);P(resources,1588,40,270,48);TextMeshProUGUI coins=Resource(resources,"Coins","Coin",0,wallet?.Coins??0,110);TextMeshProUGUI gems=Resource(resources,"Emeralds","Gem",126,wallet?.Emeralds??0,80);
-      RightTop(resources,62,40,270,48);RectTransform bell=WDHomeUIFactory.BuildCanonicalNotification(resources,()=>notifications?.Invoke());P(bell,222,0,48,48);WDHomeUIFactory.LayoutResourceGroup(coins,gems,bell,110,80);
+      shell=R("ClanResponsiveShell",transform);WDHomeSecondaryScreenFrame.Configure(shell);
+      // 02.1. O chrome do Clã reutiliza integralmente o Header do Arsenal.
+      WDUniversalHeaderContent header=WDUniversalHeaderFactory.BuildInset(shell,theme,"CLÃ",()=>navigation.TryBack(),notifications==null?null:()=>notifications.Invoke());
+      WDUniversalHeaderFactory.SetEconomy(header,wallet);
       sidebar=S("Sidebar",shell,0,120,220,960,new Color(.024f,.051f,.09f,.92f));StretchVertical(sidebar,120,0);content=S("Content",shell,220,120,1700,960,new Color(.024f,.051f,.09f,.78f));StretchBody(content,220,0,120,0);
       overlay=R("ClanOverlay",shell);WDHomeUIFactory.Stretch(overlay);overlay.gameObject.SetActive(false); }
 
@@ -166,15 +165,30 @@ public sealed class WDHomeClanPanel : MonoBehaviour
     private void RenderReviews(){WDClanData clan=clans.LocalClan;WDClanMember actor=clan?.Member(clans.LocalPlayerId);if(actor==null||!WDClanPermissions.Can(actor.Role,WDClanPermission.ReviewJoinRequests)){CloseOverlay();return;}RectTransform box=Modal("Reviews","SOLICITAÇÕES DO CLÃ","ANALISE ENTRADAS E EXPULSÕES PENDENTES",760,650);float y=116;foreach(WDClanJoinRequest request in clan.JoinRequests.Take(4)){WDClanJoinRequest item=request;T("JoinName",box,Name(item.PlayerId),13,White,28,y,310,24,TextAlignmentOptions.Left,"Inter-Bold");Btn("Reject",box,"RECUSAR",396,y-6,146,36,()=>ResultAndClose(clans.DecideJoin(clan.Id,actor.PlayerId,item.Id,false)));Btn("Accept",box,"ACEITAR",558,y-6,174,36,()=>ResultAndClose(clans.DecideJoin(clan.Id,actor.PlayerId,item.Id,true)));y+=54;}foreach(WDClanKickRequest request in clan.KickRequests.Take(4)){WDClanKickRequest item=request;T("KickName",box,$"EXPULSÃO: {Name(item.TargetPlayerId)}",13,White,28,y,350,24,TextAlignmentOptions.Left,"Inter-Bold");Btn("RejectKick",box,"RECUSAR",396,y-6,146,36,()=>ResultAndClose(clans.DecideKick(clan.Id,actor.PlayerId,item.Id,false)));Btn("ApproveKick",box,"APROVAR",558,y-6,174,36,()=>ResultAndClose(clans.DecideKick(clan.Id,actor.PlayerId,item.Id,true)));y+=54;}if(clan.JoinRequests.Count+clan.KickRequests.Count==0)T("Empty",box,"NENHUMA SOLICITAÇÃO PENDENTE.",13,Muted,28,160,704,28,TextAlignmentOptions.Center,"Inter-Bold");Btn("Close",box,"VOLTAR",24,580,712,44,CloseOverlay);}
     private void LeaveClan(WDClanData clan,WDClanMember actor){if(actor.Role!=WDClanRole.General){Ask("SAIR DO CLÃ","Você deixará de fazer parte desta aliança.",()=>ResultAndClose(clans.Leave(actor.PlayerId)));return;}WDClanMember successor=clans.OldestCommander(clan);if(successor==null){Ask("SAÍDA INDISPONÍVEL","Promova um Oficial a Comandante antes de sair.",CloseOverlay);return;}Ask("SAIR DO CLÃ",$"{Name(successor.PlayerId)} assumirá automaticamente como General por ser o Comandante mais antigo.",()=>{string id;ResultAndClose(clans.LeaveAsGeneral(clan.Id,actor.PlayerId,out id));});}
     private void Card(string n,float x,float y,float w,float h,string text){RectTransform r=S(n,content,x,y,w,h,new Color(.031f,.067f,.114f,.94f),14);WDHomeUIFactory.AddThinRoundedBorder(r,new Color(Gold.r,Gold.g,Gold.b,.22f),14);T("Text",r,text,16,White,24,22,w-48,h-44,TextAlignmentOptions.TopLeft,"Inter-Regular");}
-    private RectTransform Panel(string n,float x,float y,float w,float h,int radius,float alpha){RectTransform r=S(n,content,x,y,w,h,C("08111D"),radius);WDHomeUIFactory.AddThinRoundedBorder(r,new Color(Gold.r,Gold.g,Gold.b,alpha),radius);return r;}
+    private RectTransform Panel(string n,float x,float y,float w,float h,int radius,float alpha)
+    {
+        RectTransform r=R(n,content);P(r,x,y,w,h);
+        // 07.1. O contrato canônico limita-se às superfícies estruturais; linhas
+        // de troca preservam o acabamento funcional e a hierarquia já aprovada.
+        bool structural=n is "ClanIdentity" or "ActiveMembers" or "TotalTrophies" or
+            "MessageOfDay" or "MyRequest" or "MembersTable" or "ClanLog";
+        if(structural) WDUniversalPanelFactory.Apply(r,theme);
+        else
+        {
+            Image surface=r.gameObject.AddComponent<Image>();
+            surface.color=new Color(.031f,.067f,.114f,alpha);
+            surface.raycastTarget=true;
+            WDHomeUIFactory.ApplyRounded(surface,radius);
+            WDHomeUIFactory.AddThinRoundedBorder(r,new Color(Gold.r,Gold.g,Gold.b,alpha),radius);
+        }
+        return r;
+    }
     private static void Rule(Transform parent,float x,float y,float width){RectTransform r=R("Rule",parent);P(r,x,y,width,1);Image i=r.gameObject.AddComponent<Image>();i.color=new Color(Gold.r,Gold.g,Gold.b,.08f);i.raycastTarget=false;}
     private static void Progress(Transform parent,float x,float y,float width,float normalized){RectTransform track=R("ProgressTrack",parent);P(track,x,y,width,4);Image ti=track.gameObject.AddComponent<Image>();ti.color=C("1E293B");WDHomeUIFactory.ApplyRounded(ti,2);RectTransform fill=R("ProgressFill",track);P(fill,0,0,width*Mathf.Clamp01(normalized),4);Image fi=fill.gameObject.AddComponent<Image>();fi.color=Gold;WDHomeUIFactory.ApplyRounded(fi,2);}
     private void Confirm(string title,string body,Action action){if(confirm!=null)confirm(title,body,action);else action?.Invoke();}
     private static string RoleLabel(WDClanRole role)=>role switch{WDClanRole.General=>"GENERAL",WDClanRole.Commander=>"COMANDANTE",WDClanRole.Officer=>"OFICIAL",_=>"MEMBRO"};
     private static Color RoleColor(WDClanRole role)=>role switch{WDClanRole.General=>C("EF4444"),WDClanRole.Commander=>Gold,WDClanRole.Officer=>C("A78BFA"),_=>Muted};
 
-    private TextMeshProUGUI Resource(Transform p,string n,string icon,float x,int amount,float width){TextMeshProUGUI value=WDHomeUIFactory.BuildCanonicalResourcePill(n,p,icon,width,out RectTransform r);P(r,x,4,width,40);WDHomeUIFactory.SetResourcePillValue(value,amount,width,icon=="Coin"?180:150);return value;}
-    private void BuildBack(Transform parent){WDHomeBackButtonFactory.BuildCanonical(parent,()=>navigation.TryBack());}
     private TMP_InputField Input(string hint,string value,float x,float y,float w,float h){RectTransform r=S("Search",content,x,y,w,h,C("0B1525"),8);WDHomeUIFactory.AddThinRoundedBorder(r,C("1E3A5F"),8);var i=r.gameObject.AddComponent<TMP_InputField>();RectTransform v=R("Viewport",r);WDHomeUIFactory.Stretch(v,38,6,14,6);var t=T("Text",v,value,13,White,0,0,w-52,h-12,TextAlignmentOptions.Left,"Inter-Regular");var ph=T("Placeholder",v,hint,13,C("475569"),0,0,w-52,h-12,TextAlignmentOptions.Left,"Inter-Regular");i.textViewport=v;i.textComponent=t;i.placeholder=ph;i.text=value;return i;}
     private RectTransform S(string n,Transform p,float x,float y,float w,float h,Color c,int radius=0){RectTransform r=R(n,p);P(r,x,y,w,h);Image i=r.gameObject.AddComponent<Image>();i.color=c;i.raycastTarget=true;if(radius>0)WDHomeUIFactory.ApplyRounded(i,radius);return r;}
     private void Btn(string n,Transform p,string text,float x,float y,float w,float h,UnityEngine.Events.UnityAction a){RectTransform r=R(n,p);P(r,x,y,w,h);r.gameObject.AddComponent<WDUIPremiumButton>().Build(theme,text,a);}

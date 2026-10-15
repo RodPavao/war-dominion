@@ -21,6 +21,8 @@ public sealed class WDHomeRankingPanel : MonoBehaviour
     private WDNavigationStack navigation;
     private Action<string> openPublicProfile;
     private Action<bool> setHomeCompositionVisible;
+    private Func<WDArmoryProfile> walletProvider;
+    private Action openNotifications;
     private WDRankingQuery query;
     private RectTransform content;
     private GameObject divisionsModal;
@@ -37,12 +39,21 @@ public sealed class WDHomeRankingPanel : MonoBehaviour
     public void Build(WarDominionUITheme newTheme, WDRankingRepository rankingRepository,
         WDNavigationStack navigationStack, Action<string> publicProfileAction,
         Texture2D backgroundTexture, Action<bool> homeCompositionVisibility)
+        => Build(newTheme, rankingRepository, navigationStack, publicProfileAction,
+            backgroundTexture, homeCompositionVisibility, null, null);
+
+    public void Build(WarDominionUITheme newTheme, WDRankingRepository rankingRepository,
+        WDNavigationStack navigationStack, Action<string> publicProfileAction,
+        Texture2D backgroundTexture, Action<bool> homeCompositionVisibility,
+        Func<WDArmoryProfile> economyProvider, Action notificationAction)
     {
         theme = newTheme ?? throw new ArgumentNullException(nameof(newTheme));
         repository = rankingRepository ?? throw new ArgumentNullException(nameof(rankingRepository));
         navigation = navigationStack ?? throw new ArgumentNullException(nameof(navigationStack));
         openPublicProfile = publicProfileAction;
         setHomeCompositionVisible = homeCompositionVisibility;
+        walletProvider = economyProvider;
+        openNotifications = notificationAction;
         query = new WDRankingQuery { Season = repository.CurrentSeason };
         Image blocker = gameObject.AddComponent<Image>();
         blocker.color = C("060A12");
@@ -101,18 +112,21 @@ public sealed class WDHomeRankingPanel : MonoBehaviour
         gameObject.SetActive(true);
         Clear(content);
         RectTransform frame = Rect("RankingResponsiveShell", content, 0, 0, 0, 0);
-        WDHomeUIFactory.Stretch(frame);
-        WDHomeBackButtonFactory.BuildCanonical(frame, () => navigation.TryBack());
-        TextMeshProUGUI title = Label(frame, "Title", "RANKING", 28, Text, 0, 40, 300, 46,
-            TextAlignmentOptions.Center, "Gabarito-ExtraBold");
-        CenterTop(title.rectTransform, 0, 40, 300, 46);
+        WDHomeSecondaryScreenFrame.Configure(frame);
+        // 02.1. Ranking compartilha o chrome completo do Arsenal.
+        WDUniversalHeaderContent header = WDUniversalHeaderFactory.BuildInset(frame,
+            theme, "RANKING", () => navigation.TryBack(),
+            openNotifications == null ? null : () => openNotifications.Invoke());
+        WDUniversalHeaderFactory.SetEconomy(header, walletProvider?.Invoke());
 
-        RectTransform summary = Surface(frame, "DivisionSummary", 64, 132, 480, 525, PanelColor, 16, Border);
+        RectTransform summary = WDUniversalPanelFactory.Build(frame, theme,
+            "DivisionSummary", 64, 132, 480, 525);
         DivisionSummary(summary);
         RectTransform section = Rect("RankingListSection", frame, 576, 132, 1280, 868);
         StretchBody(section, 576, 64, 132, 80);
         Selectors(section);
-        RectTransform table = Surface(section, "RankingTable", 0, 51, 1280, 817, PanelColor, 16, Border);
+        RectTransform table = WDUniversalPanelFactory.Build(section, theme,
+            "RankingTable", 0, 51, 1280, 817);
         StretchBody(table, 0, 0, 51, 0);
         Table(table);
     }

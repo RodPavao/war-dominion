@@ -389,7 +389,8 @@ public sealed class WarDominionHomeController : MonoBehaviour
         friendsPanel = friendsLayer.gameObject.AddComponent<WDHomeFriendsPanel>();
         friendsPanel.Build(theme, socialRepository, navigationStack,
             profilePanel.OpenPublicProfile, OpenDirectChat, OpenSocialConfirmation,
-            friendsBackgroundTexture, SetFriendsPresentationVisible);
+            friendsBackgroundTexture, SetFriendsPresentationVisible,
+            () => economyRepository.Load(economyCatalog), OpenNotificationCenter);
 
         RectTransform chatLayer = WDHomeUIFactory.Rect("ChatLayer", root.transform);
         WDHomeUIFactory.Stretch(chatLayer);
@@ -411,12 +412,14 @@ public sealed class WarDominionHomeController : MonoBehaviour
         WDHomeUIFactory.Stretch(rankingLayer);
         rankingPanel = rankingLayer.gameObject.AddComponent<WDHomeRankingPanel>();
         rankingPanel.Build(theme, new WDRankingRepository(profileRepository), navigationStack,
-            profilePanel.OpenPublicProfile, rankingBackgroundTexture, SetHomeCompositionVisible);
+            profilePanel.OpenPublicProfile, rankingBackgroundTexture, SetHomeCompositionVisible,
+            () => economyRepository.Load(economyCatalog), OpenNotificationCenter);
 
         RectTransform missionsLayer = WDHomeUIFactory.Rect("MissionsLayer", root.transform);
         WDHomeUIFactory.Stretch(missionsLayer);
         missionsPanel = missionsLayer.gameObject.AddComponent<WDHomeMissionsPanel>();
-        missionsPanel.Build(theme, missionRepository, navigationStack, SetHomeCompositionVisible);
+        missionsPanel.Build(theme, missionRepository, navigationStack, SetHomeCompositionVisible,
+            () => economyRepository.Load(economyCatalog), OpenNotificationCenter);
 
         RectTransform settingsLayer = WDHomeUIFactory.Rect("SettingsLayer", root.transform);
         WDHomeUIFactory.Stretch(settingsLayer);

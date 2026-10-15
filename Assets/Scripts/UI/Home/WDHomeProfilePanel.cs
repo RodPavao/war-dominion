@@ -39,9 +39,8 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
     private WDProfilePresentation currentPresentation;
     private WDProfileMode selectedMode = WDProfileMode.Battle;
     private RectTransform responsiveShell;
+    private WDHomeSecondaryScreenFrame responsiveFrame;
     private RectTransform chrome;
-    private Vector2 lastRootSize;
-    private Rect lastSafeArea;
 
     // 01.1. Os tokens do Figma são sRGB. A conversão explícita evita que o
     // Color Space Linear clareie os navies e intensifique o dourado no Canvas.
@@ -114,9 +113,7 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
         veil.raycastTarget = false;
         // 01.1. Header e conteúdo usam a mesma referência lógica responsiva.
         responsiveShell = WDHomeUIFactory.Rect("ProfileResponsiveShell", transform);
-        responsiveShell.anchorMin = responsiveShell.anchorMax = new Vector2(.5f, .5f);
-        responsiveShell.pivot = new Vector2(.5f, .5f);
-        responsiveShell.sizeDelta = new Vector2(1920f, 1080f);
+        responsiveFrame = WDHomeSecondaryScreenFrame.Configure(responsiveShell);
         chrome = WDHomeUIFactory.Rect("ProfileChrome", responsiveShell);
         WDHomeUIFactory.Stretch(chrome);
         content = WDHomeUIFactory.Rect("ProfileContent", responsiveShell);
@@ -136,13 +133,6 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
     }
 
     private void OnDisable() => UnsubscribeFromSocial();
-
-    private void LateUpdate()
-    {
-        RectTransform root = transform as RectTransform;
-        if (root != null && (root.rect.size != lastRootSize || Screen.safeArea != lastSafeArea))
-            FitSafeArea();
-    }
 
     public void Build(WarDominionUITheme newTheme, WDProfileRepository newRepository,
         WDNavigationStack navigationStack, Action<string, string> endpoint,
@@ -907,24 +897,9 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
         WDUniversalHeaderContent header = WDUniversalHeaderFactory.BuildInset(
             chrome, theme, title, () => navigation.TryBack(),
             openNotifications == null ? null : () => openNotifications.Invoke());
-
-        // 06.1. Perfil usa a margem oficial de 64 px dos frames 355/435/448.
-        header.Root.anchorMin = new Vector2(0f, 1f);
-        header.Root.anchorMax = new Vector2(1f, 1f);
-        header.Root.pivot = new Vector2(.5f, 1f);
-        header.Root.offsetMin = new Vector2(64f, -96f);
-        header.Root.offsetMax = new Vector2(-64f, -24f);
-
-        // 06.2. O Header do Perfil aplica localmente os valores oficiais do
-        // frame 355:9 sem alterar a fábrica universal nem seus consumidores.
-        ApplyProfileSurface(header.Root, FigmaHeader, WithAlpha(FigmaGold, .62f), 8);
-        RectTransform backRoot = header.BackButton != null
-            ? header.BackButton.transform as RectTransform : null;
-        ApplyProfileSurface(backRoot, FigmaButton, WithAlpha(FigmaGold, .24f), 10);
-
-        WDArmoryProfile economy = economyProvider?.Invoke();
-        header.CoinValue.text = (economy?.Coins ?? 0).ToString("N0");
-        header.GemValue.text = (economy?.Emeralds ?? 0).ToString("N0");
+        // 06.1. O Header permanece integralmente sob a autoridade universal
+        // do Arsenal; Perfil fornece somente título, ações e dados reais.
+        WDUniversalHeaderFactory.SetEconomy(header, economyProvider?.Invoke());
     }
 
     // ============================================================
@@ -933,33 +908,8 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
     private void FitSafeArea()
     {
         if (responsiveShell == null) return;
-        RectTransform root = transform as RectTransform;
-        if (root == null) return;
-        Rect available = root.rect;
-        Canvas canvas = GetComponentInParent<Canvas>();
-        if (canvas != null && canvas.renderMode != RenderMode.WorldSpace &&
-            Screen.width > 0 && Screen.height > 0)
-        {
-            Camera camera = canvas.renderMode == RenderMode.ScreenSpaceOverlay
-                ? null : canvas.worldCamera;
-            Rect safe = Screen.safeArea;
-            if (RectTransformUtility.ScreenPointToLocalPointInRectangle(root, safe.min, camera, out Vector2 min) &&
-                RectTransformUtility.ScreenPointToLocalPointInRectangle(root, safe.max, camera, out Vector2 max))
-            {
-                min = Vector2.Max(min, root.rect.min);
-                max = Vector2.Min(max, root.rect.max);
-                if (max.x > min.x && max.y > min.y)
-                    available = Rect.MinMaxRect(min.x, min.y, max.x, max.y);
-            }
-        }
-        responsiveShell.anchorMin = responsiveShell.anchorMax = new Vector2(.5f, .5f);
-        responsiveShell.pivot = new Vector2(.5f, .5f);
-        responsiveShell.sizeDelta = new Vector2(
-            Mathf.Min(available.width, 1920f), Mathf.Min(available.height, 1080f));
-        responsiveShell.localPosition = new Vector3(available.center.x, available.center.y, 0f);
-        responsiveShell.localScale = Vector3.one;
-        lastRootSize = root.rect.size;
-        lastSafeArea = Screen.safeArea;
+        responsiveFrame ??= WDHomeSecondaryScreenFrame.Configure(responsiveShell);
+        responsiveFrame.RefreshNow();
     }
 
     private RectTransform Panel(string name, Transform parent, Vector2 min, Vector2 max) =>
@@ -970,11 +920,22 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
     {
         RectTransform rect = WDHomeUIFactory.Rect(name, parent); rect.anchorMin = min; rect.anchorMax = max;
         rect.offsetMin = rect.offsetMax = Vector2.zero;
-        Image image = rect.gameObject.AddComponent<Image>(); image.color = fill ?? FigmaPanel; image.raycastTarget = true;
-        WDHomeUIFactory.ApplyRounded(image, radius);
-        // 07.1. Cada família mantém seu raio oficial; o Graphic fino produz
-        // traço interno de 1 px independente do fill e da opacidade do painel.
-        WDHomeUIFactory.AddThinRoundedBorder(rect, border, radius);
+        // 07.1. Somente as superfícies estruturais recebem o acabamento externo
+        // canônico. Cartões, chips, inputs e estados mantêm sua semântica local.
+        bool structural = name is "IdentityPanel" or "Statistics" or "Performance" or
+            "CurrentDivision" or "Achievements" or "History";
+        if (structural)
+        {
+            WDUniversalPanelFactory.Apply(rect, theme);
+        }
+        else
+        {
+            Image image = rect.gameObject.AddComponent<Image>();
+            image.color = fill ?? FigmaPanel;
+            image.raycastTarget = true;
+            WDHomeUIFactory.ApplyRounded(image, radius);
+            AddBorder(rect, border, radius);
+        }
         return rect;
     }
 

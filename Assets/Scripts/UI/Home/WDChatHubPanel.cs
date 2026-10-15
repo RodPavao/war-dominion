@@ -47,6 +47,7 @@ public sealed class WDChatHubPanel : MonoBehaviour
     // 01. REFERÊNCIAS SERIALIZADAS DA VIEW V2
     // ============================================================
     [SerializeField] private RectTransform content, optionsLayer, optionsPopup, searchPanel;
+    private WDHomeSecondaryScreenFrame responsiveFrame;
     [SerializeField] private RawImage backgroundArtwork;
     [SerializeField] private ScrollRect recentScroll, friendsScroll, messagesScroll;
     [SerializeField] private Button backButton, notificationButton, newConversationButton, viewAllFriendsButton;
@@ -67,10 +68,8 @@ public sealed class WDChatHubPanel : MonoBehaviour
     private string selectedChannelId, renderedChannel;
     private int renderedCount = -1;
     private bool subscribed, refreshing, sending;
-    private Vector2 lastArea;
     private float lastResponsiveCenterWidth = -1f;
     private float lastResponsiveColumnHeight = -1f;
-    private Rect lastSafe;
 
     public bool IsOpen => isActiveAndEnabled;
     public string SelectedChannelId => selectedChannelId;
@@ -98,6 +97,7 @@ public sealed class WDChatHubPanel : MonoBehaviour
         if (content != null)
         {
             // 01.1. Prefab V2: somente liga comportamento e dados à hierarquia serializada.
+            responsiveFrame = WDHomeSecondaryScreenFrame.Configure(content);
             backgroundArtwork.texture = officialBackground;
             backgroundArtwork.color = officialBackground != null ? Color.white : Color.clear;
             RefreshHeaderEconomy();
@@ -116,7 +116,7 @@ public sealed class WDChatHubPanel : MonoBehaviour
         backgroundArtwork.color = officialBackground != null ? Color.white : Color.clear;
         backgroundArtwork.raycastTarget = false;
         content = Rect("ChatResponsiveShell", transform, 0, 0, 0, 0);
-        WDHomeUIFactory.Stretch(content);
+        responsiveFrame = WDHomeSecondaryScreenFrame.Configure(content);
         BuildHeader();
         // 01.3. Três superfícies independentes usam exatamente fill, outline e
         // opacidade do Arsenal V2; os gaps substituem as divisórias externas.
@@ -813,14 +813,14 @@ public sealed class WDChatHubPanel : MonoBehaviour
     // ============================================================
     public static Rect FitCanonicalRect(Rect available)
     {
-        float scale = Mathf.Max(.001f, Mathf.Min(available.width / CanonicalSize.x, available.height / CanonicalSize.y));
+        float scale = Mathf.Max(.001f, Mathf.Min(1f,
+            available.width / CanonicalSize.x, available.height / CanonicalSize.y));
         Vector2 size = CanonicalSize * scale;
         return new Rect(available.center - size / 2, size);
     }
     private void LateUpdate()
     {
         if (content == null) return;
-        if (lastArea != ((RectTransform)transform).rect.size || lastSafe != Screen.safeArea) FitSafeArea();
         ApplyResponsiveConversation();
     }
     public void FitSafeArea()
@@ -830,33 +830,18 @@ public sealed class WDChatHubPanel : MonoBehaviour
         if (backgroundArtwork.texture != null)
             backgroundArtwork.uvRect = CoverUv(root.rect.size,
                 new Vector2(backgroundArtwork.texture.width, backgroundArtwork.texture.height));
-        Rect available = root.rect;
-        Canvas canvas = GetComponentInParent<Canvas>();
-        if (canvas != null && canvas.renderMode != RenderMode.WorldSpace && Screen.width > 0 && Screen.height > 0)
-        {
-            Camera camera = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
-            Rect safe = Screen.safeArea;
-            if (RectTransformUtility.ScreenPointToLocalPointInRectangle(root, safe.min, camera, out Vector2 min) &&
-                RectTransformUtility.ScreenPointToLocalPointInRectangle(root, safe.max, camera, out Vector2 max))
-            {
-                min = Vector2.Max(min, root.rect.min);
-                max = Vector2.Min(max, root.rect.max);
-                if (max.x > min.x && max.y > min.y) available = UnityEngine.Rect.MinMaxRect(min.x, min.y, max.x, max.y);
-            }
-        }
-        ApplySafeArea(available);
-        lastArea = root.rect.size;
-        lastSafe = Screen.safeArea;
+        responsiveFrame ??= WDHomeSecondaryScreenFrame.Configure(content);
+        responsiveFrame.RefreshNow();
+        Canvas.ForceUpdateCanvases();
+        ApplyResponsiveConversation();
     }
     public void ApplySafeArea(Rect available)
     {
         if (content == null) return;
-        content.anchorMin = content.anchorMax = new Vector2(.5f, .5f);
-        content.pivot = new Vector2(.5f, .5f);
-        content.sizeDelta = new Vector2(Mathf.Min(available.width, CanonicalSize.x),
-            Mathf.Min(available.height, CanonicalSize.y));
-        content.localPosition = new Vector3(available.center.x, available.center.y, 0);
-        content.localScale = Vector3.one;
+        // 08.1. A API pública permanece para testes e authoring, mas delega ao
+        // mesmo contrato usado pelas demais telas secundárias.
+        responsiveFrame ??= WDHomeSecondaryScreenFrame.Configure(content);
+        responsiveFrame.ApplyAvailableRect(available);
         Canvas.ForceUpdateCanvases();
         ApplyResponsiveConversation();
     }

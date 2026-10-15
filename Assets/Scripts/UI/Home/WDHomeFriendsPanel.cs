@@ -30,6 +30,8 @@ public sealed class WDHomeFriendsPanel : MonoBehaviour
     private Action<string> openProfile, openChat;
     private Action<string, string, Action> confirm;
     private Action<bool> homeVisibility;
+    private Func<WDArmoryProfile> walletProvider;
+    private Action openNotifications;
     private Texture2D background;
     private RectTransform shell, overlay, centerPanel;
     private TMP_InputField searchInput, addInput;
@@ -46,7 +48,8 @@ public sealed class WDHomeFriendsPanel : MonoBehaviour
     public void Build(WarDominionUITheme t, WDSocialRepository repository,
         WDNavigationStack nav, Action<string> profile, Action<string> chat,
         Action<string, string, Action> confirmation, Texture2D backgroundTexture = null,
-        Action<bool> home = null)
+        Action<bool> home = null, Func<WDArmoryProfile> economyProvider = null,
+        Action notificationAction = null)
     {
         Unsubscribe();
         theme = t ?? throw new ArgumentNullException(nameof(t));
@@ -57,6 +60,8 @@ public sealed class WDHomeFriendsPanel : MonoBehaviour
         confirm = confirmation;
         background = backgroundTexture;
         homeVisibility = home;
+        walletProvider = economyProvider;
+        openNotifications = notificationAction;
         Image inputBlock = gameObject.AddComponent<Image>();
         inputBlock.color = Color.clear;
         inputBlock.raycastTarget = true;
@@ -77,7 +82,7 @@ public sealed class WDHomeFriendsPanel : MonoBehaviour
         Surface("BackgroundVeil", transform, 0, 0, 0, 0, new Color(.012f, .02f, .035f, .66f));
         Stretch(transform.Find("BackgroundVeil") as RectTransform);
         shell = R("FriendsResponsiveShell", transform);
-        Stretch(shell);
+        WDHomeSecondaryScreenFrame.Configure(shell);
         overlay = R("FriendsOverlay", shell);
         Stretch(overlay);
         Canvas overlayCanvas = overlay.gameObject.AddComponent<Canvas>();
@@ -152,15 +157,14 @@ public sealed class WDHomeFriendsPanel : MonoBehaviour
             if (child != overlay) DestroyNow(child.gameObject);
         }
 
-        RectTransform header = Box("FriendsHeader", shell, 40, 28, 1840, 132, Panel, 24,
-            new Color(Gold.r, Gold.g, Gold.b, .20f));
-        StretchHorizontal(header, 40, 40);
-        WDHomeBackButtonFactory.BuildCanonical(header, () => navigation.TryBack());
-        TextMeshProUGUI title = Text("Title", header, "AMIGOS", 34, White, 0, 13, 600, 54,
-            TextAlignmentOptions.Center, "Gabarito-Black");
-        CenterTop(title.rectTransform, 0, 13, 600, 54);
-        RectTransform tabs = R("FriendsTabs", header);
-        CenterTop(tabs, 0, 81, 724, 42);
+        // 02.1. Header, Voltar e economia são exatamente os componentes do
+        // Arsenal; as abas continuam independentes e preservam seu conteúdo.
+        WDUniversalHeaderContent header = WDUniversalHeaderFactory.BuildInset(shell,
+            theme, "AMIGOS", () => navigation.TryBack(),
+            openNotifications == null ? null : () => openNotifications.Invoke());
+        WDUniversalHeaderFactory.SetEconomy(header, walletProvider?.Invoke());
+        RectTransform tabs = R("FriendsTabs", shell);
+        CenterTop(tabs, 0, 112, 724, 42);
         Tab(tabs, WDFriendsTab.Friends, "AMIGOS", 0, 210);
         Tab(tabs, WDFriendsTab.Requests, $"SOLICITAÇÕES ({social.PendingReceivedCount})", 226, 272);
         Tab(tabs, WDFriendsTab.Blocked, "BLOQUEADOS", 514, 210);

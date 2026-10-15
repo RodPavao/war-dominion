@@ -22,6 +22,7 @@ public sealed class WDHomeSettingsPanel : MonoBehaviour
     private WDNavigationStack navigation;
     private WDSettingsRepository settings;
     private RectTransform responsiveShell;
+    private WDHomeSecondaryScreenFrame responsiveFrame;
     private RectTransform content;
     private RectTransform chrome;
     private Func<WDArmoryProfile> loadWallet;
@@ -29,10 +30,6 @@ public sealed class WDHomeSettingsPanel : MonoBehaviour
     private bool timeZonePickerOpen;
     private bool languagePickerOpen;
     private Action<bool> setHomeCompositionVisible;
-    private Vector2 lastRootSize;
-    private Rect lastSafeArea;
-
-    private static readonly Vector2 CanonicalSize = new Vector2(1920f, 1080f);
     private const float SettingsOuterMargin = 64f;
 
     private static readonly Color FigmaGold = new Color(0.773f, 0.608f, 0.388f, 1f);
@@ -93,7 +90,7 @@ public sealed class WDHomeSettingsPanel : MonoBehaviour
         // 01.1. Header e conteúdo passam a compartilhar a mesma autoridade de
         // coordenadas. O cenário permanece full bleed fora deste shell.
         responsiveShell = WDHomeUIFactory.Rect("SettingsResponsiveShell", transform);
-        WDHomeUIFactory.Stretch(responsiveShell);
+        responsiveFrame = WDHomeSecondaryScreenFrame.Configure(responsiveShell);
         content = WDHomeUIFactory.Rect("SettingsContent", responsiveShell);
         WDHomeUIFactory.Stretch(content);
         chrome = WDHomeUIFactory.Rect("SettingsChrome", responsiveShell);
@@ -136,12 +133,6 @@ public sealed class WDHomeSettingsPanel : MonoBehaviour
 
     private void Update()
     {
-        // 01.2. Recalcula somente quando a área útil realmente muda. Não há
-        // escrita contínua de geometria nem compensação específica por resolução.
-        RectTransform root = transform as RectTransform;
-        if (root != null && (lastRootSize != root.rect.size || lastSafeArea != Screen.safeArea))
-            FitSafeArea();
-
         if ((!timeZonePickerOpen && !languagePickerOpen) ||
             Keyboard.current?.escapeKey.wasPressedThisFrame != true)
             return;
@@ -166,7 +157,6 @@ public sealed class WDHomeSettingsPanel : MonoBehaviour
         WDUniversalHeaderContent header = WDUniversalHeaderFactory.BuildInset(
             chrome, theme, "CONFIGURAÇÕES", () => navigation.TryBack(),
             openNotifications == null ? null : () => openNotifications.Invoke());
-        StretchHeader(header.Root);
         RefreshHeaderEconomy(header);
 
         // 02.2. Composição Figma 433:115 / 438:2: área X=64, Y=176,
@@ -223,9 +213,7 @@ public sealed class WDHomeSettingsPanel : MonoBehaviour
 
     private void RefreshHeaderEconomy(WDUniversalHeaderContent header)
     {
-        WDArmoryProfile wallet = loadWallet?.Invoke();
-        header.CoinValue.text = (wallet?.Coins ?? 0).ToString("N0");
-        header.GemValue.text = (wallet?.Emeralds ?? 0).ToString("N0");
+        WDUniversalHeaderFactory.SetEconomy(header, loadWallet?.Invoke());
     }
 
     // ============================================================
@@ -729,50 +717,8 @@ public sealed class WDHomeSettingsPanel : MonoBehaviour
     private void FitSafeArea()
     {
         if (responsiveShell == null) return;
-        RectTransform root = transform as RectTransform;
-        if (root == null) return;
-
-        Rect available = root.rect;
-        Canvas canvas = GetComponentInParent<Canvas>();
-        if (canvas != null && canvas.renderMode != RenderMode.WorldSpace &&
-            Screen.width > 0 && Screen.height > 0)
-        {
-            Camera camera = canvas.renderMode == RenderMode.ScreenSpaceOverlay
-                ? null : canvas.worldCamera;
-            Rect safe = Screen.safeArea;
-            if (RectTransformUtility.ScreenPointToLocalPointInRectangle(
-                    root, safe.min, camera, out Vector2 safeMin) &&
-                RectTransformUtility.ScreenPointToLocalPointInRectangle(
-                    root, safe.max, camera, out Vector2 safeMax))
-            {
-                safeMin = Vector2.Max(safeMin, root.rect.min);
-                safeMax = Vector2.Min(safeMax, root.rect.max);
-                if (safeMax.x > safeMin.x && safeMax.y > safeMin.y)
-                    available = Rect.MinMaxRect(safeMin.x, safeMin.y, safeMax.x, safeMax.y);
-            }
-        }
-
-        responsiveShell.anchorMin = responsiveShell.anchorMax = new Vector2(0.5f, 0.5f);
-        responsiveShell.pivot = new Vector2(0.5f, 0.5f);
-        responsiveShell.sizeDelta = new Vector2(
-            Mathf.Min(available.width, CanonicalSize.x),
-            Mathf.Min(available.height, CanonicalSize.y));
-        responsiveShell.localPosition = new Vector3(available.center.x, available.center.y, 0f);
-        responsiveShell.localScale = Vector3.one;
-        lastRootSize = root.rect.size;
-        lastSafeArea = Screen.safeArea;
-    }
-
-    private static void StretchHeader(RectTransform rect)
-    {
-        if (rect == null) return;
-        rect.anchorMin = new Vector2(0f, 1f);
-        rect.anchorMax = new Vector2(1f, 1f);
-        rect.pivot = new Vector2(0.5f, 1f);
-        // 05.2. Configurações usa a mesma margem externa do bloco inferior.
-        // A fábrica universal permanece intacta para Arsenal e Chat.
-        rect.offsetMin = new Vector2(SettingsOuterMargin, -96f);
-        rect.offsetMax = new Vector2(-SettingsOuterMargin, -24f);
+        responsiveFrame ??= WDHomeSecondaryScreenFrame.Configure(responsiveShell);
+        responsiveFrame.RefreshNow();
     }
 
     private static void StretchBody(RectTransform rect, float left, float right,
@@ -799,11 +745,7 @@ public sealed class WDHomeSettingsPanel : MonoBehaviour
         RectTransform rect = WDHomeUIFactory.Rect(name, parent);
         rect.anchorMin = min; rect.anchorMax = max;
         rect.offsetMin = rect.offsetMax = Vector2.zero;
-        Image image = rect.gameObject.AddComponent<Image>();
-        image.color = FigmaSurface;
-        image.raycastTarget = true;
-        WDHomeUIFactory.ApplyRounded(image, 24);
-        AddThinBorder(rect, FigmaGoldBorder, 24);
+        WDUniversalPanelFactory.Apply(rect, theme);
         Shadow shadow = rect.gameObject.AddComponent<Shadow>();
         shadow.effectColor = new Color(0f, 0f, 0f, 0.20f);
         shadow.effectDistance = new Vector2(0f, -12f);
