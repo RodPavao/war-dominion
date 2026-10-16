@@ -19,6 +19,8 @@ public sealed class WarDominionHomeController : MonoBehaviour
     [SerializeField] private WarDominionHomeData mockData;
     [SerializeField] private Texture2D backgroundTexture;
     [SerializeField] private Texture2D playBackgroundTexture;
+    [SerializeField] private Texture2D tournamentBackgroundTexture;
+    [SerializeField] private Texture2D tournamentOfflineArtwork;
     [SerializeField] private Texture2D matchmakingBackgroundTexture;
     [SerializeField] private Texture2D chatBackgroundTexture;
     [SerializeField] private Texture2D friendsBackgroundTexture;
@@ -369,7 +371,8 @@ public sealed class WarDominionHomeController : MonoBehaviour
             navigationStack, profileRepository, playerId => profilePanel?.OpenPublicProfile(playerId),
             playBackgroundTexture, OpenNotificationCenter, matchmakingBackgroundTexture,
             gabaritoBlack, gabaritoMedium, gabaritoBold, gabaritoExtraBold, geistMedium,
-            socialRepository, gabaritoSemiBold);
+            socialRepository, gabaritoSemiBold, tournamentBackgroundTexture,
+            tournamentOfflineArtwork);
         navigationBackRouter = new WDNavigationBackRouter(
             navigationStack, TryHandleCancelableContext);
 

@@ -120,13 +120,14 @@ public sealed class WDHomeRankingPanel : MonoBehaviour
         WDUniversalHeaderFactory.SetEconomy(header, walletProvider?.Invoke());
 
         RectTransform summary = WDUniversalPanelFactory.Build(frame, theme,
-            "DivisionSummary", 64, 132, 480, 525);
+            "DivisionSummary", 32, 132, 480, 525);
         DivisionSummary(summary);
-        RectTransform section = Rect("RankingListSection", frame, 576, 132, 1280, 868);
-        StretchBody(section, 576, 64, 132, 80);
+        // 02.2. Os painéis externos compartilham os limites de 32 px do Header.
+        RectTransform section = Rect("RankingListSection", frame, 544, 132, 1344, 868);
+        StretchBody(section, 544, 32, 132, 80);
         Selectors(section);
         RectTransform table = WDUniversalPanelFactory.Build(section, theme,
-            "RankingTable", 0, 51, 1280, 817);
+            "RankingTable", 0, 51, 1344, 817);
         StretchBody(table, 0, 0, 51, 0);
         Table(table);
     }

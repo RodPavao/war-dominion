@@ -30,7 +30,8 @@ public sealed class WDHomeSettingsPanel : MonoBehaviour
     private bool timeZonePickerOpen;
     private bool languagePickerOpen;
     private Action<bool> setHomeCompositionVisible;
-    private const float SettingsOuterMargin = 64f;
+    // 01.1. O conteúdo local compartilha o inset externo canônico do Header.
+    private const float SettingsOuterMargin = 32f;
 
     private static readonly Color FigmaGold = new Color(0.773f, 0.608f, 0.388f, 1f);
     private static readonly Color FigmaInk = new Color(0.043f, 0.047f, 0.055f, 1f);

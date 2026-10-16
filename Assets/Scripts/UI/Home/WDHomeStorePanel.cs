@@ -47,7 +47,8 @@ public sealed class WDHomeStorePanel : MonoBehaviour
         RectTransform dim=R("ReadabilityScrim",transform);Stretch(dim);Image scrim=dim.gameObject.AddComponent<Image>();scrim.color=new Color(.016f,.035f,.059f,.80f);scrim.raycastTarget=false;
         RectTransform contentSurface=R("StoreFullscreenContentSurface",transform);Stretch(contentSurface);contentSurface.offsetMax=new Vector2(0f,-136f);
         Image contentSurfaceImage=contentSurface.gameObject.AddComponent<Image>();contentSurfaceImage.color=Color.clear;contentSurfaceImage.raycastTarget=false;
-        WDHomeUIFactory.AddThinRoundedBorder(contentSurface,Hex("1E3048"),1);
+        // 01.1. A superfície mantém a hierarquia funcional sem o contorno azul
+        // legado que atravessava abas, laterais e rodapé.
         frame=R("StoreResponsiveShell",transform);WDHomeSecondaryScreenFrame.Configure(frame);
         gameObject.SetActive(false);
     }
@@ -62,7 +63,13 @@ public sealed class WDHomeStorePanel : MonoBehaviour
     // 02. SHELL COMPARTILHADO — HEADER EM DUAS LINHAS E ABAS
     private void Render()
     {
-        Clear(frame); Header(); Tabs();RectTransform bodyShell=R("StoreBody",frame);StretchBody(bodyShell,0,0,168,0);body=R("StoreCanonicalContent",bodyShell);CenterTop(body,0,0,1920,912);
+        Clear(frame); Header(); Tabs();RectTransform bodyShell=R("StoreBody",frame);StretchBody(bodyShell,0,0,168,0);
+        // 02.1. Páginas com duas linhas preservam 32 px abaixo dos cards e
+        // passam a rolar dentro do corpo, sem recortar a última linha.
+        float bodyHeight=tab==0&&detailFactionId==null?937f:(detailFactionId!=null||tab==1||tab==2?944f:912f);
+        Image viewportGraphic=bodyShell.gameObject.AddComponent<Image>();viewportGraphic.color=Color.clear;viewportGraphic.raycastTarget=true;
+        bodyShell.gameObject.AddComponent<RectMask2D>();body=R("StoreCanonicalContent",bodyShell);CenterTop(body,0,0,1920,bodyHeight);
+        ScrollRect bodyScroll=bodyShell.gameObject.AddComponent<ScrollRect>();bodyScroll.viewport=bodyShell;bodyScroll.content=body;bodyScroll.horizontal=false;bodyScroll.vertical=bodyHeight>912f;bodyScroll.movementType=ScrollRect.MovementType.Clamped;
         if(detailFactionId!=null)RenderDetail(Factions.First(f=>f.Id==detailFactionId));
         else if(tab==0)RenderFeatured();else if(tab==1)RenderCollections();else if(tab==2)RenderAvatars();else RenderVip();
         if(!string.IsNullOrWhiteSpace(feedback))Text("Feedback",frame,feedback,15,Gold,520,1024,880,32,TextAlignmentOptions.Center,"Inter-Bold");
@@ -73,26 +80,35 @@ public sealed class WDHomeStorePanel : MonoBehaviour
         WDUniversalHeaderContent header=WDUniversalHeaderFactory.BuildInset(frame,theme,"LOJA",()=>{if(!TryHandleLocalBack())navigation.TryBack();},notifications==null?null:()=>notifications.Invoke());
         WDUniversalHeaderFactory.SetEconomy(header,service.Wallet);
     }
-    private void Tabs(){RectTransform row=Box("Tabs",frame,32,112,1856,40,new Color(Navy.r,Navy.g,Navy.b,.82f),0,new Color(Gold.r,Gold.g,Gold.b,.12f));string[] labels={"DESTAQUES","COLEÇÕES","AVATARES","VIP"};float[] widths={120,116,112,78};float x=0;for(int i=0;i<4;i++){int selected=i;RectTransform root=R("Tab_"+labels[i],row);P(root,x,0,widths[i],40);if(i==tab){Image active=root.gameObject.AddComponent<Image>();active.color=new Color(Gold.r,Gold.g,Gold.b,.18f);WDHomeUIFactory.ApplyRounded(active,8);WDHomeUIFactory.AddThinRoundedBorder(root,Gold,8);}Text("Label",root,labels[i],13,i==tab?Gold:Muted,0,2,widths[i],34,TextAlignmentOptions.Center,"Inter-Bold",1.04f);Image hit=root.GetComponent<Image>()??root.gameObject.AddComponent<Image>();if(i!=tab)hit.color=Color.clear;Button(root,()=>SelectTab(selected));x+=widths[i]+4;}}
+    private void Tabs(){RectTransform row=Box("Tabs",frame,32,112,1856,40,new Color(Navy.r,Navy.g,Navy.b,.82f),0,Color.clear);string[] labels={"DESTAQUES","COLEÇÕES","AVATARES","VIP"};float[] widths={120,116,112,78};float x=0;for(int i=0;i<4;i++){int selected=i;RectTransform root=R("Tab_"+labels[i],row);P(root,x,0,widths[i],40);if(i==tab){Image active=root.gameObject.AddComponent<Image>();active.color=new Color(Gold.r,Gold.g,Gold.b,.18f);WDHomeUIFactory.ApplyRounded(active,8);WDHomeUIFactory.AddThinRoundedBorder(root,Gold,8);}Text("Label",root,labels[i],13,i==tab?Gold:Muted,0,2,widths[i],34,TextAlignmentOptions.Center,"Inter-Bold",1.04f);Image hit=root.GetComponent<Image>()??root.gameObject.AddComponent<Image>();if(i!=tab)hit.color=Color.clear;Button(root,()=>SelectTab(selected));x+=widths[i]+4;}}
 
     // 03. DESTAQUES — NODE 285:2
     private void RenderFeatured()
     {
         FactionVisual faction=Factions[4];RectTransform hero=Box("FeaturedCollection",body,32,20,880,546,new Color(Navy.r,Navy.g,Navy.b,.90f),20,new Color(Gold.r,Gold.g,Gold.b,.38f));
-        RectTransform heroHeader=Box("CollectionHeader",hero,0,0,880,56,new Color(Gold.r,Gold.g,Gold.b,.12f),0,new Color(Gold.r,Gold.g,Gold.b,.25f));Text("Label",heroHeader,"★  COLEÇÃO DO MÊS",11,Gold,28,12,320,30,TextAlignmentOptions.Left,"Inter-Bold",1.54f);
+        // 03.2. A superfície arredondada principal também funciona como recorte.
+        // Os painéis funcionais internos permanecem intactos, mas não cobrem os
+        // quatro cantos nem escapam da silhueta aprovada do card.
+        Mask heroClip=hero.gameObject.AddComponent<Mask>();heroClip.showMaskGraphic=true;
+        // 03.2. O cabeçalho interno é apenas uma faixa de preenchimento. Sua
+        // antiga borda quadrada concorria com a moldura arredondada do card.
+        RectTransform heroHeader=Box("CollectionHeader",hero,0,0,880,56,new Color(Gold.r,Gold.g,Gold.b,.12f),0,Color.clear);Text("Label",heroHeader,"★  COLEÇÃO DO MÊS",11,Gold,28,12,320,30,TextAlignmentOptions.Left,"Inter-Bold",1.54f);
         Art("HeroSkin",hero,faction.Root+"skin-territory-profile_1024x1024",0,56,440,466,true);Art("HeroAvatar",hero,faction.Root+faction.Folder,440,56,440,286,false);
         RectTransform identity=Box("CollectionIdentity",hero,440,342,440,204,new Color(.043f,.071f,.125f,.95f),0,Color.clear);
         Text("Kicker",identity,"SONS OF ODIN",11,Gold,24,12,380,20,TextAlignmentOptions.Left,"Inter-SemiBold",1.54f);Text("Name",identity,"COLEÇÃO DO MÊS",22,White,24,36,380,34,TextAlignmentOptions.Left,"Inter-Bold");
         Chip(identity,"SkinChip","SKIN TERRITORIAL",24,80,112,26,Gold);Chip(identity,"AvatarChip","AVATAR",142,80,74,26,Cyan);Chip(identity,"MoreChip","+4 ITENS",222,80,78,26,Muted);
         Action("Explore",identity,"VER COLEÇÃO",24,132,392,48,Gold,Gold,()=>ShowFeaturedCollection(faction.Id));
+        Transform heroBorder=hero.Find("Border");if(heroBorder!=null)heroBorder.SetAsLastSibling();
         RectTransform vip=Box("VipFeature",body,932,20,356,546,new Color(Navy.r,Navy.g,Navy.b,.92f),20,new Color(Gold.r,Gold.g,Gold.b,.31f));
         Icon("Crown",vip,"UI/Store/Canonical/icon_crown",20,17,18,18,Gold);Text("Title",vip,"WAR VIP",16,Gold,46,10,160,34,TextAlignmentOptions.Left,"Inter-Bold",1.28f);
         Art("VipSkin",vip,faction.Root+"skin-territory-profile_1024x1024",0,52,178,160,true);Art("VipAvatar",vip,faction.Root+faction.Folder,178,52,178,160,false);
         Text("Benefits",vip,"BENEFÍCIOS MENSAIS\n✓ Cosméticos exclusivos\n✓ Avatares exclusivos\n✓ Molduras de perfil\n✓ Emblema permanente",13,White,20,230,316,166,TextAlignmentOptions.Left,"Inter-Regular");
         Action("VipCta",vip,"CONHECER O VIP",20,466,316,44,Gold,new Color(Gold.r,Gold.g,Gold.b,.10f),()=>SelectTab(3));
-        Text("Highlights",body,"DESTAQUES",16,White,32,604,300,28,TextAlignmentOptions.Left,"Inter-Bold",1.6f);
-        ProductPreview(body,"Avatar",faction,"AVATAR",32,646,448,291,faction.Root+faction.Folder);ProductPreview(body,"Frame",faction,"MOLDURA",496,646,448,291,faction.Root+"profile-frame_1024x1024");
-        ProductPreview(body,"Territory",faction,"SKIN TERRITORIAL",960,646,448,291,faction.Root+"skin-territory-profile_1024x1024");ProductPreview(body,"Counter",faction,"CONTADOR",1424,646,448,291,faction.Root+"territory-counter_512x512");
+        // 03.1. A seção inferior sobe 32 px; os cards conservam dimensões e
+        // ganham margem rolável abaixo dos botões.
+        Text("Highlights",body,"DESTAQUES",16,White,32,572,300,28,TextAlignmentOptions.Left,"Inter-Bold",1.6f);
+        ProductPreview(body,"Avatar",faction,"AVATAR",32,614,448,291,faction.Root+faction.Folder);ProductPreview(body,"Frame",faction,"MOLDURA",496,614,448,291,faction.Root+"profile-frame_1024x1024");
+        ProductPreview(body,"Territory",faction,"SKIN TERRITORIAL",960,614,448,291,faction.Root+"skin-territory-profile_1024x1024");ProductPreview(body,"Counter",faction,"CONTADOR",1424,614,448,291,faction.Root+"territory-counter_512x512");
     }
     private void ProductPreview(Transform parent,string name,FactionVisual faction,string label,float x,float y,float w,float h,string path)
     {RectTransform card=Box(name,parent,x,y,w,h,new Color(Navy.r,Navy.g,Navy.b,.94f),16,new Color(Gold.r,Gold.g,Gold.b,.28f));ProductArtwork(card,label,path,w,180);RectTransform info=Box("Info",card,0,180,w,111,new Color(.043f,.071f,.125f,.97f),0,Color.clear);Text("Name",info,label+" "+faction.Name,14,White,16,12,w-32,22,TextAlignmentOptions.Left,"Inter-Bold");Text("Category",info,label,11,Muted,16,36,w-32,18,TextAlignmentOptions.Left,"Inter-Regular");Action("View",info,"VER NA COLEÇÃO",16,61,w-32,40,Cyan,new Color(Cyan.r,Cyan.g,Cyan.b,.14f),()=>ShowCollection(faction.Id));}

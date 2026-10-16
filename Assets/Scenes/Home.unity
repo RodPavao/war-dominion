@@ -167,6 +167,8 @@ MonoBehaviour:
   mockData: {fileID: 11400000, guid: e3d46955529e4306905a69b6afac634d, type: 2}
   backgroundTexture: {fileID: 2800000, guid: 1a77115c83a36bd4cb84bf50e279b7ca, type: 3}
   playBackgroundTexture: {fileID: 2800000, guid: 155cd536fd807bd44bb6039e59484744, type: 3}
+  tournamentBackgroundTexture: {fileID: 2800000, guid: cf9b73ffa957acd4a9e93e9ce471a1eb, type: 3}
+  tournamentOfflineArtwork: {fileID: 2800000, guid: 6a4d38e5dcb24bfe9db567235b6d6c4e, type: 3}
   matchmakingBackgroundTexture: {fileID: 2800000, guid: 7f300526cdf93c346be60bb431e2a3bf, type: 3}
   chatBackgroundTexture: {fileID: 2800000, guid: bbd21da3b310e474b8cdf060e619708d, type: 3}
   friendsBackgroundTexture: {fileID: 2800000, guid: 6d66931bd14c86d41a381fc6e03e42dc, type: 3}

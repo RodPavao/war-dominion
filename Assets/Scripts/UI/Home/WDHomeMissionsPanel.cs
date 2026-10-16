@@ -9,7 +9,7 @@ public sealed class WDHomeMissionsPanel : MonoBehaviour
 {
     private const string MissionRoot = "UI/Missions/Canonical/";
     private const string BannerRoot = MissionRoot + "Banners/";
-    private const float CardWidth = 436f;
+    private const float CardWidth = 448f;
     private const float CardHeight = 320f;
     private const float CardGap = 16f;
     private const float GridTop = 74f;
@@ -193,8 +193,10 @@ public sealed class WDHomeMissionsPanel : MonoBehaviour
         for (int i = 0; i < missions.Length; i++) MissionCard(grid, missions[i], i);
         if (discovered < repository.TotalCount) SecretCard(grid, missions.Length);
 
-        Scrollbar scrollbar = CreateScrollbar(frame, 1852f, 200f, 8f, viewportHeight - 18f);
-        RightTop(scrollbar.transform as RectTransform, 60f, 200f, 8f, viewportHeight - 18f);
+        // 03.1. A faixa final de 16 px fica reservada à scrollbar; ela não
+        // atravessa mais a quarta coluna da grade.
+        Scrollbar scrollbar = CreateScrollbar(frame, 1880f, 200f, 8f, viewportHeight - 18f);
+        RightTop(scrollbar.transform as RectTransform, 32f, 200f, 8f, viewportHeight - 18f);
         ScrollRect scroll = viewport.gameObject.AddComponent<ScrollRect>();
         scroll.viewport = viewport;
         scroll.content = grid;
@@ -208,9 +210,6 @@ public sealed class WDHomeMissionsPanel : MonoBehaviour
         scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.Permanent;
         scroll.verticalNormalizedPosition = 1f;
 
-        Surface("RightBorder", frame, 1860f, 200f, 60f, viewportHeight - 18f,
-            new Color(Navy.r, Navy.g, Navy.b, .60f));
-        RightTop(frame.Find("RightBorder") as RectTransform, 0f, 200f, 60f, viewportHeight - 18f);
     }
 
     private static void StretchHorizontal(RectTransform rect, float left, float right)
@@ -232,6 +231,9 @@ public sealed class WDHomeMissionsPanel : MonoBehaviour
             new Color(Navy.r, Navy.g, Navy.b, .86f), 14);
         Image cardSurface = card.GetComponent<Image>();
         cardSurface.raycastTarget = true;
+        // 03.2. O artwork usa EnvelopeParent e pode ultrapassar seu RectTransform;
+        // a máscara do card limita toda a composição ao acabamento arredondado.
+        card.gameObject.AddComponent<RectMask2D>();
         WDHomeUIFactory.AddThinRoundedBorder(card, Gold, 14);
         AddCardShadow(card);
 
@@ -279,7 +281,8 @@ public sealed class WDHomeMissionsPanel : MonoBehaviour
     {
         int column = index % 4;
         int row = index / 4;
-        return new Vector2(40f + column * (CardWidth + CardGap),
+        // 03.1. Quatro cards ocupam a largura canônica preservando gaps de 16 px.
+        return new Vector2(0f + column * (CardWidth + CardGap),
             GridTop + row * (CardHeight + CardGap));
     }
 

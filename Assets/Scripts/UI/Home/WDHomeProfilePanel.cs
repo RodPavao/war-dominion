@@ -226,7 +226,7 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
         BuildHeader(own ? "MEU PERFIL" : "PERFIL");
 
         RectTransform left = Panel("IdentityPanel", content,
-            new Vector2(0.033333f, 0.059259f), new Vector2(0.283333f, 0.896296f),
+            new Vector2(0.016667f, 0.059259f), new Vector2(0.266667f, 0.896296f),
             WithAlpha(FigmaGold, .24f), WithAlpha(FigmaInk, .949f), 16);
         RectTransform avatarFrame = WDHomeUIFactory.Rect("AvatarFrame", left);
         avatarFrame.anchorMin = avatarFrame.anchorMax = new Vector2(0.5f, 1f);
@@ -258,20 +258,20 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
         // 02.1. Faixas verticais independentes preservam a sequência Identidade > Divisão > Clã > Personalização.
         AddIdentityFact(left, "Division", ResolveDivisionEmblemTexture(presentation.Division),
             "DIVISÃO", presentation.Division?.DisplayName ?? profile.Division,
-            FigmaGold, 0.525f, Color.white, presentation.Division);
+            theme.MasterGold, 0.525f, Color.white, presentation.Division);
         AddIdentityFact(left, "Clan", WDProfileIdentityVisuals.ResolveIcon("icon_clan"),
             "CLÃ", profile.Clan, FigmaCyan, 0.475f, Color.white);
 
         if (own)
         {
-            AddText(left, "PersonalizationTitle", "PERSONALIZAÇÃO", 11f, FigmaGold,
+            AddText(left, "PersonalizationTitle", "PERSONALIZAÇÃO", 11f, theme.MasterGold,
                 new Vector2(0.06f, 0.405f), new Vector2(0.94f, 0.425f)).fontStyle = FontStyles.Bold;
-            AddRule(left, 0.397f, FigmaGold, 0.18f);
+            AddRule(left, 0.397f, theme.MasterGold, 0.18f);
             RectTransform equipped = Panel("Equipped", left,
                 new Vector2(0.06f, 0.21f), new Vector2(0.94f, 0.385f),
                 WithAlpha(FigmaCyan, .20f), FigmaElevated, 10);
             AddFrameSummary(equipped, profile, 0.52f, 0.96f);
-            AddRule(equipped, 0.50f, FigmaGold, 0.12f);
+            AddRule(equipped, 0.50f, theme.MasterGold, 0.12f);
             AddSkinSummary(equipped, profile, 0.04f, 0.48f);
             AddButton(left, "Customize", "PERSONALIZAR PERFIL", OpenCustomization,
                 new Vector2(0.06f, 0.02f), new Vector2(0.94f, 0.10f), true);
@@ -280,17 +280,18 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
             BuildSocialActions(left, profile);
 
         RectTransform stats = Panel("Statistics", content,
-            new Vector2(0.30f, 0.725926f), new Vector2(0.966667f, 0.896296f), WithAlpha(FigmaGold, .20f));
-        AddSectionTitle(stats, "ESTATÍSTICAS", FigmaGold);
-        AddButton(stats, "History", "HISTÓRICO DE PARTIDAS >", OpenHistory,
+            new Vector2(0.283333f, 0.725926f), new Vector2(0.983333f, 0.896296f), CanonicalGoldBorder());
+        AddSectionTitle(stats, "ESTATÍSTICAS", theme.MasterGold);
+        WDUIPremiumButton historyButton = AddButton(stats, "History", "HISTÓRICO DE PARTIDAS >", OpenHistory,
             new Vector2(0.13f, 0.73f), new Vector2(0.31f, 0.94f), false, true);
+        StyleCanonicalGoldBorder(historyButton);
         if (presentation.CanShowStatistics)
             BuildMetricRow(stats, presentation.Statistics, new Vector2(0.02f, 0.08f), new Vector2(0.98f, 0.63f), true);
         else
             AddPrivateState(stats, "ESTATÍSTICAS PRIVADAS", "Este jogador optou por não exibir suas estatísticas.");
 
         RectTransform performance = Panel("Performance", content,
-            new Vector2(0.30f, 0.512963f), new Vector2(0.758333f, 0.701852f), WithAlpha(FigmaCyan, .20f));
+            new Vector2(0.283333f, 0.512963f), new Vector2(0.758333f, 0.701852f), WithAlpha(FigmaCyan, .20f));
         AddSectionTitle(performance, "DESEMPENHO POR MODO", FigmaCyan);
         if (presentation.CanShowModePerformance)
             BuildModeStats(performance, presentation.ModeStats);
@@ -298,18 +299,19 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
             AddPrivateState(performance, "DESEMPENHO PRIVADO", "Este jogador optou por não exibir seu desempenho por modo.");
 
         RectTransform division = Panel("CurrentDivision", content,
-            new Vector2(0.770833f, 0.512963f), new Vector2(0.966667f, 0.701852f), WithAlpha(FigmaGold, .20f));
-        AddSectionTitle(division, "DIVISÃO ATUAL", FigmaGold);
+            new Vector2(0.770833f, 0.512963f), new Vector2(0.983333f, 0.701852f), CanonicalGoldBorder());
+        AddSectionTitle(division, "DIVISÃO ATUAL", theme.MasterGold);
         BuildDivisionDisplay(division, presentation.Division, profile.DivisionPoints);
 
         RectTransform achievements = Panel("Achievements", content,
-            new Vector2(0.30f, 0.338889f), new Vector2(0.966667f, 0.490741f), WithAlpha(FigmaGold, .20f));
-        AddSectionTitle(achievements, "CONQUISTAS", FigmaGold);
+            new Vector2(0.283333f, 0.338889f), new Vector2(0.983333f, 0.490741f), CanonicalGoldBorder());
+        AddSectionTitle(achievements, "CONQUISTAS", theme.MasterGold);
         if (presentation.CanShowMissionsAchievements)
         {
             BuildAchievements(achievements, presentation.Achievements);
-            AddButton(achievements, "All", "VER TODAS >", () => openEndpoint?.Invoke("CONQUISTAS", "Catálogo completo ainda não implementado."),
+            WDUIPremiumButton allButton = AddButton(achievements, "All", "VER TODAS >", () => openEndpoint?.Invoke("CONQUISTAS", "Catálogo completo ainda não implementado."),
                 new Vector2(0.88f, 0.76f), new Vector2(0.98f, 0.95f), false, true);
+            StyleCanonicalGoldBorder(allButton);
         }
         else
             AddPrivateState(achievements, "MISSÕES E CONQUISTAS PRIVADAS", "Este jogador optou por não exibir suas missões e conquistas.");
@@ -406,7 +408,7 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
         RectTransform preview = Panel("Preview", panel,
             new Vector2(0.021f, 0.118f), new Vector2(0.294f, 0.785f),
             WithAlpha(FigmaCyan, .20f));
-        AddText(preview, "PreviewTitle", "PRÉ-VISUALIZAÇÃO", 14f, FigmaGold,
+        AddText(preview, "PreviewTitle", "PRÉ-VISUALIZAÇÃO", 14f, theme.MasterGold,
             new Vector2(0.06f, 0.91f), new Vector2(0.94f, 0.97f), TextAlignmentOptions.Center).fontStyle = FontStyles.Bold;
         BuildCustomizationPreview(preview);
         AddText(preview, "Nickname", repository.LocalProfile.Nickname, 20f, FigmaText,
@@ -691,10 +693,10 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
 
     private void BuildComingSoon(RectTransform parent, string section)
     {
-        AddText(parent, "Section", section, 14f, FigmaGold,
+        AddText(parent, "Section", section, 14f, theme.MasterGold,
             new Vector2(0.06f, 0.78f), new Vector2(0.94f, 0.88f), TextAlignmentOptions.Center).fontStyle = FontStyles.Bold;
         AddLockIcon(parent, "Lock", new Vector2(0.5f, 0.645f), 28f);
-        AddText(parent, "ComingSoon", "EM BREVE", 22f, FigmaGold,
+        AddText(parent, "ComingSoon", "EM BREVE", 22f, theme.MasterGold,
             new Vector2(0.15f, 0.42f), new Vector2(0.85f, 0.56f), TextAlignmentOptions.Center).fontStyle = FontStyles.Bold;
         AddText(parent, "Description", "Novos itens de personalização serão disponibilizados em breve.",
             13f, FigmaMuted, new Vector2(0.12f, 0.28f), new Vector2(0.88f, 0.42f), TextAlignmentOptions.Center);
@@ -706,7 +708,7 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
             new Vector2(0.03f, minY), new Vector2(0.97f, maxY),
             WithAlpha(FigmaGold, .20f), FigmaInset);
         AddLockIcon(strip, "Lock", new Vector2(0.065f, 0.5f), 22f);
-        AddText(strip, "Title", title + "  ·  EM BREVE", 12f, FigmaGold,
+        AddText(strip, "Title", title + "  ·  EM BREVE", 12f, theme.MasterGold,
             new Vector2(0.11f, 0.52f), new Vector2(0.96f, 0.88f)).fontStyle = FontStyles.Bold;
         AddText(strip, "Description", "Novos itens de personalização serão disponibilizados em breve.",
             10f, FigmaMuted, new Vector2(0.11f, 0.12f), new Vector2(0.96f, 0.52f));
@@ -795,8 +797,8 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
         Clear(content);
         BuildHeader("HISTÓRICO DE PARTIDAS");
         RectTransform body = Panel("History", content,
-            new Vector2(0.033333f, 0.059259f), new Vector2(0.966667f, 0.896296f),
-            WithAlpha(FigmaGold, .20f), null, 16);
+            new Vector2(0.016667f, 0.059259f), new Vector2(0.983333f, 0.896296f),
+            CanonicalGoldBorder(), null, 16);
         if (!presentation.CanShowMatchHistory)
         {
             VisibleHistoryCount = 0;
@@ -804,7 +806,7 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
             return;
         }
         // 05.1. O cabeçalho e os filtros permanecem fora da viewport rolável.
-        AddText(body, "HistoryTitle", "HISTÓRICO", 18f, FigmaGold,
+        AddText(body, "HistoryTitle", "HISTÓRICO", 18f, theme.MasterGold,
             new Vector2(.013f, .91f), new Vector2(.40f, .975f)).fontStyle = FontStyles.Bold;
         (string, WDProfileMode?)[] filters = { ("TODAS", null), ("BATALHA", WDProfileMode.Battle),
             ("1V1", WDProfileMode.OneVsOne), ("2V2", WDProfileMode.TwoVsTwo), ("3V3", WDProfileMode.ThreeVsThree) };
@@ -854,7 +856,7 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
             match.anchoredPosition = new Vector2(0f, -i * 155f);
             match.sizeDelta = new Vector2(0f, 155f);
             Color resultColor = row.Result.Contains("VITÓRIA") ? FigmaCyan :
-                row.Result.Contains("DERROTA") ? Srgb(255, 51, 77) : FigmaGold;
+                row.Result.Contains("DERROTA") ? Srgb(255, 51, 77) : theme.MasterGold;
             // 05.3. Resultado usa chip sem transformar a linha inteira em cartão.
             RectTransform resultChip = Panel("ResultChip", match,
                 new Vector2(0.012f, 0.58f), new Vector2(0.09f, 0.82f),
@@ -976,39 +978,52 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
         Image image = rect.GetComponent<Image>();
         if (image != null)
         {
-            image.color = primary ? FigmaGold : FigmaElevated;
+            image.color = primary ? theme.MasterGold : theme.MasterSurfaceElevated;
             WDHomeUIFactory.ApplyRounded(image, compact ? 7 : 9);
         }
         TextMeshProUGUI text = rect.GetComponentInChildren<TextMeshProUGUI>();
         if (text != null)
         {
             text.font = theme.MasterGabaritoBold ?? text.font;
-            text.color = primary ? FigmaInk : FigmaGold;
+            text.color = primary ? theme.MasterBackground : theme.MasterGold;
             text.fontSize = compact ? 11f : 14f;
             text.fontStyle = FontStyles.Normal;
         }
         if (primary)
         {
-            button.SetPersistentColors(FigmaGold,
-                Color.Lerp(FigmaGold, Color.white, 0.12f));
-            button.SetLabelColor(FigmaInk);
+            button.SetPersistentColors(theme.MasterGold,
+                Color.Lerp(theme.MasterGold, Color.white, 0.12f));
+            button.SetLabelColor(theme.MasterBackground);
         }
         Image border = rect.Find("ThinBorder")?.GetComponent<Image>();
         if (border != null)
-            border.color = primary ? FigmaGold :
-                WithAlpha(FigmaGold, .20f);
+            border.color = primary ? theme.MasterGold : CanonicalGoldBorder();
         return button;
     }
 
     // 07.3.1. Ações de cópia usam a variante ciano documentada no Perfil e
     // não herdam o contorno dourado dos demais botões secundários.
-    private static void StyleCyanSecondaryButton(WDUIPremiumButton button)
+    private void StyleCyanSecondaryButton(WDUIPremiumButton button)
     {
         if (button == null) return;
         Image border = button.transform.Find("ThinBorder")?.GetComponent<Image>();
-        if (border != null) border.color = WithAlpha(FigmaCyan, .20f);
+        if (border != null) border.color = WithAlpha(theme.MasterCyan, .24f);
         TextMeshProUGUI label = button.GetComponentInChildren<TextMeshProUGUI>();
-        if (label != null) label.color = FigmaCyan;
+        if (label != null) label.color = theme.MasterCyan;
+    }
+
+    // 07.3.2. Contornos dourados locais usam exatamente a mesma intensidade
+    // fina dos painéis canônicos, sem alterar textos ou estados semânticos.
+    private Color CanonicalGoldBorder()
+    {
+        return WithAlpha(theme.MasterGold, .24f);
+    }
+
+    private void StyleCanonicalGoldBorder(WDUIPremiumButton button)
+    {
+        if (button == null) return;
+        Image border = button.transform.Find("ThinBorder")?.GetComponent<Image>();
+        if (border != null) border.color = CanonicalGoldBorder();
     }
 
     private void AddPrivateState(Transform parent, string title, string body)
@@ -1079,7 +1094,7 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
             item.Category == WDProfileCosmeticCategory.Frame && item.Id == frameId);
         RectTransform frameTile = Panel("FramePreview", parent,
             new Vector2(0.02f, minY + 0.05f), new Vector2(0.24f, maxY - 0.05f),
-            WithAlpha(FigmaGold, .20f), FigmaInset, 6);
+            CanonicalGoldBorder(), FigmaInset, 6);
         Texture2D thumbnail = WDProfileIdentityVisuals.ResolveCosmeticThumbnail(
             WDProfileCosmeticCategory.Frame, frameId);
         if (thumbnail != null)
@@ -1126,7 +1141,7 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
             ("PARTIDAS", stats.Matches.ToString("N0"), FigmaText),
             ("VITÓRIAS", stats.Wins.ToString("N0"), FigmaCyan),
             ("DERROTAS", stats.Losses.ToString("N0"), FigmaText),
-            ("TAXA DE VITÓRIA", stats.WinRate.ToString("0.0") + "%", FigmaGold) };
+            ("TAXA DE VITÓRIA", stats.WinRate.ToString("0.0") + "%", theme.MasterGold) };
         float gap = 0.012f;
         float width = (max.x - min.x - gap * 3f) / 4f;
         for (int i = 0; i < metrics.Length; i++)
@@ -1136,8 +1151,8 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
                 new Vector2(x, min.y), new Vector2(x + width, max.y),
                 cyanBorders
                     ? WithAlpha(FigmaCyan, .20f)
-                    : WithAlpha(FigmaGold, .20f),
-                cyanBorders ? FigmaSelectedSurface : FigmaInset, 8);
+                    : CanonicalGoldBorder(),
+                cyanBorders ? theme.MasterCyanSoft : theme.MasterSurfacePrimary, 8);
             TextMeshProUGUI metricLabel = AddText(box, "Label", metrics[i].label, large ? 12f : 10f, FigmaMuted,
                 new Vector2(0.06f, 0.55f), new Vector2(0.94f, 0.90f));
             metricLabel.font = theme.MasterInterSemiBold ?? metricLabel.font;
@@ -1163,7 +1178,7 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
         RawImage emblem = Texture("Emblem", medal, emblemTexture);
         Anchor(emblem.rectTransform, new Vector2(0.07f, 0.07f), new Vector2(0.93f, 0.93f));
         WDDivisionVisuals.ApplyCalibration(emblem.rectTransform, division, 64f);
-        AddText(parent, "DivisionName", division?.DisplayName ?? string.Empty, 20f, FigmaGold,
+        AddText(parent, "DivisionName", division?.DisplayName ?? string.Empty, 20f, theme.MasterGold,
             new Vector2(0.27f, 0.39f), new Vector2(0.96f, 0.60f)).fontStyle = FontStyles.Bold;
         AddText(parent, "DivisionPoints", $"{points:N0} PONTOS", 14f, FigmaText,
             new Vector2(0.27f, 0.21f), new Vector2(0.96f, 0.40f));
@@ -1333,7 +1348,7 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
             ("PARTIDAS", stats.Matches.ToString("N0"), FigmaText),
             ("VITÓRIAS", stats.Wins.ToString("N0"), FigmaCyan),
             ("DERROTAS", stats.Losses.ToString("N0"), FigmaText),
-            ("TAXA DE VITÓRIA", stats.WinRate.ToString("0.0") + "%", FigmaGold) };
+            ("TAXA DE VITÓRIA", stats.WinRate.ToString("0.0") + "%", theme.MasterGold) };
         for (int i = 0; i < metrics.Length; i++)
         {
             float minX = i * .25f + .018f;
@@ -1352,22 +1367,22 @@ public sealed class WDHomeProfilePanel : MonoBehaviour
         }
     }
 
-    private static void StyleModeButton(WDUIPremiumButton button, bool selected)
+    private void StyleModeButton(WDUIPremiumButton button, bool selected)
     {
         if (button == null) return;
         Image surface = button.GetComponent<Image>();
         if (surface != null)
             surface.color = selected
-                ? WithAlpha(FigmaCyan, .0824f)
-                : FigmaInset;
+                ? theme.MasterCyanSoft
+                : theme.MasterSurfaceElevated;
         Image border = button.transform.Find("ThinBorder")?.GetComponent<Image>();
         if (border != null)
             border.color = selected
-                ? FigmaCyan
-                : WithAlpha(FigmaGold, .20f);
+                ? theme.MasterCyan
+                : CanonicalGoldBorder();
         TextMeshProUGUI label = button.GetComponentInChildren<TextMeshProUGUI>();
         if (label != null)
-            label.color = selected ? FigmaCyan : FigmaMuted;
+            label.color = selected ? theme.MasterCyan : theme.MasterTextSecondary;
     }
 
     private GameObject ModalBlocker(string name, UnityAction outsideAction)

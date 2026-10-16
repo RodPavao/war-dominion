@@ -48,7 +48,9 @@ public sealed class WDHomeClanPanel : MonoBehaviour
       // 02.1. O chrome do Clã reutiliza integralmente o Header do Arsenal.
       WDUniversalHeaderContent header=WDUniversalHeaderFactory.BuildInset(shell,theme,"CLÃ",()=>navigation.TryBack(),notifications==null?null:()=>notifications.Invoke());
       WDUniversalHeaderFactory.SetEconomy(header,wallet);
-      sidebar=S("Sidebar",shell,0,120,220,960,new Color(.024f,.051f,.09f,.92f));StretchVertical(sidebar,120,0);content=S("Content",shell,220,120,1700,960,new Color(.024f,.051f,.09f,.78f));StretchBody(content,220,0,120,0);
+      // 02.1. A navegação inicia no mesmo eixo canônico de 32 px do Header.
+      // O conteúdo principal mantém sua geometria interna já aprovada.
+      sidebar=S("Sidebar",shell,32,120,220,960,new Color(.024f,.051f,.09f,.92f));StretchVertical(sidebar,120,0);content=S("Content",shell,220,120,1700,960,new Color(.024f,.051f,.09f,.78f));StretchBody(content,220,0,120,0);
       overlay=R("ClanOverlay",shell);WDHomeUIFactory.Stretch(overlay);overlay.gameObject.SetActive(false); }
 
     private static void StretchHorizontal(RectTransform r,float left,float right){r.anchorMin=new Vector2(0,1);r.anchorMax=Vector2.one;r.pivot=new Vector2(.5f,1);r.offsetMin=new Vector2(left,r.offsetMin.y);r.offsetMax=new Vector2(-right,r.offsetMax.y);}
@@ -62,7 +64,11 @@ public sealed class WDHomeClanPanel : MonoBehaviour
       Nav(WDClanTab.Discover,"LISTA DE CLÃS","icon_clan_general",51);Nav(WDClanTab.Overview,"MEU CLÃ","icon_clan_shield",103);Nav(WDClanTab.Trades,"TROCAS","icon_clan_trades",155);Nav(WDClanTab.Members,"MEMBROS","icon_clan_members",207);Nav(WDClanTab.Log,"REGISTRO","icon_clan_log",259);
       if(CurrentTab==WDClanTab.Discover)List();else if(clans.LocalClan==null)NoClan();else if(CurrentTab==WDClanTab.Overview)Overview(clans.LocalClan);else if(CurrentTab==WDClanTab.Members)Members(clans.LocalClan);else if(CurrentTab==WDClanTab.Trades)Trades(clans.LocalClan);else Log(clans.LocalClan);if(overlayKind!=OverlayKind.None)RenderOverlay(); }
     private void Nav(WDClanTab tab,string label,string icon,float y)
-    {bool on=tab==CurrentTab;RectTransform r=S("Nav_"+tab,sidebar,0,y,220,52,on?new Color(Gold.r,Gold.g,Gold.b,.09f):Color.clear);if(on)S("Active",r,0,0,3,52,Gold);string asset=on&&tab!=WDClanTab.Discover?"icon_clan_active_"+tab.ToString().ToLowerInvariant():icon;Image i=Icon("Icon",r,"UI/Clan/Canonical/"+asset);P(i.rectTransform,24,17,18,18);T("Label",r,label,13,on?Gold:C("475569"),54,8,150,36,TextAlignmentOptions.Left,on?"Inter-Bold":"Inter-SemiBold");Button b=r.gameObject.AddComponent<Button>();b.targetGraphic=r.GetComponent<Image>();b.onClick.AddListener(()=>{CurrentTab=tab;Render();});}
+    {
+      // 02.2. O painel permanece no eixo canônico; somente as linhas clicáveis
+      // recebem o respiro interno de 8 px solicitado.
+      bool on=tab==CurrentTab;RectTransform r=S("Nav_"+tab,sidebar,32,y,188,52,on?new Color(Gold.r,Gold.g,Gold.b,.09f):Color.clear);if(on)S("Active",r,0,0,3,52,Gold);string asset=on&&tab!=WDClanTab.Discover?"icon_clan_active_"+tab.ToString().ToLowerInvariant():icon;Image i=Icon("Icon",r,"UI/Clan/Canonical/"+asset);P(i.rectTransform,16,17,18,18);T("Label",r,label,13,on?Gold:C("475569"),46,8,136,36,TextAlignmentOptions.Left,on?"Inter-Bold":"Inter-SemiBold");Button b=r.gameObject.AddComponent<Button>();b.targetGraphic=r.GetComponent<Image>();b.onClick.AddListener(()=>{CurrentTab=tab;Render();});
+    }
     private void Head(string a,string b){T("Heading",content,a,28,White,36,32,1000,34,TextAlignmentOptions.Left,"Inter-ExtraBold");T("Subtitle",content,b.ToUpperInvariant(),13,C("64748B"),36,72,1100,20,TextAlignmentOptions.Left,"Inter-Regular");}
 
     // ============================================================

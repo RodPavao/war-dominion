@@ -171,9 +171,9 @@ public sealed class WDHomeFriendsPanel : MonoBehaviour
 
         BuildLeftRail();
         BuildRightRail();
-        centerPanel = Box("FriendsMain", shell, 364, 180, 1132, 860, Panel, 24,
+        centerPanel = Box("FriendsMain", shell, 356, 180, 1148, 860, Panel, 24,
             new Color(Gold.r, Gold.g, Gold.b, .24f));
-        StretchBetween(centerPanel, 364, 424, 180, 40);
+        StretchBetween(centerPanel, 356, 416, 180, 40);
 
         if (CurrentTab == WDFriendsTab.Friends) RenderFriends();
         else if (CurrentTab == WDFriendsTab.Requests) RenderRequests();
@@ -204,7 +204,8 @@ public sealed class WDHomeFriendsPanel : MonoBehaviour
     private void BuildLeftRail()
     {
         RectTransform rail = R("FriendsLeftRail", shell);
-        LeftStretchVertical(rail, 40, 180, 40, 300);
+        // 03.1. Trilhos externos usam a margem canônica de 32 px do Arsenal.
+        LeftStretchVertical(rail, 32, 180, 40, 300);
         RectTransform stats = Box("Statistics", rail, 0, 0, 300, 420, Panel, 24,
             new Color(Gold.r, Gold.g, Gold.b, .24f));
         IReadOnlyList<WDProfileData> friends = social.Friends();
@@ -247,7 +248,7 @@ public sealed class WDHomeFriendsPanel : MonoBehaviour
     private void BuildRightRail()
     {
         RectTransform rail = R("FriendsRightRail", shell);
-        RightStretchVertical(rail, 40, 180, 40, 360);
+        RightStretchVertical(rail, 32, 180, 40, 360);
         RectTransform summary = Box("NetworkSummary", rail, 0, 0, 360, 352, Panel, 24,
             new Color(Gold.r, Gold.g, Gold.b, .24f));
         Text("Title", summary, "RESUMO DA REDE", 20, White, 23, 16, 300, 34, TextAlignmentOptions.Left, "Gabarito-Black");

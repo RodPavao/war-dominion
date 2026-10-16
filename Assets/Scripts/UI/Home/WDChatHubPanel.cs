@@ -681,7 +681,11 @@ public sealed class WDChatHubPanel : MonoBehaviour
         bool open = !optionsPopup.gameObject.activeSelf;
         optionsLayer?.gameObject.SetActive(open);
         optionsPopup.gameObject.SetActive(open);
-        if (open) (optionsLayer != null ? optionsLayer : optionsPopup).SetAsLastSibling();
+        if (open)
+        {
+            PositionOptionsPopup();
+            (optionsLayer != null ? optionsLayer : optionsPopup).SetAsLastSibling();
+        }
     }
     private void ToggleSearch()
     {
@@ -725,6 +729,25 @@ public sealed class WDChatHubPanel : MonoBehaviour
         cancelSearchButton = Button("Cancel", searchPanel, 512, 130, 152, 44, CloseSearch);
         Label(cancelSearchButton.transform, "Label", "CANCELAR", 0, 0, 152, 44, 14, Muted, true, TextAlignmentOptions.Center);
         searchPanel.gameObject.SetActive(false);
+    }
+
+    // 07.2. Resolve a posição pelo botão realmente renderizado. Assim o menu
+    // acompanha o cabeçalho da conversa em Safe Area, Edge e ultrawide.
+    private void PositionOptionsPopup()
+    {
+        if (optionsLayer == null || optionsPopup == null || optionsButton == null) return;
+        RectTransform buttonRect = optionsButton.transform as RectTransform;
+        if (buttonRect == null) return;
+        Vector3[] corners = new Vector3[4];
+        buttonRect.GetWorldCorners(corners);
+        Vector3 topRight = optionsLayer.InverseTransformPoint(corners[2]);
+        Vector3 bottomLeft = optionsLayer.InverseTransformPoint(corners[0]);
+        Rect layerRect = optionsLayer.rect;
+        float x = topRight.x - layerRect.xMin - optionsPopup.rect.width;
+        float y = layerRect.yMax - bottomLeft.y + 8f;
+        x = Mathf.Clamp(x, 32f, layerRect.width - 32f - optionsPopup.rect.width);
+        y = Mathf.Clamp(y, 112f, layerRect.height - 32f - optionsPopup.rect.height);
+        ResizeTop(optionsPopup, x, y, optionsPopup.rect.width, optionsPopup.rect.height);
     }
 
     // ============================================================
