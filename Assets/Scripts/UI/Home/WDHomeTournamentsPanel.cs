@@ -34,6 +34,57 @@ public sealed class WDTournamentCenterCard
     }
 }
 
+// ============================================================
+// 01. ÍCONE VETORIAL LOCAL: TROFÉU DE CONTORNO SEM ASSET DUPLICADO
+// ============================================================
+
+[RequireComponent(typeof(CanvasRenderer))]
+public sealed class WDTournamentOutlineTrophyGraphic : MaskableGraphic
+{
+    [SerializeField, Min(.5f)] private float thickness = 1.6f;
+
+    protected override void OnPopulateMesh(VertexHelper vh)
+    {
+        vh.Clear();
+        Rect r = GetPixelAdjustedRect();
+        Vector2 c = r.center;
+        float unit = Mathf.Min(r.width, r.height) / 40f;
+        Vector2[] cup =
+        {
+            c + new Vector2(-12f, 12f) * unit, c + new Vector2(12f, 12f) * unit,
+            c + new Vector2(10f, 2f) * unit, c + new Vector2(5f, -5f) * unit,
+            c + new Vector2(0f, -7f) * unit, c + new Vector2(-5f, -5f) * unit,
+            c + new Vector2(-10f, 2f) * unit, c + new Vector2(-12f, 12f) * unit
+        };
+        AddPolyline(vh, cup, thickness * unit);
+        AddPolyline(vh, new[] { c + new Vector2(-12f, 9f) * unit, c + new Vector2(-17f, 8f) * unit,
+            c + new Vector2(-16f, 1f) * unit, c + new Vector2(-10f, -1f) * unit }, thickness * unit);
+        AddPolyline(vh, new[] { c + new Vector2(12f, 9f) * unit, c + new Vector2(17f, 8f) * unit,
+            c + new Vector2(16f, 1f) * unit, c + new Vector2(10f, -1f) * unit }, thickness * unit);
+        AddLine(vh, c + new Vector2(0f, -7f) * unit, c + new Vector2(0f, -13f) * unit, thickness * unit);
+        AddLine(vh, c + new Vector2(-6f, -13f) * unit, c + new Vector2(6f, -13f) * unit, thickness * unit);
+    }
+
+    private void AddPolyline(VertexHelper vh, IReadOnlyList<Vector2> points, float width)
+    {
+        for (int i = 1; i < points.Count; i++) AddLine(vh, points[i - 1], points[i], width);
+    }
+
+    private void AddLine(VertexHelper vh, Vector2 a, Vector2 b, float width)
+    {
+        Vector2 normal = Vector2.Perpendicular((b - a).normalized) * width * .5f;
+        int index = vh.currentVertCount;
+        UIVertex vertex = UIVertex.simpleVert;
+        vertex.color = color;
+        vertex.position = a - normal; vh.AddVert(vertex);
+        vertex.position = a + normal; vh.AddVert(vertex);
+        vertex.position = b + normal; vh.AddVert(vertex);
+        vertex.position = b - normal; vh.AddVert(vertex);
+        vh.AddTriangle(index, index + 1, index + 2);
+        vh.AddTriangle(index, index + 2, index + 3);
+    }
+}
+
 [DisallowMultipleComponent]
 public sealed class WDHomeTournamentsPanel : MonoBehaviour
 {
@@ -42,13 +93,16 @@ public sealed class WDHomeTournamentsPanel : MonoBehaviour
     // ============================================================
 
     private static readonly Color Panel = new(7f / 255f, 15f / 255f, 26f / 255f, .88f);
-    private static readonly Color Card = new(1f, 1f, 1f, .07f);
-    private static readonly Color CardBorder = new(0f, .85f, 1f, .24f);
+    private static readonly Color MainListCardNavy = new(8f / 255f, 17f / 255f, 29f / 255f, .90f);
+    private static readonly Color MainListCardNavySelected = new(10f / 255f, 25f / 255f, 38f / 255f, .94f);
+    private static readonly Color MainTabsNavy = new(8f / 255f, 17f / 255f, 29f / 255f, .86f);
     private static readonly Color Gold = new(.773f, .608f, .388f, 1f);
     private static readonly Color Cyan = new(0f, .847f, 1f, 1f);
     private static readonly Color White = new(.95f, .96f, .98f, 1f);
     private static readonly Color Muted = new(.58f, .63f, .70f, 1f);
     private static readonly Color Green = new(.25f, .76f, .32f, 1f);
+    private static readonly Color CenterCardNavy = new(8f / 255f, 17f / 255f, 29f / 255f, .96f);
+    private static readonly Color CenterCardNavySelected = new(10f / 255f, 25f / 255f, 38f / 255f, .98f);
 
     private WarDominionUITheme theme;
     private WDTournamentRepository repository;
@@ -72,6 +126,7 @@ public sealed class WDHomeTournamentsPanel : MonoBehaviour
     private WDUniversalHeaderContent header;
     private WDTournamentListTab selectedTab;
     private string selectedTournamentId;
+    private string centerSectionTitle;
 
     public WDTournamentListTab SelectedTab => selectedTab;
     public bool ShowingOffline => offlineRoot != null && offlineRoot.gameObject.activeSelf;
@@ -140,6 +195,7 @@ public sealed class WDHomeTournamentsPanel : MonoBehaviour
         UnityAction primaryAction = null, string primaryLabel = null)
     {
         HideCenter();
+        centerSectionTitle = title ?? string.Empty;
         centerBackAction = backAction;
         centerOverlay = Rect("TournamentCenterOverlay", transform);
         WDHomeUIFactory.Stretch(centerOverlay);
@@ -177,21 +233,37 @@ public sealed class WDHomeTournamentsPanel : MonoBehaviour
                 backAction, false);
 
         RectTransform summaryPanel = TopRect("Summary", centerModal, 36f, 154f, 1248f, 92f);
-        Surface(summaryPanel, new Color(1f, 1f, 1f, .035f), 8,
+        Surface(summaryPanel, CenterCardNavy, 8,
             new Color(Cyan.r, Cyan.g, Cyan.b, .20f));
         TextAt("Copy", summaryPanel, summary ?? string.Empty, 13f, Muted,
             18f, 14f, 1212f, 64f, TextAlignmentOptions.TopLeft);
 
         RectTransform cardArea = TopRect("Cards", centerModal, 36f, 266f, 1248f, 430f);
-        GridLayoutGroup grid = cardArea.gameObject.AddComponent<GridLayoutGroup>();
-        grid.cellSize = cards != null && cards.Count > 6 ? new Vector2(400f, 120f) : new Vector2(400f, 188f);
-        grid.spacing = new Vector2(24f, 22f);
-        grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
-        grid.constraintCount = 3;
-        grid.childAlignment = TextAnchor.UpperLeft;
         bool compactCards = cards != null && cards.Count > 6;
-        if (cards != null)
+        if (cards != null && cards.Count > 0)
+        {
+            GridLayoutGroup grid = cardArea.gameObject.AddComponent<GridLayoutGroup>();
+            grid.cellSize = compactCards ? new Vector2(400f, 120f) : new Vector2(400f, 188f);
+            grid.spacing = new Vector2(24f, 22f);
+            grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+            grid.constraintCount = 3;
+            grid.childAlignment = TextAnchor.UpperLeft;
             foreach (WDTournamentCenterCard card in cards) BuildCenterCard(cardArea, card, compactCards);
+        }
+        else
+        {
+            RectTransform notice = TopRect("DetailState", cardArea, 0f, 0f, 1248f, 350f);
+            Surface(notice, new Color(8f / 255f, 17f / 255f, 29f / 255f, .92f), 10,
+                new Color(Gold.r, Gold.g, Gold.b, .18f));
+            RectTransform noticeIcon = TopRect("Icon", notice, 582f, 82f, 84f, 84f);
+            WDTournamentOutlineTrophyGraphic trophy = noticeIcon.gameObject.AddComponent<WDTournamentOutlineTrophyGraphic>();
+            trophy.color = new Color(Gold.r, Gold.g, Gold.b, .72f);
+            trophy.raycastTarget = false;
+            TextAt("Label", notice, "INFORMAÇÃO DO TORNEIO", 14f, White,
+                160f, 190f, 928f, 26f, TextAlignmentOptions.Center);
+            TextAt("Hint", notice, "USE VOLTAR PARA RETORNAR AO CENTRO DE TORNEIO", 11f, Muted,
+                160f, 224f, 928f, 22f, TextAlignmentOptions.Center);
+        }
 
         if (!string.IsNullOrWhiteSpace(feedback))
             TextAt("Feedback", centerModal, feedback, 12f, Gold,
@@ -218,6 +290,7 @@ public sealed class WDHomeTournamentsPanel : MonoBehaviour
         centerOverlay = null;
         centerModal = null;
         centerBackAction = null;
+        centerSectionTitle = null;
     }
 
     public bool TryHandleCenterBack()
@@ -233,7 +306,7 @@ public sealed class WDHomeTournamentsPanel : MonoBehaviour
         RectTransform rect = Rect(card.Title.Replace(" ", string.Empty), parent);
         Color accent = CenterCardAccent(card.Title);
         Color border = card.Selected ? Cyan : new Color(accent.r, accent.g, accent.b, .30f);
-        Color fill = card.Selected ? new Color(0f, .85f, 1f, .07f) : new Color(1f, 1f, 1f, .035f);
+        Color fill = card.Selected ? CenterCardNavySelected : CenterCardNavy;
         Surface(rect, fill, 9, border);
         Image accentLine = WDHomeUIFactory.Image("Accent", rect,
             card.Enabled ? accent : new Color(Muted.r, Muted.g, Muted.b, .42f));
@@ -247,11 +320,24 @@ public sealed class WDHomeTournamentsPanel : MonoBehaviour
             new Color(accent.r, accent.g, accent.b, card.Enabled ? .40f : .14f));
         RectTransform iconArtwork = Rect("Artwork", icon);
         WDHomeUIFactory.Stretch(iconArtwork, 10f, 10f, 10f, 10f);
-        RawImage iconArt = iconArtwork.gameObject.AddComponent<RawImage>();
-        iconArt.texture = Resources.Load<Texture2D>(CenterCardIcon(card.Title));
-        iconArt.color = card.Enabled ? accent : Muted;
-        iconArt.uvRect = new Rect(0f, 0f, 1f, 1f);
-        iconArt.raycastTarget = false;
+        if (card.Title != null && card.Title.Contains("VISÃO GERAL"))
+        {
+            WDTournamentOutlineTrophyGraphic trophy = iconArtwork.gameObject.AddComponent<WDTournamentOutlineTrophyGraphic>();
+            trophy.color = card.Enabled ? accent : Muted;
+            trophy.raycastTarget = false;
+        }
+        else
+        {
+            RawImage iconArt = iconArtwork.gameObject.AddComponent<RawImage>();
+            iconArt.texture = Resources.Load<Texture2D>(CenterCardIcon(card.Title));
+            iconArt.color = card.Title != null && card.Title.Contains("ASSISTIR")
+                ? new Color(1f, 1f, 1f, card.Enabled ? .9f : .42f)
+                : card.Enabled ? accent : Muted;
+            iconArt.uvRect = new Rect(0f, 0f, 1f, 1f);
+            if (card.Title != null && card.Title.Contains("ASSISTIR"))
+                iconArt.rectTransform.localScale = new Vector3(1f, 1.16f, 1f);
+            iconArt.raycastTarget = false;
+        }
         TextAt("Title", rect, card.Title, 17f, card.Enabled ? White : Muted,
             76f, 18f, 306f, 28f, TextAlignmentOptions.Left);
         TextAt("Description", rect, card.Description ?? string.Empty, 12f, Muted,
@@ -268,12 +354,16 @@ public sealed class WDHomeTournamentsPanel : MonoBehaviour
         return Gold;
     }
 
-    private static string CenterCardIcon(string title)
+    private string CenterCardIcon(string title)
     {
+        if (!string.IsNullOrEmpty(centerSectionTitle) && centerSectionTitle.Contains("PARTICIPANTES"))
+            return "UI/Home/FigmaPhase1A/Users";
+        if (!string.IsNullOrEmpty(centerSectionTitle) && centerSectionTitle.Contains("CHAVEAMENTO"))
+            return "UI/Home/PlayFinal/TwoVsTwo";
         if (title != null && title.Contains("PARTICIPANTES")) return "UI/Home/FigmaPhase1A/Users";
         if (title != null && title.Contains("DECK")) return "UI/Home/FigmaPhase1A/Shield";
         if (title != null && title.Contains("PARTIDA")) return "UI/Home/PlayFinal/PlayCrossedSwords";
-        if (title != null && title.Contains("ASSISTIR")) return "UI/Store/Canonical/icon_eye";
+        if (title != null && title.Contains("ASSISTIR")) return "UI/Match/FigmaCurrent/Hubs/HideEye";
         if (title != null && title.Contains("CHAVEAMENTO")) return "UI/Home/PlayFinal/TwoVsTwo";
         return "UI/Home/PlayFinal/TournamentTrophy";
     }
@@ -313,7 +403,7 @@ public sealed class WDHomeTournamentsPanel : MonoBehaviour
     private void BuildTabs(RectTransform parent)
     {
         RectTransform tabs = TopRect("Tabs", parent, 24f, 24f, 1072f, 44f);
-        Surface(tabs, new Color(1f, 1f, 1f, .045f), 6, new Color(1f, 1f, 1f, .08f));
+        Surface(tabs, MainTabsNavy, 6, new Color(1f, 1f, 1f, .08f));
         BuildTab(tabs, WDTournamentListTab.Active, "ATIVOS", 0);
         BuildTab(tabs, WDTournamentListTab.ComingSoon, "EM BREVE", 1);
         BuildTab(tabs, WDTournamentListTab.Closed, "ENCERRADOS", 2);
@@ -432,7 +522,7 @@ public sealed class WDHomeTournamentsPanel : MonoBehaviour
             Transform target = onlineRoot.Find("TournamentListPanel/Tabs/Tab" + tab);
             if (target == null) continue;
             Image background = target.GetComponent<Image>() ?? target.gameObject.AddComponent<Image>();
-            background.color = tab == selectedTab ? new Color(0f, .85f, 1f, .15f) : Color.clear;
+            background.color = tab == selectedTab ? new Color(0f, .85f, 1f, .07f) : Color.clear;
             background.raycastTarget = false;
             TextMeshProUGUI label = target.GetComponentInChildren<TextMeshProUGUI>();
             if (label != null) label.color = tab == selectedTab ? Cyan : Muted;
@@ -448,7 +538,7 @@ public sealed class WDHomeTournamentsPanel : MonoBehaviour
                 line.rectTransform.anchorMin = new Vector2(0f, 0f);
                 line.rectTransform.anchorMax = new Vector2(1f, 0f);
                 line.rectTransform.pivot = new Vector2(.5f, 0f);
-                line.rectTransform.sizeDelta = new Vector2(0f, 3f);
+                line.rectTransform.sizeDelta = new Vector2(0f, 2f);
                 line.raycastTarget = false;
             }
         }
@@ -478,8 +568,8 @@ public sealed class WDHomeTournamentsPanel : MonoBehaviour
         RectTransform row = Rect("Tournament_" + tournament.Id, listContent);
         LayoutElement size = row.gameObject.AddComponent<LayoutElement>();
         size.preferredHeight = 148f;
-        Surface(row, Card, 6,
-            selected ? new Color(Cyan.r, Cyan.g, Cyan.b, .26f) : CardBorder);
+        Surface(row, selected ? MainListCardNavySelected : MainListCardNavy, 6,
+            new Color(1f, 1f, 1f, .10f));
         Button hit = row.gameObject.AddComponent<Button>();
         hit.transition = Selectable.Transition.None;
         hit.onClick.AddListener(() => { selectedTournamentId = tournament.Id; RenderList(); });
@@ -492,15 +582,17 @@ public sealed class WDHomeTournamentsPanel : MonoBehaviour
         Surface(icon, new Color(0f, .85f, 1f, .08f), 5, new Color(Cyan.r, Cyan.g, Cyan.b, .35f));
         RectTransform iconArt = Rect("Artwork", icon);
         WDHomeUIFactory.Stretch(iconArt, 10f, 10f, 10f, 10f);
-        RawImage trophy = iconArt.gameObject.AddComponent<RawImage>();
-        trophy.texture = Resources.Load<Texture2D>("UI/Home/PlayFinal/TournamentTrophy");
+        WDTournamentOutlineTrophyGraphic trophy = iconArt.gameObject.AddComponent<WDTournamentOutlineTrophyGraphic>();
         trophy.color = tournament.Lifecycle == WDTournamentLifecycle.Closed ? Gold : Cyan;
         trophy.raycastTarget = false;
         TextAt("Name", row, tournament.Name, 17f, White, 84f, 18f, 650f, 28f,
             TextAlignmentOptions.Left);
-        TextAt("Status", row, LifecycleLabel(tournament.Lifecycle), 11f,
-            tournament.Lifecycle == WDTournamentLifecycle.Closed ? Gold : Green,
-            84f, 50f, 240f, 20f, TextAlignmentOptions.Left);
+        Color rowStateAccent = tournament.Lifecycle == WDTournamentLifecycle.Closed ? Gold : Green;
+        RectTransform rowState = TopRect("Status", row, 84f, 48f, 172f, 22f);
+        Surface(rowState, new Color(rowStateAccent.r, rowStateAccent.g, rowStateAccent.b, .09f), 4,
+            new Color(rowStateAccent.r, rowStateAccent.g, rowStateAccent.b, .26f));
+        Text("Label", rowState, LifecycleLabel(tournament.Lifecycle), 10f, rowStateAccent,
+            TextAlignmentOptions.Center);
         TextAt("Metadata", row,
             $"FORMATO: {FormatLabel(tournament.Format)}  ·  PERÍODO: {Safe(tournament.Period)}",
             12f, Muted, 84f, 75f, 690f, 20f, TextAlignmentOptions.Left);
@@ -526,17 +618,19 @@ public sealed class WDHomeTournamentsPanel : MonoBehaviour
         Surface(icon, new Color(1f, 1f, 1f, .035f), 6, new Color(Gold.r, Gold.g, Gold.b, .35f));
         RectTransform iconArt = Rect("Artwork", icon);
         WDHomeUIFactory.Stretch(iconArt, 14f, 14f, 14f, 14f);
-        RawImage trophy = iconArt.gameObject.AddComponent<RawImage>();
-        trophy.texture = Resources.Load<Texture2D>("UI/Home/PlayFinal/TournamentTrophy");
+        WDTournamentOutlineTrophyGraphic trophy = iconArt.gameObject.AddComponent<WDTournamentOutlineTrophyGraphic>();
         trophy.color = Gold;
         trophy.raycastTarget = false;
         TextAt("Name", featuredRoot, tournament.Name, 25f, White, 104f, 48f, 540f, 34f,
             TextAlignmentOptions.Left);
         TextAt("Season", featuredRoot, Safe(tournament.Period), 13f, Muted,
             104f, 86f, 540f, 22f, TextAlignmentOptions.Left);
-        TextAt("State", featuredRoot, LifecycleLabel(tournament.Lifecycle), 11f,
-            tournament.Lifecycle == WDTournamentLifecycle.Closed ? Gold : Green,
-            104f, 114f, 300f, 22f, TextAlignmentOptions.Left);
+        RectTransform state = TopRect("StateBadge", featuredRoot, 104f, 114f, 230f, 26f);
+        Color stateAccent = tournament.Lifecycle == WDTournamentLifecycle.Closed ? Gold : Green;
+        Surface(state, new Color(stateAccent.r, stateAccent.g, stateAccent.b, .10f), 4,
+            new Color(stateAccent.r, stateAccent.g, stateAccent.b, .35f));
+        Text("Label", state, LifecycleLabel(tournament.Lifecycle), 10f, stateAccent,
+            TextAlignmentOptions.Center);
         FeaturedInfo("Period", "PERÍODO", Safe(tournament.Period), 164f);
         FeaturedInfo("Format", "FORMATO", FormatLabel(tournament.Format), 264f);
         FeaturedInfo("Capacity", "PARTICIPANTES / STATUS",
@@ -550,8 +644,9 @@ public sealed class WDHomeTournamentsPanel : MonoBehaviour
     {
         RectTransform row = TopRect(name, featuredRoot, 8f, top, 656f, 72f);
         Image fill = row.gameObject.AddComponent<Image>();
-        fill.color = new Color(1f, 1f, 1f, .035f);
+        fill.color = new Color(5f / 255f, 12f / 255f, 22f / 255f, .72f);
         fill.raycastTarget = false;
+        WDHomeUIFactory.ApplyRounded(fill, 6);
         TextAt("Label", row, label, 11f, Cyan, 12f, 10f, 620f, 18f, TextAlignmentOptions.Left);
         TextAt("Value", row, value, 13f, White, 12f, 35f, 620f, 22f, TextAlignmentOptions.Left);
     }
@@ -579,8 +674,10 @@ public sealed class WDHomeTournamentsPanel : MonoBehaviour
         float width, float height, UnityAction action, bool primary)
     {
         RectTransform rect = TopRect(name, parent, x, y, width, height);
-        Surface(rect, primary ? Gold : new Color(.035f, .10f, .13f, .96f), 6,
-            primary ? Gold : new Color(Cyan.r, Cyan.g, Cyan.b, .8f));
+        Color secondaryFill = new Color(11f / 255f, 20f / 255f, 32f / 255f, .96f);
+        Color secondaryBorder = new Color(Gold.r, Gold.g, Gold.b, .30f);
+        Surface(rect, primary ? Gold : secondaryFill, 6,
+            primary ? new Color(Gold.r, Gold.g, Gold.b, .82f) : secondaryBorder);
         Button button = rect.gameObject.AddComponent<Button>();
         button.targetGraphic = rect.GetComponent<Image>();
         button.transition = Selectable.Transition.ColorTint;
@@ -595,8 +692,9 @@ public sealed class WDHomeTournamentsPanel : MonoBehaviour
         colors.fadeDuration = .08f;
         button.colors = colors;
         if (action != null) button.onClick.AddListener(action);
-        Text("Label", rect, label, 13f, primary ? new Color(.04f, .05f, .07f, 1f) : Cyan,
-            TextAlignmentOptions.Center);
+        TextMeshProUGUI labelText = Text("Label", rect, label, 13f,
+            primary ? new Color(.04f, .05f, .07f, 1f) : White, TextAlignmentOptions.Center);
+        labelText.font = WDHomeTypography.Load("Gabarito-Bold") ?? labelText.font;
     }
 
     private TextMeshProUGUI TextAt(string name, Transform parent, string value, float size,
@@ -614,9 +712,12 @@ public sealed class WDHomeTournamentsPanel : MonoBehaviour
         Color color, TextAlignmentOptions alignment)
     {
         TextMeshProUGUI text = WDHomeUIFactory.Text(name, parent, theme, value, size, color, alignment);
-        TMP_FontAsset selectedFont = titleFont != null && size >= 17f ? titleFont : bodyFont;
+        TMP_FontAsset selectedFont = size >= 17f
+            ? titleFont ?? WDHomeTypography.Load("Gabarito-Bold")
+            : size <= 11f ? WDHomeTypography.Load("Inter-Bold")
+            : WDHomeTypography.Load("Inter-Regular") ?? bodyFont;
         if (selectedFont != null) text.font = selectedFont;
-        text.fontStyle = FontStyles.Bold;
+        text.fontStyle = FontStyles.Normal;
         text.raycastTarget = false;
         return text;
     }
@@ -639,7 +740,7 @@ public sealed class WDHomeTournamentsPanel : MonoBehaviour
         image.color = fill;
         image.raycastTarget = true;
         WDHomeUIFactory.ApplyRounded(image, radius);
-        WDHomeUIFactory.AddRoundedBorder(target, border, radius);
+        if (border.a > 0f) WDHomeUIFactory.AddThinRoundedBorder(target, border, radius);
     }
 
     private static void Clear(Transform parent)
