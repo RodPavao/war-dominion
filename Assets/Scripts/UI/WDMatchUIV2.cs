@@ -39,7 +39,11 @@ public sealed class WDMatchUIV2 : MonoBehaviour, IWDMatchUIPresentation, IWDMatc
     private const string PlayerTerritoriesIconPath = MatchIconRoot + "PlayerStatTerritories";
     private const string PlayerTroopsIconPath = MatchIconRoot + "PlayerStatTroops";
     private const string PlayerEnergyIconPath = MatchIconRoot + "PlayerStatEnergy";
+    private const string ArmoryVisualCatalogPath = "UI/Armory/WDArmoryVisualCatalog";
+    private const string ArmoryVisualSettingsPath = "UI/ArmoryV2/WDArmoryV2VisualSettings";
     private static readonly Color Gold = WDMatchVisualStyle.BorderMatchGold;
+    private static readonly Color Cyan = new Color32(13, 194, 219, 255);
+    private static readonly Color White = new Color32(245, 246, 248, 255);
     private static readonly Color Surface = WDMatchVisualStyle.SurfaceMatchReadable;
     private static readonly Color ResourceSurface = new Color(6f / 255f, 9f / 255f,
         14f / 255f, WDMatchVisualStyle.SurfaceMatchReadable.a);
@@ -95,7 +99,17 @@ public sealed class WDMatchUIV2 : MonoBehaviour, IWDMatchUIPresentation, IWDMatc
     private Sprite speedOffSprite;
     private Sprite speedOnSprite;
     private readonly List<WDUIPremiumButton> weaponCards = new();
-    private readonly List<GameObject> weaponPreparationOverlays = new();
+    private readonly List<RawImage> weaponArtworks = new();
+    private readonly List<AspectRatioFitter> weaponArtworkAspects = new();
+    private readonly List<TextMeshProUGUI> weaponLevels = new();
+    private readonly List<Image> weaponEnergyIcons = new();
+    private readonly List<TextMeshProUGUI> weaponEnergyCosts = new();
+    private readonly List<GameObject> weaponCooldownIndicators = new();
+    private readonly List<TextMeshProUGUI> weaponCooldownCounts = new();
+    private readonly List<Image> weaponSelectionIndicators = new();
+    private readonly List<Image> weaponProgrammedIndicators = new();
+    private WDArmoryVisualCatalog armoryVisualCatalog;
+    private WDArmoryV2VisualSettings armoryVisualSettings;
     private string playersKey = string.Empty;
     private string menuPlayersKey = string.Empty;
 
@@ -112,6 +126,13 @@ public sealed class WDMatchUIV2 : MonoBehaviour, IWDMatchUIPresentation, IWDMatc
         commands = newCommands;
         weaponUI = newWeaponUI;
         resolutionSequence = newResolutionSequence;
+        // ============================================================
+        // 02.0. ARTWORKS DA PARTIDA SEGUEM A AUTORIDADE VISUAL DO ARSENAL
+        // ============================================================
+        // O catálogo fornece a arte canônica e o VisualSettings mantém a mesma
+        // precedência editorial aplicada pelo Arsenal V2, sem duplicar texturas.
+        armoryVisualCatalog = Resources.Load<WDArmoryVisualCatalog>(ArmoryVisualCatalogPath);
+        armoryVisualSettings = Resources.Load<WDArmoryV2VisualSettings>(ArmoryVisualSettingsPath);
 
         RectTransform rect = transform as RectTransform;
         Stretch(rect);
@@ -310,23 +331,120 @@ public sealed class WDMatchUIV2 : MonoBehaviour, IWDMatchUIPresentation, IWDMatc
             SetBorderColor(card.transform as RectTransform,
                 new Color(Gold.r, Gold.g, Gold.b, .70f));
             TextMeshProUGUI label = card.GetComponentInChildren<TextMeshProUGUI>();
-            label.fontSize = 15f;
+            label.gameObject.name = "WeaponName";
+            label.fontSize = 9f;
+            label.enableAutoSizing = true;
+            label.fontSizeMin = 7.5f;
+            label.fontSizeMax = 9f;
+            label.fontStyle = FontStyles.Bold;
+            label.alignment = TextAlignmentOptions.MidlineLeft;
             label.textWrappingMode = TextWrappingModes.Normal;
+            label.overflowMode = TextOverflowModes.Overflow;
+            label.rectTransform.anchorMin = new Vector2(0f, 0f);
+            label.rectTransform.anchorMax = new Vector2(1f, 0f);
+            label.rectTransform.pivot = new Vector2(.5f, 0f);
+            label.rectTransform.offsetMin = new Vector2(6f, 24f);
+            label.rectTransform.offsetMax = new Vector2(-6f, 55f);
             weaponCards.Add(card);
 
-            RectTransform preparing = WDUIFactory.Rect("PreparationState", card.transform);
-            Stretch(preparing);
-            Image preparationTint = preparing.gameObject.AddComponent<Image>();
-            preparationTint.color = new Color32(176, 28, 35, 205);
-            preparationTint.raycastTarget = false;
-            WDHomeUIFactory.ApplyRounded(preparationTint, 6);
-            TextMeshProUGUI preparationCross = WDUIFactory.Text("CancelMark", preparing,
-                theme, 44f, Color.white, TextAlignmentOptions.Center);
-            Stretch(preparationCross.rectTransform);
-            preparationCross.text = "×";
-            preparationCross.raycastTarget = false;
-            preparing.gameObject.SetActive(false);
-            weaponPreparationOverlays.Add(preparing.gameObject);
+            // ============================================================
+            // 02.1. CARTA COM ARTE, IDENTIDADE E ESTADO FUNCIONAL COMPACTO
+            // ============================================================
+            // A carta mantém toda a área clicável original. Não existem controles
+            // de adicionar/remover deck; o clique continua selecionando ou cancelando.
+            RectTransform artFrame = WDUIFactory.Rect("ArtworkFrame", card.transform);
+            AnchorTop(artFrame, 4f, 4f, WeaponCardWidth - 8f, 59f);
+            Image artSurface = artFrame.gameObject.AddComponent<Image>();
+            artSurface.color = new Color32(3, 8, 14, 255);
+            artSurface.raycastTarget = false;
+            WDHomeUIFactory.ApplyRounded(artSurface, 4);
+            artFrame.gameObject.AddComponent<RectMask2D>();
+            RectTransform artRect = WDUIFactory.Rect("Artwork", artFrame);
+            Stretch(artRect, 2f);
+            RawImage artwork = artRect.gameObject.AddComponent<RawImage>();
+            artwork.raycastTarget = false;
+            AspectRatioFitter artworkAspect = artRect.gameObject.AddComponent<AspectRatioFitter>();
+            artworkAspect.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;
+            artworkAspect.aspectRatio = 1f;
+            weaponArtworks.Add(artwork);
+            weaponArtworkAspects.Add(artworkAspect);
+
+            // ============================================================
+            // 02.2. RODAPÉ TIPOGRÁFICO E ESTADOS SEM COBRIR A ILUSTRAÇÃO
+            // ============================================================
+            TextMeshProUGUI level = WDUIFactory.Text("Level", card.transform,
+                theme, 10f, White, TextAlignmentOptions.MidlineLeft);
+            AnchorBottom(level.rectTransform, 6f, 5f, 34f, 17f);
+            level.fontStyle = FontStyles.Bold; level.raycastTarget = false;
+            weaponLevels.Add(level);
+
+            RectTransform energyRect = WDUIFactory.Rect("EnergyIcon", card.transform);
+            energyRect.anchorMin = energyRect.anchorMax = new Vector2(1f, 0f);
+            energyRect.pivot = new Vector2(1f, 0f);
+            energyRect.anchoredPosition = new Vector2(-25f, 7f);
+            energyRect.sizeDelta = new Vector2(12f, 12f);
+            Image energyIcon = energyRect.gameObject.AddComponent<Image>();
+            energyIcon.sprite = LoadRuntimeSprite(EnergyIconPath);
+            energyIcon.color = Cyan; energyIcon.preserveAspect = true;
+            energyIcon.raycastTarget = false; weaponEnergyIcons.Add(energyIcon);
+            TextMeshProUGUI cost = WDUIFactory.Text("EnergyCost", card.transform,
+                theme, 10f, White, TextAlignmentOptions.MidlineRight);
+            cost.rectTransform.anchorMin = cost.rectTransform.anchorMax = new Vector2(1f, 0f);
+            cost.rectTransform.pivot = new Vector2(1f, 0f);
+            cost.rectTransform.anchoredPosition = new Vector2(-6f, 5f);
+            cost.rectTransform.sizeDelta = new Vector2(17f, 17f);
+            cost.fontStyle = FontStyles.Bold; cost.raycastTarget = false;
+            weaponEnergyCosts.Add(cost);
+
+            RectTransform cooldown = WDUIFactory.Rect("Cooldown", card.transform);
+            cooldown.anchorMin = cooldown.anchorMax = new Vector2(1f, 1f);
+            cooldown.pivot = new Vector2(1f, 1f);
+            cooldown.anchoredPosition = new Vector2(-5f, -5f);
+            cooldown.sizeDelta = new Vector2(38f, 22f);
+            Image cooldownSurface = cooldown.gameObject.AddComponent<Image>();
+            // ============================================================
+            // 02.3. COOLDOWN OPACO INDEPENDENTE DO DIM DA ILUSTRAÇÃO
+            // ============================================================
+            cooldownSurface.color = new Color32(5, 12, 22, 242);
+            cooldownSurface.raycastTarget = false; WDHomeUIFactory.ApplyRounded(cooldownSurface, 4);
+            Image clock = WDUIFactory.Rect("Clock", cooldown).gameObject.AddComponent<Image>();
+            clock.sprite = LoadRuntimeSprite(TimeIconPath); clock.color = White;
+            clock.preserveAspect = true; clock.raycastTarget = false;
+            AnchorLeft(clock.rectTransform, 4f, 4f, 14f, 14f);
+            TextMeshProUGUI count = WDUIFactory.Text("Count", cooldown, theme, 11f,
+                White, TextAlignmentOptions.Center);
+            count.rectTransform.anchorMin = new Vector2(0f, 0f);
+            count.rectTransform.anchorMax = new Vector2(1f, 1f);
+            count.rectTransform.offsetMin = new Vector2(18f, 0f);
+            count.rectTransform.offsetMax = Vector2.zero;
+            count.fontStyle = FontStyles.Bold; count.raycastTarget = false;
+            cooldown.gameObject.SetActive(false);
+            weaponCooldownIndicators.Add(cooldown.gameObject);
+            weaponCooldownCounts.Add(count);
+
+            Image selected = WDUIFactory.Rect("SelectionIndicator", card.transform)
+                .gameObject.AddComponent<Image>();
+            selected.color = Cyan; selected.raycastTarget = false;
+            selected.rectTransform.anchorMin = new Vector2(0f, 0f);
+            selected.rectTransform.anchorMax = new Vector2(0f, 1f);
+            selected.rectTransform.pivot = new Vector2(0f, .5f);
+            selected.rectTransform.anchoredPosition = Vector2.zero;
+            selected.rectTransform.sizeDelta = new Vector2(3f, 0f);
+            selected.gameObject.SetActive(false); weaponSelectionIndicators.Add(selected);
+
+            Image programmed = WDUIFactory.Rect("ProgrammedIndicator", card.transform)
+                .gameObject.AddComponent<Image>();
+            programmed.color = Gold; programmed.raycastTarget = false;
+            programmed.rectTransform.anchorMin = programmed.rectTransform.anchorMax = new Vector2(0f, 1f);
+            programmed.rectTransform.pivot = new Vector2(0f, 1f);
+            programmed.rectTransform.anchoredPosition = new Vector2(6f, -6f);
+            programmed.rectTransform.sizeDelta = new Vector2(16f, 16f);
+            programmed.sprite = Resources.Load<Sprite>("UI/Store/Canonical/icon_check");
+            programmed.preserveAspect = true;
+            programmed.gameObject.SetActive(false); weaponProgrammedIndicators.Add(programmed);
+            label.transform.SetAsLastSibling();
+            level.transform.SetAsLastSibling(); cost.transform.SetAsLastSibling();
+            energyRect.SetAsLastSibling(); cooldown.SetAsLastSibling();
         }
 
         supportButton = CompactButton(rail, "Support", "APOIO", new Vector2(RailContentX, -689f),
@@ -572,15 +690,74 @@ public sealed class WDMatchUIV2 : MonoBehaviour, IWDMatchUIPresentation, IWDMatc
         for (int i = 0; i < weaponCards.Count; i++)
         {
             WDWeaponHudCardState card = i < cards.Count ? cards[i] : null;
-            weaponCards[i].SetLabel(card == null ? "VAZIO" :
-                FormatWeaponCardLabel(card.DisplayName, card.Level, card.EnergyCost));
-            weaponCards[i].SetInteractable(state.PodeEditarPreparacao && card != null &&
+            bool occupied = card != null && !string.IsNullOrEmpty(card.WeaponId);
+            weaponCards[i].SetLabel(occupied ? card.DisplayName.ToUpperInvariant() : string.Empty);
+            weaponCards[i].SetInteractable(state.PodeEditarPreparacao && occupied &&
                 card.AvailabilityReason == WDWeaponAvailabilityReason.Available);
-            weaponCards[i].SetSelected(card?.Selected == true);
-            bool preparing = card?.Selected == true;
-            if (i < weaponPreparationOverlays.Count)
-                weaponPreparationOverlays[i].SetActive(preparing);
+            weaponCards[i].SetSelected(occupied && card.Selected);
+            Texture artwork = occupied ? ResolveWeaponArtwork(card.WeaponId) : null;
+            if (i < weaponArtworks.Count)
+            {
+                weaponArtworks[i].texture = artwork;
+                weaponArtworks[i].gameObject.SetActive(occupied);
+                weaponArtworks[i].color = !occupied ? Color.clear :
+                    card.AvailabilityReason == WDWeaponAvailabilityReason.Available
+                        ? Color.white : new Color(1f, 1f, 1f, .52f);
+            }
+            if (i < weaponArtworkAspects.Count)
+                weaponArtworkAspects[i].aspectRatio = artwork != null && artwork.height > 0
+                    ? (float)artwork.width / artwork.height : 1f;
+            if (i < weaponLevels.Count) weaponLevels[i].text = occupied ? $"N{Mathf.Max(1, card.Level)}" : string.Empty;
+            if (i < weaponEnergyCosts.Count) weaponEnergyCosts[i].text = occupied ? card.EnergyCost.ToString() : string.Empty;
+            if (i < weaponEnergyIcons.Count)
+            {
+                weaponEnergyIcons[i].gameObject.SetActive(occupied);
+                weaponEnergyIcons[i].color = card?.AvailabilityReason == WDWeaponAvailabilityReason.InsufficientEnergy
+                    ? new Color(Cyan.r, Cyan.g, Cyan.b, .38f) : Cyan;
+            }
+            SetBorderColor(weaponCards[i].transform as RectTransform,
+                !occupied ? new Color(1f, 1f, 1f, .08f) : CardBorderColor(card));
+
+            bool cooldown = occupied && (card.AvailabilityReason == WDWeaponAvailabilityReason.Cooldown ||
+                card.AvailabilityReason == WDWeaponAvailabilityReason.InitialRoundLock);
+            if (i < weaponCooldownIndicators.Count) weaponCooldownIndicators[i].SetActive(cooldown);
+            if (cooldown && i < weaponCooldownCounts.Count)
+                weaponCooldownCounts[i].text = Mathf.Max(0, card.CooldownRemaining).ToString();
+            if (i < weaponSelectionIndicators.Count) weaponSelectionIndicators[i].gameObject.SetActive(false);
+            if (i < weaponProgrammedIndicators.Count) weaponProgrammedIndicators[i].gameObject.SetActive(occupied &&
+                (card.Programmed || card.AvailabilityReason == WDWeaponAvailabilityReason.AlreadyProgrammedThisPreparation));
         }
+    }
+
+    // ============================================================
+    // 03.0. RESOLUÇÃO VISUAL E ESTADOS DAS CARTAS DA PARTIDA
+    // ============================================================
+
+    private Texture ResolveWeaponArtwork(string weaponId)
+    {
+        Texture fallback = armoryVisualCatalog?.Resolve(weaponId) ??
+            WDWeaponArtworkResolver.Resolve(weaponId);
+        return armoryVisualSettings != null
+            ? armoryVisualSettings.ResolveArtwork(weaponId, fallback) : fallback;
+    }
+
+    private static Color CategoryColor(string category)
+    {
+        string value = (category ?? string.Empty).Trim().ToLowerInvariant();
+        if (value.Contains("support") || value.Contains("apoio")) return new Color32(34, 184, 125, 230);
+        if (value.Contains("tactical") || value.Contains("tática") || value.Contains("tatica")) return new Color32(25, 187, 212, 230);
+        if (value.Contains("strategic") || value.Contains("estratégica") || value.Contains("estrategica")) return new Color32(183, 138, 69, 230);
+        if (value.Contains("special") || value.Contains("especial")) return new Color32(168, 120, 219, 230);
+        return new Color32(255, 255, 255, 40);
+    }
+
+    // A borda inteira representa o estado real; ao cancelar, retorna à categoria.
+    private static Color CardBorderColor(WDWeaponHudCardState card)
+    {
+        if (card.Selected) return new Color32(20, 220, 242, 255);
+        if (card.Programmed || card.AvailabilityReason == WDWeaponAvailabilityReason.AlreadyProgrammedThisPreparation)
+            return new Color32(214, 170, 98, 255);
+        return CategoryColor(card.CategoryId);
     }
 
     private void RebuildPlayers(string nextKey)
@@ -1294,6 +1471,24 @@ public sealed class WDMatchUIV2 : MonoBehaviour, IWDMatchUIPresentation, IWDMatc
         rect.anchorMin = rect.anchorMax = new Vector2(0f, 1f);
         rect.pivot = new Vector2(0f, 1f);
         rect.anchoredPosition = new Vector2(x, -y);
+        rect.sizeDelta = new Vector2(width, height);
+    }
+
+    private static void AnchorBottom(RectTransform rect, float x, float y,
+        float width, float height)
+    {
+        rect.anchorMin = rect.anchorMax = new Vector2(0f, 0f);
+        rect.pivot = new Vector2(0f, 0f);
+        rect.anchoredPosition = new Vector2(x, y);
+        rect.sizeDelta = new Vector2(width, height);
+    }
+
+    private static void AnchorLeft(RectTransform rect, float x, float y,
+        float width, float height)
+    {
+        rect.anchorMin = rect.anchorMax = new Vector2(0f, 0f);
+        rect.pivot = new Vector2(0f, 0f);
+        rect.anchoredPosition = new Vector2(x, y);
         rect.sizeDelta = new Vector2(width, height);
     }
 

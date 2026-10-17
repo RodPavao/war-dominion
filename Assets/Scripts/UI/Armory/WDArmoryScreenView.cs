@@ -26,6 +26,7 @@ public class WDArmoryScreenView : MonoBehaviour
     [SerializeField] private TMP_Text mainMeta;
     [SerializeField] private TMP_Text supportMeta;
     [SerializeField] private TMP_Text feedback;
+    [SerializeField] private TMP_Text saveFeedback;
     [SerializeField] private Button saveButton;
     [SerializeField] private Button[] deckButtons = new Button[5];
     [SerializeField] private TMP_Text[] deckLabels = new TMP_Text[5];
@@ -74,6 +75,7 @@ public class WDArmoryScreenView : MonoBehaviour
     public TMP_Text MainMeta => mainMeta;
     public TMP_Text SupportMeta => supportMeta;
     public TMP_Text Feedback => feedback;
+    public TMP_Text SaveFeedback => EnsureSaveFeedback();
     public Button SaveButton => saveButton;
     public Button[] DeckButtons => deckButtons;
     public TMP_Text[] DeckLabels => deckLabels;
@@ -99,7 +101,48 @@ public class WDArmoryScreenView : MonoBehaviour
     public Button AddButton => addButton;
     public TMP_Text DetailHint => detailHint;
 
-    protected virtual void Awake() => ApplyResponsiveLayout();
+    protected virtual void Awake()
+    {
+        ApplyResponsiveLayout();
+        EnsureSaveFeedback();
+    }
+
+    // ============================================================
+    // 02.1 CONFIRMAÇÃO EXCLUSIVA DO SALVAMENTO SOB O BOTÃO DO DECK
+    // ============================================================
+    private TMP_Text EnsureSaveFeedback()
+    {
+        deckPanel ??= transform.Find("DeckPanel") as RectTransform;
+        if (deckPanel == null) return null;
+        if (saveFeedback == null)
+        {
+            Transform existing = deckPanel.Find("SaveFeedback") ?? deckPanel.Find("DeckFeedback");
+            saveFeedback = existing != null ? existing.GetComponent<TMP_Text>() : null;
+        }
+        if (saveFeedback == null)
+        {
+            if (feedback == null) return null;
+            saveFeedback = Instantiate(feedback, deckPanel);
+        }
+        saveFeedback.name = "SaveFeedback";
+        saveFeedback.text = string.Empty;
+        saveFeedback.fontSize = 11f;
+        saveFeedback.fontStyle = FontStyles.Bold;
+        saveFeedback.alignment = TextAlignmentOptions.Center;
+        saveFeedback.color = new Color32(13, 194, 219, 255);
+        saveFeedback.raycastTarget = false;
+        RectTransform rect = saveFeedback.rectTransform;
+        RectTransform saveRect = saveButton != null ? saveButton.transform as RectTransform : null;
+        if (saveRect != null)
+        {
+            rect.anchorMin = saveRect.anchorMin; rect.anchorMax = saveRect.anchorMax;
+            rect.pivot = saveRect.pivot;
+            rect.anchoredPosition = saveRect.anchoredPosition + new Vector2(0f, -saveRect.rect.height - 4f);
+            rect.sizeDelta = new Vector2(saveRect.rect.width, 20f);
+        }
+        rect.localScale = Vector3.one;
+        return saveFeedback;
+    }
 
     private void OnRectTransformDimensionsChange()
     {

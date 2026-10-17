@@ -80,6 +80,8 @@ public static class WDArmoryV2FunctionalBinder
             Set(so, "mainMeta", Find(deck, "MainLabel").GetComponent<TMP_Text>());
             Set(so, "supportMeta", Find(deck, "SupportLabel").GetComponent<TMP_Text>());
             Set(so, "feedback", Find(details, "Hint").GetComponent<TMP_Text>());
+            Set(so, "saveFeedback", EnsureSaveFeedback(deck,
+                Find(details, "Hint").GetComponent<TMP_Text>(), Find(deck, "SaveDeck") as RectTransform));
             Set(so, "saveButton", Find(deck, "SaveDeck").GetComponent<Button>());
 
             Transform tabs = Find(deck, "DeckTabs");
@@ -287,6 +289,24 @@ public static class WDArmoryV2FunctionalBinder
         button.targetGraphic = image;
         button.transition = Selectable.Transition.None;
         return button;
+    }
+
+    // ============================================================
+    // 03.3 FEEDBACK DE SALVAMENTO PERSISTENTE E IDÊMPOTENTE
+    // ============================================================
+    private static TMP_Text EnsureSaveFeedback(Transform deck, TMP_Text template, RectTransform saveRect)
+    {
+        Transform existing = FindOptional(deck, "SaveFeedback") ?? FindOptional(deck, "DeckFeedback");
+        TMP_Text label = existing != null ? existing.GetComponent<TMP_Text>() : UnityEngine.Object.Instantiate(template, deck);
+        label.name = "SaveFeedback"; label.text = string.Empty; label.fontSize = 11f;
+        label.fontStyle = FontStyles.Bold; label.alignment = TextAlignmentOptions.Center;
+        label.color = new Color32(13, 194, 219, 255); label.raycastTarget = false;
+        RectTransform rect = label.rectTransform;
+        rect.anchorMin = saveRect.anchorMin; rect.anchorMax = saveRect.anchorMax; rect.pivot = saveRect.pivot;
+        rect.anchoredPosition = saveRect.anchoredPosition + new Vector2(0f, -saveRect.rect.height - 4f);
+        rect.sizeDelta = new Vector2(saveRect.rect.width, 20f);
+        rect.localScale = Vector3.one;
+        return label;
     }
 
     // ============================================================

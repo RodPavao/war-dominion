@@ -18,6 +18,7 @@ public sealed class WDWeaponHudCardState
 {
     public string WeaponId { get; }
     public string DisplayName { get; }
+    public string CategoryId { get; }
     public int Level { get; }
     public int EnergyCost { get; }
     public int CooldownRemaining { get; }
@@ -25,12 +26,13 @@ public sealed class WDWeaponHudCardState
     public bool Selected { get; }
     public bool Programmed { get; }
 
-    public WDWeaponHudCardState(string weaponId, string displayName, int level,
+    public WDWeaponHudCardState(string weaponId, string displayName, string categoryId, int level,
         int energyCost, int cooldownRemaining,
         WDWeaponAvailabilityReason availabilityReason, bool selected, bool programmed)
     {
         WeaponId = weaponId ?? string.Empty;
         DisplayName = displayName ?? string.Empty;
+        CategoryId = categoryId ?? string.Empty;
         Level = level;
         EnergyCost = energyCost;
         CooldownRemaining = cooldownRemaining;
@@ -158,6 +160,7 @@ public sealed class WDWeaponMatchUIController : MonoBehaviour
             WDWeaponAvailability availability = option?.Availability ?? default;
             bool isProgrammed = programmed.Any(action => action.WeaponId == id);
             return new WDWeaponHudCardState(id, definition?.DisplayName ?? id,
+                definition?.CategoryId,
                 availability.Level, definition?.EnergyCost ?? 0,
                 isProgrammed ? definition?.CooldownRounds ?? 0 : availability.CooldownRemaining,
                 availability.Reason, SelectedWeaponId == id, isProgrammed);
@@ -183,6 +186,7 @@ public sealed class WDWeaponMatchUIController : MonoBehaviour
                 new WDWeaponAvailability(WDWeaponAvailabilityReason.LoadoutUnavailable);
             bool isProgrammed = programmed.Any(action => action.WeaponId == id);
             return new WDWeaponHudCardState(id, definition?.DisplayName ?? id,
+                definition?.CategoryId,
                 availability.Level, definition?.EnergyCost ?? 0,
                 isProgrammed ? definition?.CooldownRounds ?? 0 : availability.CooldownRemaining,
                 availability.Reason, SelectedWeaponId == id, isProgrammed);

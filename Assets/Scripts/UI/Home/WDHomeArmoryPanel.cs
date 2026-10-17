@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using TMPro;
@@ -14,6 +15,7 @@ public sealed class WDHomeArmoryPanel : MonoBehaviour
 
     private const string V2ProviderPath = "UI/ArmoryV2/WDArmoryV2PrefabProvider";
     private static readonly string[] FilterIds = { "", "support", "tactical", "strategic", "special" };
+    private Coroutine saveFeedbackRoutine;
 
     private WarDominionUITheme theme;
     private WDArmoryService service;
@@ -402,7 +404,49 @@ public sealed class WDHomeArmoryPanel : MonoBehaviour
         RefreshAll();
     }
 
-    private void SaveDeck() { repository.Save(service.Profile); view.Feedback.text = "Deck salvo"; }
+    private void SaveDeck()
+    {
+        // ============================================================
+        // 06. CONFIRMAÇÃO LOCAL DO ÚNICO COMANDO DE SALVAMENTO
+        // ============================================================
+        repository.Save(service.Profile);
+        TMP_Text label = view.SaveFeedback;
+        if (label == null) return;
+        if (saveFeedbackRoutine != null) StopCoroutine(saveFeedbackRoutine);
+        saveFeedbackRoutine = StartCoroutine(ShowSaveFeedback(label));
+    }
+
+    private IEnumerator ShowSaveFeedback(TMP_Text label)
+    {
+        // ============================================================
+        // 06.1 TEMPO E FADE REINICIÁVEIS DA CONFIRMAÇÃO LOCAL
+        // ============================================================
+        Color baseColor = label.color; baseColor.a = 1f;
+        label.color = baseColor; label.text = "DECK SALVO";
+        yield return new WaitForSecondsRealtime(3f);
+        const float fadeDuration = .5f;
+        float elapsed = 0f;
+        while (elapsed < fadeDuration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            Color color = baseColor; color.a = 1f - Mathf.Clamp01(elapsed / fadeDuration);
+            label.color = color;
+            yield return null;
+        }
+        label.text = string.Empty; label.color = baseColor;
+        saveFeedbackRoutine = null;
+    }
+
+    private void OnDisable()
+    {
+        if (saveFeedbackRoutine != null) StopCoroutine(saveFeedbackRoutine);
+        saveFeedbackRoutine = null;
+        if (view?.SaveFeedback != null)
+        {
+            Color color = view.SaveFeedback.color; color.a = 1f;
+            view.SaveFeedback.color = color; view.SaveFeedback.text = string.Empty;
+        }
+    }
 
     // ============================================================
     // 05.1 EDIÇÃO EXPLÍCITA E PERSISTENTE DO NOME DO DECK

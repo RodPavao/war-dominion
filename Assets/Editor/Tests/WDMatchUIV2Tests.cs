@@ -1,5 +1,6 @@
 ﻿#if UNITY_EDITOR
 using NUnit.Framework;
+using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -154,6 +155,83 @@ public sealed class WDMatchUIV2Tests
             Assert.That(send.GetComponent<Image>().color.a, Is.EqualTo(.95f));
             send.SetInteractable(true);
             Assert.That(send.GetComponent<Image>().color.a, Is.EqualTo(.95f));
+        }
+        finally { Object.DestroyImmediate(root); Object.DestroyImmediate(theme); }
+    }
+
+    [Test]
+    public void MainWeaponSlotsUseArtworkCardsWithoutDeckEditingControls()
+    {
+        // ============================================================
+        // 01.1. O HUD preserva oito áreas de seleção e não herda os
+        // controles de adicionar/remover que pertencem somente ao Arsenal.
+        // ============================================================
+        var root = new GameObject("HudWeaponArtworkTest", typeof(RectTransform));
+        var theme = ScriptableObject.CreateInstance<WarDominionUITheme>();
+        try
+        {
+            root.AddComponent<WDMatchUIV2>().Build(theme, null, null, null);
+            for (int i = 1; i <= 8; i++)
+            {
+                Transform card = root.transform.Find(
+                    "LeftCommandRail/WeaponGrid/WeaponSlot" + i);
+                Assert.That(card, Is.Not.Null);
+                Assert.That(card.Find("ArtworkFrame/Artwork")?.GetComponent<RawImage>(),
+                    Is.Not.Null, $"Artwork ausente no slot {i}.");
+                Assert.That(card.Find("WeaponName")?.GetComponent<TextMeshProUGUI>(),
+                    Is.Not.Null, $"Nome ausente no slot {i}.");
+                Assert.That(card.Find("Level")?.GetComponent<TextMeshProUGUI>(),
+                    Is.Not.Null, $"Nível ausente no slot {i}.");
+                Assert.That(card.Find("EnergyIcon")?.GetComponent<Image>(),
+                    Is.Not.Null, $"Ícone de energia ausente no slot {i}.");
+                Assert.That(card.Find("EnergyCost")?.GetComponent<TextMeshProUGUI>(),
+                    Is.Not.Null, $"Custo ausente no slot {i}.");
+                Assert.That(card.Find("Cooldown/Clock")?.GetComponent<Image>(),
+                    Is.Not.Null, $"Relógio de cooldown ausente no slot {i}.");
+                Assert.That(card.Find("Cooldown/Count")?.GetComponent<TextMeshProUGUI>(),
+                    Is.Not.Null, $"Contagem de cooldown ausente no slot {i}.");
+                Assert.That(((RectTransform)card.Find("Cooldown")).sizeDelta,
+                    Is.EqualTo(new Vector2(38f, 22f)));
+                Assert.That(card.Find("Cooldown").GetComponent<Image>().color.a,
+                    Is.GreaterThanOrEqualTo(.94f));
+                Assert.That(card.Find("Cooldown/Clock").GetComponent<Image>().color.a,
+                    Is.EqualTo(1f));
+                Assert.That(card.Find("Cooldown/Count").GetComponent<TextMeshProUGUI>().color.a,
+                    Is.EqualTo(1f));
+                Assert.That(card.Find("SelectionIndicator"), Is.Not.Null);
+                Assert.That(card.Find("ProgrammedIndicator")?.GetComponent<Image>()?.sprite,
+                    Is.Not.Null, $"Check de programação ausente no slot {i}.");
+                Assert.That(card.Find("CancelMark"), Is.Null);
+                Assert.That(card.Find("Add"), Is.Null);
+                Assert.That(card.Find("Remove"), Is.Null);
+                Assert.That(card.GetComponent<Button>(), Is.Not.Null,
+                    $"Área clicável ausente no slot {i}.");
+            }
+
+            // ============================================================
+            // 01.2. APOIO REUTILIZA ARTE, RODAPÉ E INDICADORES SEM CONTROLES DE DECK
+            // ============================================================
+            Transform support = root.transform.Find("MatchSupport/SupportHub");
+            for (int i = 1; i <= 2; i++)
+            {
+                Transform card = support.Find("SupportSlot" + i);
+                Assert.That(card.Find("ArtworkFrame/Artwork")?.GetComponent<RawImage>(), Is.Not.Null);
+                Assert.That(card.Find("WeaponName")?.GetComponent<TextMeshProUGUI>(), Is.Not.Null);
+                Assert.That(card.Find("Level")?.GetComponent<TextMeshProUGUI>(), Is.Not.Null);
+                Assert.That(card.Find("EnergyIcon")?.GetComponent<Image>(), Is.Not.Null);
+                Assert.That(card.Find("EnergyCost")?.GetComponent<TextMeshProUGUI>(), Is.Not.Null);
+                Assert.That(card.Find("Cooldown/Clock")?.GetComponent<Image>(), Is.Not.Null);
+                Assert.That(((RectTransform)card.Find("Cooldown")).sizeDelta,
+                    Is.EqualTo(new Vector2(38f, 22f)));
+                Assert.That(card.Find("Cooldown").GetComponent<Image>().color.a,
+                    Is.GreaterThanOrEqualTo(.94f));
+                Assert.That(card.Find("Cooldown/Clock").GetComponent<Image>().color.a,
+                    Is.EqualTo(1f));
+                Assert.That(card.Find("ProgrammedIndicator")?.GetComponent<Image>()?.sprite,
+                    Is.Not.Null);
+                Assert.That(card.Find("Add"), Is.Null);
+                Assert.That(card.Find("Remove"), Is.Null);
+            }
         }
         finally { Object.DestroyImmediate(root); Object.DestroyImmediate(theme); }
     }

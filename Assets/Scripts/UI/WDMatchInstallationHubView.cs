@@ -234,7 +234,16 @@ public sealed class WDMatchInstallationHubView : MonoBehaviour
         outside = Rect("InstallationHubOutside", transform, 0, 0, 0, 0);
         outside.anchorMin = Vector2.zero; outside.anchorMax = Vector2.one;
         outside.offsetMin = outside.offsetMax = Vector2.zero;
-        outside.gameObject.AddComponent<Image>().color = Color.clear;
+        Image outsideHit = outside.gameObject.AddComponent<Image>();
+        outsideHit.color = Color.clear;
+        // ============================================================
+        // 02.1 BLOQUEADOR UI COMPLETO, SEM SUBSTITUIR O GESTO PROTEGIDO
+        // ============================================================
+        // O Button mantém o contrato de captura do modal e o componente abaixo
+        // continua responsável por ignorar somente o gesto que abriu o Hub.
+        Button outsideGuard = outside.gameObject.AddComponent<Button>();
+        outsideGuard.targetGraphic = outsideHit;
+        outsideGuard.transition = Selectable.Transition.None;
         outsidePointer = outside.gameObject.AddComponent<WDInstallationHubOutsidePointer>();
         outsidePointer.Configure(Close);
 
