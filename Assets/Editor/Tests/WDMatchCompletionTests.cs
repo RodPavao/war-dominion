@@ -196,8 +196,41 @@ public sealed class WDMatchCompletionTests
         }).LocalPlayer.Points, Is.EqualTo(40));
     }
 
+    // 04. A origem da partida protege ranking, missões e recompensas.
+    [Test]
+    public void FriendlyCompletionNeverAwardsCompetitiveProgress()
+    {
+        var store = new MemoryStore();
+        var service = new WDLocalMatchResultService(store);
+        WDMatchCompletion result = Complete("1x1", "normal", 0, 0, false,
+            WDMatchOrigin.Friendly);
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result.AwardsCompetitiveProgress, Is.False);
+        Assert.That(result.LocalTrophies, Is.Zero);
+        Assert.That(result.TrophiesFor(Participant(0, 0, true)), Is.Zero);
+        Assert.That(service.TryApply(result), Is.False);
+        Assert.That(service.Progress.trophies, Is.Zero);
+        Assert.That(service.Progress.matches, Is.Zero);
+        Assert.That(service.Progress.history, Is.Empty);
+        Assert.That(service.Progress.processedResultIds, Is.Empty);
+        Assert.That(service.Missions.Progress("first-win").Current, Is.Zero);
+    }
+
+    [Test]
+    public void StandardCompletionPreservesExistingRewards()
+    {
+        var service = new WDLocalMatchResultService(new MemoryStore());
+        WDMatchCompletion result = Complete("1x1", "normal", 0, 0);
+        Assert.That(result.AwardsCompetitiveProgress, Is.True);
+        Assert.That(result.LocalTrophies, Is.EqualTo(40));
+        Assert.That(service.TryApply(result), Is.True);
+        Assert.That(service.Progress.trophies, Is.EqualTo(40));
+        Assert.That(service.Progress.matches, Is.EqualTo(1));
+    }
+
     private static WDMatchCompletion Complete(string mode, string submode,
-        int localSlot, int winnerSlot, bool draw = false)
+        int localSlot, int winnerSlot, bool draw = false,
+        WDMatchOrigin origin = WDMatchOrigin.Standard)
     {
         int count = mode == "1x1" ? 2 : 4;
         var participants = new List<WDMatchParticipant>();
@@ -206,7 +239,7 @@ public sealed class WDMatchCompletionTests
                 slot == localSlot));
         WDMatchSetup setup = new(mode, submode, "classic", "Assets/WarGame.unity",
             submode == "random_cards" ? "symmetric_random_cards" : "standard_deck",
-            10, true, 0, participants);
+            10, true, 0, participants, origin: origin);
         ResultadoPartida final = draw
             ? ResultadoPartida.CriarEmpateFinal(10, 40)
             : mode == "2x2"

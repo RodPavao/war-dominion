@@ -16,10 +16,12 @@ public sealed class WDMatchCompletion
     public int WinnerTeam { get; }
     public int Placement { get; }
     public bool IsDraw { get; }
+    public WDMatchOrigin Origin { get; }
+    public bool AwardsCompetitiveProgress => Origin != WDMatchOrigin.Friendly;
     public long PlayedAtUtcTicks { get; }
     public bool IsLocalWinner => !IsDraw && (WinnerTeam >= 0
         ? LocalTeam == WinnerTeam : LocalSlot == WinnerSlot);
-    public int LocalTrophies => IsLocalWinner ? 40 : 0;
+    public int LocalTrophies => AwardsCompetitiveProgress && IsLocalWinner ? 40 : 0;
 
     private WDMatchCompletion(string resultId, WDMatchSetup setup, int localSlot,
         int localTeam, int winnerSlot, int winnerTeam, int placement, bool draw,
@@ -35,10 +37,11 @@ public sealed class WDMatchCompletion
         WinnerTeam = winnerTeam;
         Placement = placement;
         IsDraw = draw;
+        Origin = setup.Origin;
         PlayedAtUtcTicks = playedAtUtcTicks;
     }
 
-    public int TrophiesFor(WDMatchParticipant participant) => participant != null &&
+    public int TrophiesFor(WDMatchParticipant participant) => AwardsCompetitiveProgress && participant != null &&
         !IsDraw && (WinnerTeam >= 0 ? participant.TeamIndex == WinnerTeam :
             participant.SlotIndex == WinnerSlot) ? 40 : 0;
 
@@ -223,6 +226,9 @@ public sealed class WDLocalMatchResultService
 
     public bool TryApply(WDMatchCompletion result)
     {
+        // 04. Amistosos são concluídos normalmente pelo motor, mas nunca alimentam
+        // ranking, histórico competitivo, missões ou processadores de recompensa.
+        if (result != null && !result.AwardsCompetitiveProgress) return false;
         if (result == null || string.IsNullOrWhiteSpace(result.ResultId) ||
             progress.processedResultIds.Contains(result.ResultId)) return false;
         progress.processedResultIds.Add(result.ResultId);

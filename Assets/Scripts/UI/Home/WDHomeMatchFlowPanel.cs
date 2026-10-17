@@ -124,7 +124,7 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
     private string friendlyMap = "CLASSIC";
     private bool friendlyPrivateRoom;
     private bool friendlyInviteOnly;
-    private readonly HashSet<string> friendlyInvitedPlayers = new(StringComparer.OrdinalIgnoreCase);
+    private WDFriendlyRoom friendlyRoom;
 
     private const float VoteDurationSeconds = 15f;
     private const string LocalPlayerId = "local_player";
@@ -1021,37 +1021,12 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
         ResetNavigationState(WDHomeMatchFlowScreen.FriendlyRoomBrowser);
         RectTransform canvas = PrepareFriendlyScreen(new Vector2(1580f, 620f));
         FriendlyHeading(canvas, "SALAS CRIADAS", "ESCOLHA UMA SALA AMISTOSA DISPONÍVEL");
-        FriendlyButton(canvas, "InvitePreview", "CONVITE RECEBIDO", new Vector2(1f, 1f),
-            new Vector2(-170f, -42f), new Vector2(245f, 42f),
-            () => ShowFriendlyIncomingInvite("BATALHA DA NOITE"));
-
-        string[,] rows =
-        {
-            { "BATALHA DA NOITE", "PLAYER_4821", "2V2", "2 / 4", "ABERTA" },
-            { "TREINO 2V2", "PLAYER_5834", "2V2", "2 / 4", "COM CONVITE" },
-            { "DUELO CASUAL", "PLAYER_7714", "1V1", "1 / 2", "ABERTA" },
-            { "GUERRA ENTRE AMIGOS", "CLÃ WD", "3V3", "4 / 6", "COM CONVITE" },
-            { "SALA DO CLÃ", "PLAYER_3906", "2V2", "3 / 4", "ABERTA" }
-        };
-        FriendlyTableHeader(canvas,
-            new[] { "SALA", "ANFITRIÃO", "MODO", "JOGADORES", "ACESSO", "AÇÃO" });
-        for (int i = 0; i < rows.GetLength(0); i++)
-        {
-            float y = 105f - i * 82f;
-            RectTransform row = FriendlyPanel(canvas, "Room" + i,
-                new Vector2(0.5f, 0.5f), new Vector2(0f, y), new Vector2(1440f, 68f), 10);
-            for (int c = 0; c < 5; c++)
-                FriendlyCopy(row, rows[i, c], new Vector2(0.5f, 0.5f),
-                    new Vector2(FriendlyTableColumnX[c], 0f),
-                    new Vector2(FriendlyTableColumnWidth[c], 34f),
-                    c == 0 ? PlayWhite : PlayMuted, c == 0 ? 17f : 14f,
-                    TextAlignmentOptions.Left);
-            string roomName = rows[i, 0];
-            FriendlyButton(row, "Join", "ENTRAR", new Vector2(0.5f, 0.5f),
-                new Vector2(FriendlyTableColumnX[5], 0f),
-                new Vector2(FriendlyTableColumnWidth[5], 38f),
-                () => NavigateTo("play/friendly/room/" + roomName, ShowFriendlyMatchRoom));
-        }
+        // 10.1. Sem um serviço de lobby não há salas remotas verificáveis.
+        // O estado vazio substitui as sessões e convites demonstrativos anteriores.
+        FriendlyCopy(canvas,
+            "NENHUMA SALA DISPONÍVEL\nA listagem será ativada quando o serviço multiplayer estiver conectado.",
+            new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(720f, 100f),
+            PlayMuted, 16f);
     }
 
     private void ShowFriendlyTournamentBrowser()
@@ -1097,10 +1072,15 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
             new Vector2(330f, -40f), new Vector2(570f, 430f), 16);
         FriendlySection(left, "MODO", 170f);
         FriendlyChoiceRow(left, new[] { "1V1", "2V2", "3V3" }, friendlyMode, 105f,
-            value => { friendlyMode = value; ShowFriendlyMatchCreate(); });
+            value => { friendlyMode = value; EnsureFriendlyDraftCompatibility(); ShowFriendlyMatchCreate(); });
         FriendlySection(left, "BARALHO", 25f);
         FriendlyChoiceRow(left, new[] { "NORMAL", "RANDOM CARDS" }, friendlyCardMode, -40f,
-            value => { friendlyCardMode = value; ShowFriendlyMatchCreate(); });
+            value =>
+            {
+                friendlyCardMode = value;
+                EnsureFriendlyDraftCompatibility();
+                ShowFriendlyMatchCreate();
+            });
         FriendlySection(left, "MAPA", -110f);
         FriendlyChoiceRow(left, new[] { "CLASSIC", "ALEATÓRIO" }, friendlyMap, -165f,
             value => { friendlyMap = value; ShowFriendlyMatchCreate(); });
@@ -1115,7 +1095,7 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
             PlayMuted, 13f);
         FriendlyButton(right, "Create", "+  CRIAR SALA", new Vector2(0.5f, 0f),
             new Vector2(0f, 34f), new Vector2(230f, 48f),
-            () => NavigateTo("play/friendly/my-room", ShowFriendlyMatchRoom));
+            CreateFriendlyRoom);
     }
 
     private void ShowFriendlyTournamentCreate()
@@ -1151,28 +1131,35 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
 
     private void ShowFriendlyMatchRoom()
     {
+        if (friendlyRoom == null && !TryCreateFriendlyRoom(out string creationError))
+        {
+            ShowFriendlyNotice("SALA INDISPONÍVEL", creationError);
+            return;
+        }
         ResetNavigationState(WDHomeMatchFlowScreen.FriendlyMatchRoom);
         RectTransform canvas = PrepareFriendlyScreen(new Vector2(1480f, 650f));
         FriendlyHeading(canvas, "BATALHA DA NOITE", "SALA AMISTOSA · ESTADO LOCAL");
         RectTransform alpha = FriendlyTeam(canvas, "VANGUARD", new Vector2(-420f, -30f),
-            new[] { profileRepository.LocalProfile.Nickname, "PLAYER_3906" });
+            FriendlyTeamPlayers(0));
         RectTransform bravo = FriendlyTeam(canvas, "SENTINEL", new Vector2(0f, -30f),
-            new[] { "PLAYER_2847", "VAGA DISPONÍVEL" });
+            FriendlyTeamPlayers(1));
         RectTransform configPanel = FriendlyPanel(canvas, "Configuration",
             new Vector2(0.5f, 0.5f), new Vector2(455f, -15f), new Vector2(390f, 350f), 14);
         FriendlySection(configPanel, "CONFIGURAÇÃO", 140f);
-        FriendlyKeyValue(configPanel, "MODO", friendlyMode, 78f);
-        FriendlyKeyValue(configPanel, "BARALHO", friendlyCardMode, 25f);
-        FriendlyKeyValue(configPanel, "MAPA", friendlyMap, -28f);
-        FriendlyKeyValue(configPanel, "ACESSO", friendlyPrivateRoom ? "PRIVADO" : "ABERTO", -81f);
+        FriendlyKeyValue(configPanel, "MODO", FriendlyModeLabel(friendlyRoom.Configuration.Mode), 78f);
+        FriendlyKeyValue(configPanel, "BARALHO", FriendlyCardLabel(friendlyRoom.Configuration.CardMode), 25f);
+        FriendlyKeyValue(configPanel, "MAPA", FriendlyMapLabel(friendlyRoom.Configuration.MapMode), -28f);
+        string access = friendlyRoom.Configuration.PrivateRoom ? "PRIVADO" :
+            friendlyRoom.Configuration.FriendsOnly ? "SOMENTE AMIGOS" : "ABERTO";
+        FriendlyKeyValue(configPanel, "ACESSO", access, -81f);
         FriendlyButton(configPanel, "Invite", "ESCOLHER AMIGO", new Vector2(0.5f, 0f),
             new Vector2(0f, 38f), new Vector2(300f, 42f), ShowFriendlyInviteSelector);
         FriendlyButton(canvas, "Deck", "ESCOLHER DECK", new Vector2(0.5f, 0f),
             new Vector2(-170f, 48f), new Vector2(260f, 48f), ShowFriendlyDeckSelector);
-        FriendlyButton(canvas, "Start", "INICIAR PARTIDA", new Vector2(0.5f, 0f),
-            new Vector2(170f, 48f), new Vector2(260f, 48f), () =>
-            ShowFriendlyNotice("PARTIDA LOCAL PREPARADA",
-                "A configuração foi preservada. Nenhum matchmaking ou gameplay foi iniciado."));
+        WDFriendlyRoomParticipant local = friendlyRoom.Find(profileRepository.LocalProfile.PlayerId);
+        string action = local != null && local.IsReady ? "INICIAR PARTIDA" : "MARCAR COMO PRONTO";
+        FriendlyButton(canvas, "Start", action, new Vector2(0.5f, 0f),
+            new Vector2(170f, 48f), new Vector2(260f, 48f), HandleFriendlyReadyOrStart);
     }
 
     private void ShowFriendlyTournamentCenter()
@@ -1212,7 +1199,7 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
             ShowFriendlyNotice("INSCRIÇÃO LOCAL", "Inscrição registrada apenas para demonstração desta sessão."));
     }
 
-    // 10.1. Modais usam o overlay bloqueador já pertencente ao fluxo PLAY.
+    // 10.2. Modais usam o overlay bloqueador já pertencente ao fluxo PLAY.
     private void ShowFriendlyInviteSelector()
     {
         RectTransform modal = BeginFriendlyModal("ESCOLHER AMIGO", new Vector2(540f, 570f));
@@ -1231,9 +1218,10 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
                 new Vector2(22f, 0f), new Vector2(285f, 34f), PlayWhite, 14f,
                 TextAlignmentOptions.Left, new Vector2(0f, 0.5f));
             string playerId = friend.PlayerId;
-            FriendlyButton(row, "Invite", friendlyInvitedPlayers.Contains(playerId) ? "ENVIADO" : "CONVIDAR",
+            FriendlyButton(row, "Invite", "CONVIDAR",
                 new Vector2(1f, 0.5f), new Vector2(-68f, 0f), new Vector2(118f, 34f), () =>
-                { friendlyInvitedPlayers.Add(playerId); ShowFriendlyInviteSelector(); });
+                ShowFriendlyNotice("MULTIPLAYER PENDENTE",
+                    "O convite não foi enviado. A sala local não possui serviço de rede conectado."));
         }
         if (count == 0)
             FriendlyCopy(modal, "NENHUM AMIGO DISPONÍVEL", new Vector2(0.5f, 0.5f),
@@ -1271,11 +1259,11 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
                 new Vector2(0.5f, 0.5f), i == selectedDeckIndex ? PlayGold : PlayMuted);
             FriendlyCopy(deck, "DECK " + (i + 1), new Vector2(0.5f, 1f), new Vector2(0f, -28f),
                 new Vector2(100f, 28f), PlayWhite, 14f);
-            // 10.2. Cada ponto representa um slot de arma: 8 slots em grade 2 x 4.
+            // 10.2.1. Cada ponto representa um slot de arma: 8 slots em grade 2 x 4.
             FriendlyCopy(deck, "●  ●\n●  ●\n●  ●\n●  ●", new Vector2(0.5f, 0.5f), new Vector2(0f, -12f),
                 new Vector2(90f, 122f), PlayMuted, 16f);
             deck.gameObject.AddComponent<Button>().onClick.AddListener(() =>
-            { selectedDeckIndex = deckIndex; ShowFriendlyDeckSelector(); });
+                SelectFriendlyDeck(deckIndex));
         }
         FriendlyButton(modal, "ConfirmDeck", "CONFIRMAR DECK", new Vector2(1f, 0f),
             new Vector2(-145f, 42f), new Vector2(240f, 42f), CloseFriendlyModal);
@@ -1289,6 +1277,123 @@ public sealed class WDHomeMatchFlowPanel : MonoBehaviour
             new Vector2(430f, 100f), PlayMuted, 15f);
         FriendlyModalClose(modal, "FECHAR", Vector2.zero);
     }
+
+    // ============================================================
+    // 10.3. ADAPTAÇÃO HONESTA ENTRE A UI E O DOMÍNIO DA SALA LOCAL
+    // ============================================================
+
+    private void EnsureFriendlyDraftCompatibility()
+    {
+        // 3V3 Random Cards não existe no catálogo aprovado; a escolha de 3V3
+        // preserva a sala válida retornando ao baralho Normal.
+        if (friendlyMode == "3V3" && friendlyCardMode == "RANDOM CARDS")
+            friendlyCardMode = "NORMAL";
+    }
+
+    private WDFriendlyRoomConfiguration FriendlyDraftConfiguration() => new(
+        friendlyMode == "1V1" ? WDFriendlyMode.OneVsOne :
+            friendlyMode == "3V3" ? WDFriendlyMode.ThreeVsThree : WDFriendlyMode.TwoVsTwo,
+        friendlyCardMode == "RANDOM CARDS" ? WDFriendlyCardMode.RandomCards :
+            WDFriendlyCardMode.Normal,
+        friendlyMap == "ALEATÓRIO" ? WDFriendlyMapMode.Random : WDFriendlyMapMode.Classic,
+        friendlyPrivateRoom, friendlyInviteOnly);
+
+    private void CreateFriendlyRoom()
+    {
+        if (!TryCreateFriendlyRoom(out string error))
+        {
+            ShowFriendlyNotice("CONFIGURAÇÃO INCOMPATÍVEL", error);
+            return;
+        }
+        NavigateTo("play/friendly/my-room", ShowFriendlyMatchRoom);
+    }
+
+    private bool TryCreateFriendlyRoom(out string error)
+    {
+        WDFriendlyRoomConfiguration configuration = FriendlyDraftConfiguration();
+        if (!WDFriendlyRules.TryCreateRequest(configuration, config, out _, out error))
+            return false;
+        WDProfileData local = profileRepository?.LocalProfile;
+        if (local == null)
+        {
+            error = "Identidade local indisponível.";
+            return false;
+        }
+        friendlyRoom = new WDFriendlyRoom("friendly-" + Guid.NewGuid().ToString("N"),
+            local.PlayerId, local.Nickname, configuration);
+        if (configuration.RequiresDeck)
+        {
+            WDArmoryProfile armory = armoryRepository?.Load(armoryCatalog);
+            friendlyRoom.SetDeck(local.PlayerId, selectedDeckIndex,
+                armory != null && armory.IsDeckUnlocked(selectedDeckIndex));
+        }
+        return true;
+    }
+
+    private string[] FriendlyTeamPlayers(int teamIndex)
+    {
+        string[] slots = Enumerable.Repeat("VAGA DISPONÍVEL",
+            friendlyRoom.Configuration.TeamSize).ToArray();
+        foreach (WDFriendlyRoomParticipant participant in friendlyRoom.Participants
+            .Where(item => item.TeamIndex == teamIndex))
+            if (participant.PositionIndex >= 0 && participant.PositionIndex < slots.Length)
+                slots[participant.PositionIndex] = participant.Nickname;
+        return slots;
+    }
+
+    private void SelectFriendlyDeck(int deckIndex)
+    {
+        WDArmoryProfile armory = armoryRepository?.Load(armoryCatalog);
+        if (armory == null || !armory.IsDeckUnlocked(deckIndex))
+        {
+            ShowFriendlyNotice("DECK INDISPONÍVEL",
+                "Selecione um deck desbloqueado e salvo no Arsenal.");
+            return;
+        }
+        selectedDeckIndex = deckIndex;
+        if (friendlyRoom != null)
+            friendlyRoom.SetDeck(profileRepository.LocalProfile.PlayerId, deckIndex, true);
+        ShowFriendlyDeckSelector();
+    }
+
+    private void HandleFriendlyReadyOrStart()
+    {
+        string localId = profileRepository.LocalProfile.PlayerId;
+        WDFriendlyRoomParticipant local = friendlyRoom?.Find(localId);
+        if (local == null) return;
+        if (!local.IsReady)
+        {
+            WDFriendlyRoomOperationResult result = friendlyRoom.SetReady(localId, true);
+            if (result == WDFriendlyRoomOperationResult.InvalidDeck)
+            {
+                ShowFriendlyNotice("DECK NECESSÁRIO",
+                    "Escolha um deck desbloqueado antes de marcar o jogador como pronto.");
+                return;
+            }
+            ShowFriendlyMatchRoom();
+            return;
+        }
+        if (!friendlyRoom.CanStart(out string reason))
+        {
+            ShowFriendlyNotice("SALA AINDA NÃO ESTÁ PRONTA", reason);
+            return;
+        }
+        ShowFriendlyNotice("MULTIPLAYER PENDENTE",
+            "A composição está válida, mas nenhum serviço de rede está conectado para iniciar a partida.");
+    }
+
+    private static string FriendlyModeLabel(WDFriendlyMode mode) => mode switch
+    {
+        WDFriendlyMode.OneVsOne => "1V1",
+        WDFriendlyMode.TwoVsTwo => "2V2",
+        _ => "3V3"
+    };
+
+    private static string FriendlyCardLabel(WDFriendlyCardMode mode) =>
+        mode == WDFriendlyCardMode.RandomCards ? "RANDOM CARDS" : "NORMAL";
+
+    private static string FriendlyMapLabel(WDFriendlyMapMode mode) =>
+        mode == WDFriendlyMapMode.Random ? "ALEATÓRIO" : "CLASSIC";
 
     private RectTransform PrepareFriendlyScreen(Vector2 canonicalSize)
     {

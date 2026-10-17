@@ -11,6 +11,13 @@ public enum WDMatchParticipantKind
     Bot
 }
 
+public enum WDMatchOrigin
+{
+    Standard,
+    Friendly,
+    Tournament
+}
+
 [Serializable]
 public sealed class WDMatchParticipant
 {
@@ -60,6 +67,8 @@ public sealed class WDMatchSetup
     public bool SuddenDeathEnabled { get; }
     public int DeterministicSeed { get; }
     public string MatchId { get; }
+    public WDMatchOrigin Origin { get; }
+    public bool AwardsCompetitiveProgress => Origin != WDMatchOrigin.Friendly;
     public IReadOnlyList<WDMatchParticipant> Participants { get; }
     public bool IsOneVsOne => ModeId == "1x1" && Participants.Count == 2 &&
         Participants[0].TeamIndex != Participants[1].TeamIndex;
@@ -78,7 +87,7 @@ public sealed class WDMatchSetup
         string modeId, string submodeId, string mapId, string scenePath,
         string cardRuleId, int roundLimit, bool suddenDeathEnabled,
         int deterministicSeed, IReadOnlyList<WDMatchParticipant> participants,
-        string matchId = null)
+        string matchId = null, WDMatchOrigin origin = WDMatchOrigin.Standard)
     {
         ModeId = modeId ?? string.Empty;
         SubmodeId = submodeId ?? string.Empty;
@@ -89,6 +98,7 @@ public sealed class WDMatchSetup
         SuddenDeathEnabled = suddenDeathEnabled;
         DeterministicSeed = deterministicSeed;
         MatchId = string.IsNullOrWhiteSpace(matchId) ? "WD-" + Guid.NewGuid().ToString("N") : matchId;
+        Origin = origin;
         Participants = participants ?? Array.Empty<WDMatchParticipant>();
     }
 }
