@@ -94,6 +94,7 @@ public sealed class WarDominionHomeController : MonoBehaviour
     private TextMeshProUGUI coinsLabel;
     private TextMeshProUGUI emeraldsLabel;
     private RectTransform resourceNotification;
+    private WDHomeVisualAppearanceController homeVisualAppearance;
     private Rect lastSafeArea;
     private Vector2Int lastResolution;
     private float nextCurrencyRefresh;
@@ -467,7 +468,18 @@ public sealed class WarDominionHomeController : MonoBehaviour
         WDHomeUIFactory.Stretch(notificationsLayer);
         notificationCenterPanel = notificationsLayer.gameObject.AddComponent<WDHomeNotificationCenterPanel>();
         notificationCenterPanel.Build(theme);
+
+        // 04. Aparências A/B atuam somente sobre a composição da Home já criada.
+        // Background, geometria, navegação e telas secundárias permanecem fora do escopo.
+        homeVisualAppearance = root.AddComponent<WDHomeVisualAppearanceController>();
+        homeVisualAppearance.Initialize(content);
     }
+
+    public WDHomeVisualVariant CurrentHomeVisualVariant =>
+        homeVisualAppearance != null ? homeVisualAppearance.Current : WDHomeVisualVariant.Original;
+
+    public void SetHomeVisualVariant(WDHomeVisualVariant variant) =>
+        homeVisualAppearance?.Apply(variant);
 
     // ============================================================
     // 03. HOME FIGMA 1A - FUNDO, IDENTIDADE E ACOES PRINCIPAIS

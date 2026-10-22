@@ -56,8 +56,8 @@ MonoBehaviour:
   planningDashStride: 3
   preparedArrowCurveFactor: 0.18
   preparedArrowMaxCurveHeight: 70
-  attackTravelDuration: 0.75
-  attackImpactDuration: 0.3
+  attackTravelDuration: 1.1
+  attackImpactDuration: 0.65
   attackResultDuration: 0.8
   attackCurveFactor: 0.18
   attackMaxCurveHeight: 1.1
@@ -75,6 +75,24 @@ MonoBehaviour:
   transferPulseOpacity: 0.38
   transferTextSize: 14
   transferTextOffset: 46
+  premiumGameplayFeedbackEnabled: 1
+  reducedGameplayMotion: 0
+  territorySelectionEntryDuration: 0.18
+  territorySelectionScale: 1.045
+  territorySelectionBreath: 0.004
+  territorySelectionBreathSpeed: 1.8
+  territoryReinforcementDuration: 0.42
+  territoryImpactDuration: 0.24
+  territoryImpactOpacity: 0.3
+  territoryConquestOpacity: 0.24
+  territoryConquestScale: 1.028
+  counterSelectionDuration: 0.22
+  counterReinforcementDuration: 0.32
+  counterAttackDuration: 0.26
+  counterDamageDuration: 0.2
+  counterReinforcementScale: 1.09
+  counterDamageCompression: 0.91
+  counterAttackScale: 1.06
   backgroundPrimary: {r: 0.015, g: 0.025, b: 0.035, a: 0.92}
   backgroundElevated: {r: 0.035, g: 0.055, b: 0.07, a: 0.94}
   surfaceGlass: {r: 0.045, g: 0.075, b: 0.095, a: 0.86}

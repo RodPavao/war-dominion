@@ -93,8 +93,8 @@ public sealed class WarDominionUITheme : ScriptableObject
     // ============================================================
 
     [Header("Resolução de Ataque")]
-    [SerializeField, Min(0.05f)] private float attackTravelDuration = 0.75f;
-    [SerializeField, Min(0.05f)] private float attackImpactDuration = 0.30f;
+    [SerializeField, Min(0.05f)] private float attackTravelDuration = 1.10f;
+    [SerializeField, Min(0.05f)] private float attackImpactDuration = 0.65f;
     [SerializeField, Min(0f)] private float attackResultDuration = 0.80f;
     [SerializeField, Range(0f, 0.5f)] private float attackCurveFactor = 0.18f;
     [SerializeField, Min(0f)] private float attackMaxCurveHeight = 1.1f;
@@ -120,6 +120,32 @@ public sealed class WarDominionUITheme : ScriptableObject
     [SerializeField, Range(0f, 1f)] private float transferPulseOpacity = 0.38f;
     [SerializeField, Min(8f)] private float transferTextSize = 14f;
     [SerializeField, Min(0f)] private float transferTextOffset = 46f;
+
+    // ============================================================
+    // 07.1. FASE 7.3A — MOVIMENTO PREMIUM REVERSÍVEL
+    // ============================================================
+
+    [Header("Fase 7.3A — Premium Gameplay Feedback")]
+    [Tooltip("Ativa em conjunto o acabamento premium do gameplay. Desativado preserva a apresentação anterior.")]
+    [SerializeField] private bool premiumGameplayFeedbackEnabled = true;
+    [Tooltip("Reduz deslocamentos e pulsos sem alterar a ordem nem o resultado dos eventos.")]
+    [SerializeField] private bool reducedGameplayMotion;
+    [SerializeField, Min(0.05f)] private float territorySelectionEntryDuration = 0.18f;
+    [SerializeField, Range(1f, 1.1f)] private float territorySelectionScale = 1.045f;
+    [SerializeField, Range(0f, 0.02f)] private float territorySelectionBreath = 0.004f;
+    [SerializeField, Min(0.1f)] private float territorySelectionBreathSpeed = 1.8f;
+    [SerializeField, Min(0.05f)] private float territoryReinforcementDuration = 0.42f;
+    [SerializeField, Min(0.05f)] private float territoryImpactDuration = 0.24f;
+    [SerializeField, Range(0f, 0.6f)] private float territoryImpactOpacity = 0.30f;
+    [SerializeField, Range(0f, 0.6f)] private float territoryConquestOpacity = 0.24f;
+    [SerializeField, Range(1f, 1.1f)] private float territoryConquestScale = 1.028f;
+    [SerializeField, Min(0.05f)] private float counterSelectionDuration = 0.22f;
+    [SerializeField, Min(0.05f)] private float counterReinforcementDuration = 0.32f;
+    [SerializeField, Min(0.05f)] private float counterAttackDuration = 0.26f;
+    [SerializeField, Min(0.05f)] private float counterDamageDuration = 0.20f;
+    [SerializeField, Range(1f, 1.2f)] private float counterReinforcementScale = 1.09f;
+    [SerializeField, Range(0.8f, 1f)] private float counterDamageCompression = 0.91f;
+    [SerializeField, Range(1f, 1.2f)] private float counterAttackScale = 1.06f;
 
     // ============================================================
     // 08. DESIGN SYSTEM SEMÂNTICO DA INTERFACE FINAL
@@ -308,6 +334,24 @@ public sealed class WarDominionUITheme : ScriptableObject
     public float TransferPulseOpacity => transferPulseOpacity;
     public float TransferTextSize => transferTextSize;
     public float TransferTextOffset => transferTextOffset;
+    public bool PremiumGameplayFeedbackEnabled => premiumGameplayFeedbackEnabled;
+    public bool ReducedGameplayMotion => reducedGameplayMotion;
+    public float TerritorySelectionEntryDuration => territorySelectionEntryDuration;
+    public float TerritorySelectionScale => territorySelectionScale;
+    public float TerritorySelectionBreath => territorySelectionBreath;
+    public float TerritorySelectionBreathSpeed => territorySelectionBreathSpeed;
+    public float TerritoryReinforcementDuration => territoryReinforcementDuration;
+    public float TerritoryImpactDuration => territoryImpactDuration;
+    public float TerritoryImpactOpacity => territoryImpactOpacity;
+    public float TerritoryConquestOpacity => territoryConquestOpacity;
+    public float TerritoryConquestScale => territoryConquestScale;
+    public float CounterSelectionDuration => counterSelectionDuration;
+    public float CounterReinforcementDuration => counterReinforcementDuration;
+    public float CounterAttackDuration => counterAttackDuration;
+    public float CounterDamageDuration => counterDamageDuration;
+    public float CounterReinforcementScale => counterReinforcementScale;
+    public float CounterDamageCompression => counterDamageCompression;
+    public float CounterAttackScale => counterAttackScale;
     public Color BackgroundPrimary => backgroundPrimary;
     public Color BackgroundElevated => backgroundElevated;
     public Color SurfaceGlass => surfaceGlass;
