@@ -434,7 +434,7 @@ MonoBehaviour:
     nomeExibido: Venezuela
     chaveTraducao: territory_venezuela
     regiaoId: america_sul
-    posicaoContador: {x: -3.391213, y: -0.21595763}
+    posicaoContador: {x: -3.4071684, y: -0.25515276}
     possuiPosicaoContador: 1
     escalaContador: 1
     posicaoNomeManual: {x: -3.2562392, y: -0.075922824}

@@ -5,13 +5,14 @@ using UnityEngine.UI;
 
 [DisallowMultipleComponent]
 public sealed class ReinforcementResolutionPresenter : MonoBehaviour,
-    IResolutionVisualPresenter
+    IResolutionVisualPresenter, IResolutionVisualCleanup
 {
     // ============================================================
     // 01. CONFIGURAÇÃO E SUPORTE
     // ============================================================
 
     private WarDominionUITheme theme;
+    private GameObject activeRoot;
 
     public void Configure(WarDominionUITheme newTheme) => theme = newTheme;
 
@@ -26,9 +27,6 @@ public sealed class ReinforcementResolutionPresenter : MonoBehaviour,
         ResolutionVisualEvent visualEvent,
         ResolutionVisualPresentationContext context)
     {
-        Debug.Log(
-            $"[ReinforcementResolution][DEBUG] Presenter de reforço acionado: " +
-            $"{visualEvent}");
         if (theme == null || visualEvent == null || context == null ||
             !ResolutionVisualMapUtility.TryGetTerritory(
                 visualEvent.DestinationTerritoryId, out TerritorioClique territory) ||
@@ -42,6 +40,7 @@ public sealed class ReinforcementResolutionPresenter : MonoBehaviour,
         Color color = context.GetPlayerColor(visualEvent.Player);
         RectTransform root = ResolutionVisualMapUtility.CreateRoot(
             "ReinforcementResolution", context.Overlay);
+        activeRoot = root.gameObject;
         Image pulse = ResolutionVisualMapUtility.CreateImage(
             "FriendlyPulse", root, color, theme.ReinforcementPulseOpacity);
         RectTransform pulseRect = (RectTransform)pulse.transform;
@@ -59,8 +58,11 @@ public sealed class ReinforcementResolutionPresenter : MonoBehaviour,
         yield return AnimateEntry(indicator, pulseRect, context);
         territory.AplicarEstadoVisualResolucao(
             visualEvent.DestinationAfter, visualEvent.NewOwner);
+        if (theme.PremiumGameplayFeedbackEnabled)
+            territory.DestacarReforco();
         yield return AnimateExit(indicator, pulse, context);
         Destroy(root.gameObject);
+        activeRoot = null;
     }
 
     // ============================================================
@@ -77,10 +79,14 @@ public sealed class ReinforcementResolutionPresenter : MonoBehaviour,
         {
             elapsed += context.PlaybackDeltaTime;
             float progress = Mathf.Clamp01(elapsed / theme.ReinforcementEntryDuration);
-            indicator.alpha = progress;
+            float eased = theme.PremiumGameplayFeedbackEnabled
+                ? 1f - Mathf.Pow(1f - progress, 3f) : progress;
+            indicator.alpha = eased;
             indicator.transform.localScale = Vector3.one * Mathf.Lerp(
-                theme.ReinforcementInitialScale, 1f, progress);
-            pulse.localScale = Vector3.one * Mathf.Lerp(0.65f, 1.1f, progress);
+                theme.ReinforcementInitialScale, 1f, eased);
+            pulse.localScale = Vector3.one * Mathf.Lerp(0.65f,
+                theme.PremiumGameplayFeedbackEnabled && theme.ReducedGameplayMotion
+                    ? 1.02f : 1.1f, eased);
             yield return null;
         }
 
@@ -97,11 +103,25 @@ public sealed class ReinforcementResolutionPresenter : MonoBehaviour,
         {
             elapsed += context.PlaybackDeltaTime;
             float progress = Mathf.Clamp01(elapsed / theme.ReinforcementExitDuration);
-            indicator.alpha = 1f - progress;
+            float eased = theme.PremiumGameplayFeedbackEnabled
+                ? progress * progress * progress : progress;
+            indicator.alpha = 1f - eased;
             Color pulseColor = pulse.color;
-            pulseColor.a = (1f - progress) * theme.ReinforcementPulseOpacity;
+            pulseColor.a = (1f - eased) * theme.ReinforcementPulseOpacity;
             pulse.color = pulseColor;
             yield return null;
         }
+    }
+
+    private void OnDisable()
+    {
+        ResetTransientVisuals();
+    }
+
+    public void ResetTransientVisuals()
+    {
+        if (activeRoot != null)
+            Destroy(activeRoot);
+        activeRoot = null;
     }
 }

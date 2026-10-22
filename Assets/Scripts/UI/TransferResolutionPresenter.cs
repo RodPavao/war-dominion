@@ -5,13 +5,14 @@ using UnityEngine.UI;
 
 [DisallowMultipleComponent]
 public sealed class TransferResolutionPresenter : MonoBehaviour,
-    IResolutionVisualPresenter
+    IResolutionVisualPresenter, IResolutionVisualCleanup
 {
     // ============================================================
     // 01. CONFIGURAÇÃO E SUPORTE
     // ============================================================
 
     private WarDominionUITheme theme;
+    private GameObject activeRoot;
 
     public void Configure(WarDominionUITheme newTheme) => theme = newTheme;
 
@@ -26,13 +27,6 @@ public sealed class TransferResolutionPresenter : MonoBehaviour,
         ResolutionVisualEvent visualEvent,
         ResolutionVisualPresentationContext context)
     {
-        Debug.Log(
-            "[TransferResolution][DEBUG] TerritoryHandoff iniciado:\n" +
-            $"Territorio: '{visualEvent?.DestinationTerritoryId}'\n" +
-            $"OwnerBefore: {visualEvent?.PreviousOwner}\n" +
-            $"OwnerAfter: {visualEvent?.NewOwner}\n" +
-            $"TroopsBefore: {visualEvent?.DestinationBefore}\n" +
-            $"TroopsAfter: {visualEvent?.DestinationAfter}");
         if (theme == null || visualEvent == null || context == null ||
             !string.IsNullOrEmpty(visualEvent.OriginTerritoryId) ||
             !ResolutionVisualMapUtility.TryGetTerritory(
@@ -49,6 +43,7 @@ public sealed class TransferResolutionPresenter : MonoBehaviour,
         Color newColor = context.GetPlayerColor(visualEvent.NewOwner);
         RectTransform root = ResolutionVisualMapUtility.CreateRoot(
             "TransferControlResolution", context.Overlay);
+        activeRoot = root.gameObject;
         Image pulse = ResolutionVisualMapUtility.CreateImage(
             "FriendlyControlPulse", root, previousColor,
             theme.TransferPulseOpacity);
@@ -71,6 +66,7 @@ public sealed class TransferResolutionPresenter : MonoBehaviour,
             previousColor, newColor, context);
         yield return AnimateReaction(pulse, label, context);
         Destroy(root.gameObject);
+        activeRoot = null;
     }
 
     // ============================================================
@@ -101,13 +97,17 @@ public sealed class TransferResolutionPresenter : MonoBehaviour,
                     visualEvent.DestinationAfter, visualEvent.NewOwner);
             }
 
-            pulse.color = Color.Lerp(previousColor, newColor, progress);
+            float eased = theme.PremiumGameplayFeedbackEnabled
+                ? progress * progress * (3f - 2f * progress) : progress;
+            pulse.color = Color.Lerp(previousColor, newColor, eased);
             Color pulseColor = pulse.color;
             pulseColor.a = theme.TransferPulseOpacity;
             pulse.color = pulseColor;
             pulse.transform.localScale = Vector3.one * Mathf.Lerp(
-                0.72f, 1.18f, Mathf.Sin(progress * Mathf.PI));
-            label.alpha = Mathf.SmoothStep(0f, 1f, progress);
+                0.72f, theme.PremiumGameplayFeedbackEnabled &&
+                    theme.ReducedGameplayMotion ? 1.04f : 1.18f,
+                Mathf.Sin(progress * Mathf.PI));
+            label.alpha = Mathf.SmoothStep(0f, 1f, eased);
             yield return null;
         }
 
@@ -132,12 +132,28 @@ public sealed class TransferResolutionPresenter : MonoBehaviour,
         {
             elapsed += context.PlaybackDeltaTime;
             float progress = Mathf.Clamp01(elapsed / theme.TransferReactionDuration);
-            label.alpha = 1f - progress;
+            float eased = theme.PremiumGameplayFeedbackEnabled
+                ? progress * progress * progress : progress;
+            label.alpha = 1f - eased;
             Color color = pulse.color;
-            color.a = theme.TransferPulseOpacity * (1f - progress);
+            color.a = theme.TransferPulseOpacity * (1f - eased);
             pulse.color = color;
-            pulse.transform.localScale = Vector3.one * Mathf.Lerp(1f, 1.28f, progress);
+            pulse.transform.localScale = Vector3.one * Mathf.Lerp(1f,
+                theme.PremiumGameplayFeedbackEnabled && theme.ReducedGameplayMotion
+                    ? 1.04f : 1.28f, eased);
             yield return null;
         }
+    }
+
+    private void OnDisable()
+    {
+        ResetTransientVisuals();
+    }
+
+    public void ResetTransientVisuals()
+    {
+        if (activeRoot != null)
+            Destroy(activeRoot);
+        activeRoot = null;
     }
 }

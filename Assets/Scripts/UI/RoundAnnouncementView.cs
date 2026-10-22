@@ -17,6 +17,8 @@ public sealed class RoundAnnouncementView : MonoBehaviour
     private CanvasGroup canvasGroup;
     private TextMeshProUGUI textoRound;
     private TextMeshProUGUI textoFase;
+    private Image linhaImage;
+    private Image segmentoImage;
     private WarDominionUITheme tema;
     private Coroutine animacaoAtual;
 
@@ -72,9 +74,9 @@ public sealed class RoundAnnouncementView : MonoBehaviour
             tema.EspessuraLinhaAnuncio);
         linhaBase.anchoredPosition = new Vector2(0f, tema.MargemLinhaAnuncio);
 
-        Image linha = linhaBase.gameObject.AddComponent<Image>();
-        linha.color = tema.CorLinhaAnuncio;
-        linha.raycastTarget = false;
+        linhaImage = linhaBase.gameObject.AddComponent<Image>();
+        linhaImage.color = tema.CorLinhaAnuncio;
+        linhaImage.raycastTarget = false;
 
         segmentoEnergia = CriarRect("SegmentoEnergia", linhaBase);
         segmentoEnergia.anchorMin = new Vector2(0.5f, 0.5f);
@@ -84,9 +86,9 @@ public sealed class RoundAnnouncementView : MonoBehaviour
             tema.LarguraSegmentoAnuncio,
             tema.EspessuraSegmentoAnuncio);
 
-        Image segmento = segmentoEnergia.gameObject.AddComponent<Image>();
-        segmento.color = tema.Acento;
-        segmento.raycastTarget = false;
+        segmentoImage = segmentoEnergia.gameObject.AddComponent<Image>();
+        segmentoImage.color = tema.Acento;
+        segmentoImage.raycastTarget = false;
 
         gameObject.SetActive(false);
     }
@@ -102,6 +104,7 @@ public sealed class RoundAnnouncementView : MonoBehaviour
 
         textoRound.text = $"ROUND {Mathf.Max(1, state.Round):00}";
         textoFase.text = "RESOLUÇÃO";
+        AplicarIdentidadeDeFase(true);
 
         if (animacaoAtual != null)
             StopCoroutine(animacaoAtual);
@@ -116,6 +119,7 @@ public sealed class RoundAnnouncementView : MonoBehaviour
             return;
         textoRound.text = $"ROUND {Mathf.Max(1, round):00}";
         textoFase.text = "PREPARAÇÃO";
+        AplicarIdentidadeDeFase(false);
         if (animacaoAtual != null)
             StopCoroutine(animacaoAtual);
         gameObject.SetActive(true);
@@ -129,8 +133,11 @@ public sealed class RoundAnnouncementView : MonoBehaviour
     private IEnumerator Animar()
     {
         Vector2 posicaoBase = new Vector2(0f, tema.PosicaoVerticalAnuncioRound);
-        Vector2 posicaoEntrada = posicaoBase + new Vector2(-tema.DeslocamentoAnuncio, 0f);
-        Vector2 posicaoSaida = posicaoBase + new Vector2(tema.DeslocamentoAnuncio, 0f);
+        float deslocamento = tema.PremiumGameplayFeedbackEnabled &&
+            tema.ReducedGameplayMotion ? tema.DeslocamentoAnuncio * 0.2f
+            : tema.DeslocamentoAnuncio;
+        Vector2 posicaoEntrada = posicaoBase + new Vector2(-deslocamento, 0f);
+        Vector2 posicaoSaida = posicaoBase + new Vector2(deslocamento, 0f);
 
         canvasGroup.alpha = 0f;
         painel.anchoredPosition = posicaoEntrada;
@@ -147,12 +154,14 @@ public sealed class RoundAnnouncementView : MonoBehaviour
                 painel.localScale = Vector3.one * Mathf.LerpUnclamped(
                     tema.EscalaInicialAnuncio, 1f, suave);
                 linhaBase.localScale = new Vector3(suave, 1f, 1f);
-                AtualizarSegmento(progresso);
+                AtualizarSegmento(tema.PremiumGameplayFeedbackEnabled
+                    ? progresso * 0.24f : progresso);
             });
 
         yield return AnimarTrecho(
             tema.DuracaoVisivelAnuncio,
-            AtualizarSegmento);
+            progresso => AtualizarSegmento(tema.PremiumGameplayFeedbackEnabled
+                ? Mathf.Lerp(0.24f, 0.76f, progresso) : progresso));
 
         yield return AnimarTrecho(
             tema.DuracaoSaidaAnuncio,
@@ -163,7 +172,8 @@ public sealed class RoundAnnouncementView : MonoBehaviour
                 painel.anchoredPosition = Vector2.LerpUnclamped(posicaoBase, posicaoSaida, suave);
                 painel.localScale = Vector3.one * Mathf.LerpUnclamped(
                     1f, tema.EscalaFinalAnuncio, suave);
-                AtualizarSegmento(progresso);
+                AtualizarSegmento(tema.PremiumGameplayFeedbackEnabled
+                    ? Mathf.Lerp(0.76f, 1f, progresso) : progresso);
             });
 
         canvasGroup.alpha = 0f;
@@ -192,6 +202,29 @@ public sealed class RoundAnnouncementView : MonoBehaviour
         float percurso = tema.LarguraLinhaAnuncio + tema.LarguraSegmentoAnuncio;
         float x = Mathf.Lerp(-percurso * 0.5f, percurso * 0.5f, Mathf.Repeat(progresso, 1f));
         segmentoEnergia.anchoredPosition = new Vector2(x, 0f);
+    }
+
+    // ============================================================
+    // 04.1. FASE 7.3A — IDENTIDADE DISCRETA E CONTINUIDADE DE FASE
+    // ============================================================
+
+    private void AplicarIdentidadeDeFase(bool resolucao)
+    {
+        if (tema == null)
+            return;
+        Color accent = tema.PremiumGameplayFeedbackEnabled && resolucao
+            ? tema.MasterGold : tema.Acento;
+        if (segmentoImage != null)
+            segmentoImage.color = accent;
+        if (linhaImage != null)
+        {
+            Color lineColor = tema.PremiumGameplayFeedbackEnabled
+                ? accent : tema.CorLinhaAnuncio;
+            lineColor.a = tema.CorLinhaAnuncio.a;
+            linhaImage.color = lineColor;
+        }
+        textoFase.color = tema.PremiumGameplayFeedbackEnabled && resolucao
+            ? tema.MasterGold : tema.TextoSecundario;
     }
 
     private static float SuavizarSaida(float valor) =>

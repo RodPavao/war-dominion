@@ -268,14 +268,46 @@ public readonly struct MatchUIActionState
     public string DestinoId { get; }
     public int Quantidade { get; }
     public string TipoEsperado { get; }
+    public MatchUIActionKind Kind { get; }
 
     public MatchUIActionState(int posicao, string origemId, string destinoId, int quantidade, string tipoEsperado)
+        : this(posicao, origemId, destinoId, quantidade, tipoEsperado,
+            MatchUIActionKindUtility.FromLegacyLabel(tipoEsperado))
+    {
+    }
+
+    public MatchUIActionState(int posicao, string origemId, string destinoId,
+        int quantidade, string tipoEsperado, MatchUIActionKind kind)
     {
         Posicao = posicao;
         OrigemId = origemId ?? string.Empty;
         DestinoId = destinoId ?? string.Empty;
         Quantidade = quantidade;
         TipoEsperado = tipoEsperado ?? string.Empty;
+        Kind = kind;
+    }
+}
+
+// ============================================================
+// 03.1. CLASSIFICAÇÃO SEMÂNTICA SEM DEPENDER DO TEXTO DA UI
+// ============================================================
+public enum MatchUIActionKind
+{
+    Attack,
+    Occupation,
+    OwnMovement,
+    AlliedMovement
+}
+
+public static class MatchUIActionKindUtility
+{
+    public static MatchUIActionKind FromLegacyLabel(string label)
+    {
+        if (string.IsNullOrEmpty(label)) return MatchUIActionKind.Attack;
+        if (label.IndexOf("aliado", StringComparison.OrdinalIgnoreCase) >= 0) return MatchUIActionKind.AlliedMovement;
+        if (label.IndexOf("movimento", StringComparison.OrdinalIgnoreCase) >= 0) return MatchUIActionKind.OwnMovement;
+        if (label.IndexOf("ocup", StringComparison.OrdinalIgnoreCase) >= 0) return MatchUIActionKind.Occupation;
+        return MatchUIActionKind.Attack;
     }
 }
 

@@ -22,6 +22,8 @@ public sealed class PreparedActionsOverlayController : MonoBehaviour
     private MatchUIPresenter presenter;
     private RectTransform overlay;
     private WarDominionUITheme theme;
+    private WDTransferOwnershipBadgeView ownershipTransferBadge;
+    private string ownershipTransferTerritoryId = string.Empty;
 
     // ============================================================
     // 02. INICIALIZAÇÃO E ASSINATURA
@@ -71,7 +73,11 @@ public sealed class PreparedActionsOverlayController : MonoBehaviour
             string key = $"action:{action.Posicao}:{action.OrigemId}:{action.DestinoId}";
             EnsureArrow(
                 key, action.OrigemId, action.DestinoId,
-                state.JogadorLocal, action.Quantidade, false);
+                state.JogadorLocal, action.Quantidade,
+                action.Kind == MatchUIActionKind.OwnMovement ||
+                action.Kind == MatchUIActionKind.AlliedMovement
+                    ? WDPreparedActionVisualMode.ConfirmedMovement
+                    : WDPreparedActionVisualMode.ConfirmedAttack);
             activeKeys.Add(key);
         }
 
@@ -83,13 +89,19 @@ public sealed class PreparedActionsOverlayController : MonoBehaviour
         if (hasChosenDestination)
         {
             const string previewKey = "preview";
+            MatchUITerritoryVisualState destinationState = MatchUITerritoryVisualState.Normal;
+            foreach (MatchUITerritoryState territory in state.Territorios)
+                if (territory.Id == state.DestinoSelecionadoId)
+                { destinationState = territory.EstadoVisual; break; }
             EnsureArrow(
                 previewKey,
                 state.OrigemSelecionadaId,
                 state.DestinoSelecionadoId,
                 state.JogadorLocal,
                 state.QuantidadeAcaoSelecionada,
-                false);
+                (destinationState & MatchUITerritoryVisualState.Aliado) != 0
+                    ? WDPreparedActionVisualMode.PreviewDots
+                    : WDPreparedActionVisualMode.PreviewChevrons);
             activeKeys.Add(previewKey);
         }
         else if (!string.IsNullOrEmpty(state.OrigemSelecionadaId))
@@ -100,17 +112,22 @@ public sealed class PreparedActionsOverlayController : MonoBehaviour
                     continue;
 
                 string key = "possibility:" + territory.Id;
+                WDPreparedActionVisualMode possibilityMode =
+                    (territory.EstadoVisual & MatchUITerritoryVisualState.Aliado) != 0
+                        ? WDPreparedActionVisualMode.PreviewDots
+                        : WDPreparedActionVisualMode.PreviewChevrons;
                 EnsureArrow(
                     key,
                     state.OrigemSelecionadaId,
                     territory.Id,
                     state.JogadorLocal,
                     0,
-                    true);
+                    possibilityMode);
                 activeKeys.Add(key);
             }
         }
 
+        PresentOwnershipTransfer(state);
         RemoveInactiveArrows();
     }
 
@@ -120,7 +137,7 @@ public sealed class PreparedActionsOverlayController : MonoBehaviour
         string destinationId,
         TerritorioClique.Dono player,
         int amount,
-        bool planning)
+        WDPreparedActionVisualMode mode)
     {
         if (!arrows.TryGetValue(key, out ArrowBinding binding))
         {
@@ -129,6 +146,9 @@ public sealed class PreparedActionsOverlayController : MonoBehaviour
             arrowObject.transform.SetParent(overlay, false);
             var view = arrowObject.AddComponent<PreparedActionArrowView>();
             view.Build(theme);
+            // 03.1. Rotas novas ficam acima dos presenters do mapa e mantêm o
+            // card no mesmo Canvas, sem criar um sistema paralelo de overlay.
+            arrowObject.transform.SetAsLastSibling();
             binding = new ArrowBinding { View = view };
             arrows.Add(key, binding);
         }
@@ -137,7 +157,8 @@ public sealed class PreparedActionsOverlayController : MonoBehaviour
         binding.DestinationId = destinationId;
         binding.View.SetColorAndAmount(
             PaletaJogadores.ObterCorAtiva(player), amount);
-        binding.View.SetPlanning(planning);
+        binding.View.SetMode(mode);
+        binding.View.gameObject.SetActive(true);
     }
 
     private void RemoveInactiveArrows()
@@ -178,6 +199,10 @@ public sealed class PreparedActionsOverlayController : MonoBehaviour
             }
         }
 
+        if (ownershipTransferBadge != null &&
+            TryGetOverlayPosition(ownershipTransferTerritoryId, out Vector2 transferPosition))
+            ownershipTransferBadge.SetPosition(transferPosition);
+
     }
 
     private bool TryGetOverlayPosition(string territoryId, out Vector2 position)
@@ -186,13 +211,32 @@ public sealed class PreparedActionsOverlayController : MonoBehaviour
         if (!TryGetTerritory(territoryId, out TerritorioClique territory))
             return false;
 
-        Vector3 worldPosition = MapOverlayProjection.GetTerritoryWorldAnchor(territory);
-
-        Camera worldCamera = Camera.main != null
-            ? Camera.main
-            : FindAnyObjectByType<Camera>();
+        // 04.1. Preparação e resolução compartilham contador e câmera como
+        // autoridade espacial, evitando setas deslocadas por pivôs/colliders.
+        Vector3 worldPosition = ResolutionVisualMapUtility.GetActionWorldAnchor(territory);
+        Camera worldCamera = ResolutionVisualMapUtility.GetMapCamera();
         return MapOverlayProjection.TryWorldToOverlay(
             overlay, worldPosition, worldCamera, out position);
+    }
+
+    // ============================================================
+    // 04.2. TRANSFERÊNCIA DE PROPRIEDADE TEM APENAS UMA ÂNCORA
+    // ============================================================
+    private void PresentOwnershipTransfer(MatchUIState state)
+    {
+        ownershipTransferTerritoryId = state.Transferencia?.TerritorioId ?? string.Empty;
+        if (string.IsNullOrEmpty(ownershipTransferTerritoryId))
+        {
+            if (ownershipTransferBadge != null) Destroy(ownershipTransferBadge.gameObject);
+            ownershipTransferBadge = null;
+            return;
+        }
+        if (ownershipTransferBadge != null) return;
+        var go = new GameObject("PreparedOwnershipTransfer", typeof(RectTransform));
+        go.transform.SetParent(overlay, false);
+        ownershipTransferBadge = go.AddComponent<WDTransferOwnershipBadgeView>();
+        ownershipTransferBadge.Build(theme);
+        go.transform.SetAsLastSibling();
     }
 
     private static bool TryGetTerritory(
@@ -225,5 +269,8 @@ public sealed class PreparedActionsOverlayController : MonoBehaviour
                 Destroy(binding.View.gameObject);
         arrows.Clear();
         activeKeys.Clear();
+        if (ownershipTransferBadge != null) Destroy(ownershipTransferBadge.gameObject);
+        ownershipTransferBadge = null;
+        ownershipTransferTerritoryId = string.Empty;
     }
 }

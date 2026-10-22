@@ -5,6 +5,23 @@ using UnityEngine.UI;
 public static class ResolutionVisualMapUtility
 {
     // ============================================================
+    // 00. AUTORIDADE ESPACIAL ÚNICA DAS AÇÕES TERRESTRES
+    // ============================================================
+    public static Vector3 GetActionWorldAnchor(TerritorioClique territory)
+    {
+        if (territory == null)
+            return Vector3.zero;
+        return MapOverlayProjection.GetTerritoryPresentationWorldAnchor(territory);
+    }
+
+    public static Camera GetMapCamera()
+    {
+        if (LayoutPartida.CameraRuntime != null)
+            return LayoutPartida.CameraRuntime;
+        return Camera.main != null ? Camera.main : Object.FindAnyObjectByType<Camera>();
+    }
+
+    // ============================================================
     // 01. TERRITÓRIO E PROJEÇÃO GENÉRICA
     // ============================================================
 
@@ -41,8 +58,8 @@ public static class ResolutionVisualMapUtility
         if (territory == null || context == null)
             return false;
 
-        Vector3 world = MapOverlayProjection.GetTerritoryWorldAnchor(territory);
-        Camera camera = Camera.main != null ? Camera.main : Object.FindAnyObjectByType<Camera>();
+        Vector3 world = GetActionWorldAnchor(territory);
+        Camera camera = GetMapCamera();
         return context.TryWorldToOverlay(world, camera, out position);
     }
 

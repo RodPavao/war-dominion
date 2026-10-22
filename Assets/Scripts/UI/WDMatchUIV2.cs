@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -73,7 +74,7 @@ public sealed class WDMatchUIV2 : MonoBehaviour, IWDMatchUIPresentation, IWDMatc
     private Sprite troopsResourceSprite;
     private Sprite movementsResourceSprite;
     private TextMeshProUGUI movementRouteText;
-    private TextMeshProUGUI movementAmountText;
+    private WDMatchTroopAmountRail movementAmountRail;
     private RectTransform playersContent;
     private RectTransform movementContext;
     private RectTransform menuModalLayer;
@@ -112,6 +113,9 @@ public sealed class WDMatchUIV2 : MonoBehaviour, IWDMatchUIPresentation, IWDMatc
     private WDArmoryV2VisualSettings armoryVisualSettings;
     private string playersKey = string.Empty;
     private string menuPlayersKey = string.Empty;
+    private RectTransform sendingActionsBanner;
+    private CanvasGroup sendingActionsGroup;
+    private Coroutine sendingActionsRoutine;
 
     // ============================================================
     // 02. CONSTRUÇÃO DO HUD BASE SOBRE A SAFE AREA
@@ -190,6 +194,7 @@ public sealed class WDMatchUIV2 : MonoBehaviour, IWDMatchUIPresentation, IWDMatc
         settingsView.Build(new[] { chatButton.transform as RectTransform,
             menuButton.transform as RectTransform, regionsButton.transform as RectTransform,
             settingsButton.transform as RectTransform });
+        BuildSendingActionsBanner();
     }
 
     public void BindSettings(WDSettingsRepository repository, Action exit) =>
@@ -232,6 +237,17 @@ public sealed class WDMatchUIV2 : MonoBehaviour, IWDMatchUIPresentation, IWDMatc
     {
         if (utilities != null)
             utilities.ModuleRequested -= HandleUtilityModuleRequested;
+        if (sendingActionsRoutine != null)
+            StopCoroutine(sendingActionsRoutine);
+    }
+
+    private void OnDisable()
+    {
+        if (sendingActionsRoutine != null)
+            StopCoroutine(sendingActionsRoutine);
+        sendingActionsRoutine = null;
+        if (sendingActionsBanner != null)
+            sendingActionsBanner.gameObject.SetActive(false);
     }
 
     private void BuildResources()
@@ -451,6 +467,15 @@ public sealed class WDMatchUIV2 : MonoBehaviour, IWDMatchUIPresentation, IWDMatc
             ToggleSupport);
         transferButton = CompactButton(rail, "Transfer", "TRANSFERÊNCIA",
             new Vector2(RailContentX, -746f), ToggleTransfer);
+        // 02.0. Ícone vetorial local: evita quadrados de glifo ausente nas
+        // fontes TMP e preserva o slot funcional já aprovado.
+        RectTransform transferIconRect = WDUIFactory.Rect(
+            "TransferSymbol", transferButton.transform);
+        transferIconRect.anchorMin = transferIconRect.anchorMax = transferIconRect.pivot = new Vector2(0f, .5f);
+        transferIconRect.anchoredPosition = new Vector2(14f, 0f); transferIconRect.sizeDelta = new Vector2(30f, 30f);
+        WDTransferCycleGraphic transferIcon =
+            transferIconRect.gameObject.AddComponent<WDTransferCycleGraphic>();
+        transferIcon.Configure(Gold);
         CompactButton(rail, "Actions", "AÇÕES", new Vector2(RailContentX, -803f),
             ToggleActions);
     }
@@ -498,24 +523,35 @@ public sealed class WDMatchUIV2 : MonoBehaviour, IWDMatchUIPresentation, IWDMatc
     {
         // 02.1. A barra somente apresenta o recorte da seleção autoritativa. Os
         // botões encaminham comandos existentes e não calculam regras de jogo.
-        movementContext = Panel("MovementContext", transform,
-            new Vector2(.5f, 0f), new Vector2(0f, 24f),
-            new Vector2(650f, 88f), new Vector2(.5f, 0f));
-        movementRouteText = Text(movementContext, "Route", 16f,
-            theme.TextoPrincipal, new Vector2(20f, -12f), new Vector2(250f, 62f),
+        movementContext = WDUIFactory.Rect("MovementAmountSelector", transform);
+        movementContext.anchorMin = movementContext.anchorMax = movementContext.pivot = new Vector2(.5f, 0f);
+        movementContext.anchoredPosition = new Vector2(0f, 24f);
+        movementContext.sizeDelta = new Vector2(820f, 112f);
+        Image selectorSurface = movementContext.gameObject.AddComponent<Image>();
+        selectorSurface.color = new Color(.018f, .038f, .058f, .96f);
+        selectorSurface.raycastTarget = true;
+        WDHomeUIFactory.ApplyRounded(selectorSurface, 18);
+        WDHomeUIFactory.AddRoundedBorder(movementContext, new Color(.25f, .42f, .49f, .72f), 18);
+        movementRouteText = Text(movementContext, "Route", 17f,
+            theme.TextoPrincipal, new Vector2(22f, -18f), new Vector2(220f, 76f),
             TextAlignmentOptions.Left);
-        WDUIPremiumButton decrease = CompactButton(movementContext, "Decrease", "−",
-            new Vector2(286f, -22f), () => commands?.DiminuirQuantidadeAcao());
-        decrease.GetComponent<RectTransform>().sizeDelta = new Vector2(52f, 48f);
-        movementAmountText = Text(movementContext, "Amount", 18f, Gold,
-            new Vector2(346f, -22f), new Vector2(94f, 48f),
-            TextAlignmentOptions.Center);
-        WDUIPremiumButton increase = CompactButton(movementContext, "Increase", "+",
-            new Vector2(448f, -22f), () => commands?.AumentarQuantidadeAcao());
-        increase.GetComponent<RectTransform>().sizeDelta = new Vector2(52f, 48f);
-        WDUIPremiumButton confirm = CompactButton(movementContext, "Confirm", "CONFIRMAR",
-            new Vector2(508f, -22f), () => commands?.ConfirmarAcao());
-        confirm.GetComponent<RectTransform>().sizeDelta = new Vector2(122f, 48f);
+        // 02.1. O trilho é a entrada principal para mouse/toque; o domínio
+        // ainda valida todos os limites e o botão somente confirma a seleção.
+        RectTransform rail = WDUIFactory.Rect("TroopAmountRail", movementContext);
+        rail.anchorMin = rail.anchorMax = rail.pivot = new Vector2(0f, 1f);
+        rail.anchoredPosition = new Vector2(250f, -18f);
+        rail.sizeDelta = new Vector2(400f, 64f);
+        movementAmountRail = rail.gameObject.AddComponent<WDMatchTroopAmountRail>();
+        movementAmountRail.Build(theme, commands);
+        WDUIPremiumButton confirm = CompactButton(movementContext, "Confirm", "ENVIAR",
+            new Vector2(664f, -16f), () => commands?.ConfirmarAcao());
+        confirm.GetComponent<RectTransform>().sizeDelta = new Vector2(132f, 68f);
+        confirm.SetPersistentColors(new Color32(29, 111, 72, 255), new Color32(51, 157, 101, 255));
+        // 02.1. O envio integra o painel pelo preenchimento verde; o contorno
+        // dourado genérico dos botões compactos não participa deste controle.
+        Transform confirmBorder = confirm.transform.Find("Border");
+        if (confirmBorder != null)
+            confirmBorder.gameObject.SetActive(false);
         movementContext.gameObject.SetActive(false);
     }
 
@@ -607,9 +643,15 @@ public sealed class WDMatchUIV2 : MonoBehaviour, IWDMatchUIPresentation, IWDMatc
         bool interactionBoundary = state != null &&
             (state.Round != newState.Round || state.Fase != newState.Fase ||
              state.JogadorLocal != newState.JogadorLocal);
+        bool enteredSending = state != null &&
+            ((!state.AcoesEnviadas && newState.AcoesEnviadas) ||
+             (state.Fase != GameManager.FaseTurno.Resolucao &&
+              newState.Fase == GameManager.FaseTurno.Resolucao));
         if (interactionBoundary)
             CloseTransientPresentationAtStateBoundary();
         state = newState;
+        if (enteredSending)
+            ShowSendingActions();
         energyText.text = $"{weaponUI?.CurrentEnergy ?? 0}";
         bool showTroops = ShouldShowTroopsResource(state.ReforcosDisponiveis);
         contextualResourceIcon.sprite = showTroops
@@ -625,7 +667,7 @@ public sealed class WDMatchUIV2 : MonoBehaviour, IWDMatchUIPresentation, IWDMatc
         transferButton.SetInteractable(state.PodeEditarPreparacao &&
             state.TransferenciaDisponivel && !state.TransferenciaUsada);
         bool transferActive = state.PodeEditarPreparacao && state.EmModoTransferencia;
-        transferButton.SetLabel(transferActive ? "TRANSFERÊNCIA ×" : "TRANSFERÊNCIA");
+        transferButton.SetLabel(transferActive ? "TRANSFERÊNCIA     ×" : "TRANSFERÊNCIA");
         transferButton.SetPersistentColors(transferActive ? new Color(.65f, .12f, .12f) : Color.clear,
             transferActive ? new Color(.75f, .16f, .16f) : new Color(Gold.r, Gold.g, Gold.b, .18f));
         transferButton.SetLabelColor(transferActive ? Color.white : Gold);
@@ -645,8 +687,10 @@ public sealed class WDMatchUIV2 : MonoBehaviour, IWDMatchUIPresentation, IWDMatc
         {
             movementRouteText.text = $"{state.TipoAcaoEsperado}\n" +
                 $"{state.OrigemSelecionadaId} → {state.DestinoSelecionadoId}";
-            movementAmountText.text = $"{state.QuantidadeAcaoSelecionada} / " +
-                $"{state.QuantidadeMaximaAcao}";
+            movementAmountRail.Present(
+                state.QuantidadeAcaoSelecionada,
+                state.QuantidadeMaximaAcao,
+                EstimateMinimumSuccess(state));
         }
 
         PresentWeapons();
@@ -661,6 +705,81 @@ public sealed class WDMatchUIV2 : MonoBehaviour, IWDMatchUIPresentation, IWDMatc
             menuTitle.text = FormatMenuTitle(state.Round);
         if (menuModalLayer != null && menuModalLayer.gameObject.activeSelf)
             RebuildMenuPlayers();
+    }
+
+    // ============================================================
+    // 03.0. TRANSIÇÃO VISÍVEL NA APRESENTAÇÃO REGISTRADA DA PARTIDA
+    // ============================================================
+    private void BuildSendingActionsBanner()
+    {
+        sendingActionsBanner = WDUIFactory.Rect("SendingActionsBanner", transform);
+        sendingActionsBanner.anchorMin = sendingActionsBanner.anchorMax =
+            sendingActionsBanner.pivot = new Vector2(.5f, 1f);
+        sendingActionsBanner.anchoredPosition = new Vector2(0f, -86f);
+        sendingActionsBanner.sizeDelta = new Vector2(360f, 42f);
+        Image surface = sendingActionsBanner.gameObject.AddComponent<Image>();
+        surface.color = new Color(.02f, .06f, .085f, .97f);
+        surface.raycastTarget = false;
+        WDHomeUIFactory.ApplyRounded(surface, 16);
+        WDHomeUIFactory.AddRoundedBorder(sendingActionsBanner,
+            new Color(Cyan.r, Cyan.g, Cyan.b, .54f), 16);
+        TextMeshProUGUI label = WDUIFactory.Text("Label", sendingActionsBanner,
+            theme, 18f, White, TextAlignmentOptions.Center);
+        Stretch(label.rectTransform);
+        label.text = "ENVIANDO AÇÕES";
+        label.fontStyle = FontStyles.Bold;
+        label.raycastTarget = false;
+        sendingActionsGroup = sendingActionsBanner.gameObject.AddComponent<CanvasGroup>();
+        sendingActionsGroup.alpha = 0f;
+        sendingActionsGroup.interactable = false;
+        sendingActionsGroup.blocksRaycasts = false;
+        sendingActionsBanner.gameObject.SetActive(false);
+    }
+
+    private void ShowSendingActions()
+    {
+        if (sendingActionsRoutine != null)
+            StopCoroutine(sendingActionsRoutine);
+        sendingActionsRoutine = StartCoroutine(AnimateSendingActions());
+    }
+
+    private IEnumerator AnimateSendingActions()
+    {
+        sendingActionsBanner.SetAsLastSibling();
+        sendingActionsBanner.gameObject.SetActive(true);
+        const float duration = 1.10f;
+        const float fadeIn = .18f;
+        const float fadeOut = .30f;
+        for (float elapsed = 0f; elapsed < duration;
+             elapsed += Time.unscaledDeltaTime)
+        {
+            sendingActionsGroup.alpha = elapsed < fadeIn
+                ? Mathf.SmoothStep(0f, 1f, elapsed / fadeIn)
+                : elapsed > duration - fadeOut
+                    ? Mathf.SmoothStep(1f, 0f,
+                        (elapsed - (duration - fadeOut)) / fadeOut)
+                    : 1f;
+            float t = Mathf.Clamp01(elapsed / duration);
+            sendingActionsBanner.anchoredPosition = new Vector2(0f,
+                Mathf.Lerp(-92f, -86f, Mathf.SmoothStep(0f, 1f, t)));
+            yield return null;
+        }
+        sendingActionsGroup.alpha = 0f;
+        sendingActionsBanner.gameObject.SetActive(false);
+        sendingActionsRoutine = null;
+    }
+
+    // 03.0. A interface apenas informa uma referência visual conservadora.
+    // A resolução autoritativa continua sendo a única fonte do resultado.
+    private static int EstimateMinimumSuccess(MatchUIState value)
+    {
+        if (value == null || string.IsNullOrEmpty(value.DestinoSelecionadoId) ||
+            value.TipoAcaoEsperado.IndexOf("ata", StringComparison.OrdinalIgnoreCase) < 0)
+            return -1;
+        foreach (MatchUITerritoryState territory in value.Territorios)
+            if (territory.Id == value.DestinoSelecionadoId)
+                return ResolvedorCombate.CalcularAtaqueMinimoBase(territory.Tropas);
+        return -1;
     }
 
     // ============================================================
@@ -1505,5 +1624,194 @@ public sealed class WDMatchUIV2 : MonoBehaviour, IWDMatchUIPresentation, IWDMatc
     {
         for (int i = parent.childCount - 1; i >= 0; i--)
             Destroy(parent.GetChild(i).gameObject);
+    }
+}
+
+
+
+[DisallowMultipleComponent]
+public sealed class WDMatchTroopAmountRail : MonoBehaviour,
+    IBeginDragHandler, IDragHandler, IEndDragHandler
+{
+    private sealed class AmountBlock
+    {
+        public RectTransform Rect;
+        public Image Fill;
+        public TextMeshProUGUI Label;
+    }
+
+    // ============================================================
+    // 01. SELETOR AUTOCONTIDO COM BLOCOS REAIS
+    // ============================================================
+    private const float BlockWidth = 46f;
+    private const float BlockGap = 8f;
+    private RectTransform viewport;
+    private RectTransform content;
+    private RectTransform selection;
+    private readonly List<AmountBlock> blocks = new();
+    private IMatchUICommands commands;
+    private WarDominionUITheme theme;
+    private int current = 1;
+    private int maximum = 1;
+    private int minimumSuccess = -1;
+    private bool dragging;
+    private float dragStartX;
+
+    public void Build(WarDominionUITheme value, IMatchUICommands commandSource)
+    {
+        theme = value; commands = commandSource;
+        RectTransform root = (RectTransform)transform;
+        Image background = gameObject.AddComponent<Image>();
+        background.color = new Color(.025f, .055f, .075f, .88f);
+        background.raycastTarget = true;
+        WDHomeUIFactory.ApplyRounded(background, 14);
+        WDHomeUIFactory.AddRoundedBorder(root,
+            new Color(.25f, .42f, .49f, .46f), 14);
+        viewport = WDUIFactory.Rect("Viewport", root);
+        viewport.anchorMin = Vector2.zero; viewport.anchorMax = Vector2.one;
+        viewport.offsetMin = new Vector2(10f, 8f); viewport.offsetMax = new Vector2(-10f, -8f);
+        viewport.gameObject.AddComponent<RectMask2D>();
+        content = WDUIFactory.Rect("Blocks", viewport);
+        content.anchorMin = content.anchorMax = content.pivot = new Vector2(0f, .5f);
+        content.anchoredPosition = Vector2.zero;
+        selection = CreateFill("Selection", content, new Color(.18f, .76f, .84f, .24f));
+        WDHomeUIFactory.AddRoundedBorder(selection,
+            new Color(.3f, .9f, 1f, .90f), 10);
+    }
+
+    public void Present(int value, int max, int successThreshold)
+    {
+        int nextMaximum = Mathf.Max(1, max);
+        int nextCurrent = Mathf.Clamp(value, 1, nextMaximum);
+        bool rangeChanged = maximum != nextMaximum;
+        bool selectionChanged = current != nextCurrent;
+        maximum = nextMaximum;
+        current = nextCurrent;
+        minimumSuccess = successThreshold;
+        EnsureBlocks(maximum);
+        UpdateVisuals(!dragging && (rangeChanged || selectionChanged));
+    }
+
+    // ============================================================
+    // 01.1. ARRASTO REAL DA FAIXA PARA MOUSE E TOQUE
+    // ============================================================
+    public void OnBeginDrag(PointerEventData eventData)
+    {
+        dragging = true;
+        dragStartX = content.anchoredPosition.x;
+    }
+
+    public void OnDrag(PointerEventData eventData)
+    {
+        float scale = GetComponentInParent<Canvas>()?.scaleFactor ?? 1f;
+        float nextX = dragStartX +
+            (eventData.position.x - eventData.pressPosition.x) /
+            Mathf.Max(.01f, scale);
+        content.anchoredPosition = new Vector2(ClampContentX(nextX), 0f);
+        SelectNearestToViewportCenter();
+    }
+
+    public void OnEndDrag(PointerEventData eventData)
+    {
+        dragging = false;
+        CenterCurrent(true);
+    }
+
+    private void EnsureBlocks(int count)
+    {
+        while (blocks.Count < count)
+        {
+            int index = blocks.Count;
+            RectTransform rect = CreateFill($"Amount_{index + 1}", content, Color.gray);
+            rect.sizeDelta = new Vector2(BlockWidth, 44f);
+            TextMeshProUGUI label = CreateLabel(rect, theme.FonteInterface, 17f);
+            Button button = rect.gameObject.AddComponent<Button>(); button.transition = Selectable.Transition.None;
+            int captured = index + 1; button.onClick.AddListener(() => Select(captured));
+            blocks.Add(new AmountBlock { Rect = rect, Fill = rect.GetComponent<Image>(), Label = label });
+        }
+        for (int i = 0; i < blocks.Count; i++) blocks[i].Rect.gameObject.SetActive(i < count);
+        content.sizeDelta = new Vector2(count * (BlockWidth + BlockGap) - BlockGap, 48f);
+    }
+
+    private void SelectNearestToViewportCenter()
+    {
+        float pitch = BlockWidth + BlockGap;
+        float centerInContent = viewport.rect.width * .5f -
+            content.anchoredPosition.x;
+        int value = Mathf.RoundToInt(
+            (centerInContent - BlockWidth * .5f) / pitch) + 1;
+        Select(Mathf.Clamp(value, 1, maximum), false);
+    }
+
+    private void Select(int value) => Select(value, true);
+
+    private void Select(int value, bool center)
+    {
+        value = Mathf.Clamp(value, 1, maximum);
+        if (value != current)
+        {
+            current = value;
+            commands?.DefinirQuantidadeAcao(current);
+        }
+        UpdateVisuals(center);
+    }
+
+    // ============================================================
+    // 02. PREENCHIMENTOS SEMÂNTICOS; NÚMEROS SEMPRE BRANCOS
+    // ============================================================
+    private void UpdateVisuals(bool centerSelection)
+    {
+        for (int i = 0; i < maximum; i++)
+        {
+            int value = i + 1; AmountBlock block = blocks[i];
+            block.Rect.anchoredPosition = new Vector2(i * (BlockWidth + BlockGap), 0f);
+            block.Label.text = value.ToString(); block.Label.color = Color.white;
+            block.Fill.color = minimumSuccess < 0 ? new Color(.28f, .32f, .35f, .92f)
+                : value < minimumSuccess ? new Color(.55f, .16f, .16f, .94f)
+                : value == minimumSuccess ? new Color(.12f, .48f, .29f, .96f)
+                : new Color(.28f, .32f, .35f, .92f);
+        }
+        AmountBlock chosen = blocks[current - 1];
+        selection.sizeDelta = chosen.Rect.sizeDelta + new Vector2(8f, 8f);
+        selection.anchoredPosition = chosen.Rect.anchoredPosition;
+        selection.SetAsLastSibling(); chosen.Rect.SetAsLastSibling();
+        if (centerSelection)
+            CenterCurrent(false);
+    }
+
+    private void CenterCurrent(bool refreshVisuals)
+    {
+        if (blocks.Count == 0)
+            return;
+        float selectedCenter = blocks[current - 1].Rect.anchoredPosition.x +
+            BlockWidth * .5f;
+        float target = viewport.rect.width * .5f - selectedCenter;
+        content.anchoredPosition = new Vector2(ClampContentX(target), 0f);
+        if (refreshVisuals)
+            UpdateVisuals(false);
+    }
+
+    private float ClampContentX(float value)
+    {
+        float minimum = Mathf.Min(0f, viewport.rect.width - content.sizeDelta.x);
+        return Mathf.Clamp(value, minimum, 0f);
+    }
+
+    private static RectTransform CreateFill(string name, Transform parent, Color color)
+    {
+        var go = new GameObject(name, typeof(RectTransform), typeof(Image));
+        RectTransform rect = go.GetComponent<RectTransform>(); rect.SetParent(parent, false);
+        rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0f, .5f);
+        Image image = go.GetComponent<Image>(); image.color = color; image.raycastTarget = true;
+        WDHomeUIFactory.ApplyRounded(image, 8); return rect;
+    }
+    private static TextMeshProUGUI CreateLabel(Transform parent, TMP_FontAsset font, float size)
+    {
+        var go = new GameObject("Value", typeof(RectTransform), typeof(TextMeshProUGUI));
+        RectTransform rect = go.GetComponent<RectTransform>(); rect.SetParent(parent, false);
+        rect.anchorMin = Vector2.zero; rect.anchorMax = Vector2.one; rect.offsetMin = rect.offsetMax = Vector2.zero;
+        TextMeshProUGUI label = go.GetComponent<TextMeshProUGUI>(); label.font = font; label.fontSize = size;
+        label.fontStyle = FontStyles.Bold; label.alignment = TextAlignmentOptions.Center;
+        label.color = Color.white; label.raycastTarget = false; return label;
     }
 }

@@ -727,23 +727,30 @@ public class ContadorTropas : MonoBehaviour
         feedback.color = Color.white;
         feedback.sortingOrder = 40;
 
-        float duracao = 1.5f;
+        // =====================================================
+        // 14.1. FASE 7.3A — REFORÇO CURTO, REVERSÍVEL PELO TEMA
+        // =====================================================
+        WarDominionUITheme temaGameplay =
+            Resources.Load<WarDominionUITheme>("UI/WarDominionUITheme");
+        bool premium = temaGameplay != null &&
+            temaGameplay.PremiumGameplayFeedbackEnabled;
+        bool movimentoReduzido = premium && temaGameplay.ReducedGameplayMotion;
+        float duracao = premium
+            ? (movimentoReduzido ? 0.12f : 0.62f)
+            : 1.5f;
         float tempo = 0f;
 
-        Vector3 escalaMaior =
-            escalaOriginal * 1.14f;
+        Vector3 escalaMaior = escalaOriginal *
+            (premium ? (movimentoReduzido ? 1.025f : 1.08f) : 1.14f);
 
         while (tempo < duracao)
         {
-            tempo += Time.deltaTime;
+            tempo += premium ? Time.unscaledDeltaTime : Time.deltaTime;
 
             float progresso =
                 tempo / duracao;
 
-            float curva =
-                Mathf.Sin(
-                    progresso * Mathf.PI
-                );
+            float curva = Mathf.Sin(Mathf.Clamp01(progresso) * Mathf.PI);
 
             transform.localScale =
                 Vector3.Lerp(
@@ -755,7 +762,8 @@ public class ContadorTropas : MonoBehaviour
             feedbackObjeto.transform.localPosition =
                 new Vector3(
                     0f,
-                    Mathf.Lerp(0.35f, 0.95f, progresso),
+                    Mathf.Lerp(0.35f, premium ? 0.72f : 0.95f,
+                        premium ? 1f - Mathf.Pow(1f - progresso, 3f) : progresso),
                     -0.1f
                 );
 

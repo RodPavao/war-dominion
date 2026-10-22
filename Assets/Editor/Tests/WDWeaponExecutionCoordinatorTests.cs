@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
 
@@ -169,8 +170,13 @@ public sealed class WDWeaponExecutionCoordinatorTests
             Assert.That(coordinator.ProcessEnergyPlantPayments(round), Is.Zero);
         }
         Assert.That(runtime.FindPlayer("p1").Energy, Is.EqualTo(200 + payment * 3));
-        Assert.That(registry.Find("central").PaymentsRemaining, Is.Zero);
-        Assert.That(registry.Find("central").IsDestroyed, Is.False);
+        // ============================================================
+        // 03.1. A INSTALAÇÃO CONCLUÍDA SAI DO REGISTRO AUTORITATIVO
+        // ============================================================
+        // ProcessEnergyPlantPayments remove a Central depois do terceiro e
+        // último pagamento. Validar a ausência evita desreferenciar Find(null)
+        // e confirma que ela não permanece ativa nem paga uma quarta vez.
+        Assert.That(registry.Find("central"), Is.Null);
         Assert.That(coordinator.ProcessEnergyPlantPayments(5), Is.Zero);
     }
 
@@ -1436,6 +1442,26 @@ public sealed class WDWeaponExecutionCoordinatorTests
         roundState.BeginRound(3);
     }
 
+    // ============================================================
+    // 07.1. DEPENDÊNCIA VISUAL EXPLÍCITA EM EDITMODE
+    // ============================================================
+    // Os testes EditMode não devem executar Awake artificialmente: SendMessage
+    // aciona a validação ShouldRunBehaviour do Unity fora do ciclo de vida. A
+    // fixture injeta somente o tema que Awake carrega em runtime, preservando
+    // toda a construção visual pública exercitada pelos próprios testes.
+    private static void InitializeTerritoryVisualForEditMode(
+        TerritorioVisual visual)
+    {
+        WarDominionUITheme theme = Resources.Load<WarDominionUITheme>(
+            "UI/WarDominionUITheme");
+        Assert.That(theme, Is.Not.Null);
+
+        FieldInfo themeField = typeof(TerritorioVisual).GetField(
+            "temaGameplay", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.That(themeField, Is.Not.Null);
+        themeField.SetValue(visual, theme);
+    }
+
     private void AssertExecuted(WDWeaponAction action) => Assert.That(
         coordinator.Execute(action).Status,
         Is.EqualTo(WDIntegratedWeaponExecutionStatus.Executed));
@@ -1756,6 +1782,7 @@ public sealed class WDWeaponExecutionCoordinatorTests
             territoryObject.AddComponent<TerritorioTropas>();
             TerritorioClique territory = territoryObject.AddComponent<TerritorioClique>();
             TerritorioVisual visual = territoryObject.AddComponent<TerritorioVisual>();
+            InitializeTerritoryVisualForEditMode(visual);
             Assert.That(territory.TentarAplicarEstadoAutoritativo(
                 TerritorioClique.Dono.Jogador1, 6,
                 TerritorioClique.EstadoTerritorial.Ocupado), Is.True);
@@ -1773,7 +1800,12 @@ public sealed class WDWeaponExecutionCoordinatorTests
             Assert.That(territoryObject.transform.position, Is.EqualTo(worldPosition));
             Assert.That(territoryObject.transform.localScale, Is.EqualTo(baseScale));
             Assert.That(visual.SelectionVisualScale, Is.EqualTo(selectedVisualScale));
-            Assert.That(selectedVisualScale, Is.EqualTo(1.055f).Within(0.0001f));
+            WarDominionUITheme theme = Resources.Load<WarDominionUITheme>(
+                "UI/WarDominionUITheme");
+            float expectedScale = theme.PremiumGameplayFeedbackEnabled
+                ? theme.TerritorySelectionScale : 1.055f;
+            Assert.That(selectedVisualScale,
+                Is.EqualTo(expectedScale).Within(0.0001f));
             Assert.That(territory.dono, Is.EqualTo(TerritorioClique.Dono.Jogador1));
             Assert.That(territory.Tropas, Is.EqualTo(6));
             Assert.That(territory.Estado,
@@ -1805,6 +1837,7 @@ public sealed class WDWeaponExecutionCoordinatorTests
             territoryObject.AddComponent<TerritorioTropas>();
             TerritorioClique territory = territoryObject.AddComponent<TerritorioClique>();
             TerritorioVisual visual = territoryObject.AddComponent<TerritorioVisual>();
+            InitializeTerritoryVisualForEditMode(visual);
             territoryObject.transform.position = new Vector3(4f, -3f, 0f);
             Vector3 rootPosition = territoryObject.transform.position;
             Vector3 visualCenter = renderer.bounds.center;
@@ -1818,7 +1851,13 @@ public sealed class WDWeaponExecutionCoordinatorTests
             Assert.That(visual.SelectionVisualCenterWorld, Is.EqualTo(visualCenter));
             Assert.That(proxy.bounds.center.x, Is.EqualTo(visualCenter.x).Within(0.0001f));
             Assert.That(proxy.bounds.center.y, Is.EqualTo(visualCenter.y).Within(0.0001f));
-            Assert.That(visual.SelectionVisualScale, Is.EqualTo(1.055f).Within(0.0001f));
+            // Fase 7.3A: a escala ativa é autoridade do tema experimental.
+            WarDominionUITheme theme = Resources.Load<WarDominionUITheme>(
+                "UI/WarDominionUITheme");
+            float expectedScale = theme.PremiumGameplayFeedbackEnabled
+                ? theme.TerritorySelectionScale : 1.055f;
+            Assert.That(visual.SelectionVisualScale,
+                Is.EqualTo(expectedScale).Within(0.0001f));
         }
         finally
         {
@@ -1854,6 +1893,7 @@ public sealed class WDWeaponExecutionCoordinatorTests
                 territoryObject.AddComponent<TerritorioTropas>();
                 TerritorioClique territory = territoryObject.AddComponent<TerritorioClique>();
                 TerritorioVisual visual = territoryObject.AddComponent<TerritorioVisual>();
+                InitializeTerritoryVisualForEditMode(visual);
                 Vector3 before = collider.bounds.center;
                 Vector3 rootBefore = territoryObject.transform.position;
 
@@ -1864,7 +1904,12 @@ public sealed class WDWeaponExecutionCoordinatorTests
                 Assert.That(Vector3.Distance(before, after), Is.LessThan(0.0001f),
                     $"Selection center moved at map X={centerX}.");
                 Assert.That(territoryObject.transform.position, Is.EqualTo(rootBefore));
-                Assert.That(visual.SelectionVisualScale, Is.EqualTo(1.055f).Within(0.0001f));
+                WarDominionUITheme theme = Resources.Load<WarDominionUITheme>(
+                    "UI/WarDominionUITheme");
+                float expectedScale = theme.PremiumGameplayFeedbackEnabled
+                    ? theme.TerritorySelectionScale : 1.055f;
+                Assert.That(visual.SelectionVisualScale,
+                    Is.EqualTo(expectedScale).Within(0.0001f));
             }
         }
         finally

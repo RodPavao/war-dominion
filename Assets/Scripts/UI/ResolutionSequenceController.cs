@@ -17,6 +17,11 @@ public interface IResolutionVisualStateCoordinator
     void CompleteVisualState();
 }
 
+public interface IResolutionVisualCleanup
+{
+    void ResetTransientVisuals();
+}
+
 public static class MapOverlayProjection
 {
     // ============================================================
@@ -189,9 +194,12 @@ public sealed class ResolutionSequenceController : MonoBehaviour
 
     private void OnDestroy()
     {
+        StopCurrentSequence();
         if (roundAnnouncement != null)
             roundAnnouncement.Completed -= OnAnnouncementCompleted;
     }
+
+    private void OnDisable() => StopCurrentSequence();
 
     public void RefreshPresenters()
     {
@@ -246,26 +254,14 @@ public sealed class ResolutionSequenceController : MonoBehaviour
 
     private IEnumerator PlaySequence(IReadOnlyList<ResolutionVisualEvent> events)
     {
-        Debug.Log($"[ResolutionVisual] Sequência iniciada: {events.Count} eventos");
         SequenceStarted?.Invoke();
 
         for (int index = 0; index < events.Count; index++)
         {
             ResolutionVisualEvent visualEvent = events[index];
-            Debug.Log($"[ResolutionVisual] Evento {index + 1}: {visualEvent}");
             EventStarted?.Invoke(visualEvent, index);
 
             IResolutionVisualPresenter presenter = FindPresenter(visualEvent.Type);
-            Debug.Log(
-                "[ResolutionVisual][DEBUG]\n" +
-                $"Index: {index + 1}\n" +
-                $"Tipo: {visualEvent.Type}\n" +
-                $"OrigemId: '{visualEvent.OriginTerritoryId}'\n" +
-                $"DestinoId: '{visualEvent.DestinationTerritoryId}'\n" +
-                $"Quantidade: {visualEvent.Amount}\n" +
-                $"ProprietarioAntes: {visualEvent.PreviousOwner}\n" +
-                $"ProprietarioDepois: {visualEvent.NewOwner}\n" +
-                $"Presenter selecionado: {(presenter != null ? presenter.GetType().Name : "nenhum")}");
             if (presenter != null)
             {
                 yield return PresentSafely(presenter, visualEvent);
@@ -279,12 +275,10 @@ public sealed class ResolutionSequenceController : MonoBehaviour
             }
 
             EventCompleted?.Invoke(visualEvent, index);
-            Debug.Log($"[ResolutionVisual] Evento {index + 1} concluído");
         }
 
         currentSequence = null;
         CompleteVisualState();
-        Debug.Log("[ResolutionVisual] Sequência concluída");
         SequenceCompleted?.Invoke();
     }
 
@@ -342,6 +336,11 @@ public sealed class ResolutionSequenceController : MonoBehaviour
             StopCoroutine(currentSequence);
         currentSequence = null;
         pendingAfterAnnouncement = null;
+        // 05.1. Fase 7.3A: interrupções removem apenas visuais transitórios;
+        // estado autoritativo e sequência funcional permanecem nos controladores.
+        foreach (MonoBehaviour component in GetComponentsInChildren<MonoBehaviour>(true))
+            if (component is IResolutionVisualCleanup cleanup)
+                cleanup.ResetTransientVisuals();
         CompleteVisualState();
     }
 

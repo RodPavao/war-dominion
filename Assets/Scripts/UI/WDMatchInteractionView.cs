@@ -133,9 +133,9 @@ public sealed class WDMatchInteractionView : MonoBehaviour
         emoji = BuildRadial(false);
         tactical = BuildRadial(true);
         BuildTransferModal();
-        marker = Label(transform, "TransferProgrammed", "↔", 0, 0, 64, 60, 48, new Color32(8, 25, 37, 255));
-        marker.alignment = TextAlignmentOptions.Center;
-        marker.gameObject.SetActive(false);
+        // 02.1. O marcador textual legado foi removido. A transferência
+        // confirmada agora pertence ao overlay territorial compartilhado.
+        marker = null;
         reaction = Label(transform, "LocalReaction", "", 0, 0, 80, 80, 42, Color.white);
         WDChatEmojiColor.Apply(reaction);
         reaction.gameObject.SetActive(false);

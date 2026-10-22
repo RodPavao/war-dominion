@@ -106,6 +106,18 @@ public class WDArmyCounterViewTests
     }
 
     [Test]
+    public void PremiumGameplayFeedbackUsesOneReversibleThemeAuthority()
+    {
+        WarDominionUITheme theme = Resources.Load<WarDominionUITheme>(
+            "UI/WarDominionUITheme");
+        Assert.That(theme, Is.Not.Null);
+        Assert.That(theme.TerritorySelectionEntryDuration, Is.GreaterThan(0f));
+        Assert.That(theme.TerritoryImpactDuration, Is.GreaterThan(0f));
+        Assert.That(theme.CounterDamageCompression, Is.LessThan(1f));
+        Assert.That(theme.CounterReinforcementScale, Is.GreaterThan(1f));
+    }
+
+    [Test]
     public void ManualSpriteCompositionHasOneBodyAndOnePrincipalTmp()
     {
         GameObject root = new("ManualCounterStructureTest");

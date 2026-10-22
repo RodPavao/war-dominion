@@ -155,6 +155,12 @@ public class ResolvedorCombate : MonoBehaviour
 
     public int CalcularAtaqueMinimo(
         int defesa)
+        => CalcularAtaqueMinimoBase(defesa);
+
+    // =====================================================
+    // 2.1. REGRA PURA COMPARTILHADA COM A APRESENTAÇÃO
+    // =====================================================
+    public static int CalcularAtaqueMinimoBase(int defesa)
     {
         defesa =
             Mathf.Max(

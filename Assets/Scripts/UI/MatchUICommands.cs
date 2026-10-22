@@ -10,6 +10,7 @@ public interface IMatchUICommands
     int AdicionarReforco(string territorioId, int quantidade);
     void AumentarQuantidadeAcao();
     void DiminuirQuantidadeAcao();
+    void DefinirQuantidadeAcao(int quantidade);
     void ConfirmarAcao();
     void CancelarSelecao();
     void DesfazerUltimaAcao();
@@ -73,6 +74,14 @@ public sealed class MatchUICommands : IMatchUICommands
     public void DiminuirQuantidadeAcao()
     {
         gameManager?.DiminuirQuantidadeAcao();
+        AtualizarApresentacao();
+    }
+
+    // 02.1. O trilho informa uma intenção absoluta; o GameManager continua
+    // responsável por validar limites e disponibilidade da origem.
+    public void DefinirQuantidadeAcao(int quantidade)
+    {
+        gameManager?.DefinirQuantidadeAcao(quantidade);
         AtualizarApresentacao();
     }
 

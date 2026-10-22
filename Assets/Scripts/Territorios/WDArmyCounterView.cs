@@ -18,6 +18,7 @@ public sealed class WDArmyCounterView : MonoBehaviour
     private Color ownerColor = NeutralAccent;
     private Color lastOwnedColor = NeutralAccent;
     private VisualState state;
+    private WarDominionUITheme gameplayTheme;
     public TerritorioClique Territorio => territorio;
     public int QuantidadeExibida { get; private set; }
     public VisualState EstadoVisual => state;
@@ -152,6 +153,42 @@ public sealed class WDArmyCounterView : MonoBehaviour
     }
     private IEnumerator AnimarEstado(VisualState animatedState)
     {
+        gameplayTheme ??= Resources.Load<WarDominionUITheme>("UI/WarDominionUITheme");
+        if (gameplayTheme == null || !gameplayTheme.PremiumGameplayFeedbackEnabled)
+        {
+            yield return AnimarEstadoLegado(animatedState);
+            yield break;
+        }
+
+        // ============================================================
+        // 04. FASE 7.3A — ASSINATURAS CURTAS POR ESTADO DO CONTADOR
+        // ============================================================
+        float duration = ObterDuracaoPremium(animatedState);
+        float peak = ObterEscalaPremium(animatedState);
+        bool damage = animatedState == VisualState.Damage;
+        Color initialBodyColor = body != null ? body.color : ownerColor;
+        for (float elapsed = 0f; elapsed < duration; elapsed += Time.unscaledDeltaTime)
+        {
+            float progress = Mathf.Clamp01(elapsed / Mathf.Max(0.01f, duration));
+            float envelope = Mathf.Sin(progress * Mathf.PI);
+            float scale = damage
+                ? Mathf.Lerp(1f, peak, envelope)
+                : Mathf.Lerp(1f, peak, EaseOutBack(envelope));
+            visualRoot.localScale = Vector3.one * scale;
+            if (body != null)
+            {
+                float light = animatedState == VisualState.Reinforcement ? 0.22f :
+                    animatedState == VisualState.AttackActive ? 0.14f :
+                    damage ? 0.08f : 0.10f;
+                body.color = Color.Lerp(initialBodyColor, Color.white, light * envelope);
+            }
+            yield return null;
+        }
+        FinalizarAnimacaoTemporaria(animatedState);
+    }
+
+    private IEnumerator AnimarEstadoLegado(VisualState animatedState)
+    {
         float duration = animatedState == VisualState.Damage ? 0.20f : 0.30f;
         for (float elapsed = 0; elapsed < duration; elapsed += Time.unscaledDeltaTime)
         {
@@ -159,19 +196,57 @@ public sealed class WDArmyCounterView : MonoBehaviour
             visualRoot.localScale = Vector3.one * Mathf.Lerp(1f, animatedState == VisualState.Selected ? 1.045f : 1.08f, pulse);
             yield return null;
         }
-        visualRoot.localScale = Vector3.one;
+        FinalizarAnimacaoTemporaria(animatedState);
+    }
+
+    private float ObterDuracaoPremium(VisualState animatedState)
+    {
+        if (gameplayTheme.ReducedGameplayMotion)
+            return 0.08f;
+        return animatedState switch
+        {
+            VisualState.Damage => gameplayTheme.CounterDamageDuration,
+            VisualState.Reinforcement => gameplayTheme.CounterReinforcementDuration,
+            VisualState.AttackActive => gameplayTheme.CounterAttackDuration,
+            _ => gameplayTheme.CounterSelectionDuration
+        };
+    }
+
+    private float ObterEscalaPremium(VisualState animatedState)
+    {
+        if (gameplayTheme.ReducedGameplayMotion)
+            return animatedState == VisualState.Damage ? 0.98f : 1.015f;
+        return animatedState switch
+        {
+            VisualState.Damage => gameplayTheme.CounterDamageCompression,
+            VisualState.Reinforcement => gameplayTheme.CounterReinforcementScale,
+            VisualState.AttackActive => gameplayTheme.CounterAttackScale,
+            _ => 1.045f
+        };
+    }
+
+    private void FinalizarAnimacaoTemporaria(VisualState animatedState)
+    {
+        if (visualRoot != null)
+            visualRoot.localScale = Vector3.one;
         stateAnimation = null;
         if (animatedState == VisualState.Reinforcement || animatedState == VisualState.Damage)
-        {
             state = VisualState.Normal;
-            AplicarPaletaAtual();
-        }
+        AplicarPaletaAtual();
+    }
+
+    private static float EaseOutBack(float value)
+    {
+        float t = Mathf.Clamp01(value) - 1f;
+        const float overshoot = 1.15f;
+        return 1f + (overshoot + 1f) * t * t * t + overshoot * t * t;
     }
     private void OnDisable()
     {
         if (stateAnimation != null) StopCoroutine(stateAnimation);
         stateAnimation = null;
         if (visualRoot != null) visualRoot.localScale = Vector3.one;
+        AplicarPaletaAtual();
     }
     private static Color Opaca(Color color) { color.a = 1f; return color; }
 }

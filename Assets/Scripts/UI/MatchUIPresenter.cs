@@ -361,10 +361,21 @@ public sealed class MatchUIPresenter : MonoBehaviour
                 ordem.IdOrigem,
                 ordem.IdDestino,
                 ordem.QuantidadePretendida,
-                SistemaAcoesTerrestres.ObterTipoEsperado(ordem.Jogador, ordem.Destino));
+                SistemaAcoesTerrestres.ObterTipoEsperado(ordem.Jogador, ordem.Destino),
+                ClassificarAcao(ordem.Jogador, ordem.Destino));
         }
 
         return resultado;
+    }
+
+    private static MatchUIActionKind ClassificarAcao(
+        TerritorioClique.Dono jogador, TerritorioClique destino)
+    {
+        if (destino == null) return MatchUIActionKind.Attack;
+        if (destino.dono == jogador) return MatchUIActionKind.OwnMovement;
+        if (destino.IsEmpty) return MatchUIActionKind.Occupation;
+        return EquipesJogadores.SaoAliados(jogador, destino.dono)
+            ? MatchUIActionKind.AlliedMovement : MatchUIActionKind.Attack;
     }
 
     private MatchUIReinforcementState[] CriarDistribuicoes()

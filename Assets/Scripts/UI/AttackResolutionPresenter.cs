@@ -4,7 +4,7 @@ using UnityEngine;
 
 [DisallowMultipleComponent]
 public sealed class AttackResolutionPresenter : MonoBehaviour,
-    IResolutionVisualPresenter
+    IResolutionVisualPresenter, IResolutionVisualCleanup
 {
     private const float AirTransportTravelDuration = .9f;
     private const float TransportedInstallationFadeDuration = .38f;
@@ -13,6 +13,8 @@ public sealed class AttackResolutionPresenter : MonoBehaviour,
     // ============================================================
 
     private WarDominionUITheme theme;
+    private GameObject activeRoot;
+    private GameObject activeAttacker;
 
     public void Configure(WarDominionUITheme newTheme)
     {
@@ -31,9 +33,6 @@ public sealed class AttackResolutionPresenter : MonoBehaviour,
         ResolutionVisualEvent visualEvent,
         ResolutionVisualPresentationContext context)
     {
-        Debug.Log(
-            $"[AttackResolution][DEBUG] Presenter de ataque acionado para evento: " +
-            $"{visualEvent}");
         if (theme == null || visualEvent == null || context == null ||
             !ResolutionVisualMapUtility.TryGetTerritory(
                 visualEvent.OriginTerritoryId, out TerritorioClique origin) ||
@@ -50,12 +49,10 @@ public sealed class AttackResolutionPresenter : MonoBehaviour,
         Color playerColor = context.GetPlayerColor(visualEvent.Player);
         RectTransform root = ResolutionVisualMapUtility.CreateRoot(
             "AttackResolution", context.Overlay);
-        PreparedActionArrowView route = root.gameObject.AddComponent<PreparedActionArrowView>();
-        route.Build(theme);
-        route.SetColorAndAmount(playerColor, 0);
-        route.SetPlanning(false);
+        activeRoot = root.gameObject;
         GameObject attacker = CreateCounterCopy(
             origin, ObterQuantidadeAnimada(visualEvent), visualEvent.Player);
+        activeAttacker = attacker;
         RectTransform transportedIcon = null;
         Vector2 installationOrigin = default;
         Vector2 installationDestination = default;
@@ -63,7 +60,6 @@ public sealed class AttackResolutionPresenter : MonoBehaviour,
             WDWeaponInstallationMapPresenter.TryBeginTransportTravel(
                 visualEvent.InstallationId, context.Overlay, out transportedIcon,
                 out installationOrigin, out installationDestination);
-        route.SetGeometry(originPosition, destinationPosition);
         Vector3 originWorld = GetCounterWorldPosition(origin);
         Vector3 destinationWorld = GetCounterWorldPosition(destination);
         Vector3 controlWorld = CreateWorldControl(originWorld, destinationWorld);
@@ -76,7 +72,9 @@ public sealed class AttackResolutionPresenter : MonoBehaviour,
         {
             elapsed += context.PlaybackDeltaTime;
             float progress = Mathf.Clamp01(elapsed / travelDuration);
-            float smooth = progress * progress * (3f - 2f * progress);
+            float smooth = theme.PremiumGameplayFeedbackEnabled
+                ? EaseInOutCubic(progress)
+                : progress * progress * (3f - 2f * progress);
             attacker.transform.position = Bezier(
                 originWorld, controlWorld, destinationWorld, smooth);
             if (transportedIcon != null)
@@ -89,7 +87,13 @@ public sealed class AttackResolutionPresenter : MonoBehaviour,
         }
 
         Destroy(attacker);
+        activeAttacker = null;
         if (transportedIcon != null) Destroy(transportedIcon.gameObject);
+        bool isCombat = visualEvent.Type == ResolutionVisualEventType.Attack;
+        // 02.1. O contador viajante é a única trajetória da resolução. Ataques
+        // recebem impacto/fumaça; movimentações aliadas entram sem combate.
+        if (isCombat)
+            yield return AnimateImpact(root, destinationPosition, playerColor, context);
         ApplyFinalVisualState(visualEvent);
         if (!string.IsNullOrEmpty(visualEvent.InstallationId) &&
             WDWeaponInstallationMapPresenter.TryBeginInstallationFade(
@@ -112,12 +116,48 @@ public sealed class AttackResolutionPresenter : MonoBehaviour,
         }
         if (visualEvent.Conquered)
             destination.GetComponent<TerritorioVisual>()?.DestacarConquistaBreve();
+        else if (theme.PremiumGameplayFeedbackEnabled)
+        {
+            destination.GetComponent<TerritorioVisual>()?.DestacarDanoBreve();
+            destination.GetComponentInChildren<WDArmyCounterView>(true)?.PulsoDano();
+        }
         else
             destination.DestacarReforco();
-        yield return context.Wait(theme.AttackImpactDuration);
         yield return context.Wait(theme.AttackResultDuration);
 
         Destroy(root.gameObject);
+        activeRoot = null;
+    }
+
+    private IEnumerator AnimateImpact(RectTransform root, Vector2 center,
+        Color playerColor, ResolutionVisualPresentationContext context)
+    {
+        const int particleCount = 12;
+        var particles = new UnityEngine.UI.Image[particleCount];
+        for (int i = 0; i < particleCount; i++)
+        {
+            Color smoke = Color.Lerp(new Color(.08f, .10f, .12f), playerColor, i == 0 ? .45f : .08f);
+            particles[i] = ResolutionVisualMapUtility.CreateImage($"Impact_{i}", root, smoke, .76f);
+            RectTransform rect = particles[i].rectTransform;
+            rect.anchoredPosition = center;
+            rect.sizeDelta = Vector2.one * (i < 3 ? 42f : 28f);
+            WDHomeUIFactory.ApplyRounded(particles[i], 32);
+        }
+
+        float duration = Mathf.Max(.12f, theme.AttackImpactDuration);
+        for (float elapsed = 0f; elapsed < duration; elapsed += context.PlaybackDeltaTime)
+        {
+            float t = Mathf.Clamp01(elapsed / duration);
+            for (int i = 0; i < particles.Length; i++)
+            {
+                float angle = (i / (float)particles.Length) * Mathf.PI * 2f + .35f;
+                float distance = (34f + (i % 4) * 11f) * Mathf.Sin(t * Mathf.PI * .72f);
+                particles[i].rectTransform.anchoredPosition = center + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * distance;
+                particles[i].rectTransform.localScale = Vector3.one * Mathf.Lerp(.65f, 2.15f, t);
+                Color color = particles[i].color; color.a = (1f - t) * .76f; particles[i].color = color;
+            }
+            yield return null;
+        }
     }
 
     // ============================================================
@@ -202,6 +242,31 @@ public sealed class AttackResolutionPresenter : MonoBehaviour,
     {
         float inverse = 1f - t;
         return inverse * inverse * start + 2f * inverse * t * control + t * t * end;
+    }
+
+    // ============================================================
+    // 07. FASE 7.3A — EASING E LIMPEZA DE EFEITOS INTERROMPIDOS
+    // ============================================================
+
+    private static float EaseInOutCubic(float value)
+    {
+        float t = Mathf.Clamp01(value);
+        return .5f - Mathf.Cos(t * Mathf.PI) * .5f;
+    }
+
+    private void OnDisable()
+    {
+        ResetTransientVisuals();
+    }
+
+    public void ResetTransientVisuals()
+    {
+        if (activeAttacker != null)
+            Destroy(activeAttacker);
+        if (activeRoot != null)
+            Destroy(activeRoot);
+        activeAttacker = null;
+        activeRoot = null;
     }
 
     private Vector2 CreateOverlayControl(Vector2 origin, Vector2 destination)

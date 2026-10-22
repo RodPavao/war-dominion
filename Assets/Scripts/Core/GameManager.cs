@@ -1030,6 +1030,10 @@ public class GameManager : MonoBehaviour
         }
         AtualizarReforcosDisponiveis();
 
+        // 11.1. Cada toque de distribuição confirma visualmente a entrada sem
+        // alterar quantidade, histórico ou qualquer regra de reforço.
+        territorio.DestacarReforco();
+
         return quantidadeAplicada;
     }
 
@@ -1148,6 +1152,20 @@ public class GameManager : MonoBehaviour
             );
     }
 
+    // =====================================================
+    // 12.1. ENTRADA ABSOLUTA DO TRILHO DE QUANTIDADE
+    // =====================================================
+    public void DefinirQuantidadeAcao(int quantidade)
+    {
+        if (!PodeEditarPreparacao)
+            return;
+
+        int maximo = ObterMaximoDisponivelOrigem();
+        if (maximo <= 0)
+            return;
+        quantidadeAcaoSelecionada = Mathf.Clamp(quantidade, 1, maximo);
+    }
+
     public int ObterMaximoDisponivelOrigem()
     {
         if (territorioSelecionado == null ||
@@ -1256,6 +1274,7 @@ public class GameManager : MonoBehaviour
 
             territorioSelecionado
                 .DestacarSelecao();
+            territorioSelecionado.DestacarReforco();
 
             quantidadeAcaoSelecionada =
                 disponiveis;
@@ -1301,6 +1320,7 @@ public class GameManager : MonoBehaviour
 
             territorioSelecionado
                 .DestacarSelecao();
+            territorioSelecionado.DestacarReforco();
 
             int disponiveis =
                 filaAcoes
@@ -1349,6 +1369,7 @@ public class GameManager : MonoBehaviour
 
         territorioDestinoSelecionado
             .DestacarSelecao();
+        territorioDestinoSelecionado.DestacarReforco();
 
         int disponiveisOrigem =
             filaAcoes
@@ -2122,9 +2143,9 @@ public class GameManager : MonoBehaviour
         if (!preparacaoAtiva)
             return false;
 
-        if (territorio == territorioSelecionado ||
-            territorio == territorioDestinoSelecionado ||
-            territorio == territorioTransferenciaSelecionado)
+        // 21.1. A seleção terrestre usa reação curta; o caminho visual mantém
+        // o contexto sem deixar origem/destino permanentemente elevados.
+        if (territorio == territorioTransferenciaSelecionado)
             return true;
 
         WDWeaponMatchUIController weaponUI = GetComponent<WDWeaponMatchUIController>();
