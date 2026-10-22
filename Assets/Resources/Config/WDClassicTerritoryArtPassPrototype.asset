@@ -1,0 +1,101 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3f63f0b9a8cb427aba312d6919708366, type: 3}
+  m_Name: WDClassicTerritoryArtPassPrototype
+  m_EditorClassIdentifier: Assembly-CSharp::WDClassicTerritoryArtPassSettings
+  prototypeEnabled: 0
+  mapId: classic
+  territorySprites:
+  - territoryId: Afghanistan
+    derivedSprite: {fileID: 21300000, guid: d13cde43539a47a99cd96ba074dc3e25, type: 3}
+  - territoryId: Alaska
+    derivedSprite: {fileID: 21300000, guid: 62b87eb4fb7747d4920a36340c215fa0, type: 3}
+  - territoryId: Alberta
+    derivedSprite: {fileID: 21300000, guid: 6b876e64ca33422ca237907743c6031f, type: 3}
+  - territoryId: Algeria
+    derivedSprite: {fileID: 21300000, guid: dfd10dfb586e40caa90c42471b4cf2f8, type: 3}
+  - territoryId: Arabia
+    derivedSprite: {fileID: 21300000, guid: 246a1c89b62e40c4941cde99a5b846dc, type: 3}
+  - territoryId: Argentina
+    derivedSprite: {fileID: 21300000, guid: e0a22f7c63b841568efd4201a55e6c4a, type: 3}
+  - territoryId: Brazil
+    derivedSprite: {fileID: 21300000, guid: a7160e90e25e4e4bb8526d6c2be3dd20, type: 3}
+  - territoryId: China
+    derivedSprite: {fileID: 21300000, guid: 48efea1d8ab94248af4cf2d61d9b5de0, type: 3}
+  - territoryId: Congo
+    derivedSprite: {fileID: 21300000, guid: 1ba194998ef142a197923a85a0c084c5, type: 3}
+  - territoryId: EastAustralia
+    derivedSprite: {fileID: 21300000, guid: b10599f0b8f649d4996781eb1c83663f, type: 3}
+  - territoryId: EastUSA
+    derivedSprite: {fileID: 21300000, guid: 5b39fe126b454f988c5629c1e5bcecd5, type: 3}
+  - territoryId: Egypt
+    derivedSprite: {fileID: 21300000, guid: 1cca7e2d55424027ada91dd1e55f925f, type: 3}
+  - territoryId: Ethiopia
+    derivedSprite: {fileID: 21300000, guid: 46fa95d93a5340dfb3bec9bc065d0fac, type: 3}
+  - territoryId: Germany
+    derivedSprite: {fileID: 21300000, guid: 246b1bcbd83a45bb800a37418092db37, type: 3}
+  - territoryId: Greenland
+    derivedSprite: {fileID: 21300000, guid: f4f7572c2642414b8bebe036c3bbc50a, type: 3}
+  - territoryId: Iceland
+    derivedSprite: {fileID: 21300000, guid: 87054c7ff2ff4ad7aeb3d063d917b09e, type: 3}
+  - territoryId: India
+    derivedSprite: {fileID: 21300000, guid: 925e4c1749ff447e91fdf9a889b69075, type: 3}
+  - territoryId: Indochina
+    derivedSprite: {fileID: 21300000, guid: a8c75c88e270433ebd65427856a59df0, type: 3}
+  - territoryId: Indonesia
+    derivedSprite: {fileID: 21300000, guid: 31197e639747424ea812b7fc9e43c9c9, type: 3}
+  - territoryId: Irkutsk
+    derivedSprite: {fileID: 21300000, guid: b57959328d4d40759d124cb2681b1cc0, type: 3}
+  - territoryId: Italy
+    derivedSprite: {fileID: 21300000, guid: 4aff1d66b718422db33eb3b08f81e7e9, type: 3}
+  - territoryId: Japan
+    derivedSprite: {fileID: 21300000, guid: 3312e1e491a048709448a0d7c0d0df64, type: 3}
+  - territoryId: Kamchatka
+    derivedSprite: {fileID: 21300000, guid: 488782e3f2e54facb21ea12b7a6be409, type: 3}
+  - territoryId: Madagascar
+    derivedSprite: {fileID: 21300000, guid: 90f16cd9202e4ccf923e5bc0611190c7, type: 3}
+  - territoryId: Mexico
+    derivedSprite: {fileID: 21300000, guid: f9976ff7cbce40478b1d7769ca79257a, type: 3}
+  - territoryId: Mongolia
+    derivedSprite: {fileID: 21300000, guid: f56e7c85f8924c09826bc75e62501dbc, type: 3}
+  - territoryId: NewGuinea
+    derivedSprite: {fileID: 21300000, guid: b3834881e8c948f3823fc87b752b9828, type: 3}
+  - territoryId: Ontario
+    derivedSprite: {fileID: 21300000, guid: 649e9424376e42c5b6dad7512c96016a, type: 3}
+  - territoryId: Peru
+    derivedSprite: {fileID: 21300000, guid: ceea7c9734ba411ba2530afb9bfd6066, type: 3}
+  - territoryId: Quebec
+    derivedSprite: {fileID: 21300000, guid: 2663426a81fc4a389280235f14d9f0b3, type: 3}
+  - territoryId: Russia
+    derivedSprite: {fileID: 21300000, guid: b365d0a6e5e244e5b4503beeb2ef4a37, type: 3}
+  - territoryId: Scandinavia
+    derivedSprite: {fileID: 21300000, guid: 670b10e275c64230b43fffe555cf1ffa, type: 3}
+  - territoryId: Siberia
+    derivedSprite: {fileID: 21300000, guid: cc69f420f126435ca304816fa95e611f, type: 3}
+  - territoryId: SouthAfrica
+    derivedSprite: {fileID: 21300000, guid: a48260eef1c04690bb037fe4564809ec, type: 3}
+  - territoryId: Spain
+    derivedSprite: {fileID: 21300000, guid: 6d6ea6f6526b4b1593752ee96edc241c, type: 3}
+  - territoryId: UnitedKingdom
+    derivedSprite: {fileID: 21300000, guid: 087e6b8611054ac18efb8ab33757d8e1, type: 3}
+  - territoryId: Ural
+    derivedSprite: {fileID: 21300000, guid: 48995655f6784a70869f852b1f3ee17d, type: 3}
+  - territoryId: Venezuela
+    derivedSprite: {fileID: 21300000, guid: df670ee7ce114de381e4099da7b7559a, type: 3}
+  - territoryId: WestAustralia
+    derivedSprite: {fileID: 21300000, guid: b2491a6acac54a07a0513114e5e21a3a, type: 3}
+  - territoryId: WestUSA
+    derivedSprite: {fileID: 21300000, guid: 97201650b5d3448f8cbf9d3bdb9ddc91, type: 3}
+  - territoryId: Yakutsk
+    derivedSprite: {fileID: 21300000, guid: 3b0b252b97854fbbb2811ab09bdd5b02, type: 3}
+  - territoryId: Yukon
+    derivedSprite: {fileID: 21300000, guid: 491929ccfabc4a64a3d41b92a1dc8cfb, type: 3}
