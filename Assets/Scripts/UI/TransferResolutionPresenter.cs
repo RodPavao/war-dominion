@@ -3,6 +3,22 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
+public readonly struct WDTransferResolutionLabStyle
+{
+    public readonly bool Enabled;
+    public readonly float TransitionDuration, ReactionDuration;
+    public readonly WDTransferOwnershipBadgeStyle Badge;
+
+    public WDTransferResolutionLabStyle(bool enabled, float transition,
+        float reaction, WDTransferOwnershipBadgeStyle badge)
+    {
+        Enabled = enabled;
+        TransitionDuration = Mathf.Max(.05f, transition);
+        ReactionDuration = Mathf.Max(.05f, reaction);
+        Badge = badge;
+    }
+}
+
 [DisallowMultipleComponent]
 public sealed class TransferResolutionPresenter : MonoBehaviour,
     IResolutionVisualPresenter, IResolutionVisualCleanup
@@ -13,8 +29,27 @@ public sealed class TransferResolutionPresenter : MonoBehaviour,
 
     private WarDominionUITheme theme;
     private GameObject activeRoot;
+    private WDTransferResolutionLabStyle labStyle;
+    private WDTransferOwnershipBadgeView activeBadge;
+    private Vector2 activeBadgePosition;
+    private Color activeBadgeColor;
+    private WDGameplayGlassStyle glassStyle;
 
     public void Configure(WarDominionUITheme newTheme) => theme = newTheme;
+
+    public void ConfigureLabStyle(WDTransferResolutionLabStyle value)
+    {
+        labStyle = value;
+        ApplyActiveBadgeStyle();
+    }
+
+    public void ConfigureLabGlassStyle(WDGameplayGlassStyle value)
+    {
+        glassStyle = value;
+        if (activeBadge != null)
+            activeBadge.ConfigureGlassStyle(value);
+        ApplyActiveBadgeStyle();
+    }
 
     public bool Supports(ResolutionVisualEventType type) =>
         type == ResolutionVisualEventType.Transfer;
@@ -41,6 +76,12 @@ public sealed class TransferResolutionPresenter : MonoBehaviour,
 
         Color previousColor = context.GetPlayerColor(visualEvent.PreviousOwner);
         Color newColor = context.GetPlayerColor(visualEvent.NewOwner);
+        if (labStyle.Enabled)
+        {
+            yield return PresentLabBadge(visualEvent, territory, position,
+                previousColor, newColor, context);
+            yield break;
+        }
         RectTransform root = ResolutionVisualMapUtility.CreateRoot(
             "TransferControlResolution", context.Overlay);
         activeRoot = root.gameObject;
@@ -67,6 +108,71 @@ public sealed class TransferResolutionPresenter : MonoBehaviour,
         yield return AnimateReaction(pulse, label, context);
         Destroy(root.gameObject);
         activeRoot = null;
+    }
+
+    // 02.1. LABORATÓRIO — reutiliza o badge procedural já existente, sem
+    // texto e sem o losango provisório da apresentação histórica.
+    private IEnumerator PresentLabBadge(ResolutionVisualEvent visualEvent,
+        TerritorioClique territory, Vector2 position, Color previousColor,
+        Color newColor, ResolutionVisualPresentationContext context)
+    {
+        RectTransform root = ResolutionVisualMapUtility.CreateRoot(
+            "TransferControlResolution_Lab", context.Overlay);
+        activeRoot = root.gameObject;
+        var badgeObject = new GameObject("TransferOwnershipBadge",
+            typeof(RectTransform), typeof(CanvasGroup));
+        badgeObject.transform.SetParent(root, false);
+        activeBadge = badgeObject.AddComponent<WDTransferOwnershipBadgeView>();
+        activeBadge.Build(theme, labStyle.Enabled);
+        activeBadge.ConfigureGlassStyle(glassStyle);
+        activeBadgePosition = position;
+        activeBadgeColor = previousColor;
+        ApplyActiveBadgeStyle();
+        CanvasGroup group = badgeObject.GetComponent<CanvasGroup>();
+
+        float elapsed = 0f;
+        bool applied = false;
+        while (elapsed < labStyle.TransitionDuration)
+        {
+            elapsed += context.PlaybackDeltaTime;
+            float progress = Mathf.Clamp01(elapsed / labStyle.TransitionDuration);
+            if (!applied && progress >= .5f)
+            {
+                applied = true;
+                territory.AplicarEstadoVisualResolucao(
+                    visualEvent.DestinationAfter, visualEvent.NewOwner);
+            }
+            activeBadgeColor = Color.Lerp(previousColor, newColor,
+                progress * progress * (3f - 2f * progress));
+            ApplyActiveBadgeStyle();
+            group.alpha = Mathf.SmoothStep(0f, 1f,
+                Mathf.Clamp01(progress * 2f));
+            yield return null;
+        }
+        if (!applied)
+            territory.AplicarEstadoVisualResolucao(
+                visualEvent.DestinationAfter, visualEvent.NewOwner);
+
+        elapsed = 0f;
+        while (elapsed < labStyle.ReactionDuration)
+        {
+            elapsed += context.PlaybackDeltaTime;
+            float progress = Mathf.Clamp01(elapsed / labStyle.ReactionDuration);
+            group.alpha = 1f - progress * progress * progress;
+            yield return null;
+        }
+        Destroy(root.gameObject);
+        activeRoot = null;
+        activeBadge = null;
+    }
+
+    private void ApplyActiveBadgeStyle()
+    {
+        if (!labStyle.Enabled || activeBadge == null)
+            return;
+        activeBadge.ConfigureGlassStyle(glassStyle);
+        activeBadge.Configure(activeBadgeColor, labStyle.Badge);
+        activeBadge.SetPosition(activeBadgePosition);
     }
 
     // ============================================================
@@ -155,5 +261,6 @@ public sealed class TransferResolutionPresenter : MonoBehaviour,
         if (activeRoot != null)
             Destroy(activeRoot);
         activeRoot = null;
+        activeBadge = null;
     }
 }

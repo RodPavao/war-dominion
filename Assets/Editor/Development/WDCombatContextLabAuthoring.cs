@@ -22,12 +22,57 @@ public static class WDCombatContextLabAuthoring
     private static readonly string[] TerritoryIds =
         { "Brazil", "Venezuela", "Argentina", "Peru" };
 
+    // 00.0. CARREGAMENTO AUTOMÁTICO — aplica o preset antes do Play Mode e ao
+    // abrir a cena, sem regenerá-la nem gravar alterações no gameplay oficial.
+    [InitializeOnLoadMethod]
+    private static void RegisterPresetLoading()
+    {
+        EditorApplication.playModeStateChanged -= OnPlayModeStateChanged;
+        EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
+        EditorSceneManager.sceneOpened -= OnSceneOpened;
+        EditorSceneManager.sceneOpened += OnSceneOpened;
+    }
+
+    private static void OnPlayModeStateChanged(PlayModeStateChange state)
+    {
+        if (state == PlayModeStateChange.ExitingEditMode)
+            ApplyPresetToOpenControllers(false);
+    }
+
+    private static void OnSceneOpened(Scene scene, OpenSceneMode mode)
+    {
+        if (scene.path == ScenePath)
+            EditorApplication.delayCall += () => ApplyPresetToOpenControllers(false);
+    }
+
+    [MenuItem("War Dominion/Development/Load Combat Context Lab Visual Preset")]
+    public static void LoadVisualPreset() => ApplyPresetToOpenControllers(true);
+
+    private static void ApplyPresetToOpenControllers(bool notify)
+    {
+        if (!File.Exists(PresetPath)) return;
+        int count = 0;
+        foreach (WDCombatContextLabController controller in Resources
+            .FindObjectsOfTypeAll<WDCombatContextLabController>())
+        {
+            if (controller == null || !controller.gameObject.scene.IsValid()) continue;
+            SerializedObject serialized = new(controller);
+            ApplyVisualPreset(serialized);
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            count++;
+        }
+        if (notify)
+            EditorUtility.DisplayDialog("Combat Context Lab",
+                $"Preset aplicado a {count} controlador(es) a partir de {PresetPath}.", "OK");
+    }
+
     // JsonUtility preenche estes campos por reflexão; o compilador não observa
     // essas atribuições estáticas, portanto o warning é desabilitado no DTO.
 #pragma warning disable CS0649
     [Serializable]
     private sealed class VisualPreset
     {
+        public List<VisualPresetField> fields = new();
         public string capturedAt;
         public string source;
         public float indicatorOpacity, chevronArmLength, chevronThickness,
@@ -46,6 +91,15 @@ public static class WDCombatContextLabAuthoring
             confirmedCurveHeight, confirmedOriginExtension,
             confirmedDestinationExtension, confirmedCurvePosition;
         public bool confirmedAdaptiveOutline;
+    }
+
+    [Serializable]
+    private sealed class VisualPresetField
+    {
+        public string name, type, text;
+        public float number, x, y;
+        public int integer;
+        public bool boolean;
     }
 #pragma warning restore CS0649
 
@@ -72,7 +126,14 @@ public static class WDCombatContextLabAuthoring
         Directory.CreateDirectory(Path.GetDirectoryName(PresetPath));
         File.WriteAllText(PresetPath,
             JsonUtility.ToJson(preset, true) + Environment.NewLine);
-        Debug.Log("[WDCombatContextLab] Preset visual salvo em " + PresetPath);
+        VisualPreset roundTrip = JsonUtility.FromJson<VisualPreset>(
+            File.ReadAllText(PresetPath));
+        int restored = roundTrip?.fields?.Count ?? 0;
+        bool verified = restored == preset.fields.Count && restored > 0;
+        string message = $"Preset visual salvo em {PresetPath} | " +
+            $"{restored} campos | verificação: {(verified ? "OK" : "FALHOU")}";
+        Debug.Log("[WDCombatContextLab] " + message);
+        EditorUtility.DisplayDialog("Combat Context Lab", message, "OK");
     }
 
     // ============================================================
@@ -206,6 +267,8 @@ public static class WDCombatContextLabAuthoring
             ["Peru"] = peru
         };
         RemapSceneReferences(sourceTerritories, localTerritories, sourceTerritories["Brazil"].gameObject.scene);
+        ApplyCanonicalCounterPositions(localTerritories,
+            sourceTerritories["Brazil"].gameObject.scene);
 
         Camera camera = CreateCamera(root.transform, new[]
             { brazil, venezuela, argentina, peru });
@@ -262,14 +325,26 @@ public static class WDCombatContextLabAuthoring
         serialized.ApplyModifiedPropertiesWithoutUndo();
     }
 
-    private static void ApplyVisualPreset(SerializedObject target)
+    internal static int ApplyVisualPresetForTests(SerializedObject target) =>
+        ApplyVisualPreset(target);
+
+    internal static int CountPersistibleFieldsForTests(SerializedObject source) =>
+        ReadPreset(source).fields.Count;
+
+    private static int ApplyVisualPreset(SerializedObject target)
     {
         if (!File.Exists(PresetPath))
-            return;
+            return 0;
         VisualPreset p = JsonUtility.FromJson<VisualPreset>(
             File.ReadAllText(PresetPath));
         if (p == null)
-            return;
+            return 0;
+        if (p.fields != null && p.fields.Count > 0)
+        {
+            foreach (VisualPresetField field in p.fields)
+                ApplyField(target, field);
+            return p.fields.Count;
+        }
         foreach (string name in new[] { "indicatorOpacity", "chevronArmLength",
             "chevronThickness", "dotRadius", "glowIntensity", "contrast",
             "animationSpeedMultiplier", "confirmedArrowOpacity",
@@ -292,11 +367,23 @@ public static class WDCombatContextLabAuthoring
         SetColor(target, "confirmedCardBackground", p.confirmedCardBackground);
         SetColor(target, "confirmedCardBorder", p.confirmedCardBorder);
         SetColor(target, "confirmedNumberColor", p.confirmedNumberColor);
+        return 37;
     }
 
     private static VisualPreset ReadPreset(SerializedObject source)
     {
         var p = new VisualPreset();
+        SerializedProperty iterator = source.GetIterator();
+        bool enterChildren = true;
+        while (iterator.NextVisible(enterChildren))
+        {
+            enterChildren = false;
+            if (iterator.depth != 0 || iterator.propertyPath == "m_Script")
+                continue;
+            VisualPresetField field = CaptureField(iterator);
+            if (field != null)
+                p.fields.Add(field);
+        }
         foreach (string name in new[] { "indicatorOpacity", "chevronArmLength",
             "chevronThickness", "dotRadius", "glowIntensity", "contrast",
             "animationSpeedMultiplier", "confirmedArrowOpacity",
@@ -323,6 +410,51 @@ public static class WDCombatContextLabAuthoring
         return p;
     }
 
+    // 00.2. FORMATO COMPLETO — persiste todos os controles editáveis simples
+    // sem manter uma lista manual que fica obsoleta quando o laboratório cresce.
+    private static VisualPresetField CaptureField(SerializedProperty property)
+    {
+        var field = new VisualPresetField { name = property.propertyPath };
+        switch (property.propertyType)
+        {
+            case SerializedPropertyType.Float:
+                field.type = "float"; field.number = property.floatValue; return field;
+            case SerializedPropertyType.Integer:
+                field.type = "int"; field.integer = property.intValue; return field;
+            case SerializedPropertyType.Enum:
+                field.type = "enum"; field.integer = property.enumValueIndex; return field;
+            case SerializedPropertyType.Boolean:
+                field.type = "bool"; field.boolean = property.boolValue; return field;
+            case SerializedPropertyType.Color:
+                field.type = "color"; field.text = Hex(property.colorValue); return field;
+            case SerializedPropertyType.Vector2:
+                field.type = "vector2"; field.x = property.vector2Value.x;
+                field.y = property.vector2Value.y; return field;
+            default:
+                return null;
+        }
+    }
+
+    private static void ApplyField(SerializedObject target, VisualPresetField field)
+    {
+        if (field == null || string.IsNullOrWhiteSpace(field.name)) return;
+        SerializedProperty property = target.FindProperty(field.name);
+        if (property == null) return;
+        switch (field.type)
+        {
+            case "float": property.floatValue = field.number; break;
+            case "int": property.intValue = field.integer; break;
+            case "enum": property.enumValueIndex = Mathf.Clamp(field.integer, 0,
+                Mathf.Max(0, property.enumDisplayNames.Length - 1)); break;
+            case "bool": property.boolValue = field.boolean; break;
+            case "color":
+                if (ColorUtility.TryParseHtmlString(field.text, out Color color))
+                    property.colorValue = color;
+                break;
+            case "vector2": property.vector2Value = new Vector2(field.x, field.y); break;
+        }
+    }
+
     private static string Hex(Color value) => "#" +
         ColorUtility.ToHtmlStringRGBA(value);
 
@@ -338,11 +470,18 @@ public static class WDCombatContextLabAuthoring
     private static TerritorioClique CloneTerritory(TerritorioClique source,
         Transform parent, Scene scene)
     {
+        // 02.2.1. O Instantiate de um filho copia seu transform local. Ao
+        // separar o clone do contêiner Territorios, isso descartava o offset
+        // mundial do pai e deslocava sprite e collider antes do contador.
+        Vector3 sourceWorldPosition = source.transform.position;
+        Quaternion sourceWorldRotation = source.transform.rotation;
+        Vector3 sourceWorldScale = source.transform.lossyScale;
         GameObject clone = UnityEngine.Object.Instantiate(source.gameObject);
         clone.name = source.gameObject.name + "_ContextLab";
         SceneManager.MoveGameObjectToScene(clone, scene);
-        clone.transform.SetParent(parent, true);
-        // 02.2.1. RESÍDUO SERIALIZADO — o Brazil original ainda referencia o
+        ApplySourceWorldTransform(clone.transform, parent, sourceWorldPosition,
+            sourceWorldRotation, sourceWorldScale);
+        // 02.2.2. RESÍDUO SERIALIZADO — o Brazil original ainda referencia o
         // antigo TerritorioBordaVisual, cujo script não existe no projeto.
         // Remove somente behaviours realmente ausentes no clone experimental.
         foreach (Transform child in clone.GetComponentsInChildren<Transform>(true))
@@ -356,8 +495,66 @@ public static class WDCombatContextLabAuthoring
         return clone.GetComponent<TerritorioClique>();
     }
 
+    internal static void ApplySourceWorldTransform(Transform clone,
+        Transform parent, Vector3 worldPosition, Quaternion worldRotation,
+        Vector3 worldScale)
+    {
+        if (clone == null || parent == null)
+            return;
+        clone.SetParent(parent, false);
+        clone.SetPositionAndRotation(worldPosition, worldRotation);
+        Vector3 parentScale = parent.lossyScale;
+        clone.localScale = new Vector3(
+            SafeScaleRatio(worldScale.x, parentScale.x),
+            SafeScaleRatio(worldScale.y, parentScale.y),
+            SafeScaleRatio(worldScale.z, parentScale.z));
+    }
+
+    private static float SafeScaleRatio(float value, float parent) =>
+        Mathf.Abs(parent) > .00001f ? value / parent : value;
+
     // ============================================================
-    // 02.3. REFERÊNCIAS — vizinhos locais são remapeados; externos são removidos
+    // 02.3. POSIÇÃO CANÔNICA DOS CONTADORES — mesma autoridade do gameplay
+    // ============================================================
+    private static void ApplyCanonicalCounterPositions(
+        IReadOnlyDictionary<string, TerritorioClique> localTerritories,
+        Scene sourceScene)
+    {
+        DefinicaoMapa classic = AssetDatabase.LoadAssetAtPath<DefinicaoMapa>(
+            "Assets/Resources/Mapas/Classic.asset");
+        if (classic == null)
+            throw new InvalidOperationException("Classic.asset não foi encontrado.");
+        SpriteRenderer art = sourceScene.GetRootGameObjects()
+            .SelectMany(root => root.GetComponentsInChildren<SpriteRenderer>(true))
+            .FirstOrDefault(renderer => renderer.sprite == classic.ArteBase);
+        if (art == null)
+            throw new InvalidOperationException(
+                "A arte-base do Classic não foi localizada em WarGame.unity.");
+
+        foreach (DefinicaoTerritorioMapa data in classic.Territorios)
+            if (data != null && data.possuiPosicaoContador &&
+                localTerritories.TryGetValue(data.id, out TerritorioClique territory))
+                ApplyCanonicalCounterPosition(territory, art.transform, data);
+    }
+
+    internal static bool ApplyCanonicalCounterPosition(
+        TerritorioClique territory, Transform art,
+        DefinicaoTerritorioMapa data)
+    {
+        Transform counter = territory != null
+            ? territory.transform.Find("ContadorModerno") : null;
+        if (counter == null || art == null || data == null ||
+            !data.possuiPosicaoContador)
+            return false;
+        Vector2 local = MapaAtivo.ConverterPosicaoArteParaLocalTerritorio(
+            art, territory.transform, data.posicaoContador);
+        counter.localPosition = new Vector3(local.x, local.y,
+            counter.localPosition.z);
+        return true;
+    }
+
+    // ============================================================
+    // 02.4. REFERÊNCIAS — vizinhos locais são remapeados; externos são removidos
     // ============================================================
     private static void RemapSceneReferences(
         IReadOnlyDictionary<string, TerritorioClique> sourceTerritories,
@@ -596,8 +793,10 @@ public static class WDCombatContextLabAuthoring
 
     private static TMP_Dropdown CreateDropdown(Transform parent, Vector2 position)
     {
+        // 02.0. DROPDOWN RESILIENTE — a variante exclusiva do laboratório
+        // recompõe o runner de fade do TMP após recompilações em Play Mode.
         GameObject go = new("Scenario", typeof(RectTransform), typeof(Image),
-            typeof(TMP_Dropdown));
+            typeof(WDCombatContextLabDropdown));
         RectTransform rect = go.GetComponent<RectTransform>();
         rect.SetParent(parent, false);
         rect.anchorMin = rect.anchorMax = new Vector2(.5f, 1f);
@@ -610,7 +809,7 @@ public static class WDCombatContextLabAuthoring
         // 02.5.1. CAMPO SELECIONADO — stretch real dentro do dropdown evita
         // que o helper ancorado ao topo desloque o texto meia altura acima.
         StretchDropdownLabel(caption.rectTransform, 16f, 52f);
-        TMP_Dropdown dropdown = go.GetComponent<TMP_Dropdown>();
+        TMP_Dropdown dropdown = go.GetComponent<WDCombatContextLabDropdown>();
         dropdown.captionText = caption;
 
         // 02.1. Estrutura padrão completa do TMP_Dropdown. O laboratório não

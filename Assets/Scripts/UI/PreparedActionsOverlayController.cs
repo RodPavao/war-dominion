@@ -225,19 +225,33 @@ public sealed class PreparedActionsOverlayController : MonoBehaviour
     private void PresentOwnershipTransfer(MatchUIState state)
     {
         ownershipTransferTerritoryId = state.Transferencia?.TerritorioId ?? string.Empty;
-        if (string.IsNullOrEmpty(ownershipTransferTerritoryId))
+        if (!ShouldKeepOwnershipTransfer(state.Fase,
+                ownershipTransferTerritoryId))
         {
             if (ownershipTransferBadge != null) Destroy(ownershipTransferBadge.gameObject);
             ownershipTransferBadge = null;
             return;
         }
-        if (ownershipTransferBadge != null) return;
-        var go = new GameObject("PreparedOwnershipTransfer", typeof(RectTransform));
-        go.transform.SetParent(overlay, false);
-        ownershipTransferBadge = go.AddComponent<WDTransferOwnershipBadgeView>();
-        ownershipTransferBadge.Build(theme);
-        go.transform.SetAsLastSibling();
+        if (ownershipTransferBadge == null)
+        {
+            var go = new GameObject("PreparedOwnershipTransfer", typeof(RectTransform));
+            go.transform.SetParent(overlay, false);
+            ownershipTransferBadge = go.AddComponent<WDTransferOwnershipBadgeView>();
+            ownershipTransferBadge.Build(theme);
+            go.transform.SetAsLastSibling();
+        }
+
+        // 04.2.1. A fila preparada é a autoridade do ciclo de vida. Cada
+        // snapshot também atualiza a identidade cromática do autor sem timer.
+        ownershipTransferBadge.Configure(
+            PaletaJogadores.ObterCorAtiva(state.Transferencia.Autor),
+            WDTransferOwnershipBadgeStyle.PreparationDefault);
     }
+
+    public static bool ShouldKeepOwnershipTransfer(
+        GameManager.FaseTurno phase, string territoryId) =>
+        phase == GameManager.FaseTurno.Preparacao &&
+        !string.IsNullOrWhiteSpace(territoryId);
 
     private static bool TryGetTerritory(
         string territoryId,

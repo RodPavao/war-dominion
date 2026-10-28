@@ -314,6 +314,11 @@ public sealed class ResolutionSequenceController : MonoBehaviour
             {
                 Debug.LogError(
                     $"[ResolutionVisual] Falha durante {visualEvent}: {exception}");
+                // 04.1. FALHA ISOLADA — presenters que criam visuais temporários
+                // limpam seus objetos antes que a sequência prossiga ou restaure
+                // o estado final. Isso inclui clones parcialmente construídos.
+                if (presenter is IResolutionVisualCleanup cleanup)
+                    cleanup.ResetTransientVisuals();
                 yield break;
             }
 

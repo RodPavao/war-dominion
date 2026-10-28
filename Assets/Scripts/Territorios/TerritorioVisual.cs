@@ -18,7 +18,45 @@ public class TerritorioVisual : MonoBehaviour
     private bool selecionado = false;
     public bool TransferConfirmationHighlighted { get; private set; }
     private float SelectionBrightness => TransferConfirmationHighlighted
-        ? .55f + .08f * Mathf.Sin(Time.unscaledTime * 4f) : intensidadePulso;
+        ? .55f + .08f * Mathf.Sin(Time.unscaledTime * 4f)
+        : labFeedbackEnabled
+            ? EvaluateSelectionPulse(Time.unscaledTime - labSelectionPulseStart,
+                labSelectionEntryDuration, labSelectionIntensity)
+            : intensidadePulso;
+    private bool labFeedbackEnabled;
+    private float labSelectionIntensity = .42f;
+    private float labSelectionEntryDuration = .10f;
+    private float labReinforcementIntensity = .38f;
+    private float labReinforcementDuration = .45f;
+    private float labSelectionPulseStart = float.NegativeInfinity;
+    private float labSelectionPulseEnd = float.NegativeInfinity;
+    public float SelectionPulseEndTime => labSelectionPulseEnd;
+
+    public void ConfigureLabFeedback(float selectionIntensity,
+        float selectionDuration, float reinforcementIntensity,
+        float reinforcementDuration)
+    {
+        labFeedbackEnabled = true;
+        labSelectionIntensity = Mathf.Clamp01(selectionIntensity);
+        labSelectionEntryDuration = Mathf.Max(.02f, selectionDuration);
+        labReinforcementIntensity = Mathf.Clamp01(reinforcementIntensity);
+        labReinforcementDuration = Mathf.Max(.05f, reinforcementDuration);
+    }
+
+    // ============================================================
+    // 00.1. SELEÇÃO PERSISTENTE — um pulso curto converge para o brilho
+    // estável enquanto o estado lógico continuar selecionado.
+    // ============================================================
+    public static float EvaluateSelectionPulse(float elapsed, float duration,
+        float intensity)
+    {
+        float stable = Mathf.Clamp01(intensity);
+        if (elapsed < 0f || duration <= 0f || elapsed >= duration)
+            return stable;
+        float progress = Mathf.Clamp01(elapsed / duration);
+        float pulse = Mathf.Sin(progress * Mathf.PI);
+        return Mathf.Lerp(stable, Mathf.Min(1f, stable * 1.55f), pulse);
+    }
 
     // Parâmetro da seleção existente; não cria outra representação do território.
     public void SetTransferConfirmationHighlight(bool value)
@@ -40,6 +78,9 @@ public class TerritorioVisual : MonoBehaviour
     private bool destaqueConquistaAtivo;
     private Coroutine selectionScaleCoroutine;
     private Coroutine conquestGlowCoroutine;
+    private Coroutine ownerRevealCoroutine;
+    private GameObject ownerRevealRoot;
+    private static Sprite revealMaskSprite;
     private Transform selectionVisualRoot;
     private SpriteRenderer selectionSprite;
     private Vector3 selectionPivotLocal;
@@ -102,9 +143,12 @@ public class TerritorioVisual : MonoBehaviour
         ClearSelectionVisual(true);
         if (conquestGlowObject != null)
             Destroy(conquestGlowObject);
+        ClearOwnerReveal();
         conquestGlowCoroutine = null;
         destaqueReforcoAtivo = false;
         destaqueConquistaAtivo = false;
+        labSelectionPulseStart = float.NegativeInfinity;
+        labSelectionPulseEnd = float.NegativeInfinity;
         if (sr != null)
         {
             sr.enabled = true;
@@ -146,7 +190,8 @@ public class TerritorioVisual : MonoBehaviour
 
         if (reforcoAtivo)
         {
-            float duracao = premium ? temaGameplay.TerritoryReinforcementDuration
+            float duracao = labFeedbackEnabled ? labReinforcementDuration
+                : premium ? temaGameplay.TerritoryReinforcementDuration
                 : DuracaoDestaqueConquista;
             float progresso = Mathf.Clamp01((Time.unscaledTime - inicioDestaqueReforco) /
                 Mathf.Max(0.01f, duracao));
@@ -155,7 +200,8 @@ public class TerritorioVisual : MonoBehaviour
                 ? Mathf.SmoothStep(0f, 1f, restante)
                 : Mathf.Sin(progresso * Mathf.PI);
             corAtual = Color.Lerp(corAtual, Color.white,
-                (premium ? 0.24f : destaqueConquistaAtivo ? 0.36f : 0.42f) * brilho);
+                (labFeedbackEnabled ? labReinforcementIntensity
+                    : premium ? 0.24f : destaqueConquistaAtivo ? 0.36f : 0.42f) * brilho);
         }
 
         sr.color = corAtual;
@@ -261,10 +307,170 @@ public class TerritorioVisual : MonoBehaviour
         AtualizarCor();
     }
 
+    // 02.2. LIMPEZA DETERMINÍSTICA — o laboratório pode interromper uma
+    // demonstração sem deixar corrotinas antigas restaurarem cor ou escala.
+    public void ResetTransientFeedback()
+    {
+        ClearActiveGlow();
+        ClearOwnerReveal();
+        destaqueReforcoAtivo = false;
+        destaqueConquistaAtivo = false;
+        fimDestaqueReforco = 0f;
+        labSelectionPulseStart = float.NegativeInfinity;
+        labSelectionPulseEnd = float.NegativeInfinity;
+        TransferConfirmationHighlighted = false;
+        ClearSelectionVisual(true);
+        selecionado = false;
+        AtualizarCor();
+    }
+
+    // ============================================================
+    // 02.3. REVELAÇÃO DIRECIONAL — overlay temporário recortado pela máscara
+    // territorial; não altera sprite, material permanente ou collider.
+    // ============================================================
+    public void RevealOwnerColorDirectional(TerritorioClique.Dono newOwner,
+        Vector3 entryWorld, Vector3 directionWorld, float duration,
+        float intensity)
+    {
+        ClearOwnerReveal();
+        if (sr == null)
+            sr = GetComponent<SpriteRenderer>();
+        if (sr == null || sr.sprite == null || !isActiveAndEnabled)
+        {
+            AplicarDonoVisual(newOwner);
+            return;
+        }
+        ownerRevealCoroutine = StartCoroutine(AnimateOwnerReveal(newOwner,
+            entryWorld, directionWorld, duration, intensity));
+    }
+
+    private IEnumerator AnimateOwnerReveal(TerritorioClique.Dono newOwner,
+        Vector3 entryWorld, Vector3 directionWorld, float duration,
+        float intensity)
+    {
+        ownerRevealRoot = new GameObject("DirectionalOwnerReveal");
+        ownerRevealRoot.transform.SetParent(transform, false);
+        var overlayObject = new GameObject("Color", typeof(SpriteRenderer));
+        overlayObject.transform.SetParent(ownerRevealRoot.transform, false);
+        SpriteRenderer overlay = overlayObject.GetComponent<SpriteRenderer>();
+        overlay.sprite = sr.sprite;
+        overlay.sharedMaterial = sr.sharedMaterial;
+        overlay.sortingLayerID = sr.sortingLayerID;
+        overlay.sortingOrder = sr.sortingOrder + 1;
+        overlay.flipX = sr.flipX;
+        overlay.flipY = sr.flipY;
+        overlay.drawMode = sr.drawMode;
+        overlay.size = sr.size;
+        overlay.maskInteraction = SpriteMaskInteraction.VisibleInsideMask;
+        Color target = newOwner == TerritorioClique.Dono.Neutro
+            ? PaletaJogadores.ObterCorNeutraAtiva()
+            : PaletaJogadores.ObterCorAtiva(newOwner);
+        target.a *= Mathf.Clamp01(intensity);
+        overlay.color = target;
+
+        var maskObject = new GameObject("SweepMask", typeof(SpriteMask));
+        maskObject.transform.SetParent(ownerRevealRoot.transform, false);
+        SpriteMask mask = maskObject.GetComponent<SpriteMask>();
+        mask.sprite = GetRevealMaskSprite();
+        mask.alphaCutoff = .01f;
+        mask.isCustomRangeActive = true;
+        mask.frontSortingLayerID = sr.sortingLayerID;
+        mask.backSortingLayerID = sr.sortingLayerID;
+        mask.frontSortingOrder = overlay.sortingOrder;
+        mask.backSortingOrder = overlay.sortingOrder - 1;
+
+        Vector2 direction = transform.InverseTransformVector(directionWorld);
+        if (direction.sqrMagnitude < .0001f)
+            direction = Vector2.right;
+        direction.Normalize();
+        Vector2 normal = new(-direction.y, direction.x);
+        Bounds bounds = sr.localBounds;
+        Vector2[] corners = {
+            new(bounds.min.x, bounds.min.y), new(bounds.max.x, bounds.min.y),
+            new(bounds.max.x, bounds.max.y), new(bounds.min.x, bounds.max.y)
+        };
+        float minAlong = float.PositiveInfinity, maxAlong = float.NegativeInfinity;
+        float minAcross = float.PositiveInfinity, maxAcross = float.NegativeInfinity;
+        foreach (Vector2 corner in corners)
+        {
+            float along = Vector2.Dot(corner, direction);
+            float across = Vector2.Dot(corner, normal);
+            minAlong = Mathf.Min(minAlong, along);
+            maxAlong = Mathf.Max(maxAlong, along);
+            minAcross = Mathf.Min(minAcross, across);
+            maxAcross = Mathf.Max(maxAcross, across);
+        }
+        Vector2 entry = transform.InverseTransformPoint(entryWorld);
+        float start = Mathf.Clamp(Vector2.Dot(entry, direction),
+            minAlong, maxAlong);
+        float safeDuration = Mathf.Max(.05f, duration);
+        for (float elapsed = 0f; elapsed < safeDuration;
+            elapsed += Time.unscaledDeltaTime)
+        {
+            float progress = Mathf.SmoothStep(0f, 1f,
+                Mathf.Clamp01(elapsed / safeDuration));
+            ConfigureRevealMask(maskObject.transform, direction, normal,
+                Mathf.Lerp(start, minAlong, progress),
+                Mathf.Lerp(start, maxAlong, progress), minAcross, maxAcross);
+            yield return null;
+        }
+        AplicarDonoVisual(newOwner);
+        ClearOwnerReveal(false);
+    }
+
+    private static void ConfigureRevealMask(Transform mask, Vector2 direction,
+        Vector2 normal, float minAlong, float maxAlong, float minAcross,
+        float maxAcross)
+    {
+        float length = Mathf.Max(.001f, maxAlong - minAlong);
+        float width = Mathf.Max(.001f, maxAcross - minAcross);
+        Vector2 center = direction * ((minAlong + maxAlong) * .5f) +
+            normal * ((minAcross + maxAcross) * .5f);
+        mask.localPosition = new Vector3(center.x, center.y, -.01f);
+        mask.localRotation = Quaternion.Euler(0f, 0f,
+            Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg);
+        mask.localScale = new Vector3(length, width + .05f, 1f);
+    }
+
+    private static Sprite GetRevealMaskSprite()
+    {
+        if (revealMaskSprite != null)
+            return revealMaskSprite;
+        var texture = new Texture2D(2, 2, TextureFormat.RGBA32, false)
+        {
+            hideFlags = HideFlags.HideAndDontSave,
+            filterMode = FilterMode.Bilinear,
+            wrapMode = TextureWrapMode.Clamp
+        };
+        texture.SetPixels(new[] { Color.white, Color.white,
+            Color.white, Color.white });
+        texture.Apply(false, true);
+        revealMaskSprite = Sprite.Create(texture, new Rect(0f, 0f, 2f, 2f),
+            new Vector2(.5f, .5f), 2f);
+        revealMaskSprite.hideFlags = HideFlags.HideAndDontSave;
+        return revealMaskSprite;
+    }
+
+    private void ClearOwnerReveal(bool stopCoroutine = true)
+    {
+        if (stopCoroutine && ownerRevealCoroutine != null)
+            StopCoroutine(ownerRevealCoroutine);
+        ownerRevealCoroutine = null;
+        if (ownerRevealRoot != null)
+            Destroy(ownerRevealRoot);
+        ownerRevealRoot = null;
+    }
+
     public void DestacarSelecao()
     {
         bool previous = SelectionRaised;
         selecionado = true;
+        if (!previous && labFeedbackEnabled)
+        {
+            labSelectionPulseStart = Time.unscaledTime;
+            labSelectionPulseEnd = labSelectionPulseStart +
+                labSelectionEntryDuration;
+        }
         RefreshSelectionVisual(previous);
     }
 
@@ -305,7 +511,8 @@ public class TerritorioVisual : MonoBehaviour
         destaqueReforcoAtivo = true;
         destaqueConquistaAtivo = false;
         inicioDestaqueReforco = Time.unscaledTime;
-        fimDestaqueReforco = Time.unscaledTime + (PremiumAtivo
+        fimDestaqueReforco = Time.unscaledTime + (labFeedbackEnabled
+            ? labReinforcementDuration : PremiumAtivo
             ? temaGameplay.TerritoryReinforcementDuration : DuracaoDestaqueConquista);
     }
 
@@ -418,10 +625,13 @@ public class TerritorioVisual : MonoBehaviour
 
     private IEnumerator AnimateSelectionScale(Vector3 target, bool cleanupAfter)
     {
-        float duration = PremiumAtivo
+        float duration = labFeedbackEnabled ? labSelectionEntryDuration
+            : PremiumAtivo
             ? (MovimentoReduzido ? 0.08f : temaGameplay.TerritorySelectionEntryDuration)
             : 0.20f;
         Vector3 start = selectionVisualRoot.localScale;
+        Color startColor = selectionSprite != null
+            ? selectionSprite.color : corBase;
         float elapsed = 0f;
         while (elapsed < duration && selectionVisualRoot != null)
         {
@@ -429,6 +639,8 @@ public class TerritorioVisual : MonoBehaviour
             float progress = Mathf.Clamp01(elapsed / duration);
             float eased = progress * progress * (3f - 2f * progress);
             selectionVisualRoot.localScale = Vector3.LerpUnclamped(start, target, eased);
+            if (cleanupAfter && selectionSprite != null)
+                selectionSprite.color = Color.Lerp(startColor, corBase, eased);
             yield return null;
         }
         if (selectionVisualRoot != null)

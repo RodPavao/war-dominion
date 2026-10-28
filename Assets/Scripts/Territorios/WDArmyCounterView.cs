@@ -19,6 +19,9 @@ public sealed class WDArmyCounterView : MonoBehaviour
     private Color lastOwnedColor = NeutralAccent;
     private VisualState state;
     private WarDominionUITheme gameplayTheme;
+    private bool labGlassEnabled;
+    private Color labGlassIdentity = Color.white;
+    private WDGameplayGlassStyle labGlassStyle;
     public TerritorioClique Territorio => territorio;
     public int QuantidadeExibida { get; private set; }
     public VisualState EstadoVisual => state;
@@ -58,6 +61,138 @@ public sealed class WDArmyCounterView : MonoBehaviour
         ownerColor = lastOwnedColor = Opaca(cor);
         if (GarantirComposicao()) AplicarPaletaAtual();
     }
+
+    // ============================================================
+    // 02.1. BADGE VIAJANTE PREMIUM — opt-in exclusivo dos presenters do lab
+    // ============================================================
+    public void AplicarEstiloBadgeViajante(Color identidade)
+    {
+        if (!GarantirComposicao() || body == null)
+            return;
+        Color graphite = new(16f / 255f, 24f / 255f, 32f / 255f, .94f);
+        body.color = graphite;
+        troopNumber.color = Color.white;
+        troopNumber.fontStyle = FontStyles.Bold;
+
+        SpriteRenderer shadow = GarantirCamadaBadge("TravellingShadow", 21);
+        shadow.color = new Color(0f, 0f, 0f, .34f);
+        shadow.transform.localPosition = new Vector3(.018f, -.025f, .02f);
+        shadow.transform.localScale = body.transform.localScale * 1.10f;
+
+        SpriteRenderer identity = GarantirCamadaBadge("TravellingIdentity", 22);
+        Color accent = identidade;
+        accent.a = .86f;
+        identity.color = accent;
+        identity.transform.localPosition = new Vector3(0f, 0f, .01f);
+        identity.transform.localScale = body.transform.localScale * 1.075f;
+
+        SpriteRenderer silver = GarantirCamadaBadge("TravellingSilver", 23);
+        silver.color = new Color(.88f, .91f, .94f, .96f);
+        silver.transform.localPosition = Vector3.zero;
+        silver.transform.localScale = body.transform.localScale * 1.035f;
+    }
+
+    // ============================================================
+    // 02.2. GLASS PREMIUM 2.0 — opt-in e reversível somente no laboratório
+    // ============================================================
+    public void ConfigurarGlassLaboratorio(Color identidade,
+        WDGameplayGlassStyle style)
+    {
+        Color opaqueIdentity = Opaca(identidade);
+        if (labGlassEnabled == style.Enabled &&
+            labGlassIdentity == opaqueIdentity && SameGlassStyle(labGlassStyle, style))
+            return;
+        labGlassEnabled = style.Enabled;
+        labGlassIdentity = opaqueIdentity;
+        labGlassStyle = style;
+        if (!GarantirComposicao())
+            return;
+        DefinirCamadasGlassAtivas(labGlassEnabled);
+        AplicarPaletaAtual();
+    }
+
+    private static bool SameGlassStyle(WDGameplayGlassStyle a,
+        WDGameplayGlassStyle b) => a.Enabled == b.Enabled &&
+        Mathf.Approximately(a.GlassIntensity, b.GlassIntensity) &&
+        Mathf.Approximately(a.GradientStrength, b.GradientStrength) &&
+        Mathf.Approximately(a.ReflectionIntensity, b.ReflectionIntensity) &&
+        Mathf.Approximately(a.BevelStrength, b.BevelStrength) &&
+        Mathf.Approximately(a.GlowIntensity, b.GlowIntensity) &&
+        a.Variant == b.Variant;
+
+    private void AplicarGlassAtual()
+    {
+        Color graphite = Color.Lerp(new Color(.035f, .055f, .075f, 1f),
+            new Color(.015f, .025f, .038f, 1f),
+            labGlassStyle.ProfiledGlassIntensity);
+        body.color = graphite;
+        troopNumber.color = Color.white;
+
+        SpriteRenderer shadow = GarantirCamadaBadge("GlassShadow", 19);
+        shadow.color = new Color(0f, 0f, 0f,
+            Mathf.Lerp(.20f, .42f, labGlassStyle.ProfiledGlassIntensity));
+        shadow.transform.localPosition = new Vector3(.018f, -.026f, .03f);
+        shadow.transform.localScale = body.transform.localScale * 1.115f;
+
+        SpriteRenderer lower = GarantirCamadaBadge("GlassOwnerLower", 20);
+        lower.color = Color.Lerp(labGlassIdentity,
+            Color.black, .18f + labGlassStyle.ProfiledGradientStrength * .24f);
+        lower.transform.localPosition = Vector3.zero;
+        lower.transform.localScale = body.transform.localScale * 1.09f;
+        lower.enabled = labGlassStyle.Variant != WDGameplayGlassVariant.Clean;
+
+        SpriteRenderer upper = GarantirCamadaBadge("GlassOwnerUpper", 21);
+        Color upperColor = Color.Lerp(labGlassIdentity, Color.white,
+            .12f + labGlassStyle.ProfiledGradientStrength * .25f);
+        upperColor.a = Mathf.Lerp(.62f, .94f,
+            labGlassStyle.ProfiledGlassIntensity);
+        upper.color = upperColor;
+        upper.transform.localPosition = new Vector3(0f, .014f, .02f);
+        upper.transform.localScale = body.transform.localScale * 1.068f;
+
+        SpriteRenderer bevel = GarantirCamadaBadge("GlassBevel", 22);
+        bevel.color = new Color(.88f, .92f, .96f,
+            Mathf.Lerp(.12f, .52f, labGlassStyle.ProfiledBevelStrength));
+        bevel.transform.localPosition = Vector3.zero;
+        bevel.transform.localScale = body.transform.localScale * 1.035f;
+
+        SpriteRenderer reflection = GarantirCamadaBadge("GlassReflection", 25);
+        reflection.color = new Color(1f, 1f, 1f,
+            Mathf.Lerp(0f, .20f,
+                labGlassStyle.ProfiledReflectionIntensity));
+        reflection.transform.localPosition = new Vector3(0f, .012f, -.02f);
+        reflection.transform.localScale = body.transform.localScale * .965f;
+    }
+
+    private void DefinirCamadasGlassAtivas(bool active)
+    {
+        if (visualRoot == null)
+            return;
+        foreach (string name in new[] { "GlassShadow", "GlassOwnerLower",
+            "GlassOwnerUpper", "GlassBevel", "GlassReflection" })
+        {
+            Transform layer = visualRoot.Find(name);
+            if (layer != null)
+                layer.gameObject.SetActive(active);
+        }
+    }
+
+    private SpriteRenderer GarantirCamadaBadge(string name, int sortingOrder)
+    {
+        Transform layer = GarantirObjeto(visualRoot, name);
+        // 02.1.1. COMPONENTE NATIVO — UnityEngine.Object usa "fake null" para
+        // componentes ausentes. A verificação explícita aciona o operador do
+        // Unity e impede que um wrapper inválido chegue à atribuição do sprite.
+        SpriteRenderer renderer = layer.GetComponent<SpriteRenderer>();
+        if (renderer == null)
+            renderer = layer.gameObject.AddComponent<SpriteRenderer>();
+        renderer.sprite = bodySprite;
+        renderer.sharedMaterial = body != null ? body.sharedMaterial : null;
+        renderer.sortingLayerID = body != null ? body.sortingLayerID : 0;
+        renderer.sortingOrder = sortingOrder;
+        renderer.enabled = true;
+        return renderer;
+    }
     public void AplicarEstado(VisualState novoEstado, bool animar = true)
     {
         state = novoEstado;
@@ -73,6 +208,15 @@ public sealed class WDArmyCounterView : MonoBehaviour
     public void PulsoReforco() => AplicarEstado(VisualState.Reinforcement);
     public void PulsoDano() => AplicarEstado(VisualState.Damage);
     public void MostrarAtaqueAtivo(bool ativo) => AplicarEstado(ativo ? VisualState.AttackActive : VisualState.Normal, ativo);
+
+    public void ResetTransientFeedback()
+    {
+        if (stateAnimation != null) StopCoroutine(stateAnimation);
+        stateAnimation = null;
+        state = VisualState.Normal;
+        if (visualRoot != null) visualRoot.localScale = Vector3.one;
+        AplicarPaletaAtual();
+    }
 
     private bool GarantirComposicao()
     {
@@ -144,6 +288,11 @@ public sealed class WDArmyCounterView : MonoBehaviour
     private void AplicarPaletaAtual()
     {
         if (body == null) return;
+        if (labGlassEnabled)
+        {
+            AplicarGlassAtual();
+            return;
+        }
         Color color = state == VisualState.Empty ? lastOwnedColor : ownerColor;
         if (state == VisualState.Selected || state == VisualState.AttackActive)
             color = Color.Lerp(color, Color.white, 0.16f);

@@ -30,6 +30,7 @@ public sealed class WDCombatContextLabController : MonoBehaviour
         Reinforcement,
         OwnershipTransfer
     }
+    public enum ReinforcementMode { IndividualTouch, HoldAllAvailable }
 
     [Header("Territórios reais clonados de WarGame")]
     [SerializeField] private TerritorioClique origin;
@@ -95,14 +96,131 @@ public sealed class WDCombatContextLabController : MonoBehaviour
     [SerializeField, Range(0f, 1f)] private float confirmedSurfaceOpacity = 1f;
     [SerializeField, Range(0f, 40f)] private float confirmedOriginMargin = 5f;
     [SerializeField, Range(0f, 40f)] private float confirmedDestinationMargin = 5f;
-    [SerializeField, Range(-120f, 120f)] private float confirmedCurveHeight = 19f;
-    [SerializeField, Range(-40f, 40f)] private float confirmedOriginExtension = 15.2f;
-    [SerializeField, Range(-40f, 40f)] private float confirmedDestinationExtension = 15.5f;
-    [SerializeField, Range(0f, 1f)] private float confirmedCurvePosition = .399f;
+    [SerializeField, Range(-120f, 120f)] private float confirmedCurveHeight = 10f;
+    [SerializeField, Range(-40f, 40f)] private float confirmedOriginExtension = -5f;
+    [SerializeField, Range(-40f, 40f)] private float confirmedDestinationExtension = -.9f;
+    [SerializeField, Range(0f, 1f)] private float confirmedCurvePosition = .379f;
+
+    [Header("Ataque conquistado — somente laboratório")]
+    [SerializeField, InspectorName("Travel Duration"), Range(.1f, 3f)]
+    private float conqueredTravelDuration = .55f;
+    [SerializeField, InspectorName("Travel Ease")]
+    private WDAttackTravelEase conqueredTravelEase = WDAttackTravelEase.EaseOutCubic;
+    [SerializeField, InspectorName("Contact Hold Duration"), Range(0f, 1f)]
+    private float conqueredContactHoldDuration = .22f;
+    [SerializeField, InspectorName("Contact Pressure Intensity"), Range(0f, .3f)]
+    private float conqueredContactPressureIntensity = .04f;
+    [SerializeField, InspectorName("Contact Separation"), Range(.1f, 2f)]
+    private float conqueredContactSeparation = .238f;
+    [SerializeField, InspectorName("Result Reveal Duration"), Range(0f, 2f)]
+    private float conqueredResultDuration = .30f;
+    [SerializeField, Range(-.5f, .5f)] private float conqueredCurveFactor = .06f;
+    [SerializeField, Range(0f, 3f)] private float conqueredCurveHeight = 1.1f;
+    [SerializeField, Range(.5f, 2f)] private float conqueredCounterScale = 1f;
+    [SerializeField, Range(.1f, 2f)] private float conqueredImpactDuration = .65f;
+    [SerializeField, Range(8f, 100f)] private float conqueredImpactSize = 42f;
+    [SerializeField, Range(0f, 120f)] private float conqueredImpactSpread = 34f;
+    [SerializeField, Range(0f, 1f)] private float conqueredImpactOpacity = .76f;
+
+    [Header("Ataque defendido — somente laboratório")]
+    [SerializeField, InspectorName("Travel Duration"), Range(.1f, 3f)]
+    private float defendedTravelDuration = .55f;
+    [SerializeField, InspectorName("Travel Ease")]
+    private WDAttackTravelEase defendedTravelEase = WDAttackTravelEase.EaseOutCubic;
+    [SerializeField, InspectorName("Contact Hold Duration"), Range(0f, 1f)]
+    private float defendedContactHoldDuration = .22f;
+    [SerializeField, InspectorName("Contact Pressure Intensity"), Range(0f, .3f)]
+    private float defendedContactPressureIntensity = .04f;
+    [SerializeField, InspectorName("Contact Separation"), Range(.1f, 2f)]
+    private float defendedContactSeparation = .238f;
+    [SerializeField, InspectorName("Result Reveal Duration"), Range(0f, 2f)]
+    private float defendedResultDuration = .30f;
+    [SerializeField, Range(-.5f, .5f)] private float defendedCurveFactor = .06f;
+    [SerializeField, Range(0f, 3f)] private float defendedCurveHeight = 1.1f;
+    [SerializeField, Range(.5f, 2f)] private float defendedCounterScale = 1f;
+    [SerializeField, Range(.1f, 2f)] private float defendedImpactDuration = .65f;
+    [SerializeField, Range(8f, 100f)] private float defendedImpactSize = 42f;
+    [SerializeField, Range(0f, 120f)] private float defendedImpactSpread = 34f;
+    [SerializeField, Range(0f, 1f)] private float defendedImpactOpacity = .76f;
+
+    [Header("Resolução visual — somente laboratório")]
+    [SerializeField, Range(.05f, 2f)] private float resolutionArrowDuration = .48f;
+    [SerializeField, Range(.1f, 3f)] private float resolutionArrowSpeed = 1f;
+    [SerializeField, Range(-.5f, .5f)] private float resolutionArrowSyncOffset;
+    [SerializeField, Range(.05f, 2f)] private float conquestRevealDuration = .58f;
+    [SerializeField, Range(0f, 1f)] private float conquestRevealIntensity = 1f;
+
+    [Header("Movimento aliado — somente laboratório")]
+    [SerializeField, Range(.1f, 3f)] private float movementTravelDuration = .55f;
+    [SerializeField, Range(-.5f, .5f)] private float movementCurveFactor = .06f;
+    [SerializeField, Range(0f, 3f)] private float movementCurveHeight = 1.1f;
+    [SerializeField, Range(.5f, 2f)] private float movementCounterScale = 1f;
+    [SerializeField, Range(0f, 2f)] private float movementSettleDuration = .8f;
+
+    [Header("Reforço recebido — somente laboratório")]
+    [SerializeField, Range(.05f, 2f)] private float reinforcementEntry = .18f;
+    [SerializeField, InspectorName("Text Hold Duration"), Range(0f, 2f)]
+    private float reinforcementReaction = .54f;
+    [SerializeField, InspectorName("Fade Duration"), Range(.05f, 2f)]
+    private float reinforcementExit = .28f;
+    [SerializeField, Range(.25f, 2f)] private float reinforcementInitialScale = .72f;
+    [SerializeField, Range(8f, 140f)] private float reinforcementPulseSize = 58f;
+    [SerializeField, Range(0f, 1f)] private float reinforcementPulseOpacity = .32f;
+    [SerializeField, Range(-100f, 100f)] private float reinforcementTextOffset = 42f;
+    [SerializeField, Range(8f, 60f)] private float reinforcementTextSize = 21f;
+    [SerializeField] private Color reinforcementTextColor =
+        new(16f / 255f, 24f / 255f, 32f / 255f, 1f);
+    [SerializeField, Range(0f, 1f)] private float reinforcementTextOpacity = .96f;
+    [SerializeField, Range(0f, 1f)] private float reinforcementOutlineWidth = .18f;
+    [SerializeField, Range(0f, 1f)] private float reinforcementOutlineOpacity = .58f;
+    [SerializeField, InspectorName("Vertical Rise Distance"), Range(0f, 80f)]
+    private float reinforcementRiseDistance = 24f;
+    [SerializeField] private ReinforcementMode reinforcementMode =
+        ReinforcementMode.HoldAllAvailable;
+
+    [Header("Glow territorial — somente laboratório")]
+    [SerializeField, Range(0f, 1f)] private float selectionGlowIntensity = .42f;
+    [SerializeField, Range(.02f, 1f)] private float selectionGlowDuration = .10f;
+    [SerializeField, Range(0f, 1f)] private float reinforcementGlowIntensity = .38f;
+    [SerializeField, Range(.05f, 2f)] private float reinforcementGlowDuration = .45f;
+
+    [Header("Transferência de propriedade — somente laboratório")]
+    [SerializeField, Range(.05f, 2f)] private float handoffTransitionDuration = .55f;
+    [SerializeField, Range(.05f, 2f)] private float handoffReactionDuration = .42f;
+    [SerializeField] private Vector2 handoffBadgeSize = new(58f, 46f);
+    [SerializeField] private Vector2 handoffBadgeOffset = new(0f, -52f);
+    [SerializeField, Range(.5f, 10f)] private float handoffArrowThickness =
+        WDTransferCycleGraphic.EmphasizedBadgeThickness;
+    [SerializeField, Range(0f, 1f)] private float handoffArrowOpacity = 1f;
+    [SerializeField, Range(0f, 1f)] private float handoffSurfaceOpacity = .96f;
+    [SerializeField, Tooltip("Mantém o badge até INTERROMPER/REINICIAR, simulando a preparação oficial.")]
+    private bool handoffPersistentPreparation = true;
+
+    [Header("Glass Premium 2.0 — somente laboratório")]
+    [SerializeField] private WDGameplayVisualFinish visualFinish =
+        WDGameplayVisualFinish.ApprovedClassic;
+    [SerializeField] private WDGameplayGlassVariant glassVariant =
+        WDGameplayGlassVariant.Current;
+    [SerializeField] private WDGameplayVisualOverride counterFinish;
+    [SerializeField] private WDGameplayVisualOverride casualtyFinish;
+    [SerializeField] private WDGameplayVisualOverride transferFinish;
+    [SerializeField] private WDGameplayVisualOverride attackBadgeFinish;
+    [SerializeField] private WDGameplayVisualOverride reinforcementFinish;
+    [SerializeField, Range(0f, 1f)] private float glassIntensity = .78f;
+    [SerializeField, Range(0f, 1f)] private float glassGradientStrength = .55f;
+    [SerializeField, Range(0f, 1f)] private float glassReflectionIntensity = .35f;
+    [SerializeField, Range(0f, 1f)] private float glassBevelStrength = .45f;
+    [SerializeField, Range(0f, 1f)] private float glassGlowIntensity = .18f;
 
     private ResolutionSequenceController sequence;
+    private AttackResolutionPresenter attackPresenter;
+    private ResolutionVisualEvent activeResolutionEvent;
+    private ReinforcementResolutionPresenter reinforcementPresenter;
+    private TransferResolutionPresenter transferPresenter;
     private readonly List<PreparationBinding> preparationViews = new();
     private bool initialized;
+    private WDTransferOwnershipBadgeView preparedTransferBadge;
+    private Scenario activeScenario;
     private WDPreparedIndicatorStyle appliedIndicatorStyle;
     private bool hasAppliedIndicatorStyle;
     private WDConfirmedAttackStyle appliedConfirmedAttackStyle;
@@ -113,6 +231,8 @@ public sealed class WDCombatContextLabController : MonoBehaviour
     private float appliedOriginExtension;
     private float appliedDestinationExtension;
     private float appliedCurvePosition;
+    private bool individualReinforcementSessionActive;
+    private int pendingIndividualReinforcements;
 
     public static IReadOnlyList<string> ScenarioLabels { get; } = new[]
     {
@@ -158,6 +278,10 @@ public sealed class WDCombatContextLabController : MonoBehaviour
     // ============================================================
     private void Update()
     {
+        ApplyScenarioLabStyles();
+        ApplyTerritoryLabFeedback();
+        ApplyCounterGlassStyles();
+        UpdatePreparedTransferBadge();
         WDPreparedIndicatorStyle current = BuildIndicatorStyle();
         WDConfirmedAttackStyle confirmed = BuildConfirmedAttackStyle();
         bool indicatorsChanged = !hasAppliedIndicatorStyle ||
@@ -177,8 +301,13 @@ public sealed class WDCombatContextLabController : MonoBehaviour
                         binding.View.ConfigureIndicatorStyle(current);
                     if (confirmedChanged)
                         binding.View.ConfigureConfirmedAttackStyle(confirmed);
+                    binding.View.ConfigureLabGlassStyle(
+                        BuildGlassStyle(attackBadgeFinish));
                 }
         }
+        foreach (PreparationBinding binding in preparationViews)
+            binding.View?.ConfigureLabGlassStyle(
+                BuildGlassStyle(attackBadgeFinish));
         if (!Mathf.Approximately(appliedOriginMargin, confirmedOriginMargin) ||
             !Mathf.Approximately(appliedDestinationMargin,
                 confirmedDestinationMargin) ||
@@ -206,13 +335,14 @@ public sealed class WDCombatContextLabController : MonoBehaviour
         if (mapOverlay == null)
             return;
 
-        AttackResolutionPresenter attack = GetOrAdd<AttackResolutionPresenter>(mapOverlay.gameObject);
-        ReinforcementResolutionPresenter reinforcement =
+        attackPresenter = GetOrAdd<AttackResolutionPresenter>(mapOverlay.gameObject);
+        reinforcementPresenter =
             GetOrAdd<ReinforcementResolutionPresenter>(mapOverlay.gameObject);
-        TransferResolutionPresenter transfer = GetOrAdd<TransferResolutionPresenter>(mapOverlay.gameObject);
-        attack.Configure(theme);
-        reinforcement.Configure(theme);
-        transfer.Configure(theme);
+        transferPresenter = GetOrAdd<TransferResolutionPresenter>(mapOverlay.gameObject);
+        attackPresenter.Configure(theme);
+        reinforcementPresenter.Configure(theme);
+        transferPresenter.Configure(theme);
+        ApplyScenarioLabStyles();
 
         sequence = GetOrAdd<ResolutionSequenceController>(mapOverlay.gameObject);
         sequence.Configure(mapOverlay, null);
@@ -242,10 +372,21 @@ public sealed class WDCombatContextLabController : MonoBehaviour
         if (!IsReady)
             return;
 
-        StopAndRestore();
         Scenario scenario = (Scenario)Mathf.Clamp(
             scenarioDropdown != null ? scenarioDropdown.value : 0,
             0, ScenarioLabels.Count - 1);
+        bool continueIndividual = scenario == Scenario.Reinforcement &&
+            reinforcementMode == ReinforcementMode.IndividualTouch &&
+            individualReinforcementSessionActive;
+        if (continueIndividual && sequence.IsRunning)
+        {
+            pendingIndividualReinforcements++;
+            SetStatus($"Reforço +1 aguardando ({pendingIndividualReinforcements}).");
+            return;
+        }
+        if (!continueIndividual)
+            StopAndRestore();
+        activeScenario = scenario;
         SetStatus("Executando: " + ScenarioLabels[(int)scenario]);
 
         switch (scenario)
@@ -265,18 +406,12 @@ public sealed class WDCombatContextLabController : MonoBehaviour
                     WDPreparedActionVisualMode.ConfirmedAttack, 7);
                 break;
             case Scenario.ConqueredAttack:
-                sequence.Play(new[] { ResolutionVisualEvent.Attack(
-                    TerritorioClique.Dono.Jogador1, origin.idTerritorio,
-                    enemy.idTerritorio, 7, 12, 5, 4, 3, true,
-                    TerritorioClique.Dono.Jogador2,
-                    TerritorioClique.Dono.Jogador1) });
+                PlaySyntheticAttack(BuildConqueredAttackEvent(
+                    origin.idTerritorio, enemy.idTerritorio));
                 break;
             case Scenario.DefendedAttack:
-                sequence.Play(new[] { ResolutionVisualEvent.Attack(
-                    TerritorioClique.Dono.Jogador1, origin.idTerritorio,
-                    enemy.idTerritorio, 5, 12, 7, 9, 5, false,
-                    TerritorioClique.Dono.Jogador2,
-                    TerritorioClique.Dono.Jogador2) });
+                PlaySyntheticAttack(BuildDefendedAttackEvent(
+                    origin.idTerritorio, enemy.idTerritorio));
                 break;
             case Scenario.AlliedMovement:
                 sequence.Play(new[] { ResolutionVisualEvent.Movement(
@@ -286,17 +421,89 @@ public sealed class WDCombatContextLabController : MonoBehaviour
                     TerritorioClique.Dono.Jogador1) });
                 break;
             case Scenario.Reinforcement:
-                sequence.Play(new[] { ResolutionVisualEvent.Reinforcement(
-                    TerritorioClique.Dono.Jogador1, origin.idTerritorio,
-                    5, 12, 17) });
+                individualReinforcementSessionActive = reinforcementMode ==
+                    ReinforcementMode.IndividualTouch;
+                PlaySyntheticReinforcement(reinforcementMode);
                 break;
             case Scenario.OwnershipTransfer:
-                sequence.Play(new[] { ResolutionVisualEvent.TerritoryHandoff(
-                    TerritorioClique.Dono.Jogador1,
-                    TerritorioClique.Dono.Jogador3,
-                    handoff.idTerritorio, 8, 8) });
+                if (handoffPersistentPreparation)
+                    ShowPreparedTransferBadge();
+                else
+                {
+                    activeResolutionEvent = ResolutionVisualEvent.TerritoryHandoff(
+                        TerritorioClique.Dono.Jogador1,
+                        TerritorioClique.Dono.Jogador3,
+                        handoff.idTerritorio, 8, 8);
+                    sequence.Play(new[] { activeResolutionEvent });
+                }
                 break;
         }
+    }
+
+    // ============================================================
+    // 02.1. SNAPSHOTS SINTÉTICOS — resultados completos e coerentes
+    // ============================================================
+    public static ResolutionVisualEvent BuildConqueredAttackEvent(
+        string originId, string destinationId) => ResolutionVisualEvent.Attack(
+        TerritorioClique.Dono.Jogador1, originId, destinationId,
+        9, 12, 3, 6, 3, true,
+        TerritorioClique.Dono.Jogador2, TerritorioClique.Dono.Jogador1);
+
+    public static ResolutionVisualEvent BuildDefendedAttackEvent(
+        string originId, string destinationId) => ResolutionVisualEvent.Attack(
+        TerritorioClique.Dono.Jogador1, originId, destinationId,
+        7, 12, 5, 9, 6, false,
+        TerritorioClique.Dono.Jogador2, TerritorioClique.Dono.Jogador2);
+
+    public static bool HasCoherentCombatSnapshot(ResolutionVisualEvent value)
+    {
+        if (value == null || value.Type != ResolutionVisualEventType.Attack ||
+            value.Amount <= 0 || value.OriginAfter != value.OriginBefore - value.Amount)
+            return false;
+        (int attackerLosses, int defenderLosses) =
+            AttackResolutionPresenter.CalculateCasualties(value);
+        if (attackerLosses < 0 || attackerLosses > value.Amount ||
+            defenderLosses < 0 || defenderLosses > value.DestinationBefore)
+            return false;
+        return value.Conquered
+            ? value.NewOwner == value.Player &&
+                value.DestinationAfter == value.Amount - attackerLosses &&
+                defenderLosses == value.DestinationBefore
+            : value.NewOwner == value.PreviousOwner &&
+                attackerLosses == value.Amount &&
+                value.DestinationAfter == value.DestinationBefore - defenderLosses;
+    }
+
+    // 02.1.1. Cada acionamento individual produz seu próprio evento +1. O modo
+    // em lote continua emitindo um único evento com todo o saldo demonstrativo.
+    public static ResolutionVisualEvent BuildReinforcementEvent(string territoryId,
+        ReinforcementMode mode, int before, int available = 5)
+    {
+        int amount = mode == ReinforcementMode.IndividualTouch
+            ? 1 : Mathf.Max(0, available);
+        return ResolutionVisualEvent.Reinforcement(
+            TerritorioClique.Dono.Jogador1, territoryId, amount,
+            Mathf.Max(0, before), Mathf.Max(0, before) + amount);
+    }
+
+    private void PlaySyntheticReinforcement(ReinforcementMode mode)
+    {
+        ResolutionVisualEvent visualEvent = BuildReinforcementEvent(
+            origin.idTerritorio, mode, origin.Tropas, 5);
+        activeResolutionEvent = visualEvent;
+        sequence.Play(new[] { visualEvent });
+    }
+
+    private void PlaySyntheticAttack(ResolutionVisualEvent visualEvent)
+    {
+        if (!HasCoherentCombatSnapshot(visualEvent))
+            throw new System.InvalidOperationException(
+                "O cenário sintético de combate possui resultados incoerentes.");
+        RestoreTerritory(origin, visualEvent.Player, visualEvent.OriginBefore);
+        RestoreTerritory(enemy, visualEvent.PreviousOwner,
+            visualEvent.DestinationBefore);
+        activeResolutionEvent = visualEvent;
+        sequence.Play(new[] { visualEvent });
     }
 
     public void ToggleSpeed()
@@ -311,7 +518,11 @@ public sealed class WDCombatContextLabController : MonoBehaviour
 
     public void StopAndRestore()
     {
+        activeResolutionEvent = null;
+        pendingIndividualReinforcements = 0;
+        individualReinforcementSessionActive = false;
         ClearPreparationViews();
+        ClearPreparedTransferBadge();
         if (sequence != null)
         {
             float speed = sequence.PlaybackSpeed;
@@ -339,6 +550,7 @@ public sealed class WDCombatContextLabController : MonoBehaviour
         view.Build(theme);
         view.ConfigureIndicatorStyle(BuildIndicatorStyle());
         view.ConfigureConfirmedAttackStyle(BuildConfirmedAttackStyle());
+        view.ConfigureLabGlassStyle(BuildGlassStyle(attackBadgeFinish));
         view.SetColorAndAmount(PaletaJogadores.ObterCorAtiva(
             TerritorioClique.Dono.Jogador1), amount);
         view.SetMode(mode);
@@ -516,6 +728,50 @@ public sealed class WDCombatContextLabController : MonoBehaviour
         preparationViews.Clear();
     }
 
+    // 03.2. TRANSFERÊNCIA PREPARADA — usa o mesmo badge da partida e só é
+    // removida por cancelamento (INTERROMPER/REINICIAR) ou troca para resolução.
+    private void ShowPreparedTransferBadge()
+    {
+        if (preparedTransferBadge != null || mapOverlay == null)
+            return;
+        var badgeObject = new GameObject("ContextLab_PreparedOwnershipTransfer",
+            typeof(RectTransform));
+        badgeObject.transform.SetParent(mapOverlay, false);
+        preparedTransferBadge =
+            badgeObject.AddComponent<WDTransferOwnershipBadgeView>();
+        preparedTransferBadge.Build(theme, true);
+        preparedTransferBadge.ConfigureGlassStyle(
+            BuildGlassStyle(transferFinish));
+        badgeObject.transform.SetAsLastSibling();
+        UpdatePreparedTransferBadge();
+        SetStatus("Transferência preparada: INTERROMPER cancela; REINICIAR encerra a preparação.");
+    }
+
+    private void UpdatePreparedTransferBadge()
+    {
+        if (preparedTransferBadge == null || handoff == null ||
+            mapOverlay == null || mapCamera == null)
+            return;
+        var style = new WDTransferOwnershipBadgeStyle(true, handoffBadgeSize,
+            handoffBadgeOffset, handoffArrowThickness,
+            handoffArrowOpacity, handoffSurfaceOpacity);
+        preparedTransferBadge.ConfigureGlassStyle(
+            BuildGlassStyle(transferFinish));
+        preparedTransferBadge.Configure(PaletaJogadores.ObterCorAtiva(
+            TerritorioClique.Dono.Jogador1), style);
+        if (MapOverlayProjection.TryWorldToOverlay(mapOverlay,
+                ResolutionVisualMapUtility.GetActionWorldAnchor(handoff),
+                mapCamera, out Vector2 position))
+            preparedTransferBadge.SetPosition(position);
+    }
+
+    private void ClearPreparedTransferBadge()
+    {
+        if (preparedTransferBadge != null)
+            Destroy(preparedTransferBadge.gameObject);
+        preparedTransferBadge = null;
+    }
+
     // ============================================================
     // 04. RESTAURAÇÃO — somente clones locais recebem estado determinístico
     // ============================================================
@@ -532,6 +788,9 @@ public sealed class WDCombatContextLabController : MonoBehaviour
     {
         if (territory == null)
             return;
+        territory.GetComponent<TerritorioVisual>()?.ResetTransientFeedback();
+        territory.GetComponentInChildren<ContadorTropas>(true)?
+            .ResetTransientFeedback();
         territory.RemoverDestaqueSelecao();
         territory.DefinirDono(owner);
         territory.DefinirTropas(troops);
@@ -543,7 +802,54 @@ public sealed class WDCombatContextLabController : MonoBehaviour
         mapOverlay != null && theme != null && scenarioDropdown != null &&
         sequence != null;
 
-    private void OnSequenceCompleted() => SetStatus("Cenário concluído.");
+    private void OnSequenceCompleted()
+    {
+        // 04.1. CONSOLIDAÇÃO LOCAL — a sequência restaura o snapshot lógico
+        // oficial ao terminar. Como o laboratório não executa resolvedores,
+        // consolida depois disso somente o evento sintético que acabou de exibir.
+        ApplySyntheticOutcome(activeResolutionEvent);
+        activeResolutionEvent = null;
+        if (activeScenario == Scenario.Reinforcement &&
+            reinforcementMode == ReinforcementMode.IndividualTouch &&
+            individualReinforcementSessionActive &&
+            pendingIndividualReinforcements > 0)
+        {
+            pendingIndividualReinforcements--;
+            PlaySyntheticReinforcement(ReinforcementMode.IndividualTouch);
+            return;
+        }
+        SetStatus("Cenário concluído.");
+    }
+
+    private static void ApplySyntheticOutcome(ResolutionVisualEvent value)
+    {
+        if (value == null)
+            return;
+        TerritorioClique originTerritory = null;
+        TerritorioClique destination = null;
+        if (!string.IsNullOrEmpty(value.OriginTerritoryId) &&
+            ResolutionVisualMapUtility.TryGetTerritory(
+                value.OriginTerritoryId, out TerritorioClique resolvedOrigin))
+            originTerritory = resolvedOrigin;
+        if (!string.IsNullOrEmpty(value.DestinationTerritoryId) &&
+            ResolutionVisualMapUtility.TryGetTerritory(
+                value.DestinationTerritoryId, out TerritorioClique resolvedDestination))
+            destination = resolvedDestination;
+        ApplySyntheticOutcomeToTerritories(value, originTerritory, destination);
+    }
+
+    public static void ApplySyntheticOutcomeToTerritories(
+        ResolutionVisualEvent value, TerritorioClique originTerritory,
+        TerritorioClique destination)
+    {
+        if (value == null)
+            return;
+        if (originTerritory != null)
+            RestoreTerritory(originTerritory, value.Player, value.OriginAfter);
+        if (destination != null)
+            RestoreTerritory(destination, value.NewOwner,
+                value.DestinationAfter);
+    }
 
     private void UpdateSpeedLabel()
     {
@@ -573,6 +879,94 @@ public sealed class WDCombatContextLabController : MonoBehaviour
         confirmedShadowThickness, confirmedShadowIntensity,
         confirmedSpecularIntensity, confirmedReliefIntensity,
         confirmedSurfaceOpacity);
+
+    // ============================================================
+    // 06. CENÁRIOS DE RESOLUÇÃO — overrides exclusivos e imediatos do lab
+    // ============================================================
+    private void ApplyScenarioLabStyles()
+    {
+        attackPresenter?.ConfigureLabStyles(
+            BuildAttackStyle(true), BuildAttackStyle(false),
+            new WDAttackResolutionLabStyle(true, movementTravelDuration,
+                movementCurveFactor, movementCurveHeight, movementCounterScale,
+                .65f, 42f, 34f, .76f, movementSettleDuration));
+        attackPresenter?.ConfigureResolutionOverlayLabStyle(
+            new WDResolutionOverlayLabStyle(true, BuildConfirmedAttackStyle(),
+                resolutionArrowDuration, resolutionArrowSpeed,
+                resolutionArrowSyncOffset, conquestRevealDuration,
+                conquestRevealIntensity));
+        attackPresenter?.ConfigureLabGlassStyles(
+            BuildGlassStyle(casualtyFinish), BuildGlassStyle(counterFinish));
+        reinforcementPresenter?.ConfigureLabStyle(
+            new WDReinforcementResolutionLabStyle(true, reinforcementEntry,
+                reinforcementReaction, reinforcementExit,
+                reinforcementInitialScale, reinforcementPulseSize,
+                reinforcementPulseOpacity, reinforcementTextOffset,
+                reinforcementTextSize, reinforcementTextColor,
+                reinforcementTextOpacity, reinforcementOutlineWidth,
+                reinforcementOutlineOpacity, reinforcementRiseDistance));
+        reinforcementPresenter?.ConfigureLabGlassStyle(
+            BuildGlassStyle(reinforcementFinish));
+        transferPresenter?.ConfigureLabStyle(new WDTransferResolutionLabStyle(
+            true, handoffTransitionDuration, handoffReactionDuration,
+            new WDTransferOwnershipBadgeStyle(true, handoffBadgeSize,
+                handoffBadgeOffset, handoffArrowThickness,
+                handoffArrowOpacity, handoffSurfaceOpacity)));
+        transferPresenter?.ConfigureLabGlassStyle(
+            BuildGlassStyle(transferFinish));
+    }
+
+    // 06.1. SELETORES GLASS — o global pode ser substituído por componente.
+    private WDGameplayGlassStyle BuildGlassStyle(
+        WDGameplayVisualOverride component)
+    {
+        bool enabled = component == WDGameplayVisualOverride.GlassPremium ||
+            component == WDGameplayVisualOverride.UseGlobal &&
+            visualFinish == WDGameplayVisualFinish.GlassPremium;
+        return new WDGameplayGlassStyle(enabled, glassIntensity,
+            glassGradientStrength, glassReflectionIntensity,
+            glassBevelStrength, glassGlowIntensity, glassVariant);
+    }
+
+    private void ApplyCounterGlassStyles()
+    {
+        WDGameplayGlassStyle style = BuildGlassStyle(counterFinish);
+        foreach (TerritorioClique territory in new[] { origin, enemy, ally, handoff })
+        {
+            if (territory == null)
+                continue;
+            Color identity = PaletaJogadores.ObterCorAtiva(territory.dono);
+            territory.GetComponentInChildren<WDArmyCounterView>(true)?
+                .ConfigurarGlassLaboratorio(identity, style);
+        }
+    }
+
+    private void ApplyTerritoryLabFeedback()
+    {
+        foreach (TerritorioClique territory in new[] { origin, enemy, ally, handoff })
+            territory?.GetComponent<TerritorioVisual>()?.ConfigureLabFeedback(
+                selectionGlowIntensity, selectionGlowDuration,
+                reinforcementGlowIntensity, reinforcementGlowDuration);
+    }
+
+    private WDAttackResolutionLabStyle BuildAttackStyle(bool conquered) =>
+        conquered
+            ? new WDAttackResolutionLabStyle(true, conqueredTravelDuration,
+                conqueredCurveFactor, conqueredCurveHeight,
+                conqueredCounterScale, conqueredImpactDuration,
+                conqueredImpactSize, conqueredImpactSpread,
+                conqueredImpactOpacity, conqueredResultDuration,
+                conqueredTravelEase, conqueredContactHoldDuration,
+                conqueredContactPressureIntensity,
+                conqueredContactSeparation)
+            : new WDAttackResolutionLabStyle(true, defendedTravelDuration,
+                defendedCurveFactor, defendedCurveHeight,
+                defendedCounterScale, defendedImpactDuration,
+                defendedImpactSize, defendedImpactSpread,
+                defendedImpactOpacity, defendedResultDuration,
+                defendedTravelEase, defendedContactHoldDuration,
+                defendedContactPressureIntensity,
+                defendedContactSeparation);
 
     private static bool SameStyle(WDPreparedIndicatorStyle a,
         WDPreparedIndicatorStyle b) =>

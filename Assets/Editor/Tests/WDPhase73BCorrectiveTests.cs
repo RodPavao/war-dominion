@@ -120,6 +120,23 @@ public sealed class WDPhase73BCorrectiveTests
     }
 
     [Test]
+    public void LongPreviewRouteAddsChevronsAndKeepsTerminalClearanceSmall()
+    {
+        int shortCount = WDPreparedRouteGraphic.CalculateChevronCount(180f);
+        int longCount = WDPreparedRouteGraphic.CalculateChevronCount(520f);
+
+        Assert.That(longCount, Is.GreaterThan(shortCount));
+        Assert.That(longCount, Is.GreaterThan(8),
+            "Rotas longas nao podem continuar limitadas ao teto historico.");
+        float clearance = WDPreparedRouteGraphic.ChevronTerminalClearance(4.86f);
+        Assert.That(clearance, Is.EqualTo(5.43f).Within(.001f));
+        Assert.That(clearance, Is.GreaterThan(4.86f * .5f),
+            "A folga deve incluir o raio visivel e uma margem de seguranca.");
+        Assert.That(WDPreparedRouteGraphic.CalculateChevronCount(0f),
+            Is.EqualTo(1), "Rotas curtas devem reduzir a quantidade.");
+    }
+
+    [Test]
     public void LaboratoryApprovedIndicatorPresetKeepsExactApprovedValues()
     {
         WDPreparedIndicatorStyle style =

@@ -601,6 +601,17 @@ public class ContadorTropas : MonoBehaviour
         cliqueLongoExecutado = false;
     }
 
+    public void ResetTransientFeedback()
+    {
+        CancelarPressaoInput();
+        if (animacaoAtual != null) StopCoroutine(animacaoAtual);
+        animacaoAtual = null;
+        if (feedbackReforcoAtual != null) Destroy(feedbackReforcoAtual);
+        feedbackReforcoAtual = null;
+        transform.localScale = escalaOriginal;
+        novaVisualizacao?.ResetTransientFeedback();
+    }
+
     // =====================================================
     // 12. CLIQUE NORMAL
     // =====================================================

@@ -157,6 +157,7 @@ public sealed class PreparedActionArrowView : MonoBehaviour
         WDPreparedIndicatorStyle.DefaultAnimationSpeedMultiplier;
     private WDConfirmedAttackStyle confirmedAttackStyle =
         WDConfirmedAttackStyle.Default;
+    private WDGameplayGlassStyle labGlassStyle;
     private Color actionColor = Color.white;
 
     // ============================================================
@@ -222,6 +223,13 @@ public sealed class PreparedActionArrowView : MonoBehaviour
         ApplyConfirmedCardStyle();
     }
 
+    // 01.3.1. ACABAMENTO EXPERIMENTAL — altera somente a superfície do card.
+    public void ConfigureLabGlassStyle(WDGameplayGlassStyle style)
+    {
+        labGlassStyle = style;
+        ApplyConfirmedCardStyle();
+    }
+
     public void SetColorAndAmount(Color color, int value)
     {
         actionColor = color;
@@ -232,6 +240,40 @@ public sealed class PreparedActionArrowView : MonoBehaviour
         amountCard.gameObject.SetActive(
             mode == WDPreparedActionVisualMode.ConfirmedAttack && amount > 0);
     }
+
+    // 01.4. REVELAÇÃO DA RESOLUÇÃO — reutiliza a mesma malha aprovada; a
+    // preparação continua chamando somente SetGeometry e permanece estática.
+    public void SetRevealProgress(float value, bool amountFollowsTip)
+    {
+        route?.SetRevealProgress(value);
+        if (amountCard != null && route != null)
+            amountCard.anchoredPosition = amountFollowsTip
+                ? route.VisualEnd : route.Midpoint;
+    }
+
+    // 01.5. O contador viajante usa SpriteRenderer enquanto a rota vive em um
+    // Canvas Overlay. A oclusao recorta somente os pixels da rota cobertos pelo
+    // badge real, mantendo o contador visualmente em primeiro plano sem alterar
+    // profundidade, trajetoria ou a ordem dos contadores fixos.
+    public void SetCounterOcclusion(Vector2 center, float radius, bool enabled)
+    {
+        route?.ConfigureOcclusion(center, radius, enabled);
+    }
+
+    // 01.6. Geometria da resolucao: origem, controle e ponta ja representam o
+    // mesmo frame do contador viajante. Nao existe relogio interno adicional.
+    public void SetResolutionGeometry(Vector2 origin, Vector2 control,
+        Vector2 tip)
+    {
+        route.ConfigureDirectGeometry(origin, control, tip);
+        amountCard.anchoredPosition = route.Midpoint;
+        gameObject.SetActive(Vector2.Distance(origin, tip) >= 4f);
+    }
+
+    public Vector2 ResolutionVisualTip => route != null
+        ? route.VisualEnd : Vector2.zero;
+    public float ResolutionHeadLength => route != null
+        ? route.ConfirmedAttackStyle.HeadLength : 0f;
 
 
     private void ApplyConfirmedCardStyle()
@@ -290,6 +332,26 @@ public sealed class PreparedActionArrowView : MonoBehaviour
                 confirmedAttackStyle.CardTopReflection);
             amountReflection.gameObject.SetActive(
                 confirmedAttackStyle.CardTopReflection > .001f);
+        }
+        if (labGlassStyle.Enabled)
+        {
+            surface.color = new Color(.025f, .04f, .055f,
+                Mathf.Lerp(.90f, .99f, labGlassStyle.ProfiledGlassIntensity));
+            Color glassBorder = Color.Lerp(actionColor, Color.white,
+                .08f + labGlassStyle.ProfiledBevelStrength * .18f);
+            glassBorder.a = Mathf.Lerp(.72f, 1f,
+                labGlassStyle.ProfiledGlassIntensity);
+            outlines[0].effectColor = glassBorder;
+            outlines[0].effectDistance = Vector2.one * Mathf.Lerp(1f, 2f,
+                labGlassStyle.ProfiledBevelStrength);
+            amountLabel.color = Color.white;
+            if (amountReflection != null)
+            {
+                amountReflection.color = new Color(1f, 1f, 1f,
+                    .18f * labGlassStyle.ProfiledReflectionIntensity);
+                amountReflection.gameObject.SetActive(
+                    labGlassStyle.ProfiledReflectionIntensity > .001f);
+            }
         }
     }
 
@@ -391,6 +453,10 @@ public sealed class WDPreparedRouteGraphic : MaskableGraphic
     private Vector2 start;
     private Vector2 control;
     private Vector2 end;
+    private Vector2 fullStart;
+    private Vector2 fullControl;
+    private Vector2 fullEnd;
+    private float revealProgress = 1f;
     private WDPreparedActionVisualMode mode;
     private Color actionColor = Color.white;
     private float phase;
@@ -398,6 +464,9 @@ public sealed class WDPreparedRouteGraphic : MaskableGraphic
         WDPreparedIndicatorStyle.Default;
     private WDConfirmedAttackStyle confirmedAttackStyle =
         WDConfirmedAttackStyle.Default;
+    private bool occlusionEnabled;
+    private Vector2 occlusionCenter;
+    private float occlusionRadius;
 
     public Vector2 Midpoint => Bezier(start, control, end, .5f);
     public Vector2 VisualStart => start;
@@ -435,6 +504,14 @@ public sealed class WDPreparedRouteGraphic : MaskableGraphic
         SetVerticesDirty();
     }
 
+    public void ConfigureOcclusion(Vector2 center, float radius, bool enabled)
+    {
+        occlusionCenter = center;
+        occlusionRadius = Mathf.Max(0f, radius);
+        occlusionEnabled = enabled && occlusionRadius > .01f;
+        SetVerticesDirty();
+    }
+
     public void ConfigureGeometry(Vector2 origin, Vector2 destination,
         float inset, float curveFactor, float maxCurve)
     {
@@ -461,6 +538,7 @@ public sealed class WDPreparedRouteGraphic : MaskableGraphic
         Vector2 normal = new(-direction.y, direction.x);
         control = (start + end) * .5f + normal *
             Mathf.Min(maxCurve, length * curveFactor);
+        StoreFullGeometry();
         SetAllDirty();
     }
 
@@ -485,7 +563,43 @@ public sealed class WDPreparedRouteGraphic : MaskableGraphic
             -visualLength * .4f, visualLength * .4f);
         control = Vector2.Lerp(start, end, Mathf.Clamp01(curvePosition)) +
             normal * safeHeight;
+        StoreFullGeometry();
         SetAllDirty();
+    }
+
+    public void ConfigureDirectGeometry(Vector2 origin, Vector2 curveControl,
+        Vector2 destination)
+    {
+        start = origin;
+        control = curveControl;
+        end = destination;
+        StoreFullGeometry();
+        SetAllDirty();
+    }
+
+    public void SetRevealProgress(float value)
+    {
+        revealProgress = Mathf.Clamp01(value);
+        start = fullStart;
+        if (revealProgress >= .9999f)
+        {
+            control = fullControl;
+            end = fullEnd;
+        }
+        else
+        {
+            control = Vector2.Lerp(fullStart, fullControl, revealProgress);
+            end = Bezier(fullStart, fullControl, fullEnd, revealProgress);
+        }
+        SetVerticesDirty();
+    }
+
+    private void StoreFullGeometry()
+    {
+        fullStart = start;
+        fullControl = control;
+        fullEnd = end;
+        revealProgress = 1f;
     }
 
     protected override void OnPopulateMesh(VertexHelper vh) =>
@@ -516,10 +630,23 @@ public sealed class WDPreparedRouteGraphic : MaskableGraphic
 
     private void DrawChevrons(VertexHelper vh)
     {
-        int count = Mathf.Clamp(Mathf.FloorToInt(ApproximateLength() / 42f), 3, 8);
+        // 02.4. DISTRIBUIÇÃO POR COMPRIMENTO REAL — o limite histórico de oito
+        // chevrons deixava rotas longas vazias perto do destino. Mantemos a
+        // curva e o desenho aprovados, mas ocupamos seu comprimento útil com
+        // espaçamento uniforme e uma folga terminal menor que não ultrapassa o
+        // endpoint já recortado na borda do contador.
+        float length = ApproximateLength();
+        float firstDistance = Mathf.Min(24f, length * .16f);
+        float terminalClearance = ChevronTerminalClearance(
+            indicatorStyle.ChevronThickness);
+        float lastDistance = Mathf.Max(firstDistance,
+            length - terminalClearance);
+        int count = CalculateChevronCount(lastDistance - firstDistance);
         for (int i = 0; i < count; i++)
         {
-            float t = (i + 1f) / (count + 1f);
+            float ratio = count <= 1 ? 1f : i / (count - 1f);
+            float distance = Mathf.Lerp(firstDistance, lastDistance, ratio);
+            float t = FindTAtDistanceFromStart(distance);
             Vector2 point = Bezier(start, control, end, t);
             Vector2 back = -Tangent(start, control, end, t).normalized;
             Color c = Color.Lerp(actionColor, Color.white,
@@ -534,6 +661,22 @@ public sealed class WDPreparedRouteGraphic : MaskableGraphic
                 indicatorStyle.ChevronThickness, c);
             AddDisc(vh, point, indicatorStyle.ChevronThickness * .5f, c, 8);
         }
+    }
+
+    public static int CalculateChevronCount(float usableLength)
+    {
+        const float nominalSpacing = 34f;
+        return Mathf.Clamp(Mathf.FloorToInt(
+            Mathf.Max(0f, usableLength) / nominalSpacing) + 1, 1, 20);
+    }
+
+    // 02.4.1. O vértice aponta ao destino e os braços seguem para trás; logo,
+    // a extensão dianteira real é o raio do disco/junção mais uma margem curta.
+    // A contagem cai automaticamente em rotas que não comportem o espaçamento.
+    public static float ChevronTerminalClearance(float thickness)
+    {
+        const float safetyMargin = 3f;
+        return Mathf.Max(0f, thickness) * .5f + safetyMargin;
     }
 
     private void DrawDots(VertexHelper vh)
@@ -587,6 +730,13 @@ public sealed class WDPreparedRouteGraphic : MaskableGraphic
         Vector2 bodyEnd = Bezier(start, control, end, bodyEndT);
         Vector2 baseTangent = Tangent(start, control, end, bodyEndT).normalized;
         Vector2 baseNormal = new(-baseTangent.y, baseTangent.x);
+        bool headBehindCounter = OccludesTriangle(end,
+            bodyEnd + baseNormal * halfWidth,
+            bodyEnd - baseNormal * halfWidth);
+        // 02.3.1. Se a ponta estiver atrás do contador, o corpo continua até o
+        // fim lógico e é recortado exatamente na silhueta. Encerrar o corpo na
+        // antiga base da ponta criava uma lacuna do tamanho de HeadLength.
+        float visibleBodyEndT = headBehindCounter ? 1f : bodyEndT;
 
         // 02.3. CAMADAS CONTÍNUAS — uma faixa compartilhada por camada evita
         // sobreposição alfa nas junções e encerra o corpo na base da ponta.
@@ -597,7 +747,7 @@ public sealed class WDPreparedRouteGraphic : MaskableGraphic
                 -Mathf.Max(1f, confirmedAttackStyle.ShadowThickness * .65f));
             Color shadow = new(0f, 0f, 0f,
                 confirmedAttackStyle.ShadowIntensity);
-            AddBezierStrip(vh, bodyEndT,
+            AddBezierStrip(vh, visibleBodyEndT,
                 body + confirmedAttackStyle.ShadowThickness * 2f,
                 shadow, shadowOffset);
             AddArrowHead(vh, end + shadowOffset, bodyEnd + shadowOffset,
@@ -605,7 +755,7 @@ public sealed class WDPreparedRouteGraphic : MaskableGraphic
                 shadow);
         }
         if (confirmedAttackStyle.ReliefIntensity > 0f)
-            AddBezierStrip(vh, bodyEndT,
+            AddBezierStrip(vh, visibleBodyEndT,
                 body + confirmedAttackStyle.ReliefIntensity,
                 new Color(0f, 0f, 0f, Mathf.Clamp01(
                     confirmedAttackStyle.ReliefIntensity * .12f)),
@@ -614,26 +764,26 @@ public sealed class WDPreparedRouteGraphic : MaskableGraphic
         {
             Color glow = new(c.r, c.g, c.b,
                 Mathf.Min(.28f, confirmedAttackStyle.OuterGlow * .11f));
-            AddBezierStrip(vh, bodyEndT,
+            AddBezierStrip(vh, visibleBodyEndT,
                 body + confirmedAttackStyle.OuterGlow * 5f, glow, Vector2.zero);
             AddArrowHead(vh, end, bodyEnd, baseNormal,
                 halfWidth + confirmedAttackStyle.OuterGlow * 2.5f, glow);
         }
         if (confirmedAttackStyle.OutlineThickness > 0f)
         {
-            AddBezierStrip(vh, bodyEndT,
+            AddBezierStrip(vh, visibleBodyEndT,
                 body + confirmedAttackStyle.OutlineThickness * 2f,
                 outline, Vector2.zero);
             AddArrowHead(vh, end, bodyEnd, baseNormal,
                 halfWidth + confirmedAttackStyle.OutlineThickness, outline);
         }
-        AddBezierStrip(vh, bodyEndT, body, c, Vector2.zero);
+        AddBezierStrip(vh, visibleBodyEndT, body, c, Vector2.zero);
         AddArrowHead(vh, end, bodyEnd, baseNormal, halfWidth, c);
 
         float reflection = confirmedAttackStyle.Reflection +
             confirmedAttackStyle.SpecularIntensity;
         if (reflection > 0f)
-            AddBezierStrip(vh, bodyEndT, Mathf.Max(.5f, body * .18f),
+            AddBezierStrip(vh, visibleBodyEndT, Mathf.Max(.5f, body * .18f),
                 new Color(1f, 1f, 1f, Mathf.Clamp01(reflection * .45f)),
                 normal * body * .16f);
     }
@@ -658,10 +808,53 @@ public sealed class WDPreparedRouteGraphic : MaskableGraphic
         return 0f;
     }
 
+    private float FindTAtDistanceFromStart(float distance)
+    {
+        const int samples = 64;
+        float target = Mathf.Max(0f, distance);
+        float accumulated = 0f;
+        Vector2 previous = start;
+        for (int i = 1; i <= samples; i++)
+        {
+            float t = i / (float)samples;
+            Vector2 point = Bezier(start, control, end, t);
+            float segment = Vector2.Distance(previous, point);
+            if (accumulated + segment >= target)
+            {
+                float local = segment <= .0001f ? 0f :
+                    (target - accumulated) / segment;
+                return Mathf.Lerp((i - 1f) / samples, t,
+                    Mathf.Clamp01(local));
+            }
+            accumulated += segment;
+            previous = point;
+        }
+        return 1f;
+    }
+
     private void AddBezierStrip(VertexHelper vh, float endT, float width,
         Color color, Vector2 offset)
     {
         const int segments = 28;
+        if (occlusionEnabled)
+        {
+            for (int i = 0; i < segments; i++)
+            {
+                float t0 = endT * i / segments;
+                float t1 = endT * (i + 1f) / segments;
+                Vector2 a = Bezier(start, control, end, t0) + offset;
+                Vector2 b = Bezier(start, control, end, t1) + offset;
+                Vector2 sideA = NormalAt(t0) * width * .5f;
+                Vector2 sideB = NormalAt(t1) * width * .5f;
+                float halfWidth = width * .5f;
+                float centerlineRadius = Mathf.Sqrt(Mathf.Max(0f,
+                    occlusionRadius * occlusionRadius - halfWidth * halfWidth));
+                AddStripOutsideOcclusion(vh, a, b, sideA, sideB, color,
+                    centerlineRadius);
+            }
+            return;
+        }
+
         int first = vh.currentVertCount;
         for (int i = 0; i <= segments; i++)
         {
@@ -681,12 +874,104 @@ public sealed class WDPreparedRouteGraphic : MaskableGraphic
         }
     }
 
-    private static void AddArrowHead(VertexHelper vh, Vector2 tip,
+    private Vector2 NormalAt(float t)
+    {
+        Vector2 tangent = Tangent(start, control, end, t).normalized;
+        return new Vector2(-tangent.y, tangent.x);
+    }
+
+    // Recorta cada aproximação linear exatamente na circunferência projetada.
+    // Assim não descartamos um segmento inteiro antes do contador.
+    private void AddStripOutsideOcclusion(VertexHelper vh, Vector2 a, Vector2 b,
+        Vector2 sideA, Vector2 sideB, Color color, float radius)
+    {
+        Vector2 delta = b - a;
+        Vector2 relative = a - occlusionCenter;
+        float aa = Vector2.Dot(delta, delta);
+        if (aa <= .0001f)
+            return;
+        float bb = 2f * Vector2.Dot(relative, delta);
+        float cc = Vector2.Dot(relative, relative) - radius * radius;
+        float discriminant = bb * bb - 4f * aa * cc;
+        bool startsOutside = cc >= 0f;
+        if (discriminant <= 0f)
+        {
+            if (startsOutside)
+                AddStripPiece(vh, a, b, sideA, sideB, color, 0f, 1f);
+            return;
+        }
+
+        float root = Mathf.Sqrt(discriminant);
+        float enter = (-bb - root) / (2f * aa);
+        float exit = (-bb + root) / (2f * aa);
+        if (exit <= 0f || enter >= 1f)
+        {
+            if (startsOutside)
+                AddStripPiece(vh, a, b, sideA, sideB, color, 0f, 1f);
+            return;
+        }
+        if (enter > 0f)
+            AddStripPiece(vh, a, b, sideA, sideB, color, 0f,
+                Mathf.Clamp01(enter));
+        if (exit < 1f)
+            AddStripPiece(vh, a, b, sideA, sideB, color,
+                Mathf.Clamp01(exit), 1f);
+    }
+
+    private static void AddStripPiece(VertexHelper vh, Vector2 a, Vector2 b,
+        Vector2 sideA, Vector2 sideB, Color color, float from, float to)
+    {
+        if (to - from <= .0001f)
+            return;
+        Vector2 p0 = Vector2.Lerp(a, b, from);
+        Vector2 p1 = Vector2.Lerp(a, b, to);
+        Vector2 s0 = Vector2.Lerp(sideA, sideB, from);
+        Vector2 s1 = Vector2.Lerp(sideA, sideB, to);
+        AddQuad(vh, p0 - s0, p0 + s0, p1 + s1, p1 - s1, color);
+    }
+
+    private void AddArrowHead(VertexHelper vh, Vector2 tip,
         Vector2 baseCenter, Vector2 baseNormal, float halfWidth, Color color)
     {
-        AddTriangle(vh, tip, baseCenter + baseNormal * halfWidth,
-            baseCenter - baseNormal * halfWidth, color);
+        Vector2 left = baseCenter + baseNormal * halfWidth;
+        Vector2 right = baseCenter - baseNormal * halfWidth;
+        if (!OccludesTriangle(tip, left, right))
+            AddTriangle(vh, tip, left, right, color);
     }
+
+    private bool OccludesSegment(Vector2 a, Vector2 b, float halfWidth)
+    {
+        if (!occlusionEnabled)
+            return false;
+        Vector2 delta = b - a;
+        float denominator = delta.sqrMagnitude;
+        float t = denominator <= .0001f ? 0f : Mathf.Clamp01(
+            Vector2.Dot(occlusionCenter - a, delta) / denominator);
+        return Vector2.Distance(occlusionCenter, a + delta * t) <=
+            occlusionRadius + halfWidth;
+    }
+
+    private bool OccludesTriangle(Vector2 a, Vector2 b, Vector2 c)
+    {
+        if (!occlusionEnabled)
+            return false;
+        return PointInTriangle(occlusionCenter, a, b, c) ||
+            OccludesSegment(a, b, 0f) || OccludesSegment(b, c, 0f) ||
+            OccludesSegment(c, a, 0f);
+    }
+
+    private static bool PointInTriangle(Vector2 p, Vector2 a, Vector2 b,
+        Vector2 c)
+    {
+        float d1 = Cross(p - b, a - b);
+        float d2 = Cross(p - c, b - c);
+        float d3 = Cross(p - a, c - a);
+        bool hasNegative = d1 < 0f || d2 < 0f || d3 < 0f;
+        bool hasPositive = d1 > 0f || d2 > 0f || d3 > 0f;
+        return !(hasNegative && hasPositive);
+    }
+
+    private static float Cross(Vector2 a, Vector2 b) => a.x * b.y - a.y * b.x;
 
     private static Color Multiply(Color a, Color b) => new(
         a.r * b.r, a.g * b.g, a.b * b.b, a.a * b.a);
@@ -811,13 +1096,49 @@ public sealed class WDPreparedRouteGraphic : MaskableGraphic
 // ============================================================
 // 03. ÍCONE PROCEDURAL DE TRANSFERÊNCIA SEM DEPENDÊNCIA DE FONTE
 // ============================================================
+public readonly struct WDTransferOwnershipBadgeStyle
+{
+    public static WDTransferOwnershipBadgeStyle PreparationDefault => new(
+        true, new Vector2(58f, 46f), new Vector2(0f, -52f),
+        WDTransferCycleGraphic.EmphasizedBadgeThickness, 1f, .96f);
+
+    public readonly bool Enabled;
+    public readonly Vector2 Size;
+    public readonly Vector2 Offset;
+    public readonly float Thickness;
+    public readonly float Opacity;
+    public readonly float SurfaceOpacity;
+
+    public WDTransferOwnershipBadgeStyle(bool enabled, Vector2 size,
+        Vector2 offset, float thickness, float opacity, float surfaceOpacity)
+    {
+        Enabled = enabled;
+        Size = new Vector2(Mathf.Max(20f, size.x), Mathf.Max(20f, size.y));
+        Offset = offset;
+        Thickness = Mathf.Clamp(thickness, .5f, 10f);
+        Opacity = Mathf.Clamp01(opacity);
+        SurfaceOpacity = Mathf.Clamp01(surfaceOpacity);
+    }
+}
+
 public sealed class WDTransferCycleGraphic : MaskableGraphic
 {
     private Color iconColor = Color.white;
+    public const float DefaultThickness = 3f;
+    public const float EmphasizedBadgeThickness = 6f;
+    private float thickness = DefaultThickness;
+    private bool straightPair;
 
     public void Configure(Color value)
+        => Configure(value, DefaultThickness, 1f, false);
+
+    public void Configure(Color value, float newThickness, float newOpacity,
+        bool useStraightPair = false)
     {
         iconColor = value;
+        iconColor.a *= Mathf.Clamp01(newOpacity);
+        thickness = Mathf.Clamp(newThickness, .5f, 10f);
+        straightPair = useStraightPair;
         raycastTarget = false;
         maskable = false;
         material = Graphic.defaultGraphicMaterial;
@@ -826,31 +1147,100 @@ public sealed class WDTransferCycleGraphic : MaskableGraphic
     }
 
     protected override void OnPopulateMesh(VertexHelper vh)
+        => PopulateGeometry(vh);
+
+    public void PopulateGeometry(VertexHelper vh)
     {
         vh.Clear();
         float radius = Mathf.Max(6f,
             Mathf.Min(rectTransform.rect.width, rectTransform.rect.height) * .29f);
-        DrawArc(vh, Vector2.zero, radius, 20f, 155f, iconColor);
-        DrawArc(vh, Vector2.zero, radius, 200f, 335f, iconColor);
+        float safeThickness = ClampThickness(radius, thickness);
+        if (straightPair)
+        {
+            DrawStraightArrow(vh, radius, safeThickness, true, iconColor);
+            DrawStraightArrow(vh, radius, safeThickness, false, iconColor);
+            return;
+        }
+        DrawArc(vh, Vector2.zero, radius, 20f, 155f, safeThickness, iconColor);
+        DrawArc(vh, Vector2.zero, radius, 200f, 335f, safeThickness, iconColor);
     }
 
-    private static void DrawArc(VertexHelper vh, Vector2 center, float radius,
-        float from, float to, Color color)
+    private void DrawArc(VertexHelper vh, Vector2 center, float radius,
+        float from, float to, float width, Color color)
     {
-        const int steps = 11;
-        Vector2 previous = center + WDPreparedRouteGraphic.Polar(radius, from);
-        for (int i = 1; i <= steps; i++)
+        // 03.1. Uma faixa contínua compartilha vértices entre segmentos. Isso
+        // elimina sobreposição, cruzamentos e as emendas que deformavam o ícone
+        // quando a espessura era aumentada no laboratório.
+        const int steps = 24;
+        int firstVertex = vh.currentVertCount;
+        float half = width * .5f;
+        float direction = Mathf.Sign(to - from);
+        float arcDegrees = Mathf.Abs(to - from);
+        float headLength = Mathf.Min(
+            Mathf.Max(radius * .22f, width * 1.45f),
+            radius * arcDegrees * Mathf.Deg2Rad * .32f);
+        float headDegrees = headLength / radius * Mathf.Rad2Deg;
+        float bodyTo = to - direction * headDegrees;
+        Vector2 baseCenter = default;
+        for (int i = 0; i <= steps; i++)
         {
-            Vector2 next = center + WDPreparedRouteGraphic.Polar(radius,
-                Mathf.Lerp(from, to, i / (float)steps));
-            WDPreparedRouteGraphic.AddThickLine(vh, previous, next, 3f, color);
-            previous = next;
+            float angle = Mathf.Lerp(from, bodyTo, i / (float)steps);
+            Vector2 radial = WDPreparedRouteGraphic.Polar(1f, angle);
+            Vector2 point = center + radial * radius;
+            Vector2 tangent = WDPreparedRouteGraphic.Polar(1f, angle + 90f);
+            Vector2 normal = new(-tangent.y, tangent.x);
+            vh.AddVert(point + normal * half, color, Vector2.zero);
+            vh.AddVert(point - normal * half, color, Vector2.zero);
+            if (i > 0)
+            {
+                int current = firstVertex + i * 2;
+                int previous = current - 2;
+                vh.AddTriangle(previous, current, previous + 1);
+                vh.AddTriangle(current, current + 1, previous + 1);
+            }
+            baseCenter = point;
         }
-        Vector2 tangent = WDPreparedRouteGraphic.Polar(1f, to + 90f);
-        Vector2 left = Quaternion.Euler(0f, 0f, 28f) * -tangent;
-        Vector2 right = Quaternion.Euler(0f, 0f, -28f) * -tangent;
-        WDPreparedRouteGraphic.AddTriangle(vh, previous,
-            previous + left * 7f, previous + right * 7f, color);
+
+        // 03.2. O corpo termina na base real da ponta; o triângulo ocupa o
+        // trecho restante do arco e não recebe uma linha atravessando-o.
+        Vector2 tip = center + WDPreparedRouteGraphic.Polar(radius, to);
+        Vector2 tipTangent = WDPreparedRouteGraphic.Polar(
+            1f, to + direction * 90f).normalized;
+        float headHalfWidth = Mathf.Max(radius * .11f, width * .78f);
+        Vector2 headNormal = new(-tipTangent.y, tipTangent.x);
+        WDPreparedRouteGraphic.AddTriangle(vh, tip,
+            baseCenter + headNormal * headHalfWidth,
+            baseCenter - headNormal * headHalfWidth, color);
+    }
+
+    // 03.3. Limite proporcional mantém as duas setas separadas em badges
+    // pequenos sem alterar a espessura solicitada em dimensões normais.
+    public static float ClampThickness(float radius, float requested) =>
+        Mathf.Clamp(requested, .5f, Mathf.Max(.5f, radius * .42f));
+
+    // 03.4. BADGE RETO — dois corpos paralelos e pontas triangulares usam a
+    // mesma base geométrica, sem quads segmentados ou cruzamentos.
+    private static void DrawStraightArrow(VertexHelper vh, float radius,
+        float width, bool right, Color color)
+    {
+        float direction = right ? 1f : -1f;
+        float y = right ? radius * .42f : -radius * .42f;
+        float startX = -direction * radius;
+        float tipX = direction * radius;
+        float headLength = Mathf.Min(radius * .58f, Mathf.Max(width * 1.35f, 5f));
+        float baseX = tipX - direction * headLength;
+        float half = width * .5f;
+        int index = vh.currentVertCount;
+        vh.AddVert(new Vector2(startX, y + half), color, Vector2.zero);
+        vh.AddVert(new Vector2(baseX, y + half), color, Vector2.zero);
+        vh.AddVert(new Vector2(baseX, y - half), color, Vector2.zero);
+        vh.AddVert(new Vector2(startX, y - half), color, Vector2.zero);
+        vh.AddTriangle(index, index + 1, index + 2);
+        vh.AddTriangle(index, index + 2, index + 3);
+        float headHalf = Mathf.Max(width * .86f, 4f);
+        WDPreparedRouteGraphic.AddTriangle(vh, new Vector2(tipX, y),
+            new Vector2(baseX, y + headHalf),
+            new Vector2(baseX, y - headHalf), color);
     }
 }
 
@@ -860,36 +1250,173 @@ public sealed class WDTransferCycleGraphic : MaskableGraphic
 public sealed class WDTransferOwnershipBadgeView : MonoBehaviour
 {
     private RectTransform badge;
+    private WDTransferCycleGraphic cycleOutline;
     private WDTransferCycleGraphic cycle;
+    private WDTransferCycleGraphic cycleHighlight;
+    private Image surface;
+    private Outline surfaceOutline;
+    private Outline surfaceShadow;
+    private WDTransferOwnershipBadgeStyle style;
+    private Color identityColor = Color.white;
+    private bool premiumLabFinish;
+    private WDGameplayGlassStyle glassStyle;
+    private Image glassReflection;
 
-    public void Build(WarDominionUITheme theme)
+    public void Build(WarDominionUITheme theme, bool usePremiumLabFinish = false)
     {
+        premiumLabFinish = usePremiumLabFinish;
         badge = (RectTransform)transform;
         badge.anchorMin = badge.anchorMax = badge.pivot = new Vector2(.5f, .5f);
         badge.sizeDelta = new Vector2(58f, 46f);
-        Image image = gameObject.AddComponent<Image>();
-        image.color = new Color(.025f, .065f, .085f, .96f);
-        image.raycastTarget = false;
-        WDHomeUIFactory.ApplyRounded(image, 22);
+        surface = gameObject.AddComponent<Image>();
+        surface.color = new Color(.025f, .065f, .085f, .96f);
+        surface.raycastTarget = false;
+        WDHomeUIFactory.ApplyRounded(surface, 22);
+        surfaceOutline = gameObject.AddComponent<Outline>();
+        surfaceOutline.effectDistance = new Vector2(1f, -1f);
+        surfaceOutline.useGraphicAlpha = true;
+        if (premiumLabFinish)
+        {
+            surfaceShadow = gameObject.AddComponent<Outline>();
+            surfaceShadow.effectColor = new Color(0f, 0f, 0f, .34f);
+            surfaceShadow.effectDistance = new Vector2(1.5f, -2f);
+            surfaceShadow.useGraphicAlpha = true;
+        }
 
+        var reflectionObject = new GameObject("GlassReflection",
+            typeof(RectTransform), typeof(Image));
+        RectTransform reflectionRect = reflectionObject.GetComponent<RectTransform>();
+        reflectionRect.SetParent(badge, false);
+        reflectionRect.anchorMin = new Vector2(.12f, .56f);
+        reflectionRect.anchorMax = new Vector2(.88f, .86f);
+        reflectionRect.offsetMin = reflectionRect.offsetMax = Vector2.zero;
+        glassReflection = reflectionObject.GetComponent<Image>();
+        glassReflection.raycastTarget = false;
+        WDHomeUIFactory.ApplyRounded(glassReflection, 10);
+        glassReflection.gameObject.SetActive(false);
+
+        cycleOutline = CreateCycleGraphic("TransferCycleOutline", badge);
+        cycleOutline.Configure(new Color(16f / 255f, 24f / 255f,
+                32f / 255f, .94f),
+            WDTransferCycleGraphic.DefaultThickness + 2f, 1f, true);
+        cycle = CreateCycleGraphic("TransferCycle", badge);
+        cycle.Configure(new Color(.88f, .91f, .94f, 1f),
+            WDTransferCycleGraphic.DefaultThickness,
+            1f, true);
+        if (premiumLabFinish)
+        {
+            cycleHighlight = CreateCycleGraphic("TransferCycleHighlight", badge);
+            cycleHighlight.Configure(new Color(1f, 1f, 1f, .24f),
+                Mathf.Max(.75f, WDTransferCycleGraphic.DefaultThickness * .34f),
+                1f, true);
+            cycleHighlight.rectTransform.anchoredPosition = new Vector2(0f, .65f);
+        }
+    }
+
+    // 04.1. ACABAMENTO GLASS — opt-in; o badge clássico mantém seu desenho.
+    public void ConfigureGlassStyle(WDGameplayGlassStyle value)
+    {
+        glassStyle = value;
+        if (style.Enabled)
+            Configure(identityColor, style);
+    }
+
+    private static WDTransferCycleGraphic CreateCycleGraphic(string name,
+        RectTransform parent)
+    {
         var iconObject = new GameObject(
-            "TransferCycle", typeof(RectTransform), typeof(CanvasRenderer));
+            name, typeof(RectTransform), typeof(CanvasRenderer));
         RectTransform icon = iconObject.GetComponent<RectTransform>();
-        icon.SetParent(badge, false);
+        icon.SetParent(parent, false);
         icon.anchorMin = Vector2.zero;
         icon.anchorMax = Vector2.one;
         icon.offsetMin = icon.offsetMax = Vector2.zero;
-        cycle = iconObject.AddComponent<WDTransferCycleGraphic>();
-        cycle.Configure(theme.Acento);
+        return iconObject.AddComponent<WDTransferCycleGraphic>();
     }
 
-    public void SetPosition(Vector2 value) =>
-        badge.anchoredPosition = value + new Vector2(0f, -52f);
+    public void Configure(Color color, WDTransferOwnershipBadgeStyle value)
+    {
+        identityColor = color;
+        style = value;
+        if (!style.Enabled || badge == null || cycle == null)
+            return;
+        badge.sizeDelta = style.Size;
+        Color outlineColor = premiumLabFinish
+            ? new Color(16f / 255f, 24f / 255f, 32f / 255f,
+                Mathf.Clamp01(style.Opacity * .96f))
+            : Color.Lerp(new Color(.005f, .012f, .018f), identityColor, .12f);
+        if (!premiumLabFinish)
+            outlineColor.a = Mathf.Clamp01(style.Opacity * .82f);
+        cycleOutline?.Configure(outlineColor, style.Thickness + 2.2f,
+            1f, true);
+        Color arrowColor = premiumLabFinish
+            ? new Color(.88f, .91f, .94f, style.Opacity)
+            : identityColor;
+        cycle.Configure(arrowColor, style.Thickness,
+            premiumLabFinish ? 1f : style.Opacity, true);
+        cycleHighlight?.Configure(new Color(1f, 1f, 1f,
+                Mathf.Clamp01(style.Opacity * .22f)),
+            Mathf.Max(.65f, style.Thickness * .32f), 1f, true);
+        if (surface != null)
+        {
+            Color surfaceColor = Color.Lerp(new Color(.015f, .035f, .05f),
+                identityColor, .16f);
+            surfaceColor.a = style.SurfaceOpacity;
+            surface.color = surfaceColor;
+            if (surfaceOutline != null)
+            {
+                // 04.1. A superfície e a borda carregam a identidade dinâmica;
+                // as setas permanecem branco-prateadas para máxima leitura.
+                Color border = premiumLabFinish
+                    ? Color.Lerp(new Color(.24f, .28f, .32f),
+                        identityColor, .58f)
+                    : Color.Lerp(new Color(.06f, .09f, .12f),
+                        identityColor, .28f);
+                border.a = Mathf.Clamp01(style.Opacity * .68f);
+                surfaceOutline.effectColor = border;
+            }
+            if (glassStyle.Enabled)
+            {
+                Color glassSurface = Color.Lerp(new Color(.025f, .04f, .055f),
+                    identityColor, .34f * glassStyle.ProfiledGradientStrength);
+                glassSurface.a = Mathf.Lerp(.88f, style.SurfaceOpacity,
+                    glassStyle.ProfiledGlassIntensity);
+                surface.color = glassSurface;
+                Color silver = Color.Lerp(new Color(.74f, .78f, .82f),
+                    identityColor, .24f);
+                silver.a = Mathf.Lerp(.62f, .96f, glassStyle.ProfiledBevelStrength);
+                surfaceOutline.effectColor = silver;
+                if (surfaceShadow != null)
+                    surfaceShadow.effectColor = new Color(0f, 0f, 0f,
+                        .18f + glassStyle.ProfiledGlowIntensity * .20f);
+            }
+        }
+        if (glassReflection != null)
+        {
+            glassReflection.color = new Color(1f, 1f, 1f,
+                .16f * glassStyle.ProfiledReflectionIntensity);
+            glassReflection.gameObject.SetActive(glassStyle.Enabled &&
+                glassStyle.ProfiledReflectionIntensity > .001f);
+            glassReflection.transform.SetAsLastSibling();
+            cycleOutline?.transform.SetAsLastSibling();
+            cycle?.transform.SetAsLastSibling();
+            cycleHighlight?.transform.SetAsLastSibling();
+        }
+    }
+
+    public void SetPosition(Vector2 value) => badge.anchoredPosition = value +
+        (style.Enabled ? style.Offset : new Vector2(0f, -52f));
 
     private void Update()
     {
+        float angle = Mathf.Sin(Time.unscaledTime * 2.4f) * 5f;
+        if (cycleOutline != null)
+            cycleOutline.rectTransform.localEulerAngles =
+                new Vector3(0f, 0f, angle);
         if (cycle != null)
-            cycle.rectTransform.localEulerAngles = new Vector3(
-                0f, 0f, Mathf.Sin(Time.unscaledTime * 2.4f) * 5f);
+            cycle.rectTransform.localEulerAngles = new Vector3(0f, 0f, angle);
+        if (cycleHighlight != null)
+            cycleHighlight.rectTransform.localEulerAngles =
+                new Vector3(0f, 0f, angle);
     }
 }
